@@ -230,3 +230,68 @@ test('main routes backend coverage through the heavy lock and uses configured ba
   assert.equal(capturedOptions.commands[1].env.CARGO_BUILD_JOBS, '3');
   assert.equal(capturedOptions.commands[1].args.at(-1), '--test-threads=1');
 });
+
+test('main writes coverage summary output under tmp/test-governance', async () => {
+  const repoRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'oneflowbase-verify-coverage-log-'));
+
+  const status = await main(['frontend'], {
+    repoRoot,
+    env: {},
+    runtimeConfig: {
+      backend: {
+        cargoJobs: 2,
+        cargoTestThreads: 4,
+      },
+      locks: {
+        waitTimeoutMinutes: 30,
+        waitTimeoutMs: 30 * 60 * 1000,
+        pollIntervalMs: 5000,
+      },
+    },
+    spawnSyncImpl() {
+      return {
+        status: 0,
+        stdout: 'frontend coverage run complete\n',
+        stderr: 'coverage advisory\n',
+      };
+    },
+    readFileSyncImpl() {
+      return JSON.stringify({
+        total: {
+          lines: { pct: 100 },
+          functions: { pct: 100 },
+          statements: { pct: 100 },
+          branches: { pct: 100 },
+        },
+        [`${repoRoot}/web/app/src/features/agent-flow/pages/AgentFlowEditorPage.tsx`]: {
+          lines: { pct: 100 },
+          functions: { pct: 100 },
+          statements: { pct: 100 },
+          branches: { pct: 100 },
+        },
+        [`${repoRoot}/web/app/src/features/settings/components/RolePermissionPanel.tsx`]: {
+          lines: { pct: 100 },
+          functions: { pct: 100 },
+          statements: { pct: 100 },
+          branches: { pct: 100 },
+        },
+      });
+    },
+    writeStdout() {},
+    writeStderr() {},
+  });
+
+  assert.equal(status, 0);
+  const summaryLogPath = path.join(repoRoot, 'tmp', 'test-governance', 'coverage-summary.log');
+  const warningLogPath = path.join(
+    repoRoot,
+    'tmp',
+    'test-governance',
+    'verify-coverage-frontend.warnings.log'
+  );
+  assert.equal(fs.existsSync(summaryLogPath), true);
+  assert.match(fs.readFileSync(summaryLogPath, 'utf8'), /frontend coverage run complete/u);
+  assert.match(fs.readFileSync(summaryLogPath, 'utf8'), /Coverage thresholds passed/u);
+  assert.equal(fs.existsSync(warningLogPath), true);
+  assert.match(fs.readFileSync(warningLogPath, 'utf8'), /coverage advisory/u);
+});

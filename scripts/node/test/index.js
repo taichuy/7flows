@@ -182,7 +182,7 @@ async function runFrontend(argv = [], deps = {}) {
   return managedRunner({
     repoRoot,
     env,
-    scope: `test-frontend-${options.layer}`,
+    scope: `frontend-${options.layer}`,
     lockMode: options.layer === 'full' ? 'heavy' : 'none',
     commandDisplay: `node scripts/node/test-frontend.js ${options.layer}`.trim(),
     runtimeConfig,

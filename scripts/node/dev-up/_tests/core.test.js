@@ -14,6 +14,7 @@ const {
   buildServiceEnv,
   getServicePrestartCommands,
   runServicePrestartCommands,
+  resolveComposeCommand,
   ensureRustfsVolumePermissions,
   waitForServicePort,
 } = require('../core.js');
@@ -169,7 +170,7 @@ test('ensureServiceEnvFile seeds api env defaults and buildServiceEnv loads them
   assert.equal(env.EXTRA_FLAG, 'enabled');
 });
 
-test('ensureServiceEnvFile migrates legacy api-server brand defaults in existing env file', () => {
+test('ensureServiceEnvFile leaves existing api-server env values untouched even if they use old branding', () => {
   const tempRepoRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'oneflowbase-dev-up-legacy-env-'));
   const apiServerDir = path.join(tempRepoRoot, 'api', 'apps', 'api-server');
   const envExamplePath = path.join(apiServerDir, '.env.example');
@@ -199,15 +200,48 @@ test('ensureServiceEnvFile migrates legacy api-server brand defaults in existing
   const services = getServiceDefinitions(tempRepoRoot);
   const apiService = services['api-server'];
 
-  assert.equal(ensureServiceEnvFile(apiService), true);
+  assert.equal(ensureServiceEnvFile(apiService), false);
 
   const env = buildServiceEnv(apiService, {});
 
-  assert.equal(env.API_DATABASE_URL, 'postgres://postgres:1flowbase@127.0.0.1:35432/1flowbase');
-  assert.equal(env.API_REDIS_URL, 'redis://:1flowbase@127.0.0.1:36379');
-  assert.equal(env.API_COOKIE_NAME, 'flowbase_console_session');
-  assert.equal(env.BOOTSTRAP_WORKSPACE_NAME, '1flowbase');
+  assert.equal(env.API_DATABASE_URL, 'postgres://postgres:sevenflows@127.0.0.1:35432/sevenflows');
+  assert.equal(env.API_REDIS_URL, 'redis://:sevenflows@127.0.0.1:36379');
+  assert.equal(env.API_COOKIE_NAME, 'flowse_console_session');
+  assert.equal(env.BOOTSTRAP_WORKSPACE_NAME, '1Flowse');
   assert.equal(env.BOOTSTRAP_ROOT_PASSWORD, 'change-me');
+});
+
+test('resolveComposeCommand no longer falls back to docker-compose', () => {
+  assert.throws(
+    () =>
+      resolveComposeCommand({
+        resetCache: true,
+        runCommandImpl(command, args) {
+          if (command === 'docker' && args[0] === 'compose') {
+            return {
+              status: 1,
+              stdout: '',
+              stderr: 'docker compose plugin missing\n',
+            };
+          }
+
+          if (command === 'docker-compose') {
+            return {
+              status: 0,
+              stdout: 'docker-compose version 1.29.2\n',
+              stderr: '',
+            };
+          }
+
+          return {
+            status: 1,
+            stdout: '',
+            stderr: '',
+          };
+        },
+      }),
+    /docker compose/u
+  );
 });
 
 test('getServicePrestartCommands resets api root password in development mode', () => {

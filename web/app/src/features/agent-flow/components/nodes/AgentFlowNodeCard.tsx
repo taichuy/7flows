@@ -109,7 +109,13 @@ export function AgentFlowNodeCard({
             }
             placement="top"
             color="#ffffff"
-            overlayInnerStyle={{ color: '#333', borderRadius: 8, boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}
+            styles={{
+              body: {
+                color: '#333',
+                borderRadius: 8,
+                boxShadow: '0 4px 12px rgba(0,0,0,0.1)'
+              }
+            }}
             open={!data.pickerOpen ? undefined : false} /* Disable tooltip when popover is open */
           >
             <CanvasHandle

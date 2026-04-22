@@ -9,24 +9,6 @@ const DEFAULT_STARTUP_TIMEOUT_MS = 15_000;
 const CARGO_COLD_STARTUP_TIMEOUT_MS = 60_000;
 const LOOPBACK_NO_PROXY_ENTRIES = ['localhost', '127.0.0.1', '127.0.0.0/8', '::1'];
 const LOCAL_POSTGRES_HOSTS = new Set(['127.0.0.1', 'localhost']);
-const LEGACY_API_SERVER_ENV_RENAMES = {
-  API_DATABASE_URL: {
-    legacy: 'postgres://postgres:sevenflows@127.0.0.1:35432/sevenflows',
-    current: 'postgres://postgres:1flowbase@127.0.0.1:35432/1flowbase',
-  },
-  API_REDIS_URL: {
-    legacy: 'redis://:sevenflows@127.0.0.1:36379',
-    current: 'redis://:1flowbase@127.0.0.1:36379',
-  },
-  API_COOKIE_NAME: {
-    legacy: 'flowse_console_session',
-    current: 'flowbase_console_session',
-  },
-  BOOTSTRAP_WORKSPACE_NAME: {
-    legacy: '1Flowse',
-    current: '1flowbase',
-  },
-};
 
 function getRepoRoot() {
   return path.resolve(__dirname, '..', '..', '..');
@@ -282,73 +264,19 @@ function parseEnvFile(filePath) {
   return env;
 }
 
-function migrateLegacyApiServerEnvFile(service) {
-  if (!service?.envFile || service.key !== 'api-server' || !fs.existsSync(service.envFile)) {
-    return false;
-  }
-
-  const originalContent = fs.readFileSync(service.envFile, 'utf8');
-  let changed = false;
-
-  const migratedContent = originalContent
-    .split(/\r?\n/)
-    .map((line) => {
-      const separatorIndex = line.indexOf('=');
-      if (separatorIndex <= 0) {
-        return line;
-      }
-
-      const key = line.slice(0, separatorIndex).trim();
-      const rename = LEGACY_API_SERVER_ENV_RENAMES[key];
-      if (!rename) {
-        return line;
-      }
-
-      const rawValue = line.slice(separatorIndex + 1);
-      const trimmedValue = rawValue.trim();
-      let currentValue = trimmedValue;
-      let quote = '';
-
-      if (
-        (trimmedValue.startsWith('"') && trimmedValue.endsWith('"')) ||
-        (trimmedValue.startsWith("'") && trimmedValue.endsWith("'"))
-      ) {
-        quote = trimmedValue[0];
-        currentValue = trimmedValue.slice(1, -1);
-      }
-
-      if (currentValue !== rename.legacy) {
-        return line;
-      }
-
-      changed = true;
-      const nextValue = quote ? `${quote}${rename.current}${quote}` : rename.current;
-      return `${line.slice(0, separatorIndex + 1)}${nextValue}`;
-    })
-    .join('\n');
-
-  if (!changed) {
-    return false;
-  }
-
-  fs.writeFileSync(service.envFile, migratedContent);
-  log(`已迁移 ${path.relative(service.repoRoot || getRepoRoot(), service.envFile)} 中的旧品牌默认配置`);
-  return true;
-}
-
 function ensureServiceEnvFile(service) {
   if (!service.envFile || !service.envExampleFile) {
     return false;
   }
 
   if (fs.existsSync(service.envFile) || !fs.existsSync(service.envExampleFile)) {
-    return migrateLegacyApiServerEnvFile(service);
+    return false;
   }
 
   fs.mkdirSync(path.dirname(service.envFile), { recursive: true });
   fs.copyFileSync(service.envExampleFile, service.envFile);
   log(`已创建 ${path.relative(service.repoRoot || getRepoRoot(), service.envFile)}`);
-  return migrateLegacyApiServerEnvFile(service) || true;
+  return true;
 }
 
 function buildServiceEnv(service, sourceEnv = process.env) {
@@ -625,12 +553,16 @@ function ensureCommandSuccess(description, result) {
 
 let cachedComposeCommand = null;
 
-function resolveComposeCommand() {
+function resolveComposeCommand({ resetCache = false, runCommandImpl = runCommand } = {}) {
+  if (resetCache) {
+    cachedComposeCommand = null;
+  }
+
   if (cachedComposeCommand) {
     return cachedComposeCommand;
   }
 
-  const dockerComposeResult = runCommand('docker', ['compose', 'version'], {
+  const dockerComposeResult = runCommandImpl('docker', ['compose', 'version'], {
     captureOutput: true,
   });
   if (!dockerComposeResult.error && dockerComposeResult.status === 0) {
@@ -638,15 +570,7 @@ function resolveComposeCommand() {
     return cachedComposeCommand;
   }
 
-  const legacyComposeResult = runCommand('docker-compose', ['version'], {
-    captureOutput: true,
-  });
-  if (!legacyComposeResult.error && legacyComposeResult.status === 0) {
-    cachedComposeCommand = { command: 'docker-compose', baseArgs: [] };
-    return cachedComposeCommand;
-  }
-
-  throw new Error('缺少 `docker compose` 或 `docker-compose` 命令');
+  throw new Error('缺少 `docker compose` 命令');
 }
 
 function ensureMiddlewareEnv(repoRoot) {
@@ -1017,6 +941,7 @@ module.exports = {
   buildServiceEnv,
   getServicePrestartCommands,
   runServicePrestartCommands,
+  resolveComposeCommand,
   ensureRustfsVolumePermissions,
   waitForServicePort,
   main,

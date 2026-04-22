@@ -4,12 +4,11 @@ use plugin_framework::{
     error::{FrameworkResult, PluginFrameworkError},
     provider_contract::{
         ModelDiscoveryMode, ProviderInvocationInput, ProviderInvocationResult,
-        ProviderModelDescriptor, ProviderModelSource, ProviderStdioMethod,
-        ProviderStdioRequest, ProviderStreamEvent,
+        ProviderModelDescriptor, ProviderStdioMethod, ProviderStdioRequest, ProviderStreamEvent,
     },
 };
 use serde::{Deserialize, Serialize};
-use serde_json::{Map, Value};
+use serde_json::Value;
 
 use crate::package_loader::{LoadedProviderPackage, PackageLoader};
 use crate::stdio_runtime::call_executable;
@@ -164,47 +163,14 @@ impl ProviderHost {
 }
 
 #[derive(Debug, Deserialize)]
-struct LegacyModelDescriptor {
-    code: String,
-    label: String,
-    family: Option<String>,
-    mode: Option<String>,
-}
-
-#[derive(Debug, Deserialize)]
 struct RuntimeInvocationEnvelope {
     events: Vec<ProviderStreamEvent>,
     result: ProviderInvocationResult,
 }
 
 fn normalize_models(raw: Value) -> FrameworkResult<Vec<ProviderModelDescriptor>> {
-    if raw
-        .as_array()
-        .and_then(|models| models.first())
-        .and_then(|model| model.get("model_id"))
-        .is_some()
-    {
-        return serde_json::from_value(raw)
-            .map_err(|error| PluginFrameworkError::invalid_provider_contract(error.to_string()));
-    }
-
-    let legacy_models: Vec<LegacyModelDescriptor> = serde_json::from_value(raw)
-        .map_err(|error| PluginFrameworkError::invalid_provider_contract(error.to_string()))?;
-    Ok(legacy_models
-        .into_iter()
-        .map(|model| ProviderModelDescriptor {
-            model_id: model.code,
-            display_name: model.label,
-            source: ProviderModelSource::Dynamic,
-            supports_streaming: true,
-            supports_tool_call: false,
-            supports_multimodal: model.mode.as_deref() == Some("multimodal"),
-            context_window: None,
-            max_output_tokens: None,
-            parameter_form: None,
-            provider_metadata: legacy_model_metadata(model.family, model.mode),
-        })
-        .collect())
+    serde_json::from_value(raw)
+        .map_err(|error| PluginFrameworkError::invalid_provider_contract(error.to_string()))
 }
 
 fn merge_models(
@@ -221,17 +187,6 @@ fn merge_models(
     merged.into_values().collect()
 }
 
-fn legacy_model_metadata(family: Option<String>, mode: Option<String>) -> Value {
-    let mut object = Map::new();
-    if let Some(family) = family {
-        object.insert("family".to_string(), Value::String(family));
-    }
-    if let Some(mode) = mode {
-        object.insert("mode".to_string(), Value::String(mode));
-    }
-    Value::Object(object)
-}
-
 fn normalize_invoke_output(raw: Value) -> FrameworkResult<ProviderInvokeStreamOutput> {
     let envelope: RuntimeInvocationEnvelope = serde_json::from_value(raw)
         .map_err(|error| PluginFrameworkError::invalid_provider_contract(error.to_string()))?;
@@ -239,4 +194,44 @@ fn normalize_invoke_output(raw: Value) -> FrameworkResult<ProviderInvokeStreamOu
         events: envelope.events,
         result: envelope.result,
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use serde_json::json;
+
+    #[test]
+    fn normalize_models_accepts_current_provider_descriptor_shape() {
+        let models = normalize_models(json!([{
+            "model_id": "gpt-4o-mini",
+            "display_name": "GPT-4o mini",
+            "source": "dynamic",
+            "supports_streaming": true,
+            "supports_tool_call": false,
+            "supports_multimodal": false,
+            "context_window": null,
+            "max_output_tokens": null,
+            "parameter_form": null,
+            "provider_metadata": {}
+        }]))
+        .expect("current provider descriptor shape should stay supported");
+
+        assert_eq!(models.len(), 1);
+        assert_eq!(models[0].model_id, "gpt-4o-mini");
+    }
+
+    #[test]
+    fn normalize_models_rejects_legacy_provider_descriptor_shape() {
+        assert!(
+            normalize_models(json!([{
+                "code": "gpt-4o-mini",
+                "label": "GPT-4o mini",
+                "family": "llm",
+                "mode": "chat"
+            }]))
+            .is_err(),
+            "legacy code/label model descriptors should be rejected once current contract is the only supported shape"
+        );
+    }
 }

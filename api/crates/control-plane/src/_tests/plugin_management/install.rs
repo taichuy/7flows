@@ -250,3 +250,39 @@ async fn plugin_management_service_syncs_manifest_node_contributions_on_install(
         NodeContributionDependencyStatus::MissingPlugin
     );
 }
+
+#[tokio::test]
+async fn plugin_management_service_labels_local_install_with_current_install_kind() {
+    let workspace_id = Uuid::now_v7();
+    let repository = MemoryPluginManagementRepository::new(actor_with_permissions(
+        workspace_id,
+        &["plugin_config.view.all", "plugin_config.configure.all"],
+    ));
+    let actor_user_id = repository.actor.user_id;
+    let runtime = MemoryProviderRuntime::default();
+    let nonce = Uuid::now_v7().to_string();
+    let package_root = std::env::temp_dir().join(format!("plugin-current-install-kind-{nonce}"));
+    let install_root =
+        std::env::temp_dir().join(format!("plugin-current-install-kind-installed-{nonce}"));
+    create_provider_fixture(&package_root);
+
+    let service = PluginManagementService::new(
+        repository,
+        runtime,
+        Arc::new(MemoryOfficialPluginSource::default()),
+        &install_root,
+    );
+
+    let result = service
+        .install_plugin(InstallPluginCommand {
+            actor_user_id,
+            package_root: package_root.display().to_string(),
+        })
+        .await
+        .unwrap();
+
+    assert_eq!(
+        result.installation.metadata_json["install_kind"].as_str(),
+        Some("uploaded_manual_install")
+    );
+}

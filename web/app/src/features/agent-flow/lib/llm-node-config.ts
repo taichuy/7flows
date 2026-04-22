@@ -90,23 +90,24 @@ export function buildLlmParameterState(
 export function getLlmModelProvider(config: Record<string, unknown>): LlmNodeModelProvider {
   const provider = config.model_provider;
 
-  if (isRecord(provider)) {
+  if (!isRecord(provider)) {
     return {
-      provider_code: asString(provider.provider_code),
-      model_id: asString(provider.model_id),
-      protocol: asString(provider.protocol) || undefined,
-      provider_label: asString(provider.provider_label) || undefined,
-      model_label: asString(provider.model_label) || undefined,
-      schema_fetched_at: asString(provider.schema_fetched_at) || undefined
+      provider_code: '',
+      model_id: '',
+      protocol: undefined,
+      provider_label: undefined,
+      model_label: undefined,
+      schema_fetched_at: undefined
     };
   }
 
   return {
-    provider_code: asString(config.provider_code),
-    model_id: asString(config.model),
-    protocol: asString(config.protocol) || undefined,
-    provider_label: asString(config.provider_label) || undefined,
-    model_label: asString(config.model_label) || undefined
+    provider_code: asString(provider.provider_code),
+    model_id: asString(provider.model_id),
+    protocol: asString(provider.protocol) || undefined,
+    provider_label: asString(provider.provider_label) || undefined,
+    model_label: asString(provider.model_label) || undefined,
+    schema_fetched_at: asString(provider.schema_fetched_at) || undefined
   };
 }
 
@@ -136,29 +137,7 @@ export function getLlmParameters(config: Record<string, unknown>): LlmNodeParame
     };
   }
 
-  const legacyItems = Object.fromEntries(
-    [
-      ['temperature', true, config.temperature],
-      ['top_p', Boolean(config.top_p_enabled), config.top_p],
-      ['presence_penalty', Boolean(config.presence_penalty_enabled), config.presence_penalty],
-      ['frequency_penalty', Boolean(config.frequency_penalty_enabled), config.frequency_penalty],
-      ['max_tokens', Boolean(config.max_tokens_enabled), config.max_tokens],
-      ['seed', Boolean(config.seed_enabled), config.seed]
-    ]
-      .filter(([, , value]) => value !== undefined)
-      .map(([key, enabled, value]) => [
-        key,
-        {
-          enabled: Boolean(enabled),
-          value
-        } satisfies LlmParameterItem
-      ])
-  );
-
-  return {
-    schema_version: '1.0.0',
-    items: legacyItems
-  };
+  return DEFAULT_LLM_PARAMETERS;
 }
 
 export function getLlmResponseFormat(config: Record<string, unknown>): LlmNodeResponseFormat {

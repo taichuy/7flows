@@ -69,7 +69,10 @@ test('fast layer only runs app vitest and writes advisory warnings', async () =>
   assert.equal(calls[0].command, 'pnpm');
   assert.deepEqual(calls[0].args, ['--dir', 'web/app', 'test']);
 
-  const warningLogPath = path.join(repoRoot, 'tmp', 'test-governance', 'test-frontend-fast.warnings.log');
+  const fastLogPath = path.join(repoRoot, 'tmp', 'test-governance', 'frontend-fast.log');
+  const warningLogPath = path.join(repoRoot, 'tmp', 'test-governance', 'frontend-fast.warnings.log');
+  assert.equal(fs.existsSync(fastLogPath), true);
+  assert.match(fs.readFileSync(fastLogPath, 'utf8'), /warning: vitest advisory/u);
   assert.equal(fs.existsSync(warningLogPath), true);
   assert.match(fs.readFileSync(warningLogPath, 'utf8'), /warning: vitest advisory/u);
 });
@@ -92,9 +95,10 @@ test('main marks full frontend gate as heavy lock mode', async () => {
 
 test('main keeps fast frontend gate outside heavy lock mode', async () => {
   let capturedLockMode = null;
+  const repoRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'oneflowbase-test-frontend-lock-'));
 
   const status = await main(['fast'], {
-    repoRoot: '/repo-root',
+    repoRoot,
     env: {},
     managedRunnerImpl(options) {
       capturedLockMode = options.lockMode;

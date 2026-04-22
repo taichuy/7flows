@@ -162,8 +162,7 @@ function readPluginCode(pluginPath) {
     return sanitizeCode(pluginIdMatch[1]);
   }
 
-  const legacyMatch = content.match(/^plugin_code:\s*(.+)$/m);
-  return sanitizeCode(legacyMatch ? legacyMatch[1] : getPluginName(pluginPath));
+  return sanitizeCode(getPluginName(pluginPath));
 }
 
 function readManifestField(pluginPath, fieldName, fallbackValue) {

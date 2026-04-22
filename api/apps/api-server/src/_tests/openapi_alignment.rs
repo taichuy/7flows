@@ -177,6 +177,29 @@ async fn openapi_contains_application_console_routes() {
 }
 
 #[tokio::test]
+async fn openapi_plugin_descriptions_drop_compatibility_wording() {
+    let response = app()
+        .oneshot(
+            Request::builder()
+                .uri("/openapi.json")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+
+    assert_eq!(response.status(), StatusCode::OK);
+
+    let body = to_bytes(response.into_body(), usize::MAX).await.unwrap();
+    let payload: Value = serde_json::from_slice(&body).unwrap();
+    let serialized = serde_json::to_string(&payload).unwrap();
+
+    assert!(!serialized.contains("compatible with future generic plugin kinds"));
+    assert!(!serialized.contains("for compatibility"));
+    assert!(!serialized.contains("provider-only plugin packages"));
+}
+
+#[tokio::test]
 async fn openapi_excludes_legacy_member_mutation_routes() {
     let paths = openapi_paths().await;
     let app = test_app().await;

@@ -39,7 +39,7 @@ struct InstallSourceMetadata {
 }
 
 impl InstallSourceMetadata {
-    fn legacy_manual_import() -> Self {
+    fn uploaded_manual_install() -> Self {
         Self {
             source_kind: "uploaded".to_string(),
             trust_level: "checksum_only".to_string(),
@@ -172,9 +172,9 @@ where
         let package_root = command.package_root.clone();
         self.install_plugin_with_metadata(
             command,
-            InstallSourceMetadata::legacy_manual_import(),
+            InstallSourceMetadata::uploaded_manual_install(),
             json!({
-                "install_kind": "legacy_manual_import",
+                "install_kind": "uploaded_manual_install",
                 "package_root": package_root,
             }),
         )
@@ -460,6 +460,10 @@ where
             if is_host_extension_manifest(&manifest) {
                 ensure_root_actor(&actor)?;
                 ensure_uploaded_host_extensions_enabled(self.allow_uploaded_host_extensions)?;
+                let mut metadata_json = json!({});
+                if let Some(install_kind) = detail_json.get("install_kind").cloned() {
+                    metadata_json["install_kind"] = install_kind;
+                }
                 let installation = self
                     .repository
                     .upsert_installation(&UpsertPluginInstallationInput {
@@ -491,7 +495,7 @@ where
                         signature_algorithm: source_metadata.signature_algorithm.clone(),
                         signing_key_id: source_metadata.signing_key_id.clone(),
                         last_load_error: None,
-                        metadata_json: json!({}),
+                        metadata_json,
                         actor_user_id: command.actor_user_id,
                     })
                     .await?;
@@ -513,6 +517,15 @@ where
             }
 
             let installed_package = load_provider_package(&install_path)?;
+            let mut metadata_json = json!({
+                "help_url": installed_package.provider.help_url,
+                "default_base_url": installed_package.provider.default_base_url,
+                "model_discovery_mode": format!("{:?}", installed_package.provider.model_discovery_mode).to_ascii_lowercase(),
+                "supported_model_types": ["llm"],
+            });
+            if let Some(install_kind) = detail_json.get("install_kind").cloned() {
+                metadata_json["install_kind"] = install_kind;
+            }
             let installation = self
                 .repository
                 .upsert_installation(&UpsertPluginInstallationInput {
@@ -544,12 +557,7 @@ where
                     signature_algorithm: source_metadata.signature_algorithm.clone(),
                     signing_key_id: source_metadata.signing_key_id.clone(),
                     last_load_error: None,
-                    metadata_json: json!({
-                        "help_url": installed_package.provider.help_url,
-                        "default_base_url": installed_package.provider.default_base_url,
-                        "model_discovery_mode": format!("{:?}", installed_package.provider.model_discovery_mode).to_ascii_lowercase(),
-                        "supported_model_types": ["llm"],
-                    }),
+                    metadata_json,
                     actor_user_id: command.actor_user_id,
                 })
                 .await?;

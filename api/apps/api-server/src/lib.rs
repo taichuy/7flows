@@ -95,12 +95,12 @@ fn cors_layer(config: &ApiConfig) -> CorsLayer {
     }
 }
 
-fn base_router(include_legacy_docs: bool) -> Router {
+fn base_router(include_docs_ui: bool) -> Router {
     let router = Router::new()
         .route("/health", get(health))
         .route("/api/console/health", get(console_health));
 
-    if include_legacy_docs {
+    if include_docs_ui {
         router.merge(SwaggerUi::new("/docs").url("/openapi.json", openapi::ApiDoc::openapi()))
     } else {
         router

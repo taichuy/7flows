@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, screen, waitFor } from '@testing-library/react';
 import { Grid } from 'antd';
 import { beforeEach, describe, expect, test, vi } from 'vitest';
 
@@ -27,9 +27,9 @@ vi.mock('../api/runtime', () => runtimeApi);
 vi.mock('../api/node-contributions', () => nodeContributionsApi);
 
 import { createDefaultAgentFlowDocument } from '@1flowbase/flow-schema';
-import { AppProviders } from '../../../app/AppProviders';
 import { resetAuthStore, useAuthStore } from '../../../state/auth-store';
 import { AgentFlowEditorPage } from '../pages/AgentFlowEditorPage';
+import { renderReactFlowScene } from '../../../test/renderers/render-react-flow-scene';
 
 function createInitialState() {
   return {
@@ -170,13 +170,11 @@ describe('node last run runtime', () => {
   });
 
   test('runs node preview and refreshes last-run cards', async () => {
-    render(
-      <AppProviders>
-        <AgentFlowEditorPage
-          applicationId="app-1"
-          applicationName="Support Agent"
-        />
-      </AppProviders>
+    renderReactFlowScene(
+      <AgentFlowEditorPage
+        applicationId="app-1"
+        applicationName="Support Agent"
+      />
     );
 
     fireEvent.click(await screen.findByRole('button', { name: '运行当前节点' }));

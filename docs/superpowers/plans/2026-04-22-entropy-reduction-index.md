@@ -32,13 +32,13 @@
 7. [2026-04-22-scripts-node-normalization-phase-three.md](./2026-04-22-scripts-node-normalization-phase-three.md)
    Completed on `2026-04-22`. Split `plugin/core.js` into focused owners, introduced grouped `test/verify/tooling` dispatchers, and kept stable top-level wrappers as thin façades.
 8. [2026-04-22-residual-compatibility-cleanup-phase-four.md](./2026-04-22-residual-compatibility-cleanup-phase-four.md)
-   Planned next. Removes the remaining legacy shims, names, and compatibility wording still leaking through runtime, API, frontend, and scripts.
+   Completed on `2026-04-22`. Removed residual runtime/data shims, renamed local install semantics, cleaned plugin OpenAPI wording, dropped legacy `llm-node-config` bridges, and deleted node script compatibility fallbacks.
 9. [2026-04-22-warning-and-test-governance-phase-four.md](./2026-04-22-warning-and-test-governance-phase-four.md)
-   Planned last. Clears React/antd/React Flow warning noise and makes warning evidence land under `tmp/test-governance/`.
+   Completed on `2026-04-22`. Cleared the remaining React Flow / Ant Design / `act(...)` warning noise and moved frontend/coverage evidence into `tmp/test-governance/`.
 
 ## Execution Autonomy
 
-- Default execution order is `5 -> 6 -> 7 -> 8 -> 9`.
+- Default execution order is complete; no pending entropy-reduction phases remain.
 - Continue sequentially without asking for fresh approval between plans.
 - Stop only if one of these happens:
   - a step would change a public HTTP/UI contract rather than internal structure
@@ -47,34 +47,8 @@
 
 ## Remaining Work Map
 
-1. `plugin_management.rs` `1843` 行神文件
-   Target: [2026-04-22-plugin-management-split-phase-three.md](./2026-04-22-plugin-management-split-phase-three.md)
-2. `control-plane/src` 顶层文件数 `26`
-   Target: [2026-04-22-backend-boundary-normalization-phase-three.md](./2026-04-22-backend-boundary-normalization-phase-three.md)
-3. `api-server/src/routes` 顶层文件数 `19`
-   Target: [2026-04-22-backend-boundary-normalization-phase-three.md](./2026-04-22-backend-boundary-normalization-phase-three.md)
-4. `orchestration_runtime` 测试 support 仍有 `1842` 行
-   Target: [2026-04-22-backend-boundary-normalization-phase-three.md](./2026-04-22-backend-boundary-normalization-phase-three.md)
-5. `legacy_manual_import` 命名与语义残留
-   Target: [2026-04-22-residual-compatibility-cleanup-phase-four.md](./2026-04-22-residual-compatibility-cleanup-phase-four.md)
-6. `plugin-runner` 仍兼容旧 `list_models` 返回形状
-   Target: [2026-04-22-residual-compatibility-cleanup-phase-four.md](./2026-04-22-residual-compatibility-cleanup-phase-four.md)
-7. `ports.rs` `981` 行聚合过厚
-   Target: [2026-04-22-backend-boundary-normalization-phase-three.md](./2026-04-22-backend-boundary-normalization-phase-three.md)
-8. `SettingsPage.tsx` `1037` 行
-   Target: [2026-04-22-frontend-settings-split-phase-three.md](./2026-04-22-frontend-settings-split-phase-three.md)
-9. `dev-up` 还保留 `docker-compose` / legacy brand fallback
-    Target: [2026-04-22-residual-compatibility-cleanup-phase-four.md](./2026-04-22-residual-compatibility-cleanup-phase-four.md)
-10. `routes/plugins.rs` OpenAPI 文案仍写 compatibility 口径
-    Target: [2026-04-22-residual-compatibility-cleanup-phase-four.md](./2026-04-22-residual-compatibility-cleanup-phase-four.md)
-11. `api-server/src/lib.rs` 还保留 `include_legacy_docs` 命名
-    Target: [2026-04-22-residual-compatibility-cleanup-phase-four.md](./2026-04-22-residual-compatibility-cleanup-phase-four.md)
-12. `llm-node-config.ts` 仍保留 `legacyItems`
-    Target: [2026-04-22-residual-compatibility-cleanup-phase-four.md](./2026-04-22-residual-compatibility-cleanup-phase-four.md)
-13. `AgentFlowNodeCard.tsx` 仍使用废弃 `overlayInnerStyle`
-    Target: [2026-04-22-warning-and-test-governance-phase-four.md](./2026-04-22-warning-and-test-governance-phase-four.md)
-14. 前端 fast gate 仍有 React Flow / `act(...)` warning 噪音
-    Target: [2026-04-22-warning-and-test-governance-phase-four.md](./2026-04-22-warning-and-test-governance-phase-four.md)
+- Entropy-reduction sequence completed on `2026-04-22`.
+- No pending cleanup items remain in this index.
 
 ## Execution Rules
 

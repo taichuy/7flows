@@ -1,8 +1,7 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, test } from 'vitest';
 
 import type { ConsoleNodeContributionEntry } from '@1flowbase/api-client';
-import { AppProviders } from '../../../app/AppProviders';
 import { resetAuthStore, useAuthStore } from '../../../state/auth-store';
 import { AgentFlowCanvasFrame } from '../components/editor/AgentFlowCanvasFrame';
 import {
@@ -11,6 +10,7 @@ import {
 } from '../store/editor/provider';
 import { selectWorkingDocument } from '../store/editor/selectors';
 import { createDefaultAgentFlowDocument } from '@1flowbase/flow-schema';
+import { renderReactFlowScene } from '../../../test/renderers/render-react-flow-scene';
 
 const readyContribution: ConsoleNodeContributionEntry = {
   installation_id: 'installation-1',
@@ -85,19 +85,15 @@ beforeEach(() => {
 
 describe('node contribution picker', () => {
   test('writes contribution identity into the draft node document', async () => {
-    render(
-      <AppProviders>
-        <div style={{ width: 1280, height: 720 }}>
-          <AgentFlowEditorStoreProvider initialState={createInitialState()}>
-            <AgentFlowCanvasFrame
-              applicationId="app-1"
-              applicationName="Support Agent"
-              nodeContributions={[readyContribution]}
-            />
-            <DocumentProbe />
-          </AgentFlowEditorStoreProvider>
-        </div>
-      </AppProviders>
+    renderReactFlowScene(
+      <AgentFlowEditorStoreProvider initialState={createInitialState()}>
+        <AgentFlowCanvasFrame
+          applicationId="app-1"
+          applicationName="Support Agent"
+          nodeContributions={[readyContribution]}
+        />
+        <DocumentProbe />
+      </AgentFlowEditorStoreProvider>
     );
 
     fireEvent.click(await screen.findByRole('button', { name: '在 LLM 后新增节点' }));

@@ -1,11 +1,11 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, screen, waitFor } from '@testing-library/react';
 import { Grid } from 'antd';
 import { beforeEach, describe, expect, test, vi } from 'vitest';
 
 import { ApiClientError } from '@1flowbase/api-client';
-import { AppProviders } from '../../app/AppProviders';
 import { AppRouterProvider } from '../../app/router';
 import { resetAuthStore, useAuthStore } from '../../state/auth-store';
+import { renderReactFlowScene } from '../../test/renderers/render-react-flow-scene';
 
 const applicationApi = vi.hoisted(() => ({
   applicationsQueryKey: ['applications'],
@@ -70,6 +70,10 @@ function authenticate() {
       permissions: ['route_page.view.all', 'application.view.all']
     }
   });
+}
+
+function renderApplicationRouter() {
+  return renderReactFlowScene(<AppRouterProvider />);
 }
 
 describe('application shell routing', () => {
@@ -189,11 +193,7 @@ describe('application shell routing', () => {
 
   test('redirects /applications/:id to orchestration', async () => {
     window.history.pushState({}, '', '/applications/app-1');
-    render(
-      <AppProviders>
-        <AppRouterProvider />
-      </AppProviders>
-    );
+    renderApplicationRouter();
 
     await waitFor(() => {
       expect(window.location.pathname).toBe('/applications/app-1/orchestration');
@@ -202,11 +202,7 @@ describe('application shell routing', () => {
 
   test('renders section navigation and planned API copy', async () => {
     window.history.pushState({}, '', '/applications/app-1/api');
-    render(
-      <AppProviders>
-        <AppRouterProvider />
-      </AppProviders>
-    );
+    renderApplicationRouter();
 
     expect(
       await screen.findByRole('heading', { name: 'Support Agent', level: 4 })
@@ -223,11 +219,7 @@ describe('application shell routing', () => {
     window.history.pushState({}, '', '/applications/app-1/orchestration');
 
     try {
-      render(
-        <AppProviders>
-          <AppRouterProvider />
-        </AppProviders>
-      );
+      renderApplicationRouter();
 
       expect(await screen.findByText('30 秒自动保存')).toBeInTheDocument();
       expect(screen.getByRole('button', { name: '保存' })).toBeInTheDocument();
@@ -245,11 +237,7 @@ describe('application shell routing', () => {
     window.history.pushState({}, '', '/applications/app-1/orchestration');
 
     try {
-      render(
-        <AppProviders>
-          <AppRouterProvider />
-        </AppProviders>
-      );
+      renderApplicationRouter();
 
       fireEvent.click(await screen.findByRole('button', { name: '保存' }));
 
@@ -267,11 +255,7 @@ describe('application shell routing', () => {
     );
 
     window.history.pushState({}, '', '/applications/app-1/logs');
-    render(
-      <AppProviders>
-        <AppRouterProvider />
-      </AppProviders>
-    );
+    renderApplicationRouter();
 
     expect(await screen.findByText('无权限访问')).toBeInTheDocument();
   });

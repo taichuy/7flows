@@ -20,6 +20,21 @@ test('readPluginCode prefers plugin_id from manifest', () => {
   assert.equal(readPluginCode(pluginPath), 'acme_provider');
 });
 
+test('readPluginCode ignores legacy plugin_code fallback once plugin_id is the only supported manifest key', () => {
+  const pluginPath = path.join(
+    fs.mkdtempSync(path.join(os.tmpdir(), 'oneflowbase-plugin-manifest-no-legacy-')),
+    'acme-openai-compatible'
+  );
+  fs.mkdirSync(pluginPath, { recursive: true });
+  fs.writeFileSync(
+    path.join(pluginPath, 'manifest.yaml'),
+    'plugin_code: legacy_provider_code\nversion: 0.2.0\n',
+    'utf8'
+  );
+
+  assert.equal(readPluginCode(pluginPath), 'acme_openai_compatible');
+});
+
 test('createArtifactRoot excludes requested top-level entries', () => {
   const pluginPath = fs.mkdtempSync(path.join(os.tmpdir(), 'oneflowbase-plugin-artifact-'));
   fs.writeFileSync(path.join(pluginPath, 'manifest.yaml'), 'plugin_id: acme_provider@0.1.0\n', 'utf8');

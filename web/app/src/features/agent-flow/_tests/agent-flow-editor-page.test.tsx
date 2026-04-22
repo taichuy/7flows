@@ -1,11 +1,10 @@
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { Grid } from 'antd';
-import type { ReactNode } from 'react';
+import type { ReactElement, ReactNode } from 'react';
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 
 import type { ConsoleNodeContributionEntry } from '@1flowbase/api-client';
 import { createDefaultAgentFlowDocument } from '@1flowbase/flow-schema';
-import { AppProviders } from '../../../app/AppProviders';
 
 const schemaRuntimeSpies = vi.hoisted(() => ({
   resolveAgentFlowNodeSchema: vi.fn(),
@@ -38,6 +37,7 @@ import { AgentFlowEditorShell } from '../components/editor/AgentFlowEditorShell'
 import { NODE_DETAIL_DEFAULT_WIDTH } from '../lib/detail-panel-width';
 import { AgentFlowEditorPage } from '../pages/AgentFlowEditorPage';
 import { resetAuthStore, useAuthStore } from '../../../state/auth-store';
+import { renderReactFlowScene } from '../../../test/renderers/render-react-flow-scene';
 
 function createInitialState() {
   return {
@@ -76,7 +76,7 @@ const readyContribution: ConsoleNodeContributionEntry = {
 };
 
 function renderShell(ui: ReactNode) {
-  return render(<AppProviders>{ui}</AppProviders>);
+  return renderReactFlowScene(ui as ReactElement);
 }
 
 afterEach(() => {
@@ -213,13 +213,11 @@ describe('AgentFlowEditorShell', () => {
     schemaRuntimeSpies.resolveAgentFlowNodeSchema.mockClear();
 
     renderShell(
-      <div style={{ width: 1280, height: 720 }}>
-        <AgentFlowEditorShell
-          applicationId="app-1"
-          applicationName="Support Agent"
-          initialState={createInitialState()}
-        />
-      </div>
+      <AgentFlowEditorShell
+        applicationId="app-1"
+        applicationName="Support Agent"
+        initialState={createInitialState()}
+      />
     );
 
     expect(
@@ -234,13 +232,11 @@ describe('AgentFlowEditorShell', () => {
 
   test('renders the default three nodes and overlay controls', async () => {
     renderShell(
-      <div style={{ width: 1280, height: 720 }}>
-        <AgentFlowEditorShell
-          applicationId="app-1"
-          applicationName="Support Agent"
-          initialState={createInitialState()}
-        />
-      </div>
+      <AgentFlowEditorShell
+        applicationId="app-1"
+        applicationName="Support Agent"
+        initialState={createInitialState()}
+      />
     );
 
     expect(
@@ -261,13 +257,11 @@ describe('AgentFlowEditorShell', () => {
 
   test('starts whole-flow debug run from overlay action', async () => {
     renderShell(
-      <div style={{ width: 1280, height: 720 }}>
-        <AgentFlowEditorShell
-          applicationId="app-1"
-          applicationName="Support Agent"
-          initialState={createInitialState()}
-        />
-      </div>
+      <AgentFlowEditorShell
+        applicationId="app-1"
+        applicationName="Support Agent"
+        initialState={createInitialState()}
+      />
     );
 
     fireEvent.click(await screen.findByRole('button', { name: '调试整流' }));
@@ -294,14 +288,12 @@ describe('AgentFlowEditorShell', () => {
     }));
 
     renderShell(
-      <div style={{ width: 1280, height: 720 }}>
-        <AgentFlowEditorShell
-          applicationId="app-1"
-          applicationName="Support Agent"
-          initialState={initialState}
-          saveDraftOverride={saveDraftOverride}
-        />
-      </div>
+      <AgentFlowEditorShell
+        applicationId="app-1"
+        applicationName="Support Agent"
+        initialState={initialState}
+        saveDraftOverride={saveDraftOverride}
+      />
     );
 
     const header = screen.getByTestId('node-detail-header');
@@ -333,26 +325,24 @@ describe('AgentFlowEditorShell', () => {
 
   test('opens the selected issue target and focuses the node field', async () => {
     renderShell(
-      <div style={{ width: 1280, height: 720 }}>
-        <AgentFlowEditorShell
-          applicationId="app-1"
-          applicationName="Support Agent"
-          initialState={{
-            ...createInitialState(),
-            versions: [
-              {
-                id: 'version-1',
-                sequence: 1,
-                trigger: 'autosave',
-                change_kind: 'logical',
-                summary: '初始化默认草稿',
-                created_at: '2026-04-15T09:00:00Z'
-              }
-            ]
-          }}
-          saveDraftOverride={vi.fn().mockResolvedValue(createInitialState())}
-        />
-      </div>
+      <AgentFlowEditorShell
+        applicationId="app-1"
+        applicationName="Support Agent"
+        initialState={{
+          ...createInitialState(),
+          versions: [
+            {
+              id: 'version-1',
+              sequence: 1,
+              trigger: 'autosave',
+              change_kind: 'logical',
+              summary: '初始化默认草稿',
+              created_at: '2026-04-15T09:00:00Z'
+            }
+          ]
+        }}
+        saveDraftOverride={vi.fn().mockResolvedValue(createInitialState())}
+      />
     );
 
     fireEvent.click(screen.getByRole('button', { name: 'Issues' }));
@@ -422,13 +412,11 @@ describe('AgentFlowEditorShell', () => {
       createInitialState()
     );
 
-    render(
-      <AppProviders>
-        <AgentFlowEditorPage
-          applicationId="app-1"
-          applicationName="Support Agent"
-        />
-      </AppProviders>
+    renderShell(
+      <AgentFlowEditorPage
+        applicationId="app-1"
+        applicationName="Support Agent"
+      />
     );
 
     expect(await screen.findByText('请使用桌面端编辑')).toBeInTheDocument();
@@ -443,13 +431,11 @@ describe('AgentFlowEditorShell', () => {
       readyContribution
     ]);
 
-    render(
-      <AppProviders>
-        <AgentFlowEditorPage
-          applicationId="app-1"
-          applicationName="Support Agent"
-        />
-      </AppProviders>
+    renderShell(
+      <AgentFlowEditorPage
+        applicationId="app-1"
+        applicationName="Support Agent"
+      />
     );
 
     expect(await screen.findByRole('button', { name: '历史版本' })).toBeInTheDocument();
@@ -468,13 +454,11 @@ describe('AgentFlowEditorShell', () => {
       createInitialState()
     );
 
-    render(
-      <AppProviders>
-        <AgentFlowEditorPage
-          applicationId="app-1"
-          applicationName="Support Agent"
-        />
-      </AppProviders>
+    renderShell(
+      <AgentFlowEditorPage
+        applicationId="app-1"
+        applicationName="Support Agent"
+      />
     );
 
     const detailDock = await screen.findByTestId('agent-flow-editor-detail-dock');
@@ -490,13 +474,11 @@ describe('AgentFlowEditorShell', () => {
       createInitialState()
     );
 
-    render(
-      <AppProviders>
-        <AgentFlowEditorPage
-          applicationId="app-1"
-          applicationName="Support Agent"
-        />
-      </AppProviders>
+    renderShell(
+      <AgentFlowEditorPage
+        applicationId="app-1"
+        applicationName="Support Agent"
+      />
     );
 
     const detailDock = await screen.findByTestId('agent-flow-editor-detail-dock');
@@ -515,13 +497,11 @@ describe('AgentFlowEditorShell', () => {
       createInitialState()
     );
 
-    render(
-      <AppProviders>
-        <AgentFlowEditorPage
-          applicationId="app-1"
-          applicationName="Support Agent"
-        />
-      </AppProviders>
+    renderShell(
+      <AgentFlowEditorPage
+        applicationId="app-1"
+        applicationName="Support Agent"
+      />
     );
 
     fireEvent.click(await screen.findByRole('tab', { name: '上次运行' }));
@@ -547,13 +527,11 @@ describe('AgentFlowEditorShell', () => {
     );
 
     renderShell(
-      <div style={{ width: 1280, height: 720 }}>
-        <AgentFlowEditorShell
-          applicationId="app-1"
-          applicationName="Support Agent"
-          initialState={createInitialState()}
-        />
-      </div>
+      <AgentFlowEditorShell
+        applicationId="app-1"
+        applicationName="Support Agent"
+        initialState={createInitialState()}
+      />
     );
 
     const detailDock = await screen.findByTestId('agent-flow-editor-detail-dock');
