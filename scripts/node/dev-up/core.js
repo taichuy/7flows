@@ -27,6 +27,12 @@ const LEGACY_API_SERVER_ENV_RENAMES = {
     current: '1flowbase',
   },
 };
+const DEFAULT_MIDDLEWARE_HOST_PORTS = {
+  POSTGRES_PORT: 35432,
+  REDIS_PORT: 36379,
+  RUSTFS_PORT: 39000,
+  RUSTFS_CONSOLE_PORT: 39001,
+};
 
 function getRepoRoot() {
   return path.resolve(__dirname, '..', '..', '..');
@@ -623,6 +629,79 @@ function ensureCommandSuccess(description, result) {
   throw new Error(`${description} 失败，退出码 ${result.status}`);
 }
 
+function listPortOccupantPids(port) {
+  if (!Number.isInteger(port) || port <= 0) {
+    return [];
+  }
+
+  if (!commandExists('lsof')) {
+    return [];
+  }
+
+  const result = runCommand('lsof', ['-t', `-iTCP:${port}`, '-sTCP:LISTEN', '-P', '-n'], {
+    captureOutput: true,
+  });
+  if (result.error) {
+    return [];
+  }
+
+  if (result.status !== 0) {
+    return [];
+  }
+
+  return String(result.stdout || '')
+    .split(/\r?\n/)
+    .map((value) => Number.parseInt(value.trim(), 10))
+    .filter((value) => Number.isInteger(value) && value > 0);
+}
+
+async function clearPortConflicts(
+  label,
+  ports,
+  {
+    listPortOccupantPidsImpl = listPortOccupantPids,
+    signalProcessImpl = signalProcess,
+    waitForProcessExitImpl = waitForProcessExit,
+    logImpl = log,
+  } = {}
+) {
+  const normalizedPorts = [...new Set(ports.filter((port) => Number.isInteger(port) && port > 0))];
+
+  for (const port of normalizedPorts) {
+    const occupants = listPortOccupantPidsImpl(port);
+    if (occupants.length === 0) {
+      continue;
+    }
+
+    logImpl(`${label} 检测到端口 ${port} 被其他进程占用，正在清理 pid=${occupants.join(',')}`);
+
+    for (const pid of occupants) {
+      signalProcessImpl(pid, 'SIGTERM');
+    }
+
+    for (const pid of occupants) {
+      const exited = await waitForProcessExitImpl(pid);
+      if (exited) {
+        continue;
+      }
+
+      signalProcessImpl(pid, 'SIGKILL');
+      await waitForProcessExitImpl(pid, 2000);
+    }
+  }
+}
+
+function getMiddlewareHostPorts(repoRoot) {
+  const envPath = path.join(repoRoot, 'docker', 'middleware.env');
+  const env = parseEnvFile(envPath);
+
+  return Object.entries(DEFAULT_MIDDLEWARE_HOST_PORTS)
+    .map(([key, defaultPort]) => {
+      const configured = Number.parseInt(env[key] ?? '', 10);
+      return Number.isInteger(configured) && configured > 0 ? configured : defaultPort;
+    });
+}
+
 let cachedComposeCommand = null;
 
 function resolveComposeCommand() {
@@ -802,10 +881,26 @@ function waitForServicePort(service, waitForPortImpl = waitForPort) {
   return waitForPortImpl(getProbeHost(service), service.port, getStartupTimeoutMs(service));
 }
 
+function getProcessGroupId(pid) {
+  if (!Number.isInteger(pid) || pid <= 0 || !commandExists('ps')) {
+    return pid;
+  }
+
+  const result = runCommand('ps', ['-o', 'pgid=', '-p', String(pid)], {
+    captureOutput: true,
+  });
+  if (result.error || result.status !== 0) {
+    return pid;
+  }
+
+  const groupId = Number.parseInt(String(result.stdout || '').trim(), 10);
+  return Number.isInteger(groupId) && groupId > 0 ? groupId : pid;
+}
+
 function signalProcess(pid, signal) {
   try {
     if (process.platform !== 'win32') {
-      process.kill(-pid, signal);
+      process.kill(-getProcessGroupId(pid), signal);
       return;
     }
   } catch (error) {
@@ -859,7 +954,9 @@ async function startService(
     buildServiceEnvImpl = buildServiceEnv,
     writePidRecordImpl = writePidRecord,
     waitForServicePortImpl = waitForServicePort,
+    clearPortConflictsImpl = clearPortConflicts,
     logImpl = log,
+    takeOverPortOwnership = false,
   } = {}
 ) {
   ensureServiceEnvFileImpl(service);
@@ -878,6 +975,12 @@ async function startService(
 
   if (pidRecord && isProcessAliveImpl(pidRecord.pid)) {
     await stopServiceImpl(service);
+  }
+
+  if (await isPortOpenImpl(getProbeHost(service), service.port)) {
+    if (takeOverPortOwnership) {
+      await clearPortConflictsImpl(service.label, [service.port]);
+    }
   }
 
   if (await isPortOpenImpl(getProbeHost(service), service.port)) {
@@ -965,15 +1068,27 @@ async function manageServices(action, services) {
   }
 
   for (const service of services) {
-    await startService(service);
+    await startService(service, {
+      takeOverPortOwnership: action === 'restart',
+    });
   }
 }
 
-async function manageDocker(repoRoot, action) {
-  ensureMiddlewareEnv(repoRoot);
+async function manageDocker(
+  repoRoot,
+  action,
+  {
+    ensureMiddlewareEnvImpl = ensureMiddlewareEnv,
+    runMiddlewareComposeImpl = runMiddlewareCompose,
+    ensureRustfsVolumePermissionsImpl = ensureRustfsVolumePermissions,
+    getMiddlewareHostPortsImpl = getMiddlewareHostPorts,
+    clearPortConflictsImpl = clearPortConflicts,
+  } = {}
+) {
+  ensureMiddlewareEnvImpl(repoRoot);
 
   if (action === 'status') {
-    const result = runMiddlewareCompose(repoRoot, ['ps'], {
+    const result = runMiddlewareComposeImpl(repoRoot, ['ps'], {
       captureOutput: true,
       allowFailure: true,
     });
@@ -992,17 +1107,18 @@ async function manageDocker(repoRoot, action) {
   }
 
   if (action === 'stop') {
-    runMiddlewareCompose(repoRoot, ['down']);
+    runMiddlewareComposeImpl(repoRoot, ['down']);
     return;
   }
 
-  ensureRustfsVolumePermissions(repoRoot);
+  ensureRustfsVolumePermissionsImpl(repoRoot);
 
   if (action === 'restart') {
-    runMiddlewareCompose(repoRoot, ['down']);
+    runMiddlewareComposeImpl(repoRoot, ['down']);
+    await clearPortConflictsImpl('docker 中间件', getMiddlewareHostPortsImpl(repoRoot));
   }
 
-  runMiddlewareCompose(repoRoot, ['up', '-d']);
+  runMiddlewareComposeImpl(repoRoot, ['up', '-d']);
 }
 
 async function main(argv = process.argv.slice(2)) {
@@ -1044,5 +1160,6 @@ module.exports = {
   ensureRustfsVolumePermissions,
   waitForServicePort,
   startService,
+  manageDocker,
   main,
 };

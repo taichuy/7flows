@@ -10,6 +10,7 @@ const {
   shouldManageDocker,
   selectServiceKeys,
   getServiceDefinitions,
+  manageDocker,
   startService,
   ensureServiceEnvFile,
   buildServiceEnv,
@@ -145,6 +146,107 @@ test('startService fails fast when the frontend port is occupied by another proc
 
   assert.equal(spawned, false);
   assert.equal(fs.existsSync(service.pidFile), false);
+});
+
+test('startService reclaims an occupied service port during restart takeover before spawning', async () => {
+  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'oneflowbase-dev-up-port-takeover-'));
+  const service = {
+    key: 'api-server',
+    label: 'api-server',
+    cwd: path.join(tempRoot, 'api'),
+    command: 'cargo',
+    args: ['run', '-p', 'api-server', '--bin', 'api-server'],
+    bindHost: '0.0.0.0',
+    probeHost: '127.0.0.1',
+    port: 7800,
+    startupTimeoutMs: DEFAULT_STARTUP_TIMEOUT_MS,
+    logFile: path.join(tempRoot, 'api-server.log'),
+    pidFile: path.join(tempRoot, 'api-server.json'),
+  };
+  const clearCalls = [];
+  let portOccupied = true;
+  let spawned = false;
+  let recordedPid = null;
+
+  await startService(service, {
+    ensureServiceEnvFileImpl() {
+      return false;
+    },
+    requireCommandImpl() {},
+    runServicePrestartCommandsImpl() {},
+    readPidRecordImpl() {
+      return null;
+    },
+    isProcessAliveImpl() {
+      return false;
+    },
+    async isPortOpenImpl() {
+      return portOccupied;
+    },
+    async clearPortConflictsImpl(label, ports) {
+      clearCalls.push({ label, ports });
+      portOccupied = false;
+    },
+    logImpl() {},
+    spawnImpl() {
+      spawned = true;
+      return {
+        pid: 4242,
+        unref() {},
+      };
+    },
+    buildServiceEnvImpl() {
+      return {};
+    },
+    writePidRecordImpl(_service, pid) {
+      recordedPid = pid;
+    },
+    async waitForServicePortImpl() {
+      return true;
+    },
+    takeOverPortOwnership: true,
+  });
+
+  assert.deepEqual(clearCalls, [
+    {
+      label: 'api-server',
+      ports: [7800],
+    },
+  ]);
+  assert.equal(spawned, true);
+  assert.equal(recordedPid, 4242);
+});
+
+test('manageDocker restart clears middleware port conflicts before bringing services up', async () => {
+  const composeCalls = [];
+  const clearCalls = [];
+
+  await manageDocker('/repo-root', 'restart', {
+    ensureMiddlewareEnvImpl() {},
+    ensureRustfsVolumePermissionsImpl() {},
+    getMiddlewareHostPortsImpl() {
+      return [35432, 36379, 39000, 39001];
+    },
+    async clearPortConflictsImpl(label, ports) {
+      clearCalls.push({ label, ports });
+    },
+    runMiddlewareComposeImpl(_repoRoot, args) {
+      composeCalls.push(args);
+      return {
+        status: 0,
+        stdout: '',
+        stderr: '',
+      };
+    },
+  });
+
+  assert.deepEqual(clearCalls, [
+    {
+      label: 'docker 中间件',
+      ports: [35432, 36379, 39000, 39001],
+    },
+  ]);
+  assert.deepEqual(composeCalls, [['down'], ['up', '-d']]);
 });
 
 test('api-server example env files use workspace bootstrap naming', () => {
