@@ -28,6 +28,7 @@ a {
   background: rgba(0, 217, 146, 0.18);
 }
 
+/* Whitelisted theme-level Ant Design defaults: keep these as approved global styling baselines, not as strict override violations, unless they cause a concrete page regression or block local fixes. */
 .ant-card {
   box-shadow: var(--shadow-card) !important;
 }
