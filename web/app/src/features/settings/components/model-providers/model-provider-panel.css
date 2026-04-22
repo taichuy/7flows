@@ -442,10 +442,6 @@
   background: transparent;
 }
 
-.model-provider-panel__instance-descriptions .ant-descriptions-row:not(:last-child) td {
-  border-bottom: 1px solid var(--border-subtle);
-}
-
 .model-provider-panel__instance-descriptions .ant-descriptions-item {
   padding-block: 12px;
 }
