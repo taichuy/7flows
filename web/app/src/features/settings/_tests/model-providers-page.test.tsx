@@ -851,19 +851,15 @@ describe('ModelProvidersPage', () => {
         target: { value: 'OpenAI Production' }
       });
 
+      const expectedConfig = {
+        base_url: 'https://api.openai.com/v1',
+        api_key: 'super-secret'
+      };
+
       fireEvent.click(screen.getByRole('button', { name: /检\s*测/ }));
 
       await waitFor(() => {
-        expect(previewModels).toHaveBeenCalledWith(
-          {
-            base_url: 'https://api.openai.com/v1',
-            api_key: 'super-secret',
-            organization: '',
-            project: '',
-            api_version: '',
-            default_headers: ''
-          }
-        );
+        expect(previewModels).toHaveBeenCalledWith(expectedConfig);
       });
 
       fireEvent.click(screen.getByRole('button', { name: '添加模型' }));
@@ -907,10 +903,7 @@ describe('ModelProvidersPage', () => {
       await waitFor(() => {
         expect(submit).toHaveBeenCalledWith({
           display_name: 'OpenAI Production',
-          config: {
-            base_url: 'https://api.openai.com/v1',
-            api_key: 'super-secret'
-          },
+          config: expectedConfig,
           configured_models: [
             {
               model_id: 'gpt-4o-mini',
@@ -924,6 +917,7 @@ describe('ModelProvidersPage', () => {
           preview_token: 'preview-2'
         });
       });
+      expect(previewModels).toHaveBeenNthCalledWith(2, expectedConfig);
     }
   );
 

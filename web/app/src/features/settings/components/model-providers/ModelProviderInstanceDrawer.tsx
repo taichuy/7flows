@@ -124,6 +124,10 @@ function isPreviewOnlyField(field: ModelProviderConfigField) {
   return field.key === 'validate_model';
 }
 
+function shouldOmitDraftConfigValue(value: ModelProviderFormValue | undefined) {
+  return typeof value === 'string' && value.length === 0;
+}
+
 export function ModelProviderInstanceDrawer({
   open,
   mode,
@@ -278,6 +282,10 @@ export function ModelProviderInstanceDrawer({
   const formSchema = (catalogEntry?.form_schema ?? []).filter(
     (field) => !isPreviewOnlyField(field)
   );
+  const editableConfigFields = formSchema.filter(
+    (field) => !(mode === 'edit' && field.field_type === 'secret')
+  );
+  const configFieldNames = editableConfigFields.map((field) => ['config', field.key] as const);
   const primaryConfigFields = formSchema.filter((field) => !field.advanced);
   const advancedConfigFields = formSchema.filter((field) => field.advanced);
   const modelAutocompleteOptions = previewModels.map((model) => ({
@@ -286,9 +294,16 @@ export function ModelProviderInstanceDrawer({
   }));
 
   function buildDraftConfig(valuesConfig: Record<string, ModelProviderFormValue>) {
-    const config: Record<string, unknown> = {
-      ...(valuesConfig ?? {})
-    };
+    const config: Record<string, unknown> = {};
+
+    for (const field of editableConfigFields) {
+      const nextValue = valuesConfig?.[field.key];
+      if (nextValue === undefined || shouldOmitDraftConfigValue(nextValue)) {
+        continue;
+      }
+
+      config[field.key] = nextValue;
+    }
 
     if (mode === 'edit' && catalogEntry) {
       for (const field of catalogEntry.form_schema) {
@@ -303,8 +318,6 @@ export function ModelProviderInstanceDrawer({
         }
       }
     }
-
-    delete config.validate_model;
     return config;
   }
 
@@ -322,10 +335,7 @@ export function ModelProviderInstanceDrawer({
   }
 
   async function handlePreviewModels() {
-    const fieldNames = formSchema
-      .filter((field) => !(mode === 'edit' && field.field_type === 'secret'))
-      .map((field) => ['config', field.key]);
-    const values = await form.validateFields(fieldNames);
+    const values = await form.validateFields(configFieldNames);
     setPreviewingModels(true);
 
     try {
@@ -466,10 +476,12 @@ export function ModelProviderInstanceDrawer({
             type="primary"
             loading={submitting}
             onClick={async () => {
-              const values = await form.validateFields();
+              const values = await form.validateFields([['display_name'], ...configFieldNames]);
               await onSubmit({
                 display_name: values.display_name,
-                config: buildDraftConfig(values.config ?? {}),
+                config: buildDraftConfig(
+                  (values.config ?? {}) as Record<string, ModelProviderFormValue>
+                ),
                 configured_models: normalizeConfiguredModels(configuredModels),
                 preview_token: previewToken
               });
