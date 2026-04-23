@@ -12,7 +12,8 @@ pub struct FileStorageDriverRegistry {
 
 impl FileStorageDriverRegistry {
     pub fn register(mut self, driver: Arc<dyn FileStorageDriver>) -> Self {
-        self.drivers.insert(driver.driver_type().to_string(), driver);
+        self.drivers
+            .insert(driver.driver_type().to_string(), driver);
         self
     }
 

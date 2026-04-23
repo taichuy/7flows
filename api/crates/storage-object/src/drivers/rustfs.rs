@@ -21,7 +21,10 @@ struct RustfsConfig {
     secret_key: String,
 }
 
-fn required_string(config_json: &serde_json::Value, field: &'static str) -> FileStorageResult<String> {
+fn required_string(
+    config_json: &serde_json::Value,
+    field: &'static str,
+) -> FileStorageResult<String> {
     config_json
         .get(field)
         .and_then(|value| value.as_str())
@@ -56,8 +59,7 @@ impl FileStorageDriver for RustfsFileStorageDriver {
         config_json: &serde_json::Value,
     ) -> FileStorageResult<FileStorageHealthcheck> {
         let config = parse_config(config_json)?;
-        let credentials_configured =
-            !config.access_key.is_empty() && !config.secret_key.is_empty();
+        let credentials_configured = !config.access_key.is_empty() && !config.secret_key.is_empty();
         Ok(FileStorageHealthcheck {
             reachable: false,
             detail: Some(format!(

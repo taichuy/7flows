@@ -315,12 +315,14 @@ git commit -m "feat: add storage object driver contract"
 
 ### Task 2: Implement The Local Filesystem Driver
 
+> Execution note (2026-04-23 20): The plan example and acceptance test diverged on `content_type` and path hardening. Implementation followed the acceptance test as the source of truth, preserving `content_type` for local round-trips and rejecting absolute or non-normal object paths.
+
 **Files:**
 - Create: `api/crates/storage-object/src/drivers/mod.rs`
 - Create: `api/crates/storage-object/src/drivers/local.rs`
 - Create: `api/crates/storage-object/src/_tests/local_driver_tests.rs`
 
-- [ ] **Step 1: Write the failing local driver round-trip test**
+- [x] **Step 1: Write the failing local driver round-trip test**
 
 Create `api/crates/storage-object/src/_tests/local_driver_tests.rs`:
 
@@ -401,7 +403,7 @@ async fn local_driver_put_read_delete_roundtrip() {
 }
 ```
 
-- [ ] **Step 2: Run the focused local-driver test to verify it fails**
+- [x] **Step 2: Run the focused local-driver test to verify it fails**
 
 Run:
 
@@ -413,7 +415,7 @@ Expected:
 
 - FAIL because the `local` driver module and file operations do not exist yet.
 
-- [ ] **Step 3: Implement the local driver with strict relative paths**
+- [x] **Step 3: Implement the local driver with strict relative paths**
 
 Create `api/crates/storage-object/src/drivers/mod.rs`:
 
@@ -540,7 +542,7 @@ impl FileStorageDriver for LocalFileStorageDriver {
 }
 ```
 
-- [ ] **Step 4: Re-run the focused local-driver test**
+- [x] **Step 4: Re-run the focused local-driver test**
 
 Run:
 
@@ -552,7 +554,7 @@ Expected:
 
 - PASS with the file written under a temporary root, then read and deleted successfully.
 
-- [ ] **Step 5: Commit the local driver**
+- [x] **Step 5: Commit the local driver**
 
 ```bash
 git add api/crates/storage-object

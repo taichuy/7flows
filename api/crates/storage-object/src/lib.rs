@@ -1,7 +1,7 @@
 extern crate self as storage_object;
 
 mod driver;
-mod drivers;
+pub mod drivers;
 mod errors;
 mod registry;
 mod types;
