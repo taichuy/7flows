@@ -40,7 +40,7 @@
 - Modify: `api/crates/storage-ephemeral/src/lib.rs`
 - Modify: `api/crates/storage-ephemeral/src/memory/mod.rs`
 
-- [ ] **Step 1: Write failing lease tests**
+- [x] **Step 1: Write failing lease tests**
 
 Create tests like:
 
@@ -65,7 +65,7 @@ async fn memory_lease_store_renews_owner_lease() {
 }
 ```
 
-- [ ] **Step 2: Run RED verification**
+- [x] **Step 2: Run RED verification**
 
 Run:
 
@@ -77,7 +77,7 @@ Expected:
 
 - FAIL because no lease contract or memory implementation exists yet.
 
-- [ ] **Step 3: Implement the lease interface**
+- [x] **Step 3: Implement the lease interface**
 
 Use a narrow shape like:
 
@@ -99,7 +99,7 @@ pub struct MemoryLeaseStore {
 }
 ```
 
-- [ ] **Step 4: Re-run the lease tests**
+- [x] **Step 4: Re-run the lease tests**
 
 Run:
 
@@ -111,7 +111,7 @@ Expected:
 
 - PASS with in-memory single-process lease semantics defined for future workflow consumers.
 
-- [ ] **Step 5: Commit the lease primitive**
+- [x] **Step 5: Commit the lease primitive**
 
 ```bash
 git add api/crates/storage-ephemeral/src/lib.rs api/crates/storage-ephemeral/src/lease_store.rs api/crates/storage-ephemeral/src/memory/mod.rs api/crates/storage-ephemeral/src/memory/lease_store.rs api/crates/storage-ephemeral/src/_tests/lease_store_tests.rs
@@ -127,7 +127,7 @@ git commit -m "feat: add storage-ephemeral lease primitive"
 - Modify: `api/crates/storage-ephemeral/src/lib.rs`
 - Modify: `api/crates/storage-ephemeral/src/memory/mod.rs`
 
-- [ ] **Step 1: Write failing wakeup signal tests**
+- [x] **Step 1: Write failing wakeup signal tests**
 
 Create tests like:
 
@@ -144,7 +144,7 @@ async fn memory_wakeup_signal_bus_delivers_one_signal() {
 }
 ```
 
-- [ ] **Step 2: Run RED verification**
+- [x] **Step 2: Run RED verification**
 
 Run:
 
@@ -156,7 +156,7 @@ Expected:
 
 - FAIL because no wakeup bus exists yet.
 
-- [ ] **Step 3: Implement a process-local wakeup signal bus**
+- [x] **Step 3: Implement a process-local wakeup signal bus**
 
 Use a minimal interface:
 
@@ -177,7 +177,7 @@ pub struct MemoryWakeupSignalBus {
 }
 ```
 
-- [ ] **Step 4: Re-run the wakeup tests**
+- [x] **Step 4: Re-run the wakeup tests**
 
 Run:
 
@@ -189,7 +189,7 @@ Expected:
 
 - PASS with a process-local signal primitive ready for future single-node workflow wakeups.
 
-- [ ] **Step 5: Commit the wakeup primitive**
+- [x] **Step 5: Commit the wakeup primitive**
 
 ```bash
 git add api/crates/storage-ephemeral/src/lib.rs api/crates/storage-ephemeral/src/wakeup_signal.rs api/crates/storage-ephemeral/src/memory/mod.rs api/crates/storage-ephemeral/src/memory/wakeup_signal.rs api/crates/storage-ephemeral/src/_tests/wakeup_signal_tests.rs
@@ -201,7 +201,7 @@ git commit -m "feat: add storage-ephemeral wakeup signal primitive"
 **Files:**
 - Create: `api/crates/storage-ephemeral/README.md`
 
-- [ ] **Step 1: Write the failing documentation assertions as a review checklist**
+- [x] **Step 1: Write the failing documentation assertions as a review checklist**
 
 Prepare the README sections that must exist:
 
@@ -215,7 +215,7 @@ Prepare the README sections that must exist:
 ## Future Infra Provider Bootstrap Contract
 ```
 
-- [ ] **Step 2: Run the documentation sanity check**
+- [x] **Step 2: Run the documentation sanity check**
 
 Run:
 
@@ -227,7 +227,7 @@ Expected:
 
 - FAIL because the README does not exist yet.
 
-- [ ] **Step 3: Write the README with the bootstrap-ordering rule**
+- [x] **Step 3: Write the README with the bootstrap-ordering rule**
 
 Include wording like:
 
@@ -235,7 +235,7 @@ Include wording like:
 Host extensions are activated after `ApiState` construction and after the session backend has already been chosen. They cannot currently supply `SessionStore`, `EphemeralKvStore`, or other early startup infrastructure providers. A future `infra provider` contract must load before `app_from_config()` builds the core state.
 ```
 
-- [ ] **Step 4: Re-run the documentation sanity check**
+- [x] **Step 4: Re-run the documentation sanity check**
 
 Run:
 
@@ -247,7 +247,7 @@ Expected:
 
 - PASS with the bootstrap seam documented explicitly for future Redis plugin work.
 
-- [ ] **Step 5: Commit the documentation seam**
+- [x] **Step 5: Commit the documentation seam**
 
 ```bash
 git add api/crates/storage-ephemeral/README.md
