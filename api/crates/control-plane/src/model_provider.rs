@@ -2,7 +2,7 @@ use std::collections::{BTreeMap, HashMap, HashSet};
 
 use anyhow::Result;
 use plugin_framework::{
-    provider_contract::ProviderModelDescriptor,
+    provider_contract::{PluginFormSchema, ProviderModelDescriptor},
     provider_package::{ProviderConfigField, ProviderPackage},
 };
 use serde_json::{json, Value};
@@ -177,6 +177,7 @@ pub struct ModelProviderOptionEntry {
     pub description_key: Option<String>,
     pub protocol: String,
     pub display_name: String,
+    pub parameter_form: Option<PluginFormSchema>,
     pub main_instance: ModelProviderMainInstanceSummary,
     pub model_groups: Vec<ModelProviderOptionGroup>,
 }
@@ -1042,6 +1043,7 @@ fn normalize_configured_models(
             .map(|model_id| domain::ModelProviderConfiguredModel {
                 model_id,
                 enabled: true,
+                context_window_override_tokens: None,
             })
             .collect();
     }
@@ -1056,6 +1058,7 @@ fn normalize_configured_models(
         normalized.push(domain::ModelProviderConfiguredModel {
             model_id: trimmed.to_string(),
             enabled: configured_model.enabled,
+            context_window_override_tokens: configured_model.context_window_override_tokens,
         });
     }
     normalized

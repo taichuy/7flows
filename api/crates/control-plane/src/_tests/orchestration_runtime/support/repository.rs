@@ -166,6 +166,7 @@ impl InMemoryOrchestrationRuntimeRepository {
             configured_models: vec![domain::ModelProviderConfiguredModel {
                 model_id: "gpt-5.4-mini".to_string(),
                 enabled: true,
+                context_window_override_tokens: None,
             }],
             enabled_model_ids: vec!["gpt-5.4-mini".to_string()],
             included_in_main: true,
@@ -260,6 +261,7 @@ impl InMemoryOrchestrationRuntimeRepository {
             .map(|model_id| domain::ModelProviderConfiguredModel {
                 model_id,
                 enabled: true,
+                context_window_override_tokens: None,
             })
             .collect::<Vec<_>>();
         let models_json = model_ids
@@ -356,6 +358,7 @@ impl InMemoryOrchestrationRuntimeRepository {
             .map(|model_id| domain::ModelProviderConfiguredModel {
                 model_id,
                 enabled: true,
+                context_window_override_tokens: None,
             })
             .collect();
         instance.updated_at = OffsetDateTime::now_utc();
@@ -471,6 +474,7 @@ impl InMemoryOrchestrationRuntimeRepository {
             configured_models: vec![domain::ModelProviderConfiguredModel {
                 model_id: "gpt-5.4-mini".to_string(),
                 enabled: true,
+                context_window_override_tokens: None,
             }],
             enabled_model_ids: vec!["gpt-5.4-mini".to_string()],
             included_in_main: true,
@@ -494,6 +498,7 @@ impl InMemoryOrchestrationRuntimeRepository {
         backup_instance.configured_models = vec![domain::ModelProviderConfiguredModel {
             model_id: "gpt-5.4-mini".to_string(),
             enabled: true,
+            context_window_override_tokens: None,
         }];
         backup_instance.enabled_model_ids = vec!["gpt-5.4-mini".to_string()];
         backup_instance.created_by = Uuid::nil();

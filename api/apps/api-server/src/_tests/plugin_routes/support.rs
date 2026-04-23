@@ -145,6 +145,15 @@ protocol: openai_compatible
 help_url: https://example.com/help
 default_base_url: https://api.example.com
 model_discovery: hybrid
+parameter_form:
+  schema_version: 1.0.0
+  title: LLM Parameters
+  fields:
+    - key: temperature
+      label: Temperature
+      type: number
+      send_mode: optional
+      enabled_by_default: true
 config_schema:
   - key: base_url
     type: string
@@ -159,7 +168,6 @@ config_schema:
         &root.join("bin/fixture_provider-provider"),
         "fixture_chat",
         "Fixture Chat",
-        None,
     );
     fs::write(
         root.join("models/llm/_position.yaml"),
@@ -199,6 +207,15 @@ protocol: openai_compatible
 help_url: https://platform.openai.com/docs/api-reference
 default_base_url: https://api.openai.com/v1
 model_discovery: hybrid
+parameter_form:
+  schema_version: 1.0.0
+  title: LLM Parameters
+  fields:
+    - key: temperature
+      label: Temperature
+      type: number
+      send_mode: optional
+      enabled_by_default: true
 config_schema:
   - key: base_url
     type: string
@@ -213,7 +230,6 @@ config_schema:
         &root.join("bin/openai_compatible-provider"),
         "openai_compatible_chat",
         "OpenAI Compatible Chat",
-        None,
     );
     fs::write(
         root.join("models/llm/_position.yaml"),

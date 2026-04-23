@@ -259,16 +259,17 @@ async fn insert_legacy_instance(
     .bind(ModelProviderInstanceStatus::Ready.as_str())
     .bind(json!({ "base_url": format!("https://{}.example.com/v1", display_name.to_lowercase()) }))
     .bind(
-        serde_json::to_value(
+        Value::Array(
             enabled_model_ids
                 .iter()
-                .map(|model_id| domain::ModelProviderConfiguredModel {
-                    model_id: model_id.clone(),
-                    enabled: true,
+                .map(|model_id| {
+                    json!({
+                        "model_id": model_id,
+                        "enabled": true
+                    })
                 })
-                .collect::<Vec<_>>(),
-        )
-        .unwrap(),
+                .collect(),
+        ),
     )
     .bind(enabled_model_ids)
     .bind(actor_id)
@@ -340,10 +341,12 @@ async fn model_provider_repository_persists_instances_catalog_cache_and_encrypte
                 domain::ModelProviderConfiguredModel {
                     model_id: "qwen-max".into(),
                     enabled: true,
+                    context_window_override_tokens: Some(128_000),
                 },
                 domain::ModelProviderConfiguredModel {
                     model_id: "qwen-plus".into(),
                     enabled: false,
+                    context_window_override_tokens: None,
                 },
             ],
             enabled_model_ids: vec!["qwen-max".into(), "qwen-plus".into()],
@@ -363,10 +366,12 @@ async fn model_provider_repository_persists_instances_catalog_cache_and_encrypte
             domain::ModelProviderConfiguredModel {
                 model_id: "qwen-max".to_string(),
                 enabled: true,
+                context_window_override_tokens: Some(128_000),
             },
             domain::ModelProviderConfiguredModel {
                 model_id: "qwen-plus".to_string(),
                 enabled: false,
+                context_window_override_tokens: None,
             },
         ]
     );
@@ -383,10 +388,12 @@ async fn model_provider_repository_persists_instances_catalog_cache_and_encrypte
                 domain::ModelProviderConfiguredModel {
                     model_id: "qwen-max".into(),
                     enabled: true,
+                    context_window_override_tokens: Some(256_000),
                 },
                 domain::ModelProviderConfiguredModel {
                     model_id: "qwen-plus".into(),
                     enabled: false,
+                    context_window_override_tokens: None,
                 },
             ],
             enabled_model_ids: vec!["qwen-max".into(), "qwen-plus".into()],
@@ -407,10 +414,12 @@ async fn model_provider_repository_persists_instances_catalog_cache_and_encrypte
             domain::ModelProviderConfiguredModel {
                 model_id: "qwen-max".to_string(),
                 enabled: true,
+                context_window_override_tokens: Some(256_000),
             },
             domain::ModelProviderConfiguredModel {
                 model_id: "qwen-plus".to_string(),
                 enabled: false,
+                context_window_override_tokens: None,
             },
         ]
     );
@@ -708,6 +717,53 @@ async fn model_provider_repository_backfills_main_instance_settings_when_upgradi
         .unwrap();
     assert_eq!(instances.len(), 2);
     assert!(instances.iter().all(|instance| instance.included_in_main));
+}
+
+#[tokio::test]
+async fn model_provider_repository_backfills_missing_context_window_override_tokens_when_upgrading_legacy_schema(
+) {
+    let (store, workspace, actor, installation_id) =
+        seed_store_before_main_instance_aggregation().await;
+    sqlx::raw_sql(MAIN_INSTANCE_AGGREGATION_MIGRATION_SQL)
+        .execute(store.pool())
+        .await
+        .unwrap();
+    let instance_id = insert_legacy_instance(
+        &store,
+        workspace.id,
+        installation_id,
+        actor.id,
+        "Legacy",
+        vec!["gpt-4o-mini".into(), "gpt-4.1-mini".into()],
+    )
+    .await;
+    let migration_sql = std::fs::read_to_string(
+        std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .join("migrations/20260423235000_add_model_provider_context_window_override.sql"),
+    )
+    .unwrap();
+
+    sqlx::raw_sql(&migration_sql).execute(store.pool()).await.unwrap();
+
+    let instance = ModelProviderRepository::get_instance(&store, workspace.id, instance_id)
+        .await
+        .unwrap()
+        .unwrap();
+    assert_eq!(
+        instance.configured_models,
+        vec![
+            domain::ModelProviderConfiguredModel {
+                model_id: "gpt-4o-mini".to_string(),
+                enabled: true,
+                context_window_override_tokens: None,
+            },
+            domain::ModelProviderConfiguredModel {
+                model_id: "gpt-4.1-mini".to_string(),
+                enabled: true,
+                context_window_override_tokens: None,
+            },
+        ]
+    );
 }
 
 #[tokio::test]

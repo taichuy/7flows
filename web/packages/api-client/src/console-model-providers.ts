@@ -61,13 +61,13 @@ export interface ConsoleProviderModelDescriptor {
   supports_multimodal: boolean;
   context_window: number | null;
   max_output_tokens: number | null;
-  parameter_form: ConsolePluginFormSchema | null;
   provider_metadata: Record<string, unknown>;
 }
 
 export interface ConsoleModelProviderConfiguredModel {
   model_id: string;
   enabled: boolean;
+  context_window_override_tokens: number | null;
 }
 
 export interface ConsoleModelProviderCatalogEntry {
@@ -188,6 +188,7 @@ export interface ConsoleModelProviderOption {
   description_key: string | null;
   protocol: string;
   display_name: string;
+  parameter_form: ConsolePluginFormSchema | null;
   main_instance: ConsoleModelProviderMainInstanceSummary;
   model_groups: ConsoleModelProviderOptionGroup[];
 }

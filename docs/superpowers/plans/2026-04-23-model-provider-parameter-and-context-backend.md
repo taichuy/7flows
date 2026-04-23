@@ -49,12 +49,12 @@
 - Modify: `api/crates/plugin-framework/src/_tests/package_intake_tests.rs`
 - Modify: `api/crates/plugin-framework/src/provider_contract.rs`
 
-- [ ] **Step 1: Write failing package-loading tests**
+- [x] **Step 1: Write failing package-loading tests**
   - Add coverage that a provider YAML with `parameter_form` loads successfully into `ProviderDefinition`.
   - Add a negative test that malformed `parameter_form` fails package intake.
   - Keep one assertion that static/dynamic model descriptors no longer need to carry `parameter_form`.
 
-- [ ] **Step 2: Run the targeted plugin-framework tests and verify RED**
+- [x] **Step 2: Run the targeted plugin-framework tests and verify RED**
 
 Run:
 
@@ -67,12 +67,12 @@ Expected:
 
 - FAIL because `RawProviderDefinition` and `ProviderDefinition` do not parse or store `parameter_form`.
 
-- [ ] **Step 3: Add provider-level schema parsing**
+- [x] **Step 3: Add provider-level schema parsing**
   - Extend `ProviderDefinition` with `parameter_form: Option<PluginFormSchema>`.
   - Extend `RawProviderDefinition` to deserialize `parameter_form`.
   - Keep `ProviderModelDescriptor` focused on model metadata only.
 
-- [ ] **Step 4: Re-run the plugin-framework tests and verify GREEN**
+- [x] **Step 4: Re-run the plugin-framework tests and verify GREEN**
 
 Run:
 
@@ -97,14 +97,14 @@ Expected:
 - Modify: `api/crates/storage-pg/src/_tests/model_provider_repository_tests.rs`
 - Modify: `api/crates/control-plane/src/_tests/model_provider_service_tests.rs`
 
-- [ ] **Step 1: Write failing persistence and service tests**
+- [x] **Step 1: Write failing persistence and service tests**
   - Add repository coverage that `configured_models_json` round-trips `context_window_override_tokens`.
   - Add service coverage that:
     - create/update keep numeric overrides
     - legacy `enabled_model_ids` normalization backfills `context_window_override_tokens = null`
     - empty or absent overrides do not affect enabled-model derivation
 
-- [ ] **Step 2: Run the targeted tests and verify RED**
+- [x] **Step 2: Run the targeted tests and verify RED**
 
 Run:
 
@@ -117,12 +117,12 @@ Expected:
 
 - FAIL because `ModelProviderConfiguredModel` still has only `model_id` and `enabled`.
 
-- [ ] **Step 3: Add the forward-only migration and type changes**
+- [x] **Step 3: Add the forward-only migration and type changes**
   - Add a migration that rewrites `configured_models_json` elements to include `"context_window_override_tokens": null` when missing.
   - Extend `domain::ModelProviderConfiguredModel` and all create/update DTO inputs with `context_window_override_tokens: Option<u64>`.
   - Keep `enabled_model_ids` derivation unchanged.
 
-- [ ] **Step 4: Re-run the targeted tests and verify GREEN**
+- [x] **Step 4: Re-run the targeted tests and verify GREEN**
 
 Run:
 
@@ -142,13 +142,13 @@ Expected:
 - Modify: `api/apps/api-server/src/_tests/model_provider_routes.rs`
 - Modify: `web/packages/api-client/src/console-model-providers.ts`
 
-- [ ] **Step 1: Write failing route and client assertions**
+- [x] **Step 1: Write failing route and client assertions**
   - Lock the console contract to:
     - `providers[*].parameter_form`
     - no `models[*].parameter_form`
     - `configured_models[*].context_window_override_tokens`
 
-- [ ] **Step 2: Run route tests and verify RED**
+- [x] **Step 2: Run route tests and verify RED**
 
 Run:
 
@@ -160,12 +160,12 @@ Expected:
 
 - FAIL because route DTOs still serialize model-level `parameter_form` and do not expose the new configured-model field.
 
-- [ ] **Step 3: Replace the route and client contract**
+- [x] **Step 3: Replace the route and client contract**
   - Add provider-level `parameter_form` to `ModelProviderOptionResponse` and `ConsoleModelProviderOption`.
   - Remove model-level `parameter_form` from route/client descriptor types.
   - Expose `context_window_override_tokens` on configured-model request and response DTOs.
 
-- [ ] **Step 4: Re-run route tests and verify GREEN**
+- [x] **Step 4: Re-run route tests and verify GREEN**
 
 Run:
 
@@ -185,12 +185,12 @@ Expected:
 - Modify: `api/crates/control-plane/src/model_provider/catalog.rs`
 - Modify: `api/crates/control-plane/src/_tests/model_provider_service_tests.rs`
 
-- [ ] **Step 1: Add failing fixture-driven assertions**
+- [x] **Step 1: Add failing fixture-driven assertions**
   - Assert provider-level `parameter_form` in options fixtures.
   - Assert `catalog` fixtures remain model-metadata-only.
   - Assert fallback model descriptors still synthesize model metadata without inventing parameter schema.
 
-- [ ] **Step 2: Run the targeted backend tests and verify RED**
+- [x] **Step 2: Run the targeted backend tests and verify RED**
 
 Run:
 
@@ -203,12 +203,12 @@ Expected:
 
 - FAIL because fixtures and fallback descriptors still encode model-level `parameter_form`.
 
-- [ ] **Step 3: Update grouped options generation and fixtures**
+- [x] **Step 3: Update grouped options generation and fixtures**
   - Thread provider-level package schema into `ModelProviderOptionEntry`.
   - Keep fallback model descriptors `parameter_form = None`.
   - Rewrite the JSON fixtures to match the new grouped provider shape.
 
-- [ ] **Step 4: Re-run the backend and fixture checks and verify GREEN**
+- [x] **Step 4: Re-run the backend and fixture checks and verify GREEN**
 
 Run:
 
@@ -226,7 +226,7 @@ Expected:
 **Files:**
 - Modify only the files listed in Tasks 1-4
 
-- [ ] **Step 1: Stage the backend/backend-contract files**
+- [x] **Step 1: Stage the backend/backend-contract files**
 
 Run:
 
@@ -251,7 +251,7 @@ git add api/crates/plugin-framework/src/provider_contract.rs \
   scripts/node/testing/contracts/model-providers/catalog.multiple-providers.json
 ```
 
-- [ ] **Step 2: Commit the backend slice**
+- [x] **Step 2: Commit the backend slice**
 
 Run:
 

@@ -83,7 +83,6 @@ fn write_provider_runtime_script(
     path: &Path,
     model_id: &str,
     model_label: &str,
-    parameter_form_json: Option<&str>,
 ) {
     let script = format!(
         r#"#!/usr/bin/env node
@@ -97,7 +96,6 @@ const listModels = [{{
   supports_streaming: true,
   supports_tool_call: false,
   supports_multimodal: false,
-  parameter_form: {parameter_form},
   provider_metadata: {{}}
 }}];
 
@@ -134,8 +132,7 @@ switch (request.method) {{
 }}
 
 process.stdout.write(JSON.stringify({{ ok: true, result }}));
-"#,
-        parameter_form = parameter_form_json.unwrap_or("null")
+"#
     );
     write_test_executable(path, &script);
 }
@@ -156,6 +153,15 @@ protocol: openai_compatible
 help_url: https://example.com/help
 default_base_url: https://api.example.com
 model_discovery: hybrid
+parameter_form:
+  schema_version: 1.0.0
+  title: LLM Parameters
+  fields:
+    - key: temperature
+      label: Temperature
+      type: number
+      send_mode: optional
+      enabled_by_default: true
 config_schema:
   - key: base_url
     type: string
@@ -170,7 +176,6 @@ config_schema:
         &root.join("bin/fixture_provider-provider"),
         "fixture_chat",
         "Fixture Chat",
-        None,
     );
     fs::write(
         root.join("models/llm/_position.yaml"),
@@ -275,6 +280,15 @@ protocol: openai_compatible
 help_url: https://platform.openai.com/docs/api-reference
 default_base_url: https://api.openai.com/v1
 model_discovery: hybrid
+parameter_form:
+  schema_version: 1.0.0
+  title: LLM Parameters
+  fields:
+    - key: temperature
+      label: Temperature
+      type: number
+      send_mode: optional
+      enabled_by_default: true
 config_schema:
   - key: base_url
     type: string
@@ -289,7 +303,6 @@ config_schema:
         &root.join("bin/openai_compatible-provider"),
         "openai_compatible_chat",
         "OpenAI Compatible Chat",
-        None,
     );
     fs::write(
         root.join("models/llm/_position.yaml"),
@@ -463,7 +476,7 @@ pub(crate) async fn seed_test_installation(
     fs::write(
         package_root.join(format!("provider/{provider_code}.yaml")),
         format!(
-            "provider_code: {provider_code}\ndisplay_name: Fixture Provider\nprotocol: openai_compatible\nhelp_url: https://example.com/help\ndefault_base_url: https://api.example.com\nmodel_discovery: hybrid\nconfig_schema:\n  - key: base_url\n    type: string\n    required: true\n  - key: api_key\n    type: secret\n    required: true\n"
+            "provider_code: {provider_code}\ndisplay_name: Fixture Provider\nprotocol: openai_compatible\nhelp_url: https://example.com/help\ndefault_base_url: https://api.example.com\nmodel_discovery: hybrid\nparameter_form:\n  schema_version: 1.0.0\n  title: LLM Parameters\n  fields:\n    - key: temperature\n      label: Temperature\n      type: number\n      send_mode: optional\n      enabled_by_default: true\nconfig_schema:\n  - key: base_url\n    type: string\n    required: true\n  - key: api_key\n    type: secret\n    required: true\n"
         ),
     )
     .unwrap();
@@ -471,7 +484,6 @@ pub(crate) async fn seed_test_installation(
         &package_root.join(format!("bin/{provider_code}-provider")),
         "fixture_chat",
         "Fixture Chat",
-        None,
     );
     fs::write(
         package_root.join("models/llm/_position.yaml"),

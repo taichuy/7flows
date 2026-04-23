@@ -11,7 +11,9 @@ use crate::{
     capability_kind::PluginConsumptionKind,
     error::{FrameworkResult, PluginFrameworkError},
     manifest_v1::{parse_plugin_manifest, PluginManifestV1},
-    provider_contract::{ModelDiscoveryMode, ProviderModelDescriptor, ProviderModelSource},
+    provider_contract::{
+        ModelDiscoveryMode, PluginFormSchema, ProviderModelDescriptor, ProviderModelSource,
+    },
 };
 
 pub const DEFAULT_PROVIDER_LOCALE: &str = "en_US";
@@ -68,7 +70,7 @@ pub struct ProviderConfigField {
     pub advanced: bool,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct ProviderDefinition {
     pub provider_code: String,
     pub display_name: String,
@@ -77,6 +79,7 @@ pub struct ProviderDefinition {
     pub default_base_url: Option<String>,
     pub model_discovery_mode: ModelDiscoveryMode,
     pub supports_model_fetch_without_credentials: bool,
+    pub parameter_form: Option<PluginFormSchema>,
     pub form_schema: Vec<ProviderConfigField>,
 }
 
@@ -142,6 +145,7 @@ impl ProviderPackage {
             model_discovery_mode: ModelDiscoveryMode::try_from(raw_provider.model_discovery)?,
             supports_model_fetch_without_credentials: raw_provider
                 .supports_model_fetch_without_credentials,
+            parameter_form: raw_provider.parameter_form,
             form_schema: raw_provider.config_schema,
         };
 
@@ -195,6 +199,8 @@ struct RawProviderDefinition {
     model_discovery: String,
     #[serde(default)]
     supports_model_fetch_without_credentials: bool,
+    #[serde(default)]
+    parameter_form: Option<PluginFormSchema>,
     #[serde(default)]
     config_schema: Vec<ProviderConfigField>,
 }
@@ -317,7 +323,6 @@ fn load_predefined_models(models_dir: &Path) -> FrameworkResult<Vec<ProviderMode
             supports_multimodal: capabilities.iter().any(|value| value == "multimodal"),
             context_window: raw_model.context_window,
             max_output_tokens: raw_model.max_output_tokens,
-            parameter_form: None,
             provider_metadata: raw_model.provider_metadata,
         });
     }

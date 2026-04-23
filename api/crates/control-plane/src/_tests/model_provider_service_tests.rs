@@ -865,34 +865,6 @@ impl ProviderRuntimePort for MemoryProviderRuntime {
             supports_multimodal: false,
             context_window: Some(128000),
             max_output_tokens: Some(4096),
-            parameter_form: Some(plugin_framework::provider_contract::PluginFormSchema {
-                schema_version: "1.0.0".to_string(),
-                title: Some("LLM Parameters".to_string()),
-                description: None,
-                fields: vec![plugin_framework::provider_contract::PluginFormFieldSchema {
-                    key: "temperature".to_string(),
-                    label: "Temperature".to_string(),
-                    field_type: "number".to_string(),
-                    control: Some("slider".to_string()),
-                    group: Some("sampling".to_string()),
-                    order: Some(10),
-                    advanced: Some(false),
-                    required: Some(false),
-                    send_mode: Some("optional".to_string()),
-                    enabled_by_default: Some(true),
-                    description: Some("Controls randomness.".to_string()),
-                    placeholder: None,
-                    default_value: Some(json!(0.7)),
-                    min: Some(0.0),
-                    max: Some(2.0),
-                    step: Some(0.1),
-                    precision: Some(1),
-                    unit: None,
-                    options: Vec::new(),
-                    visible_when: Vec::new(),
-                    disabled_when: Vec::new(),
-                }],
-            }),
             provider_metadata: json!({}),
         }])
     }
@@ -1002,13 +974,8 @@ async fn model_provider_service_masks_secret_in_views_and_reveals_on_demand() {
         .unwrap();
     assert_eq!(refreshed.models.len(), 1);
     assert_eq!(
-        refreshed.models[0]
-            .parameter_form
-            .as_ref()
-            .expect("refreshed models should keep parameter form")
-            .fields[0]
-            .key,
-        "temperature"
+        refreshed.models[0].context_window,
+        Some(128000)
     );
     assert_eq!(
         repository.audit_events().await,
@@ -1366,7 +1333,6 @@ async fn model_provider_service_options_group_models_by_source_instance_and_keep
                     supports_multimodal: false,
                     context_window: Some(128000),
                     max_output_tokens: Some(4096),
-                    parameter_form: None,
                     provider_metadata: json!({}),
                 },
                 ProviderModelDescriptor {
@@ -1378,7 +1344,6 @@ async fn model_provider_service_options_group_models_by_source_instance_and_keep
                     supports_multimodal: false,
                     context_window: Some(64000),
                     max_output_tokens: Some(2048),
-                    parameter_form: None,
                     provider_metadata: json!({}),
                 },
             ])
@@ -1404,7 +1369,6 @@ async fn model_provider_service_options_group_models_by_source_instance_and_keep
                 supports_multimodal: false,
                 context_window: Some(64000),
                 max_output_tokens: Some(2048),
-                parameter_form: None,
                 provider_metadata: json!({}),
             }])
             .unwrap(),
@@ -1505,14 +1469,17 @@ async fn model_provider_service_persists_configured_models_and_derives_enabled_m
                 ModelProviderConfiguredModelInput {
                     model_id: " fixture_chat ".to_string(),
                     enabled: true,
+                    context_window_override_tokens: Some(128_000),
                 },
                 ModelProviderConfiguredModelInput {
                     model_id: " custom-disabled ".to_string(),
                     enabled: false,
+                    context_window_override_tokens: None,
                 },
                 ModelProviderConfiguredModelInput {
                     model_id: "".to_string(),
                     enabled: true,
+                    context_window_override_tokens: Some(64_000),
                 },
             ],
             enabled_model_ids: vec!["legacy-should-be-ignored".to_string()],
@@ -1529,10 +1496,12 @@ async fn model_provider_service_persists_configured_models_and_derives_enabled_m
             domain::ModelProviderConfiguredModel {
                 model_id: "fixture_chat".to_string(),
                 enabled: true,
+                context_window_override_tokens: Some(128_000),
             },
             domain::ModelProviderConfiguredModel {
                 model_id: "custom-disabled".to_string(),
                 enabled: false,
+                context_window_override_tokens: None,
             },
         ]
     );
@@ -1551,14 +1520,17 @@ async fn model_provider_service_persists_configured_models_and_derives_enabled_m
                 ModelProviderConfiguredModelInput {
                     model_id: "fixture_chat".to_string(),
                     enabled: false,
+                    context_window_override_tokens: Some(64_000),
                 },
                 ModelProviderConfiguredModelInput {
                     model_id: " custom-enabled ".to_string(),
                     enabled: true,
+                    context_window_override_tokens: Some(256_000),
                 },
                 ModelProviderConfiguredModelInput {
                     model_id: "custom-enabled".to_string(),
                     enabled: true,
+                    context_window_override_tokens: None,
                 },
             ],
             enabled_model_ids: vec!["legacy-should-be-ignored".to_string()],
@@ -1575,10 +1547,12 @@ async fn model_provider_service_persists_configured_models_and_derives_enabled_m
             domain::ModelProviderConfiguredModel {
                 model_id: "fixture_chat".to_string(),
                 enabled: false,
+                context_window_override_tokens: Some(64_000),
             },
             domain::ModelProviderConfiguredModel {
                 model_id: "custom-enabled".to_string(),
                 enabled: true,
+                context_window_override_tokens: Some(256_000),
             },
         ]
     );
@@ -1642,6 +1616,26 @@ async fn model_provider_service_normalizes_multiple_enabled_model_ids_and_allows
             "custom-beta".to_string(),
         ]
     );
+    assert_eq!(
+        created.instance.configured_models,
+        vec![
+            domain::ModelProviderConfiguredModel {
+                model_id: "fixture_chat".to_string(),
+                enabled: true,
+                context_window_override_tokens: None,
+            },
+            domain::ModelProviderConfiguredModel {
+                model_id: "custom-alpha".to_string(),
+                enabled: true,
+                context_window_override_tokens: None,
+            },
+            domain::ModelProviderConfiguredModel {
+                model_id: "custom-beta".to_string(),
+                enabled: true,
+                context_window_override_tokens: None,
+            },
+        ]
+    );
 
     let updated = service
         .update_instance(UpdateModelProviderInstanceCommand {
@@ -1670,6 +1664,26 @@ async fn model_provider_service_normalizes_multiple_enabled_model_ids_and_allows
             "custom-beta".to_string(),
             "fixture_chat".to_string(),
             "custom-gamma".to_string(),
+        ]
+    );
+    assert_eq!(
+        updated.instance.configured_models,
+        vec![
+            domain::ModelProviderConfiguredModel {
+                model_id: "custom-beta".to_string(),
+                enabled: true,
+                context_window_override_tokens: None,
+            },
+            domain::ModelProviderConfiguredModel {
+                model_id: "fixture_chat".to_string(),
+                enabled: true,
+                context_window_override_tokens: None,
+            },
+            domain::ModelProviderConfiguredModel {
+                model_id: "custom-gamma".to_string(),
+                enabled: true,
+                context_window_override_tokens: None,
+            },
         ]
     );
 }

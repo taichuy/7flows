@@ -38,6 +38,22 @@
       "description_key": "provider.description",
       "protocol": "openai_responses",
       "display_name": "OpenAI Compatible",
+      "parameter_form": {
+        "schema_version": "1.0.0",
+        "fields": [
+          {
+            "key": "temperature",
+            "label": "Temperature",
+            "type": "number",
+            "send_mode": "optional",
+            "enabled_by_default": false,
+            "options": [],
+            "visible_when": [],
+            "disabled_when": [],
+            "default_value": 0.7
+          }
+        ]
+      },
       "main_instance": {
         "provider_code": "openai_compatible",
         "auto_include_new_instances": true,
@@ -58,22 +74,6 @@
               "supports_multimodal": true,
               "context_window": 128000,
               "max_output_tokens": 16384,
-              "parameter_form": {
-                "schema_version": "1.0.0",
-                "fields": [
-                  {
-                    "key": "temperature",
-                    "label": "Temperature",
-                    "type": "number",
-                    "send_mode": "optional",
-                    "enabled_by_default": false,
-                    "options": [],
-                    "visible_when": [],
-                    "disabled_when": [],
-                    "default_value": 0.7
-                  }
-                ]
-              },
               "provider_metadata": {}
             }
           ]
@@ -91,7 +91,6 @@
               "supports_multimodal": true,
               "context_window": 128000,
               "max_output_tokens": 16384,
-              "parameter_form": null,
               "provider_metadata": {}
             }
           ]
@@ -106,6 +105,7 @@
       "description_key": "provider.description",
       "protocol": "anthropic_messages",
       "display_name": "Anthropic Compatible",
+      "parameter_form": null,
       "main_instance": {
         "provider_code": "anthropic_compatible",
         "auto_include_new_instances": false,
@@ -126,7 +126,6 @@
               "supports_multimodal": true,
               "context_window": 200000,
               "max_output_tokens": 8192,
-              "parameter_form": null,
               "provider_metadata": {}
             }
           ]

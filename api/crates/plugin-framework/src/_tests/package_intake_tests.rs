@@ -203,6 +203,55 @@ async fn package_intake_marks_uploaded_unsigned_archive_as_unverified() {
 }
 
 #[tokio::test]
+async fn package_intake_rejects_malformed_provider_parameter_form() {
+    let fixture_dir = TempFixtureDir::new();
+    write_provider_fixture(
+        &fixture_dir,
+        "fixture_provider",
+        "0.1.0",
+        "uploaded",
+        "unverified",
+    );
+    fixture_dir.write_str(
+        "provider/fixture_provider.yaml",
+        r#"provider_code: fixture_provider
+display_name: fixture_provider
+protocol: openai_compatible
+model_discovery: hybrid
+parameter_form: definitely-not-a-schema
+config_schema:
+  - key: api_key
+    type: string
+    required: true
+"#,
+    );
+
+    let package_bytes = pack_zip(fixture_dir.path());
+    let signing_key = SigningKey::from_bytes(&[7u8; 32]);
+    let error = intake_package_bytes(
+        &package_bytes,
+        &PackageIntakePolicy {
+            source_kind: "uploaded".to_string(),
+            trust_mode: "allow_unsigned".to_string(),
+            expected_artifact_sha256: None,
+            trusted_public_keys: vec![TrustedPublicKey {
+                key_id: "official-key-2026-04".to_string(),
+                algorithm: "ed25519".to_string(),
+                public_key_pem: signing_key
+                    .verifying_key()
+                    .to_public_key_pem(LineEnding::LF)
+                    .unwrap(),
+            }],
+            original_filename: Some("fixture_provider-0.1.0.zip".into()),
+        },
+    )
+    .await
+    .expect_err("malformed provider parameter form must fail intake");
+
+    assert!(error.to_string().contains("parameter_form"));
+}
+
+#[tokio::test]
 async fn package_intake_rejects_signed_archive_with_release_identity_mismatch() {
     let fixture = create_signed_package_fixture(SignedFixtureInput {
         provider_code: "openai_compatible",

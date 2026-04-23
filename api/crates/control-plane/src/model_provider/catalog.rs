@@ -181,6 +181,7 @@ where
             description_key: Some("provider.description".to_string()),
             protocol,
             display_name: package.provider.display_name.clone(),
+            parameter_form: package.provider.parameter_form.clone(),
             main_instance: ModelProviderMainInstanceSummary {
                 provider_code: provider_code.clone(),
                 auto_include_new_instances: super::main_instance::auto_include_new_instances(
@@ -235,7 +236,6 @@ fn fallback_enabled_model_descriptor(
             supports_multimodal: false,
             context_window: None,
             max_output_tokens: None,
-            parameter_form: None,
             provider_metadata: serde_json::json!({}),
         },
         namespace: None,

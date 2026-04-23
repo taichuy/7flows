@@ -59,7 +59,6 @@ pub(crate) fn write_provider_runtime_script(
     path: &Path,
     model_id: &str,
     model_label: &str,
-    parameter_form_json: Option<&str>,
 ) {
     let script = format!(
         r#"#!/usr/bin/env node
@@ -73,7 +72,6 @@ const listModels = [{{
   supports_streaming: true,
   supports_tool_call: false,
   supports_multimodal: false,
-  parameter_form: {parameter_form},
   provider_metadata: {{}}
 }}];
 
@@ -110,8 +108,7 @@ switch (request.method) {{
 }}
 
 process.stdout.write(JSON.stringify({{ ok: true, result }}));
-"#,
-        parameter_form = parameter_form_json.unwrap_or("null")
+"#
     );
     write_test_executable(path, &script);
 }
@@ -129,6 +126,15 @@ protocol: openai_compatible
 help_url: https://platform.openai.com/docs/api-reference
 default_base_url: https://api.openai.com/v1
 model_discovery: hybrid
+parameter_form:
+  schema_version: 1.0.0
+  title: LLM Parameters
+  fields:
+    - key: temperature
+      label: Temperature
+      type: number
+      send_mode: optional
+      enabled_by_default: true
 config_schema:
   - key: base_url
     type: string
@@ -143,7 +149,6 @@ config_schema:
         &root.join("bin/openai_compatible-provider"),
         "openai_compatible_chat",
         "OpenAI Compatible Chat",
-        None,
     );
     fs::write(
         root.join("models/llm/_position.yaml"),

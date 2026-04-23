@@ -39,6 +39,7 @@ use crate::{
 pub struct ConfiguredModelBody {
     pub model_id: String,
     pub enabled: bool,
+    pub context_window_override_tokens: Option<u64>,
 }
 
 #[derive(Debug, Deserialize, ToSchema)]
@@ -114,7 +115,6 @@ pub struct ProviderModelDescriptorResponse {
     pub supports_multimodal: bool,
     pub context_window: Option<u64>,
     pub max_output_tokens: Option<u64>,
-    pub parameter_form: Option<PluginFormSchemaResponse>,
     #[schema(value_type = Object)]
     pub provider_metadata: serde_json::Value,
 }
@@ -207,6 +207,7 @@ pub struct ModelProviderCatalogResponse {
 pub struct ConfiguredModelResponse {
     pub model_id: String,
     pub enabled: bool,
+    pub context_window_override_tokens: Option<u64>,
 }
 
 #[derive(Debug, Serialize, ToSchema)]
@@ -267,6 +268,7 @@ pub struct ModelProviderOptionResponse {
     pub description_key: Option<String>,
     pub protocol: String,
     pub display_name: String,
+    pub parameter_form: Option<PluginFormSchemaResponse>,
     pub main_instance: ModelProviderMainInstanceSummaryResponse,
     pub model_groups: Vec<ModelProviderOptionGroupResponse>,
 }
@@ -379,9 +381,6 @@ fn to_model_descriptor_response(
         supports_multimodal: descriptor.supports_multimodal,
         context_window: descriptor.context_window,
         max_output_tokens: descriptor.max_output_tokens,
-        parameter_form: descriptor
-            .parameter_form
-            .map(to_plugin_form_schema_response),
         provider_metadata: descriptor.provider_metadata,
     }
 }
@@ -522,7 +521,6 @@ fn to_runtime_model_descriptor_response(
         supports_multimodal: model.supports_multimodal,
         context_window: model.context_window,
         max_output_tokens: model.max_output_tokens,
-        parameter_form: model.parameter_form.map(to_plugin_form_schema_response),
         provider_metadata: model.provider_metadata,
     }
 }
@@ -549,6 +547,7 @@ fn to_instance_response(view: ModelProviderInstanceView) -> ModelProviderInstanc
             .map(|model| ConfiguredModelResponse {
                 model_id: model.model_id,
                 enabled: model.enabled,
+                context_window_override_tokens: model.context_window_override_tokens,
             })
             .collect(),
         enabled_model_ids: view.instance.enabled_model_ids,
@@ -613,6 +612,7 @@ fn to_option_response(option: ModelProviderOptionEntry) -> ModelProviderOptionRe
         description_key: option.description_key,
         protocol: option.protocol,
         display_name: option.display_name,
+        parameter_form: option.parameter_form.map(to_plugin_form_schema_response),
         main_instance: ModelProviderMainInstanceSummaryResponse {
             provider_code: option.main_instance.provider_code,
             auto_include_new_instances: option.main_instance.auto_include_new_instances,
@@ -748,6 +748,7 @@ pub async fn create_instance(
                 .map(|model| domain::ModelProviderConfiguredModel {
                     model_id: model.model_id,
                     enabled: model.enabled,
+                    context_window_override_tokens: model.context_window_override_tokens,
                 })
                 .collect(),
             enabled_model_ids: body.enabled_model_ids,
@@ -792,6 +793,7 @@ pub async fn update_instance(
                 .map(|model| domain::ModelProviderConfiguredModel {
                     model_id: model.model_id,
                     enabled: model.enabled,
+                    context_window_override_tokens: model.context_window_override_tokens,
                 })
                 .collect(),
             enabled_model_ids: body.enabled_model_ids,

@@ -104,7 +104,6 @@
           "supports_multimodal": true,
           "context_window": 128000,
           "max_output_tokens": 16384,
-          "parameter_form": null,
           "provider_metadata": {}
         }
       ]
@@ -143,7 +142,6 @@
           "supports_multimodal": true,
           "context_window": 200000,
           "max_output_tokens": 8192,
-          "parameter_form": null,
           "provider_metadata": {}
         }
       ]

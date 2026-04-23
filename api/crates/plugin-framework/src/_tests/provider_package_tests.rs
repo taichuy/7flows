@@ -88,6 +88,15 @@ help_url: https://example.com/help
 default_base_url: https://api.example.com
 model_discovery: hybrid
 supports_model_fetch_without_credentials: true
+parameter_form:
+  schema_version: 1.0.0
+  title: Provider Parameters
+  fields:
+    - key: temperature
+      label: Temperature
+      type: number
+      send_mode: optional
+      enabled_by_default: true
 config_schema:
   - key: base_url
     type: string
@@ -173,6 +182,16 @@ fn provider_package_loads_manifest_v1_runtime_entry_and_static_models() {
         ModelDiscoveryMode::Hybrid
     );
     assert!(package.provider.supports_model_fetch_without_credentials);
+    assert_eq!(
+        package
+            .provider
+            .parameter_form
+            .as_ref()
+            .expect("provider parameter form should load")
+            .fields[0]
+            .key,
+        "temperature"
+    );
     assert_eq!(package.predefined_models.len(), 1);
 
     let model = &package.predefined_models[0];
@@ -183,6 +202,13 @@ fn provider_package_loads_manifest_v1_runtime_entry_and_static_models() {
     assert!(model.supports_tool_call);
     assert_eq!(model.context_window, Some(128000));
     assert_eq!(model.max_output_tokens, Some(4096));
+    assert!(
+        serde_json::to_value(model)
+            .unwrap()
+            .get("parameter_form")
+            .is_none(),
+        "predefined models should stay metadata-only"
+    );
 
     let catalog_entry = ProviderCatalogEntry::from_package(&package);
     assert_eq!(catalog_entry.plugin_id, "acme_openai_compatible@1.2.3");

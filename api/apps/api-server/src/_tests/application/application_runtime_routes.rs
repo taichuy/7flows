@@ -26,6 +26,15 @@ protocol: openai_compatible
 help_url: https://example.com/help
 default_base_url: https://api.example.com
 model_discovery: hybrid
+parameter_form:
+  schema_version: 1.0.0
+  title: LLM Parameters
+  fields:
+    - key: temperature
+      label: Temperature
+      type: number
+      send_mode: optional
+      enabled_by_default: true
 config_schema:
   - key: base_url
     type: string
@@ -40,7 +49,6 @@ config_schema:
         &root.join("bin/fixture_provider-provider"),
         "fixture_chat",
         "Fixture Chat",
-        None,
     );
     fs::write(
         root.join("models/llm/_position.yaml"),
@@ -166,7 +174,7 @@ async fn create_ready_provider_instance(app: &axum::Router, cookie: &str, csrf: 
     instance_id
 }
 
-fn build_ready_provider_document(flow_id: &str, _provider_instance_id: &str) -> Value {
+fn build_ready_provider_document(flow_id: &str, provider_instance_id: &str) -> Value {
     json!({
         "schemaVersion": "1flowbase.flow/v1",
         "meta": { "flowId": flow_id, "name": "Support Agent", "description": "", "tags": [] },
@@ -195,6 +203,7 @@ fn build_ready_provider_document(flow_id: &str, _provider_instance_id: &str) -> 
                     "config": {
                         "model_provider": {
                             "provider_code": "fixture_provider",
+                            "source_instance_id": provider_instance_id,
                             "model_id": "fixture_chat"
                         },
                         "temperature": 0.2
@@ -312,7 +321,7 @@ async fn seed_agent_flow_application(
     application_id
 }
 
-fn build_human_input_document(flow_id: &str, _provider_instance_id: &str) -> Value {
+fn build_human_input_document(flow_id: &str, provider_instance_id: &str) -> Value {
     json!({
         "schemaVersion": "1flowbase.flow/v1",
         "meta": { "flowId": flow_id, "name": "Support Agent", "description": "", "tags": [] },
@@ -341,6 +350,7 @@ fn build_human_input_document(flow_id: &str, _provider_instance_id: &str) -> Val
                     "config": {
                         "model_provider": {
                             "provider_code": "fixture_provider",
+                            "source_instance_id": provider_instance_id,
                             "model_id": "fixture_chat"
                         },
                         "temperature": 0.2

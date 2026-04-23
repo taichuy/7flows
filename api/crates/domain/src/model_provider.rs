@@ -327,6 +327,7 @@ impl ModelProviderRoutingMode {
 pub struct ModelProviderConfiguredModel {
     pub model_id: String,
     pub enabled: bool,
+    pub context_window_override_tokens: Option<u64>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]

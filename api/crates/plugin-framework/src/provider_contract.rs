@@ -217,8 +217,6 @@ pub struct ProviderModelDescriptor {
     pub context_window: Option<u64>,
     pub max_output_tokens: Option<u64>,
     #[serde(default)]
-    pub parameter_form: Option<PluginFormSchema>,
-    #[serde(default)]
     pub provider_metadata: Value,
 }
 

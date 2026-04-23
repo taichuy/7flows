@@ -26,6 +26,20 @@ protocol: openai_compatible
 help_url: https://example.com/help
 default_base_url: https://api.example.com
 model_discovery: hybrid
+parameter_form:
+  schema_version: 1.0.0
+  title: LLM Parameters
+  fields:
+    - key: temperature
+      label: Temperature
+      type: number
+      control: slider
+      send_mode: optional
+      enabled_by_default: true
+      default_value: 0.7
+      min: 0
+      max: 2
+      step: 0.1
 config_schema:
   - key: base_url
     type: string
@@ -44,26 +58,6 @@ config_schema:
         &root.join("bin/fixture_provider-provider"),
         "fixture_chat",
         "Fixture Chat",
-        Some(
-            r#"{
-  "schema_version": "1.0.0",
-  "title": "LLM Parameters",
-  "fields": [
-    {
-      "key": "temperature",
-      "label": "Temperature",
-      "type": "number",
-      "control": "slider",
-      "send_mode": "optional",
-      "enabled_by_default": true,
-      "default_value": 0.7,
-      "min": 0,
-      "max": 2,
-      "step": 0.1
-    }
-  ]
-}"#,
-        ),
     );
     fs::write(
         root.join("models/llm/_position.yaml"),
@@ -209,6 +203,18 @@ fn schema_ref_name(schema: &Value) -> Option<String> {
         .or_else(|| {
             schema
                 .get("allOf")
+                .and_then(Value::as_array)
+                .and_then(|items| items.iter().find_map(schema_ref_name))
+        })
+        .or_else(|| {
+            schema
+                .get("anyOf")
+                .and_then(Value::as_array)
+                .and_then(|items| items.iter().find_map(schema_ref_name))
+        })
+        .or_else(|| {
+            schema
+                .get("oneOf")
                 .and_then(Value::as_array)
                 .and_then(|items| items.iter().find_map(schema_ref_name))
         })
@@ -580,8 +586,8 @@ async fn model_provider_routes_create_instance_accepts_configured_models_with_pr
                         "installation_id": installation_id,
                         "display_name": "Fixture Prod",
                         "configured_models": [
-                            { "model_id": "fixture_chat", "enabled": true },
-                            { "model_id": "custom-preview", "enabled": false }
+                            { "model_id": "fixture_chat", "enabled": true, "context_window_override_tokens": 128000 },
+                            { "model_id": "custom-preview", "enabled": false, "context_window_override_tokens": null }
                         ],
                         "preview_token": preview_token,
                         "config": {
@@ -602,8 +608,8 @@ async fn model_provider_routes_create_instance_accepts_configured_models_with_pr
     assert_eq!(
         create_payload["data"]["configured_models"],
         json!([
-            { "model_id": "fixture_chat", "enabled": true },
-            { "model_id": "custom-preview", "enabled": false }
+            { "model_id": "fixture_chat", "enabled": true, "context_window_override_tokens": 128000 },
+            { "model_id": "custom-preview", "enabled": false, "context_window_override_tokens": null }
         ])
     );
     assert_eq!(
@@ -664,10 +670,10 @@ async fn model_provider_routes_update_instance_accepts_configured_models() {
                         "display_name": "Fixture Ready",
                         "included_in_main": true,
                         "configured_models": [
-                            { "model_id": " fixture_chat ", "enabled": true },
-                            { "model_id": "custom-preview", "enabled": false },
-                            { "model_id": "fixture_chat", "enabled": true },
-                            { "model_id": "", "enabled": true }
+                            { "model_id": " fixture_chat ", "enabled": true, "context_window_override_tokens": 64000 },
+                            { "model_id": "custom-preview", "enabled": false, "context_window_override_tokens": null },
+                            { "model_id": "fixture_chat", "enabled": true, "context_window_override_tokens": 128000 },
+                            { "model_id": "", "enabled": true, "context_window_override_tokens": 32000 }
                         ],
                         "config": {}
                     })
@@ -684,8 +690,8 @@ async fn model_provider_routes_update_instance_accepts_configured_models() {
     assert_eq!(
         update_payload["data"]["configured_models"],
         json!([
-            { "model_id": "fixture_chat", "enabled": true },
-            { "model_id": "custom-preview", "enabled": false }
+            { "model_id": "fixture_chat", "enabled": true, "context_window_override_tokens": 64000 },
+            { "model_id": "custom-preview", "enabled": false, "context_window_override_tokens": null }
         ])
     );
     assert_eq!(
@@ -716,8 +722,8 @@ async fn model_provider_routes_update_instance_accepts_configured_models() {
     assert_eq!(
         list_payload["data"][0]["configured_models"],
         json!([
-            { "model_id": "fixture_chat", "enabled": true },
-            { "model_id": "custom-preview", "enabled": false }
+            { "model_id": "fixture_chat", "enabled": true, "context_window_override_tokens": 64000 },
+            { "model_id": "custom-preview", "enabled": false, "context_window_override_tokens": null }
         ])
     );
     assert_eq!(
@@ -820,8 +826,8 @@ async fn model_provider_routes_refresh_models_keeps_enabled_model_ids_unchanged(
                         "installation_id": installation_id,
                         "display_name": "Fixture Ready",
                         "configured_models": [
-                            { "model_id": "fixture_chat", "enabled": true },
-                            { "model_id": "custom-refresh", "enabled": false }
+                            { "model_id": "fixture_chat", "enabled": true, "context_window_override_tokens": 128000 },
+                            { "model_id": "custom-refresh", "enabled": false, "context_window_override_tokens": null }
                         ],
                         "config": {
                             "base_url": "https://api.example.com",
@@ -883,8 +889,8 @@ async fn model_provider_routes_refresh_models_keeps_enabled_model_ids_unchanged(
     assert_eq!(
         list_payload["data"][0]["configured_models"],
         json!([
-            { "model_id": "fixture_chat", "enabled": true },
-            { "model_id": "custom-refresh", "enabled": false }
+            { "model_id": "fixture_chat", "enabled": true, "context_window_override_tokens": 128000 },
+            { "model_id": "custom-refresh", "enabled": false, "context_window_override_tokens": null }
         ])
     );
     assert_eq!(
@@ -961,6 +967,29 @@ async fn model_provider_routes_main_instance_settings_drive_inclusion_and_groupe
             .as_str()
             .and_then(|value| value.split('/').next_back()),
         Some("ModelProviderOptionGroupResponse")
+    );
+    assert_eq!(
+        schema_ref_name(&schemas["ModelProviderOptionResponse"]["properties"]["parameter_form"])
+            .as_deref(),
+        Some("PluginFormSchemaResponse")
+    );
+    assert!(schemas["ProviderModelDescriptorResponse"]
+        .get("properties")
+        .and_then(|properties| properties.get("parameter_form"))
+        .is_none());
+    let override_schema =
+        &schemas["ConfiguredModelResponse"]["properties"]["context_window_override_tokens"];
+    assert!(
+        override_schema["type"].as_str() == Some("integer")
+            || override_schema["type"]
+                .as_array()
+                .is_some_and(|items| items.iter().any(|item| item.as_str() == Some("integer")))
+            || override_schema
+                .get("anyOf")
+                .and_then(Value::as_array)
+                .is_some_and(|items| items
+                    .iter()
+                    .any(|item| item["type"].as_str() == Some("integer")))
     );
     assert!(schemas["ModelProviderOptionResponse"]
         .get("properties")
@@ -1172,6 +1201,10 @@ async fn model_provider_routes_main_instance_settings_drive_inclusion_and_groupe
         options_payload["data"]["providers"][0]["main_instance"]["model_count"].as_u64(),
         Some(2)
     );
+    assert_eq!(
+        options_payload["data"]["providers"][0]["parameter_form"]["fields"][0]["key"].as_str(),
+        Some("temperature")
+    );
     let groups = options_payload["data"]["providers"][0]["model_groups"]
         .as_array()
         .unwrap();
@@ -1188,6 +1221,7 @@ async fn model_provider_routes_main_instance_settings_drive_inclusion_and_groupe
         alpha_group["models"][0]["model_id"].as_str(),
         Some("fixture_chat")
     );
+    assert!(alpha_group["models"][0].get("parameter_form").is_none());
     let beta_group = groups
         .iter()
         .find(|group| group["source_instance_id"].as_str() == Some(beta_id.as_str()))
@@ -1200,6 +1234,7 @@ async fn model_provider_routes_main_instance_settings_drive_inclusion_and_groupe
         beta_group["models"][0]["model_id"].as_str(),
         Some("custom-beta")
     );
+    assert!(beta_group["models"][0].get("parameter_form").is_none());
 
     let legacy_routing = app
         .clone()
