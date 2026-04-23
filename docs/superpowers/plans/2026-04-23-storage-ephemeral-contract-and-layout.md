@@ -42,7 +42,7 @@
 - Create: `api/crates/storage-ephemeral/src/_tests/kv_store_contract_tests.rs`
 - Modify: `api/Cargo.toml`
 
-- [ ] **Step 1: Write the failing contract tests**
+- [x] **Step 1: Write the failing contract tests**
 
 Create tests like:
 
@@ -84,7 +84,7 @@ fn backend_kind_parses_memory_and_redis() {
 }
 ```
 
-- [ ] **Step 2: Run RED verification**
+- [x] **Step 2: Run RED verification**
 
 Run:
 
@@ -96,7 +96,7 @@ Expected:
 
 - FAIL because the crate, trait, and memory implementation do not exist yet.
 
-- [ ] **Step 3: Add the new crate and core contract surface**
+- [x] **Step 3: Add the new crate and core contract surface**
 
 Create the crate skeleton shaped like:
 
@@ -144,7 +144,7 @@ pub trait EphemeralKvStore: Send + Sync {
 }
 ```
 
-- [ ] **Step 4: Re-run the contract tests**
+- [x] **Step 4: Re-run the contract tests**
 
 Run:
 
@@ -156,7 +156,7 @@ Expected:
 
 - FAIL only on the missing memory backend behavior, not on missing crate or missing symbols.
 
-- [ ] **Step 5: Commit the crate skeleton**
+- [x] **Step 5: Commit the crate skeleton**
 
 ```bash
 git add api/Cargo.toml api/crates/storage-ephemeral
@@ -171,7 +171,7 @@ git commit -m "feat: add storage-ephemeral crate skeleton"
 - Modify: `api/crates/storage-ephemeral/src/lib.rs`
 - Modify: `api/crates/storage-ephemeral/src/_tests/kv_store_contract_tests.rs`
 
-- [ ] **Step 1: Extend tests for namespace and touch behavior**
+- [x] **Step 1: Extend tests for namespace and touch behavior**
 
 Add cases like:
 
@@ -192,7 +192,7 @@ async fn memory_kv_store_prefixes_namespace_and_extends_ttl() {
 }
 ```
 
-- [ ] **Step 2: Run RED verification**
+- [x] **Step 2: Run RED verification**
 
 Run:
 
@@ -204,7 +204,7 @@ Expected:
 
 - FAIL because the memory backend does not yet implement TTL purge or namespace formatting.
 
-- [ ] **Step 3: Implement `MemoryKvStore` with lazy expiry**
+- [x] **Step 3: Implement `MemoryKvStore` with lazy expiry**
 
 Use a shape like:
 
@@ -238,7 +238,7 @@ if entry.expires_at.is_some_and(|deadline| deadline <= OffsetDateTime::now_utc()
 }
 ```
 
-- [ ] **Step 4: Re-run the backend contract tests**
+- [x] **Step 4: Re-run the backend contract tests**
 
 Run:
 
@@ -250,7 +250,7 @@ Expected:
 
 - PASS with expiry, namespace, and `set_if_absent` behavior verified for the memory backend.
 
-- [ ] **Step 5: Commit the memory backend**
+- [x] **Step 5: Commit the memory backend**
 
 ```bash
 git add api/crates/storage-ephemeral/src/lib.rs api/crates/storage-ephemeral/src/memory api/crates/storage-ephemeral/src/_tests/kv_store_contract_tests.rs
@@ -264,7 +264,7 @@ git commit -m "feat: add storage-ephemeral memory kv backend"
 - Modify: `api/crates/storage-ephemeral/src/backend.rs`
 - Modify: `api/crates/storage-ephemeral/src/kv_store.rs`
 
-- [ ] **Step 1: Add a public export smoke test**
+- [x] **Step 1: Add a public export smoke test**
 
 Add:
 
@@ -279,7 +279,7 @@ fn public_exports_match_capability_names() {
 }
 ```
 
-- [ ] **Step 2: Run RED verification**
+- [x] **Step 2: Run RED verification**
 
 Run:
 
@@ -291,7 +291,7 @@ Expected:
 
 - FAIL if the crate still leaks temporary names or does not re-export the contract cleanly.
 
-- [ ] **Step 3: Freeze the crate surface**
+- [x] **Step 3: Freeze the crate surface**
 
 Export only the stable names:
 
@@ -305,7 +305,7 @@ pub use kv_store::EphemeralKvStore;
 pub use memory::MemoryKvStore;
 ```
 
-- [ ] **Step 4: Re-run the focused export test and the full crate test suite**
+- [x] **Step 4: Re-run the focused export test and the full crate test suite**
 
 Run:
 
@@ -317,7 +317,7 @@ Expected:
 
 - PASS with the new crate surface locked to capability-oriented names.
 
-- [ ] **Step 5: Commit the public API**
+- [x] **Step 5: Commit the public API**
 
 ```bash
 git add api/crates/storage-ephemeral/src/lib.rs api/crates/storage-ephemeral/src/backend.rs api/crates/storage-ephemeral/src/kv_store.rs

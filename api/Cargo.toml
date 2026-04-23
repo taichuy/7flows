@@ -11,6 +11,7 @@ members = [
   "crates/access-control",
   "crates/plugin-framework",
   "crates/storage-pg",
+  "crates/storage-ephemeral",
   "crates/storage-redis",
   "crates/storage-object",
   "crates/observability"
