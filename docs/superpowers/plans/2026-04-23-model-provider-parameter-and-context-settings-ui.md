@@ -35,7 +35,7 @@
 - Create: `web/app/src/features/settings/components/model-providers/model-context-window.ts`
 - Test: `web/app/src/features/settings/_tests/model-providers-page.test.tsx`
 
-- [ ] **Step 1: Write failing helper-driven UI tests**
+- [x] **Step 1: Write failing helper-driven UI tests**
   - Cover accepted values:
     - `200000`
     - `200K`
@@ -47,7 +47,7 @@
     - `10kk`
     - empty-space-only strings
 
-- [ ] **Step 2: Run the focused settings tests and verify RED**
+- [x] **Step 2: Run the focused settings tests and verify RED**
 
 Run:
 
@@ -59,7 +59,7 @@ Expected:
 
 - FAIL because there is no shared parse/format helper and the drawer row model has no context column.
 
-- [ ] **Step 3: Implement strict parse/format helpers**
+- [x] **Step 3: Implement strict parse/format helpers**
   - Add a helper that:
     - executes `trim + toLowerCase`
     - accepts `/^\d+$/`, `/^\d+k$/`, `/^\d+m$/`
@@ -67,7 +67,7 @@ Expected:
     - returns an explicit validation error for illegal formats
   - Add a formatting helper that maps stored numbers to preferred display strings such as `128K` or `1M`.
 
-- [ ] **Step 4: Re-run the focused settings tests and verify GREEN**
+- [x] **Step 4: Re-run the focused settings tests and verify GREEN**
 
 Run:
 
@@ -87,7 +87,7 @@ Expected:
 - Modify: `web/app/src/features/settings/pages/settings-page/SettingsModelProvidersSection.tsx`
 - Modify: `web/app/src/features/settings/api/model-providers.ts`
 
-- [ ] **Step 1: Write failing drawer tests for the new column**
+- [x] **Step 1: Write failing drawer tests for the new column**
   - Cover:
     - create mode row includes a context input
     - edit mode rehydrates an existing numeric override as formatted display
@@ -95,7 +95,7 @@ Expected:
     - valid custom input sends a number
     - invalid input blocks submit
 
-- [ ] **Step 2: Run the focused settings tests and verify RED**
+- [x] **Step 2: Run the focused settings tests and verify RED**
 
 Run:
 
@@ -107,13 +107,13 @@ Expected:
 
 - FAIL because the drawer row state still contains only `model_id` and `enabled`.
 
-- [ ] **Step 3: Thread `context_window_override_tokens` through the drawer and mutations**
+- [x] **Step 3: Thread `context_window_override_tokens` through the drawer and mutations**
   - Extend the row type and normalization logic.
   - Add a new “上下文” column beside model ID and enable switch.
   - Submit numeric values only through `configured_models`.
   - Keep preview-model cache behavior unchanged.
 
-- [ ] **Step 4: Re-run the focused settings tests and verify GREEN**
+- [x] **Step 4: Re-run the focused settings tests and verify GREEN**
 
 Run:
 
@@ -131,7 +131,7 @@ Expected:
 - Modify: `web/app/src/features/settings/components/model-providers/ModelProviderInstanceDrawer.tsx`
 - Modify: `web/app/src/features/settings/_tests/model-providers-page.test.tsx`
 
-- [ ] **Step 1: Add failing UI assertions for preset choices**
+- [x] **Step 1: Add failing UI assertions for preset choices**
   - Assert the dropdown offers:
     - `16K`
     - `32K`
@@ -141,7 +141,7 @@ Expected:
     - `1M`
   - Assert display uses uppercase `K/M` even though parsing is case-insensitive.
 
-- [ ] **Step 2: Run the focused settings tests and verify RED**
+- [x] **Step 2: Run the focused settings tests and verify RED**
 
 Run:
 
@@ -153,12 +153,12 @@ Expected:
 
 - FAIL until the drawer renders the preset choices and display formatter.
 
-- [ ] **Step 3: Render the preset-backed input**
+- [x] **Step 3: Render the preset-backed input**
   - Use a searchable input/dropdown control.
   - Keep free-text entry enabled.
   - Ensure row display and edit-state formatting stay consistent.
 
-- [ ] **Step 4: Re-run the focused settings tests and verify GREEN**
+- [x] **Step 4: Re-run the focused settings tests and verify GREEN**
 
 Run:
 
@@ -175,7 +175,7 @@ Expected:
 **Files:**
 - Modify only the files listed above
 
-- [ ] **Step 1: Stage the settings UI files**
+- [x] **Step 1: Stage the settings UI files**
 
 Run:
 
@@ -188,7 +188,7 @@ git add web/app/src/features/settings/components/model-providers/model-context-w
   web/app/src/features/settings/_tests/model-providers-page.test.tsx
 ```
 
-- [ ] **Step 2: Commit the settings slice**
+- [x] **Step 2: Commit the settings slice**
 
 Run:
 

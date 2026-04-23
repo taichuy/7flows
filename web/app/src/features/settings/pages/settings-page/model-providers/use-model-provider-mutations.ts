@@ -88,7 +88,11 @@ export function useModelProviderMutations({
       installationId: string;
       display_name: string;
       included_in_main: boolean;
-      configured_models: Array<{ model_id: string; enabled: boolean }>;
+      configured_models: Array<{
+        model_id: string;
+        enabled: boolean;
+        context_window_override_tokens: number | null;
+      }>;
       preview_token?: string;
       config: Record<string, unknown>;
     }) => {
@@ -119,7 +123,11 @@ export function useModelProviderMutations({
       instanceId: string;
       display_name: string;
       included_in_main: boolean;
-      configured_models: Array<{ model_id: string; enabled: boolean }>;
+      configured_models: Array<{
+        model_id: string;
+        enabled: boolean;
+        context_window_override_tokens: number | null;
+      }>;
       preview_token?: string;
       config: Record<string, unknown>;
     }) => {

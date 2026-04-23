@@ -24,6 +24,11 @@ import type {
 } from '../../api/model-providers';
 import { CollapseShell } from '../../../../shared/ui/collapse-shell/CollapseShell';
 import { CachedModelSelect } from './CachedModelSelect';
+import {
+  MODEL_CONTEXT_WINDOW_PRESET_OPTIONS,
+  formatModelContextWindowValue,
+  parseModelContextWindowInput
+} from './model-context-window';
 
 type DrawerMode = 'create' | 'edit';
 type ModelProviderFormValue = string | boolean;
@@ -33,10 +38,12 @@ type PreviewModelsResponse = PreviewSettingsModelProviderModelsResponse;
 type ConfiguredModelRow = {
   key: string;
   model_id: string;
+  context_window_input: string;
+  context_window_error: string | null;
   enabled: boolean;
 };
 
-const CONFIGURED_MODEL_GRID_TEMPLATE_COLUMNS = 'minmax(0, 1fr) 48px 40px';
+const CONFIGURED_MODEL_GRID_TEMPLATE_COLUMNS = 'minmax(0, 1fr) 132px 48px 40px';
 const CONFIGURED_MODEL_GRID_GAP = 8;
 
 function normalizeConfigFieldValue(value: unknown): ModelProviderFormValue {
@@ -160,6 +167,7 @@ export function ModelProviderInstanceDrawer({
     configured_models: Array<{
       model_id: string;
       enabled: boolean;
+      context_window_override_tokens: number | null;
     }>;
     preview_token?: string;
   }) => Promise<void>;
@@ -193,13 +201,18 @@ export function ModelProviderInstanceDrawer({
         ? instance.configured_models
         : (instance?.enabled_model_ids ?? []).map((modelId) => ({
             model_id: modelId,
-            enabled: true
+            enabled: true,
+            context_window_override_tokens: null
           }));
 
     configuredModelKeyRef.current = 0;
     return sourceModels.map((model) => ({
       key: nextConfiguredModelKey(),
       model_id: model.model_id,
+      context_window_input: formatModelContextWindowValue(
+        model.context_window_override_tokens
+      ),
+      context_window_error: null,
       enabled: model.enabled
     }));
   }
@@ -252,8 +265,24 @@ export function ModelProviderInstanceDrawer({
     const normalizedRows: Array<{
       model_id: string;
       enabled: boolean;
+      context_window_override_tokens: number | null;
     }> = [];
     const seen = new Set<string>();
+    let hasValidationError = false;
+
+    setConfiguredModels((current) =>
+      current.map((row) => {
+        const parsedContextWindow = parseModelContextWindowInput(row.context_window_input);
+        if (parsedContextWindow.error) {
+          hasValidationError = true;
+        }
+
+        return {
+          ...row,
+          context_window_error: parsedContextWindow.error
+        };
+      })
+    );
 
     for (const row of rows) {
       const normalizedModelId = row.model_id.trim();
@@ -261,14 +290,24 @@ export function ModelProviderInstanceDrawer({
         continue;
       }
 
+      const parsedContextWindow = parseModelContextWindowInput(row.context_window_input);
+      if (parsedContextWindow.error) {
+        hasValidationError = true;
+        continue;
+      }
+
       seen.add(normalizedModelId);
       normalizedRows.push({
         model_id: normalizedModelId,
-        enabled: row.enabled
+        enabled: row.enabled,
+        context_window_override_tokens: parsedContextWindow.value
       });
     }
 
-    return normalizedRows;
+    return {
+      hasValidationError,
+      rows: normalizedRows
+    };
   }
 
   function appendConfiguredModelRow(initial?: Partial<ConfiguredModelRow>) {
@@ -277,6 +316,8 @@ export function ModelProviderInstanceDrawer({
       {
         key: nextConfiguredModelKey(),
         model_id: initial?.model_id ?? '',
+        context_window_input: initial?.context_window_input ?? '',
+        context_window_error: initial?.context_window_error ?? null,
         enabled: initial?.enabled ?? true
       }
     ]);
@@ -319,6 +360,10 @@ export function ModelProviderInstanceDrawer({
     label: model.model_id,
     value: model.model_id
   }));
+  const contextWindowOptions = MODEL_CONTEXT_WINDOW_PRESET_OPTIONS.map((option) => ({
+    label: option.label,
+    value: option.value
+  }));
 
   function buildDraftConfig(valuesConfig: Record<string, ModelProviderFormValue>) {
     const config: Record<string, unknown> = {};
@@ -350,7 +395,12 @@ export function ModelProviderInstanceDrawer({
 
   function updateConfiguredModelRow(
     rowKey: string,
-    patch: Partial<Pick<ConfiguredModelRow, 'model_id' | 'enabled'>>
+    patch: Partial<
+      Pick<
+        ConfiguredModelRow,
+        'model_id' | 'context_window_input' | 'context_window_error' | 'enabled'
+      >
+    >
   ) {
     setConfiguredModels((current) =>
       current.map((row) => (row.key === rowKey ? { ...row, ...patch } : row))
@@ -383,11 +433,16 @@ export function ModelProviderInstanceDrawer({
       ['included_in_main'],
       ...configFieldNames
     ]);
+    const normalizedConfiguredModels = normalizeConfiguredModels(configuredModels);
+    if (normalizedConfiguredModels.hasValidationError) {
+      return;
+    }
+
     await onSubmit({
       display_name: values.display_name,
       included_in_main: values.included_in_main,
       config: buildDraftConfig((values.config ?? {}) as Record<string, ModelProviderFormValue>),
-      configured_models: normalizeConfiguredModels(configuredModels),
+      configured_models: normalizedConfiguredModels.rows,
       preview_token: previewToken
     });
   }
@@ -642,6 +697,7 @@ export function ModelProviderInstanceDrawer({
                   }}
                 >
                   <Typography.Text strong>模型 ID</Typography.Text>
+                  <Typography.Text strong>上下文</Typography.Text>
                   <Typography.Text strong style={{ textAlign: 'center' }}>
                     启用
                   </Typography.Text>
@@ -684,6 +740,37 @@ export function ModelProviderInstanceDrawer({
                       >
                         <Input aria-label={`模型 ID ${index + 1}`} />
                       </AutoComplete>
+                      <div>
+                        <AutoComplete
+                          value={row.context_window_input}
+                          options={contextWindowOptions}
+                          onChange={(value) => {
+                            const parsedContextWindow = parseModelContextWindowInput(
+                              String(value)
+                            );
+                            updateConfiguredModelRow(row.key, {
+                              context_window_input: String(value),
+                              context_window_error: parsedContextWindow.error
+                            });
+                          }}
+                          placeholder="例如 128K"
+                          filterOption={(inputValue, option) =>
+                            String(option?.value ?? '')
+                              .toLowerCase()
+                              .includes(inputValue.toLowerCase())
+                          }
+                        >
+                          <Input aria-label={`上下文 ${index + 1}`} />
+                        </AutoComplete>
+                        {row.context_window_error ? (
+                          <Typography.Text
+                            type="danger"
+                            style={{ display: 'block', marginTop: 4 }}
+                          >
+                            {row.context_window_error}
+                          </Typography.Text>
+                        ) : null}
+                      </div>
                       <Switch
                         size="small"
                         aria-label={`启用模型 ${index + 1}`}

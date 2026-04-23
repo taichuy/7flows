@@ -127,6 +127,12 @@ import { AppProviders } from '../../../app/AppProviders';
 import { AppRouterProvider } from '../../../app/router';
 import { resetAuthStore, useAuthStore } from '../../../state/auth-store';
 import { ModelProviderInstanceDrawer } from '../components/model-providers/ModelProviderInstanceDrawer';
+import {
+  MODEL_CONTEXT_WINDOW_VALIDATION_MESSAGE,
+  MODEL_CONTEXT_WINDOW_PRESET_OPTIONS,
+  formatModelContextWindowValue,
+  parseModelContextWindowInput
+} from '../components/model-providers/model-context-window';
 import { SettingsModelProvidersSection } from '../pages/settings-page/SettingsModelProvidersSection';
 
 const useBreakpointSpy = vi.spyOn(Grid, 'useBreakpoint');
@@ -148,11 +154,13 @@ function buildSettingsModelProviderInstances() {
       configured_models: [
         {
           model_id: 'gpt-4o-mini',
-          enabled: true
+          enabled: true,
+          context_window_override_tokens: null
         },
         {
           model_id: 'gpt-4o',
-          enabled: true
+          enabled: true,
+          context_window_override_tokens: null
         }
       ],
       enabled_model_ids: ['gpt-4o-mini', 'gpt-4o'],
@@ -176,7 +184,8 @@ function buildSettingsModelProviderInstances() {
       configured_models: [
         {
           model_id: 'gpt-4.1-mini',
-          enabled: true
+          enabled: true,
+          context_window_override_tokens: null
         }
       ],
       enabled_model_ids: ['gpt-4.1-mini'],
@@ -279,6 +288,51 @@ async function openProviderInstancesModal() {
 
   return screen.findByRole('dialog', { name: /OpenAI Compatible 实例/ });
 }
+
+describe('model-context-window helpers', () => {
+  test.each([
+    ['200000', 200000],
+    ['200K', 200000],
+    ['1M', 1000000]
+  ])('parses %s into numeric tokens', (input, expectedValue) => {
+    expect(parseModelContextWindowInput(input)).toEqual({
+      value: expectedValue,
+      error: null
+    });
+  });
+
+  test('exposes the supported preset choices', () => {
+    expect(MODEL_CONTEXT_WINDOW_PRESET_OPTIONS.map((option) => option.value)).toEqual([
+      '16K',
+      '32K',
+      '64K',
+      '128K',
+      '256K',
+      '1M'
+    ]);
+  });
+
+  test.each([
+    [16000, '16K'],
+    [32000, '32K'],
+    [64000, '64K'],
+    [128000, '128K'],
+    [256000, '256K'],
+    [1000000, '1M']
+  ])('formats %s into preferred uppercase display %s', (input, expectedValue) => {
+    expect(formatModelContextWindowValue(input)).toBe(expectedValue);
+  });
+
+  test.each(['abc', '1g', '10kk', '   '])(
+    'rejects invalid context window input %s',
+    (input) => {
+      expect(parseModelContextWindowInput(input)).toEqual({
+        value: null,
+        error: '请输入有效的上下文大小，支持纯数字、K 或 M 后缀。'
+      });
+    }
+  );
+});
 
 describe('ModelProvidersPage', () => {
   beforeEach(() => {
@@ -742,7 +796,8 @@ describe('ModelProvidersPage', () => {
         configured_models: [
           {
             model_id: 'gpt-4o-mini',
-            enabled: true
+            enabled: true,
+            context_window_override_tokens: null
           }
         ],
         enabled_model_ids: ['gpt-4o-mini'],
@@ -819,7 +874,8 @@ describe('ModelProvidersPage', () => {
             configured_models: [
               {
                 model_id: 'gpt-4o-mini',
-                enabled: true
+                enabled: true,
+                context_window_override_tokens: null
               }
             ],
             included_in_main: true,
@@ -1190,11 +1246,13 @@ describe('ModelProvidersPage', () => {
           configured_models: [
             {
               model_id: 'gpt-4o-mini',
-              enabled: true
+              enabled: true,
+              context_window_override_tokens: null
             },
             {
               model_id: 'manual-model-id',
-              enabled: false
+              enabled: false,
+              context_window_override_tokens: null
             }
           ],
           included_in_main: true,
@@ -1252,6 +1310,144 @@ describe('ModelProvidersPage', () => {
       });
     }
   );
+
+  test(
+    'parses create-mode context overrides into numeric payloads and blocks invalid values',
+    { timeout: 15000 },
+    async () => {
+      const submit = vi.fn().mockResolvedValue(undefined);
+
+      render(
+        <ModelProviderInstanceDrawer
+          open
+          mode="create"
+          catalogEntry={modelProviderCatalogEntries[0]}
+          instance={null}
+          cachedModelCatalog={null}
+          defaultIncludedInMain={true}
+          submitting={false}
+          onClose={() => undefined}
+          onSubmit={submit}
+          onPreviewModels={async () => ({
+            models: [],
+            preview_token: 'preview-1',
+            expires_at: '2026-04-22T12:00:00Z'
+          })}
+          onRevealSecret={async () => 'super-secret'}
+        />
+      );
+
+      fireEvent.change(await screen.findByLabelText('API Endpoint'), {
+        target: { value: 'https://api.openai.com/v1' }
+      });
+      fireEvent.change(screen.getByLabelText('API Key'), {
+        target: { value: 'super-secret' }
+      });
+      fireEvent.change(screen.getByLabelText('凭据名称'), {
+        target: { value: 'OpenAI Draft' }
+      });
+      fireEvent.click(screen.getByRole('button', { name: '添加模型' }));
+      fireEvent.change(screen.getByLabelText('模型 ID 1'), {
+        target: { value: 'gpt-4o-mini' }
+      });
+      fireEvent.change(screen.getByLabelText('上下文 1'), {
+        target: { value: 'abc' }
+      });
+
+      fireEvent.click(screen.getByRole('button', { name: /保\s*存/ }));
+
+      await waitFor(() => {
+        expect(submit).not.toHaveBeenCalled();
+        expect(
+          screen.getByText(MODEL_CONTEXT_WINDOW_VALIDATION_MESSAGE)
+        ).toBeInTheDocument();
+      });
+
+      fireEvent.change(screen.getByLabelText('上下文 1'), {
+        target: { value: '200K' }
+      });
+      fireEvent.click(screen.getByRole('button', { name: /保\s*存/ }));
+
+      await waitFor(() => {
+        expect(submit).toHaveBeenCalledWith({
+          display_name: 'OpenAI Draft',
+          config: {
+            base_url: 'https://api.openai.com/v1',
+            api_key: 'super-secret'
+          },
+          configured_models: [
+            {
+              model_id: 'gpt-4o-mini',
+              enabled: true,
+              context_window_override_tokens: 200000
+            }
+          ],
+          included_in_main: true,
+          preview_token: undefined
+        });
+      });
+    }
+  );
+
+  test(
+    'rehydrates formatted edit-mode context overrides and submits null after clearing',
+    { timeout: 15000 },
+    async () => {
+      const submit = vi.fn().mockResolvedValue(undefined);
+      const instance = {
+        ...buildSettingsModelProviderInstances()[0],
+        configured_models: [
+          {
+            model_id: 'gpt-4o-mini',
+            enabled: true,
+            context_window_override_tokens: 16000
+          }
+        ]
+      };
+
+      render(
+        <ModelProviderInstanceDrawer
+          open
+          mode="edit"
+          catalogEntry={modelProviderCatalogEntries[0]}
+          instance={instance}
+          cachedModelCatalog={null}
+          defaultIncludedInMain={true}
+          submitting={false}
+          onClose={() => undefined}
+          onSubmit={submit}
+          onPreviewModels={async () => ({
+            models: [],
+            preview_token: 'preview-1',
+            expires_at: '2026-04-22T12:00:00Z'
+          })}
+          onRevealSecret={async () => 'super-secret'}
+        />
+      );
+
+      expect(await screen.findByLabelText('上下文 1')).toHaveValue('16K');
+
+      fireEvent.change(screen.getByLabelText('上下文 1'), {
+        target: { value: '' }
+      });
+      fireEvent.click(screen.getByRole('button', { name: /保\s*存/ }));
+
+      await waitFor(() => {
+        expect(submit).toHaveBeenCalledWith(
+          expect.objectContaining({
+            configured_models: [
+              {
+                model_id: 'gpt-4o-mini',
+                enabled: true,
+                context_window_override_tokens: null
+              }
+            ]
+          })
+        );
+      });
+    }
+  );
+
 
   test(
     'folds advanced provider fields into a collapsed section in the edit drawer',
