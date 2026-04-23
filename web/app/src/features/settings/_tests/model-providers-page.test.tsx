@@ -743,10 +743,8 @@ describe('ModelProvidersPage', () => {
         );
       });
 
-      fireEvent.click(screen.getByRole('button', { name: '添加模型' }));
-      fireEvent.change(screen.getByLabelText('模型 ID 1'), {
-        target: { value: 'gpt-4o-mini' }
-      });
+      expect(screen.getByLabelText('模型 ID 1')).toHaveValue('gpt-4o-mini');
+      expect(screen.getByRole('switch', { name: '启用模型 1' })).not.toBeChecked();
 
       fireEvent.click(screen.getByRole('button', { name: /保\s*存/ }));
 
@@ -764,7 +762,7 @@ describe('ModelProvidersPage', () => {
             configured_models: [
               {
                 model_id: 'gpt-4o-mini',
-                enabled: true
+                enabled: false
               }
             ],
             preview_token: 'preview-1'
@@ -1102,16 +1100,11 @@ describe('ModelProvidersPage', () => {
       await waitFor(() => {
         expect(previewModels).toHaveBeenCalledWith(expectedConfig);
       });
-
-      const cachedModelSelect = screen.getByRole('combobox', { name: '缓存模型' });
-      fireEvent.mouseDown(cachedModelSelect);
-      fireEvent.click(await screen.findByText('gpt-4o-mini'));
-
-      expect(screen.queryByLabelText('模型 ID 1')).not.toBeInTheDocument();
-
-      fireEvent.click(screen.getByRole('button', { name: '添加模型' }));
-
       expect(screen.getByLabelText('模型 ID 1')).toHaveValue('gpt-4o-mini');
+      expect(screen.getByRole('switch', { name: '启用模型 1' })).not.toBeChecked();
+      expect(
+        screen.queryByRole('combobox', { name: '缓存模型' })
+      ).not.toBeInTheDocument();
 
       fireEvent.click(screen.getByRole('button', { name: '添加模型' }));
 
@@ -1144,6 +1137,8 @@ describe('ModelProvidersPage', () => {
       await waitFor(() => {
         expect(previewModels).toHaveBeenCalledTimes(2);
       });
+      expect(screen.getByLabelText('模型 ID 1')).toHaveValue('gpt-4.1-mini');
+      expect(screen.getByLabelText('模型 ID 2')).toHaveValue('manual-model-id');
 
       fireEvent.click(screen.getByRole('button', { name: /保\s*存/ }));
 
@@ -1153,8 +1148,8 @@ describe('ModelProvidersPage', () => {
           config: expectedConfig,
           configured_models: [
             {
-              model_id: 'gpt-4o-mini',
-              enabled: true
+              model_id: 'gpt-4.1-mini',
+              enabled: false
             },
             {
               model_id: 'manual-model-id',
@@ -1228,11 +1223,11 @@ describe('ModelProvidersPage', () => {
 
       expect(await screen.findByText('编辑 API 密钥配置')).toBeInTheDocument();
 
-      const cachedModelSelect = screen.getByRole('combobox', { name: '缓存模型' });
-      fireEvent.mouseDown(cachedModelSelect);
-
       expect(
-        await screen.findByText(primaryContractProviderModels[0].model_id)
+        screen.queryByRole('combobox', { name: '缓存模型' })
+      ).not.toBeInTheDocument();
+      expect(
+        await screen.findByDisplayValue(primaryContractProviderModels[0].model_id)
       ).toBeInTheDocument();
     }
   );
