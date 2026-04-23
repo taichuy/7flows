@@ -12,6 +12,42 @@ fn current_workspace_root() -> PathBuf {
         .to_path_buf()
 }
 
+fn base_env_without_ephemeral_backend() -> Vec<(&'static str, &'static str)> {
+    vec![
+        (
+            "API_DATABASE_URL",
+            "postgres://postgres:1flowbase@127.0.0.1:35432/1flowbase",
+        ),
+        ("BOOTSTRAP_ROOT_ACCOUNT", "root"),
+        ("BOOTSTRAP_ROOT_EMAIL", "root@example.com"),
+        ("BOOTSTRAP_ROOT_PASSWORD", "secret"),
+        ("BOOTSTRAP_WORKSPACE_NAME", "1flowbase"),
+    ]
+}
+
+fn base_env_with_backend(backend: &'static str) -> Vec<(&'static str, &'static str)> {
+    let mut env = base_env_without_ephemeral_backend();
+    env.push(("API_EPHEMERAL_BACKEND", backend));
+    env
+}
+
+#[test]
+fn api_config_defaults_ephemeral_backend_to_memory() {
+    let env = base_env_without_ephemeral_backend();
+    let config = ApiConfig::from_env_map(&env).unwrap();
+
+    assert_eq!(config.ephemeral_backend.as_str(), "memory");
+    assert_eq!(config.ephemeral_redis_url, None);
+}
+
+#[test]
+fn api_config_requires_redis_url_when_ephemeral_backend_is_redis() {
+    let env = base_env_with_backend("redis");
+    let error = ApiConfig::from_env_map(&env).unwrap_err();
+
+    assert!(error.to_string().contains("API_EPHEMERAL_REDIS_URL"));
+}
+
 #[test]
 fn api_config_uses_expected_cookie_defaults() {
     let config = ApiConfig::from_env_map(&[

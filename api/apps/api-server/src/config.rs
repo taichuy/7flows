@@ -1,6 +1,7 @@
 use anyhow::{anyhow, Result};
 use axum::http::HeaderValue;
 use serde::Deserialize;
+use storage_ephemeral::EphemeralBackendKind;
 use std::{
     collections::BTreeMap,
     path::{Path, PathBuf},
@@ -31,7 +32,8 @@ impl ApiEnvironment {
 pub struct ApiConfig {
     pub env: ApiEnvironment,
     pub database_url: String,
-    pub redis_url: String,
+    pub ephemeral_backend: EphemeralBackendKind,
+    pub ephemeral_redis_url: Option<String>,
     pub plugin_runner_internal_base_url: String,
     pub cookie_name: String,
     pub session_ttl_days: i64,
@@ -90,6 +92,16 @@ impl ApiConfig {
                 .ok_or_else(|| anyhow!("missing env {key}"))
         };
         let env = ApiEnvironment::parse(map.get("API_ENV").map(String::as_str))?;
+        let ephemeral_backend = map
+            .get("API_EPHEMERAL_BACKEND")
+            .map(String::as_str)
+            .map(EphemeralBackendKind::from_env_value)
+            .transpose()?
+            .unwrap_or(EphemeralBackendKind::Memory);
+        let ephemeral_redis_url = match ephemeral_backend {
+            EphemeralBackendKind::Memory => None,
+            EphemeralBackendKind::Redis => Some(get("API_EPHEMERAL_REDIS_URL")?),
+        };
         let cors_allowed_origins = parse_cors_allowed_origins(map.get("API_ALLOWED_ORIGINS"))?;
         let provider_install_root = map
             .get("API_PROVIDER_INSTALL_ROOT")
@@ -152,7 +164,8 @@ impl ApiConfig {
         Ok(Self {
             env,
             database_url: get("API_DATABASE_URL")?,
-            redis_url: get("API_REDIS_URL")?,
+            ephemeral_backend,
+            ephemeral_redis_url,
             plugin_runner_internal_base_url: map
                 .get("API_PLUGIN_RUNNER_INTERNAL_BASE_URL")
                 .cloned()

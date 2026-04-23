@@ -7,6 +7,10 @@ license.workspace = true
 [dependencies]
 anyhow.workspace = true
 async-trait.workspace = true
+control-plane = { path = "../control-plane" }
+domain = { path = "../domain" }
+redis.workspace = true
 tokio.workspace = true
 serde_json.workspace = true
 time.workspace = true
+uuid.workspace = true

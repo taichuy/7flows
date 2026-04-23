@@ -63,9 +63,9 @@ dependencies = [
  "serde_json",
  "sha2",
  "sqlx",
+ "storage-ephemeral",
  "storage-object",
  "storage-pg",
- "storage-redis",
  "tar",
  "time",
  "tokio",
@@ -2508,9 +2508,13 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "async-trait",
+ "control-plane",
+ "domain",
+ "redis",
  "serde_json",
  "time",
  "tokio",
+ "uuid",
 ]
 
 [[package]]

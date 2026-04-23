@@ -1,11 +1,16 @@
 use crate::_tests::support::{
-    login_and_capture_cookie, seed_workspace, test_app, test_app_with_database_url,
+    login_and_capture_cookie, seed_session, seed_workspace, test_api_state_with_database_url,
+    test_app, test_app_with_database_url, test_config,
 };
+use crate::app_with_state_and_config;
 use axum::{
     body::{to_bytes, Body},
     http::{header, Request, StatusCode},
 };
+use control_plane::ports::{AuthRepository, SessionStore};
+use domain::SessionRecord;
 use serde_json::json;
+use time::OffsetDateTime;
 use tower::ServiceExt;
 
 #[tokio::test]
@@ -148,4 +153,54 @@ async fn switch_workspace_route_requires_csrf() {
         .unwrap();
 
     assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
+}
+
+#[tokio::test]
+async fn expired_memory_session_is_rejected_by_require_session() {
+    let (state, _) = test_api_state_with_database_url().await;
+    let config = test_config();
+    let app = app_with_state_and_config(state.clone(), &config);
+    let (cookie, _) = login_and_capture_cookie(&app, "root", "change-me").await;
+    let session_id = cookie
+        .split(';')
+        .next()
+        .and_then(|pair| pair.split_once('='))
+        .map(|(_, value)| value.to_string())
+        .unwrap();
+    let user = state
+        .store
+        .find_user_for_password_login("root")
+        .await
+        .unwrap()
+        .unwrap();
+    let scope = state.store.default_scope_for_user(user.id).await.unwrap();
+
+    seed_session(
+        &state,
+        SessionRecord {
+            session_id: session_id.clone(),
+            user_id: user.id,
+            tenant_id: scope.tenant_id,
+            current_workspace_id: scope.workspace_id,
+            session_version: user.session_version,
+            csrf_token: "expired-csrf".into(),
+            expires_at_unix: OffsetDateTime::now_utc().unix_timestamp() - 1,
+        },
+    )
+    .await;
+
+    let response = app
+        .oneshot(
+            Request::builder()
+                .method("GET")
+                .uri("/api/console/session")
+                .header("cookie", &cookie)
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+
+    assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
+    assert!(state.session_store.get(&session_id).await.unwrap().is_none());
 }

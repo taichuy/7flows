@@ -50,7 +50,7 @@
 - Modify: `api/apps/api-server/src/config.rs`
 - Modify: `api/apps/api-server/src/_tests/config_tests.rs`
 
-- [ ] **Step 1: Write the failing config tests**
+- [x] **Step 1: Write the failing config tests**
 
 Add tests like:
 
@@ -71,7 +71,7 @@ fn api_config_requires_redis_url_when_ephemeral_backend_is_redis() {
 }
 ```
 
-- [ ] **Step 2: Run RED verification**
+- [x] **Step 2: Run RED verification**
 
 Run:
 
@@ -83,7 +83,7 @@ Expected:
 
 - FAIL because `ApiConfig` does not yet expose an ephemeral backend selection surface.
 
-- [ ] **Step 3: Add backend selection config**
+- [x] **Step 3: Add backend selection config**
 
 Extend config with fields like:
 
@@ -111,7 +111,7 @@ let ephemeral_redis_url = match ephemeral_backend {
 };
 ```
 
-- [ ] **Step 4: Re-run the config tests**
+- [x] **Step 4: Re-run the config tests**
 
 Run:
 
@@ -123,7 +123,7 @@ Expected:
 
 - PASS with `memory` as the default and Redis config required only when explicitly selected.
 
-- [ ] **Step 5: Commit the config contract**
+- [x] **Step 5: Commit the config contract**
 
 ```bash
 git add api/apps/api-server/src/config.rs api/apps/api-server/src/_tests/config_tests.rs api/apps/api-server/.env.example api/apps/api-server/.env.production.example web/app/.env.example
@@ -142,7 +142,7 @@ git commit -m "feat: add storage-ephemeral backend config"
 - Modify: `api/crates/storage-ephemeral/src/lib.rs`
 - Modify: `api/crates/storage-ephemeral/src/memory/mod.rs`
 
-- [ ] **Step 1: Write failing session-store tests**
+- [x] **Step 1: Write failing session-store tests**
 
 Create tests like:
 
@@ -172,7 +172,7 @@ async fn memory_session_store_touch_extends_expiry() {
 }
 ```
 
-- [ ] **Step 2: Run RED verification**
+- [x] **Step 2: Run RED verification**
 
 Run:
 
@@ -184,7 +184,7 @@ Expected:
 
 - FAIL because the new crate does not yet implement `SessionStore`.
 
-- [ ] **Step 3: Implement memory and Redis session adapters**
+- [x] **Step 3: Implement memory and Redis session adapters**
 
 Use shapes like:
 
@@ -212,7 +212,7 @@ if session.expires_at_unix <= time::OffsetDateTime::now_utc().unix_timestamp() {
 Ok(Some(session))
 ```
 
-- [ ] **Step 4: Re-run the session-store tests**
+- [x] **Step 4: Re-run the session-store tests**
 
 Run:
 
@@ -224,7 +224,7 @@ Expected:
 
 - PASS with memory expiry behavior covered inside the store rather than only in Redis TTL.
 
-- [ ] **Step 5: Commit the session adapters**
+- [x] **Step 5: Commit the session adapters**
 
 ```bash
 git add api/crates/storage-ephemeral/Cargo.toml api/crates/storage-ephemeral/src/lib.rs api/crates/storage-ephemeral/src/session_store.rs api/crates/storage-ephemeral/src/memory api/crates/storage-ephemeral/src/redis api/crates/storage-ephemeral/src/_tests/session_store_tests.rs
@@ -241,7 +241,7 @@ git commit -m "feat: add storage-ephemeral session adapters"
 - Modify: `api/apps/api-server/src/_tests/support/auth.rs`
 - Modify: `api/apps/api-server/tests/health_routes.rs`
 
-- [ ] **Step 1: Write failing integration tests for memory-backed session flow**
+- [x] **Step 1: Write failing integration tests for memory-backed session flow**
 
 Add tests like:
 
@@ -265,7 +265,7 @@ async fn expired_memory_session_is_rejected_by_require_session() {
 }
 ```
 
-- [ ] **Step 2: Run RED verification**
+- [x] **Step 2: Run RED verification**
 
 Run:
 
@@ -278,7 +278,7 @@ Expected:
 
 - FAIL because `api-server` still imports `storage_redis` directly and always constructs `RedisSessionStore`.
 
-- [ ] **Step 3: Rewire the session handle**
+- [x] **Step 3: Rewire the session handle**
 
 Change the state wiring to shapes like:
 
@@ -307,7 +307,7 @@ let session_store = match config.ephemeral_backend {
 };
 ```
 
-- [ ] **Step 4: Re-run the focused API tests**
+- [x] **Step 4: Re-run the focused API tests**
 
 Run:
 
@@ -321,7 +321,7 @@ Expected:
 
 - PASS with memory as the default single-node backend and Redis only selected when configured.
 
-- [ ] **Step 5: Commit the API-server rewire**
+- [x] **Step 5: Commit the API-server rewire**
 
 ```bash
 git add api/apps/api-server/Cargo.toml api/apps/api-server/src/lib.rs api/apps/api-server/src/app_state.rs api/apps/api-server/src/middleware/require_session.rs api/apps/api-server/src/_tests/support/auth.rs api/apps/api-server/tests/health_routes.rs
