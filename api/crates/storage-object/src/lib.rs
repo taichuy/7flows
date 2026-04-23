@@ -7,9 +7,13 @@ mod registry;
 mod types;
 
 pub use driver::FileStorageDriver;
+pub use drivers::{local::LocalFileStorageDriver, rustfs::RustfsFileStorageDriver};
 pub use errors::{FileStorageError, FileStorageResult};
 pub use registry::{builtin_driver_registry, FileStorageDriverRegistry};
-pub use types::*;
+pub use types::{
+    DeleteObjectInput, FileStorageHealthcheck, FileStoragePutInput, FileStoragePutResult,
+    GenerateAccessUrlInput, OpenReadInput, OpenReadResult,
+};
 
 pub fn crate_name() -> &'static str {
     "storage-object"

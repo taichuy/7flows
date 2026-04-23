@@ -837,7 +837,7 @@ git commit -m "feat: add rustfs storage object driver"
 **Files:**
 - Modify: `api/crates/storage-object/src/lib.rs`
 
-- [ ] **Step 1: Add the final smoke export block if it is still missing**
+- [x] **Step 1: Add the final smoke export block if it is still missing**
 
 Ensure `api/crates/storage-object/src/lib.rs` exports the public surface used by later plans:
 
@@ -851,7 +851,7 @@ pub use types::{
 };
 ```
 
-- [ ] **Step 2: Run the full `storage-object` crate tests**
+- [x] **Step 2: Run the full `storage-object` crate tests**
 
 Run:
 
@@ -863,7 +863,7 @@ Expected:
 
 - PASS with registry, local-driver, and rustfs-driver tests green.
 
-- [ ] **Step 3: Run a compile smoke check on the API workspace**
+- [x] **Step 3: Run a compile smoke check on the API workspace**
 
 Run:
 
@@ -875,7 +875,7 @@ Expected:
 
 - PASS, proving the new dependencies did not break adjacent workspace crates.
 
-- [ ] **Step 4: Review the final diff for driver-boundary leakage**
+- [x] **Step 4: Review the final diff for driver-boundary leakage**
 
 Run:
 
@@ -887,7 +887,7 @@ Expected:
 
 - No `ActorContext`, SQL, `workspace_id`, or route code inside `storage-object`.
 
-- [ ] **Step 5: Commit the completed driver boundary**
+- [x] **Step 5: Commit the completed driver boundary**
 
 ```bash
 git add api/Cargo.toml api/crates/storage-object
