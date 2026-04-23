@@ -51,7 +51,10 @@ fn default_test_config() -> ApiConfig {
         std::env::var("BOOTSTRAP_WORKSPACE_NAME").unwrap_or_else(|_| "1flowbase".into());
     let mut entries = vec![
         ("API_DATABASE_URL".to_string(), database_url),
-        ("API_EPHEMERAL_BACKEND".to_string(), ephemeral_backend.clone()),
+        (
+            "API_EPHEMERAL_BACKEND".to_string(),
+            ephemeral_backend.clone(),
+        ),
         (
             "API_PLUGIN_ALLOW_UPLOADED_HOST_EXTENSIONS".to_string(),
             "true".to_string(),
@@ -65,8 +68,7 @@ fn default_test_config() -> ApiConfig {
     if ephemeral_backend.eq_ignore_ascii_case("redis") {
         entries.push((
             "API_EPHEMERAL_REDIS_URL".to_string(),
-            ephemeral_redis_url
-                .unwrap_or_else(|| "redis://:1flowbase@127.0.0.1:36379".to_string()),
+            ephemeral_redis_url.unwrap_or_else(|| "redis://:1flowbase@127.0.0.1:36379".to_string()),
         ));
     }
 
@@ -141,6 +143,9 @@ async fn test_state_with_runtime_profile_state(
                 )),
                 Arc::new(RwLock::new(
                     plugin_runner::capability_host::CapabilityHost::default(),
+                )),
+                Arc::new(RwLock::new(
+                    plugin_runner::data_source_host::DataSourceHost::default(),
                 )),
             )),
             process_started_at,

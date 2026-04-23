@@ -8,13 +8,18 @@ use control_plane::{
         ValidateCapabilityConfigInput,
     },
     errors::ControlPlaneError,
-    ports::{ProviderRuntimeInvocationOutput, ProviderRuntimePort},
+    ports::{DataSourceRuntimePort, ProviderRuntimeInvocationOutput, ProviderRuntimePort},
 };
 use plugin_framework::{
+    data_source_contract::{
+        DataSourceConfigInput, DataSourcePreviewReadInput, DataSourcePreviewReadOutput,
+    },
     error::PluginFrameworkError,
     provider_contract::{ProviderInvocationInput, ProviderModelDescriptor},
 };
-use plugin_runner::{capability_host::CapabilityHost, provider_host::ProviderHost};
+use plugin_runner::{
+    capability_host::CapabilityHost, data_source_host::DataSourceHost, provider_host::ProviderHost,
+};
 use serde_json::Value;
 use tokio::sync::RwLock;
 
@@ -22,16 +27,19 @@ use tokio::sync::RwLock;
 pub struct ApiRuntimeServices {
     provider_host: Arc<RwLock<ProviderHost>>,
     capability_host: Arc<RwLock<CapabilityHost>>,
+    data_source_host: Arc<RwLock<DataSourceHost>>,
 }
 
 impl ApiRuntimeServices {
     pub fn new(
         provider_host: Arc<RwLock<ProviderHost>>,
         capability_host: Arc<RwLock<CapabilityHost>>,
+        data_source_host: Arc<RwLock<DataSourceHost>>,
     ) -> Self {
         Self {
             provider_host,
             capability_host,
+            data_source_host,
         }
     }
 }
@@ -68,7 +76,7 @@ impl ProviderRuntimePort for ApiProviderRuntime {
         installation: &domain::PluginInstallationRecord,
         provider_config: Value,
     ) -> anyhow::Result<Value> {
-        self.ensure_loaded(installation).await?;
+        self.ensure_provider_loaded(installation).await?;
         let host = self.services.provider_host.read().await;
         host.validate(&installation.plugin_id, provider_config)
             .await
@@ -81,7 +89,7 @@ impl ProviderRuntimePort for ApiProviderRuntime {
         installation: &domain::PluginInstallationRecord,
         provider_config: Value,
     ) -> anyhow::Result<Vec<ProviderModelDescriptor>> {
-        self.ensure_loaded(installation).await?;
+        self.ensure_provider_loaded(installation).await?;
         let host = self.services.provider_host.read().await;
         host.list_models(&installation.plugin_id, provider_config)
             .await
@@ -94,7 +102,7 @@ impl ProviderRuntimePort for ApiProviderRuntime {
         installation: &domain::PluginInstallationRecord,
         input: ProviderInvocationInput,
     ) -> anyhow::Result<ProviderRuntimeInvocationOutput> {
-        self.ensure_loaded(installation).await?;
+        self.ensure_provider_loaded(installation).await?;
         let host = self.services.provider_host.read().await;
         host.invoke_stream(&installation.plugin_id, input)
             .await
@@ -103,6 +111,96 @@ impl ProviderRuntimePort for ApiProviderRuntime {
                 result: output.result,
             })
             .map_err(|error| map_framework_error(error, "provider_runtime"))
+    }
+}
+
+#[async_trait]
+impl DataSourceRuntimePort for ApiProviderRuntime {
+    async fn ensure_loaded(
+        &self,
+        installation: &domain::PluginInstallationRecord,
+    ) -> anyhow::Result<()> {
+        let mut host = self.services.data_source_host.write().await;
+        match host.reload(&installation.plugin_id) {
+            Ok(_) => Ok(()),
+            Err(_) => host
+                .load(&installation.installed_path)
+                .map(|_| ())
+                .map_err(|error| map_framework_error(error, "data_source_runtime")),
+        }
+    }
+
+    async fn validate_config(
+        &self,
+        installation: &domain::PluginInstallationRecord,
+        config_json: Value,
+        secret_json: Value,
+    ) -> anyhow::Result<Value> {
+        self.ensure_data_source_loaded(installation).await?;
+        let host = self.services.data_source_host.read().await;
+        host.validate_config(
+            &installation.plugin_id,
+            DataSourceConfigInput {
+                config_json,
+                secret_json,
+            },
+        )
+        .await
+        .map(|output| output.output)
+        .map_err(|error| map_framework_error(error, "data_source_runtime"))
+    }
+
+    async fn test_connection(
+        &self,
+        installation: &domain::PluginInstallationRecord,
+        config_json: Value,
+        secret_json: Value,
+    ) -> anyhow::Result<Value> {
+        self.ensure_data_source_loaded(installation).await?;
+        let host = self.services.data_source_host.read().await;
+        host.test_connection(
+            &installation.plugin_id,
+            DataSourceConfigInput {
+                config_json,
+                secret_json,
+            },
+        )
+        .await
+        .map(|output| output.output)
+        .map_err(|error| map_framework_error(error, "data_source_runtime"))
+    }
+
+    async fn discover_catalog(
+        &self,
+        installation: &domain::PluginInstallationRecord,
+        config_json: Value,
+        secret_json: Value,
+    ) -> anyhow::Result<Value> {
+        self.ensure_data_source_loaded(installation).await?;
+        let host = self.services.data_source_host.read().await;
+        let output = host
+            .discover_catalog(
+                &installation.plugin_id,
+                DataSourceConfigInput {
+                    config_json,
+                    secret_json,
+                },
+            )
+            .await
+            .map_err(|error| map_framework_error(error, "data_source_runtime"))?;
+        Ok(serde_json::to_value(output.entries)?)
+    }
+
+    async fn preview_read(
+        &self,
+        installation: &domain::PluginInstallationRecord,
+        input: DataSourcePreviewReadInput,
+    ) -> anyhow::Result<DataSourcePreviewReadOutput> {
+        self.ensure_data_source_loaded(installation).await?;
+        let host = self.services.data_source_host.read().await;
+        host.preview_read(&installation.plugin_id, input)
+            .await
+            .map_err(|error| map_framework_error(error, "data_source_runtime"))
     }
 }
 
@@ -174,6 +272,20 @@ impl CapabilityPluginRuntimePort for ApiProviderRuntime {
 }
 
 impl ApiProviderRuntime {
+    async fn ensure_provider_loaded(
+        &self,
+        installation: &domain::PluginInstallationRecord,
+    ) -> anyhow::Result<()> {
+        let mut host = self.services.provider_host.write().await;
+        match host.reload(&installation.plugin_id) {
+            Ok(_) => Ok(()),
+            Err(_) => host
+                .load(&installation.installed_path)
+                .map(|_| ())
+                .map_err(|error| map_framework_error(error, "provider_runtime")),
+        }
+    }
+
     async fn ensure_capability_loaded(
         &self,
         installation: &domain::PluginInstallationRecord,
@@ -182,6 +294,20 @@ impl ApiProviderRuntime {
         host.load(&installation.installed_path)
             .map(|_| ())
             .map_err(|error| map_framework_error(error, "capability_runtime"))
+    }
+
+    async fn ensure_data_source_loaded(
+        &self,
+        installation: &domain::PluginInstallationRecord,
+    ) -> anyhow::Result<()> {
+        let mut host = self.services.data_source_host.write().await;
+        match host.reload(&installation.plugin_id) {
+            Ok(_) => Ok(()),
+            Err(_) => host
+                .load(&installation.installed_path)
+                .map(|_| ())
+                .map_err(|error| map_framework_error(error, "data_source_runtime")),
+        }
     }
 }
 
@@ -193,9 +319,8 @@ fn map_framework_error(error: PluginFrameworkError, service_name: &'static str) 
         | PluginFrameworkError::Serialization { .. } => {
             ControlPlaneError::InvalidInput(service_name).into()
         }
-        PluginFrameworkError::Io { .. } => {
+        PluginFrameworkError::Io { .. } | PluginFrameworkError::RuntimeContract { .. } => {
             ControlPlaneError::UpstreamUnavailable(service_name).into()
         }
-        runtime_error @ PluginFrameworkError::RuntimeContract { .. } => runtime_error.into(),
     }
 }

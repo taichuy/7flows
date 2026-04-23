@@ -127,6 +127,7 @@ fn console_router(state: Arc<ApiState>) -> Router {
         .nest("/api/console", routes::application_orchestration::router())
         .nest("/api/console", routes::application_runtime::router())
         .nest("/api/console", routes::docs::router())
+        .nest("/api/console", routes::data_sources::router())
         .nest("/api/console", routes::me::router())
         .nest("/api/console", routes::workspace::router())
         .nest("/api/console", routes::members::router())
@@ -209,6 +210,9 @@ pub async fn app_from_config(config: &ApiConfig) -> Result<Router> {
             )),
             Arc::new(RwLock::new(
                 plugin_runner::capability_host::CapabilityHost::default(),
+            )),
+            Arc::new(RwLock::new(
+                plugin_runner::data_source_host::DataSourceHost::default(),
             )),
         )),
         process_started_at,

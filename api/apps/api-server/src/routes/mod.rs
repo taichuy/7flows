@@ -10,6 +10,6 @@ mod settings_group;
 pub use applications_group::{application_orchestration, application_runtime, applications};
 pub use identity_group::{auth, me, session};
 pub use plugins_and_models_group::{
-    model_definitions, model_providers, node_contributions, plugins, runtime_models,
+    data_sources, model_definitions, model_providers, node_contributions, plugins, runtime_models,
 };
 pub use settings_group::{docs, members, permissions, roles, system, workspace, workspaces};

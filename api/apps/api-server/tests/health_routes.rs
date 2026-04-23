@@ -22,8 +22,8 @@ use control_plane::ports::{
     OfficialPluginSourcePort,
 };
 use serde_json::Value;
-use storage_ephemeral::{EphemeralBackendKind, MemorySessionStore};
 use sqlx::PgPool;
+use storage_ephemeral::{EphemeralBackendKind, MemorySessionStore};
 use time::OffsetDateTime;
 use tokio::sync::RwLock;
 use tower::ServiceExt;
@@ -139,6 +139,9 @@ async fn test_app_with_config(mut config: ApiConfig) -> Router {
                 )),
                 std::sync::Arc::new(RwLock::new(
                     plugin_runner::capability_host::CapabilityHost::default(),
+                )),
+                std::sync::Arc::new(RwLock::new(
+                    plugin_runner::data_source_host::DataSourceHost::default(),
                 )),
             )),
             process_started_at: OffsetDateTime::now_utc(),

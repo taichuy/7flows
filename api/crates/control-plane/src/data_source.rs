@@ -1,3 +1,5 @@
+use std::collections::HashSet;
+
 use anyhow::Result;
 use plugin_framework::data_source_contract::{
     DataSourceCatalogEntry, DataSourceConfigInput, DataSourcePreviewReadInput,
@@ -54,6 +56,16 @@ pub struct DataSourceInstanceView {
 }
 
 #[derive(Debug, Clone)]
+pub struct DataSourceCatalogEntryView {
+    pub installation_id: Uuid,
+    pub source_code: String,
+    pub plugin_id: String,
+    pub plugin_version: String,
+    pub display_name: String,
+    pub protocol: String,
+}
+
+#[derive(Debug, Clone)]
 pub struct ValidateDataSourceInstanceResult {
     pub instance: domain::DataSourceInstanceRecord,
     pub catalog: domain::DataSourceCatalogCacheRecord,
@@ -83,6 +95,43 @@ where
         }
     }
 
+    pub async fn list_catalog(
+        &self,
+        actor_user_id: Uuid,
+        workspace_id: Uuid,
+    ) -> Result<Vec<DataSourceCatalogEntryView>> {
+        let actor = load_actor_context_for_user(&self.repository, actor_user_id).await?;
+        ensure_workspace_matches(&actor, workspace_id)?;
+        ensure_state_model_permission(&actor, "view")?;
+
+        let assigned_installation_ids = self
+            .repository
+            .list_assignments(workspace_id)
+            .await?
+            .into_iter()
+            .map(|assignment| assignment.installation_id)
+            .collect::<HashSet<_>>();
+
+        let mut entries = self
+            .repository
+            .list_installations()
+            .await?
+            .into_iter()
+            .filter(|installation| installation.contract_version == "1flowbase.data_source/v1")
+            .filter(|installation| assigned_installation_ids.contains(&installation.id))
+            .map(|installation| DataSourceCatalogEntryView {
+                installation_id: installation.id,
+                source_code: installation.provider_code,
+                plugin_id: installation.plugin_id,
+                plugin_version: installation.plugin_version,
+                display_name: installation.display_name,
+                protocol: installation.protocol,
+            })
+            .collect::<Vec<_>>();
+        entries.sort_by(|left, right| left.display_name.cmp(&right.display_name));
+        Ok(entries)
+    }
+
     pub async fn create_instance(
         &self,
         command: CreateDataSourceInstanceCommand,
@@ -96,8 +145,12 @@ where
             .get_installation(command.installation_id)
             .await?
             .ok_or(ControlPlaneError::NotFound("plugin_installation"))?;
-        ensure_installation_assigned(&self.repository, command.workspace_id, command.installation_id)
-            .await?;
+        ensure_installation_assigned(
+            &self.repository,
+            command.workspace_id,
+            command.installation_id,
+        )
+        .await?;
         ensure_data_source_installation(&installation, &command.source_code)?;
 
         let instance = self
@@ -279,7 +332,10 @@ where
             cursor: command.cursor,
             options_json: command.options_json,
         };
-        let output = self.runtime.preview_read(&installation, preview_input.clone()).await?;
+        let output = self
+            .runtime
+            .preview_read(&installation, preview_input.clone())
+            .await?;
         let preview_json = serde_json::to_value(&output)?;
         let preview_session = self
             .repository
@@ -314,7 +370,10 @@ where
     }
 }
 
-async fn load_actor_context_for_user<R>(repository: &R, actor_user_id: Uuid) -> Result<domain::ActorContext>
+async fn load_actor_context_for_user<R>(
+    repository: &R,
+    actor_user_id: Uuid,
+) -> Result<domain::ActorContext>
 where
     R: AuthRepository,
 {
