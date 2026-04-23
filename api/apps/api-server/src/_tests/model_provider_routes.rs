@@ -286,7 +286,10 @@ async fn model_provider_routes_mask_secret_until_reveal_and_keep_ready_options()
         list_payload["data"][0]["config_json"]["api_key"].as_str(),
         Some("supe****cret")
     );
-    assert_eq!(list_payload["data"][0]["included_in_main"].as_bool(), Some(true));
+    assert_eq!(
+        list_payload["data"][0]["included_in_main"].as_bool(),
+        Some(true)
+    );
     assert!(list_payload["data"][0].get("is_primary").is_none());
     assert_eq!(list_payload["data"][0]["enabled_model_ids"], json!([]));
     assert!(list_payload["data"][0].get("validation_model_id").is_none());
@@ -351,7 +354,9 @@ async fn model_provider_routes_mask_secret_until_reveal_and_keep_ready_options()
         validate_payload["data"]["instance"]["included_in_main"].as_bool(),
         Some(true)
     );
-    assert!(validate_payload["data"]["instance"].get("is_primary").is_none());
+    assert!(validate_payload["data"]["instance"]
+        .get("is_primary")
+        .is_none());
     assert!(validate_payload["data"]["instance"]
         .get("validation_model_id")
         .is_none());
@@ -724,7 +729,10 @@ async fn model_provider_routes_update_instance_accepts_configured_models() {
         list_payload["data"][0]["enabled_model_ids"],
         json!(["fixture_chat"])
     );
-    assert_eq!(list_payload["data"][0]["included_in_main"].as_bool(), Some(true));
+    assert_eq!(
+        list_payload["data"][0]["included_in_main"].as_bool(),
+        Some(true)
+    );
     assert!(list_payload["data"][0].get("is_primary").is_none());
     assert!(list_payload["data"][0].get("validation_model_id").is_none());
 }
@@ -903,24 +911,26 @@ async fn model_provider_routes_main_instance_settings_drive_inclusion_and_groupe
 
     let openapi = openapi_payload().await;
     let paths = openapi["paths"].as_object().unwrap();
-    assert!(paths.contains_key(
-        "/api/console/model-providers/providers/{provider_code}/main-instance"
-    ));
-    assert!(!paths.contains_key(
-        "/api/console/model-providers/providers/{provider_code}/routing"
-    ));
-    assert!(paths["/api/console/model-providers/providers/{provider_code}/main-instance"]
-        .get("get")
-        .is_some());
-    assert!(paths["/api/console/model-providers/providers/{provider_code}/main-instance"]["get"]
-        ["responses"]
-        .get("404")
-        .is_some());
-    let main_instance_operation = &paths
-        ["/api/console/model-providers/providers/{provider_code}/main-instance"]["put"];
+    assert!(
+        paths.contains_key("/api/console/model-providers/providers/{provider_code}/main-instance")
+    );
+    assert!(!paths.contains_key("/api/console/model-providers/providers/{provider_code}/routing"));
+    assert!(
+        paths["/api/console/model-providers/providers/{provider_code}/main-instance"]
+            .get("get")
+            .is_some()
+    );
+    assert!(
+        paths["/api/console/model-providers/providers/{provider_code}/main-instance"]["get"]
+            ["responses"]
+            .get("404")
+            .is_some()
+    );
+    let main_instance_operation =
+        &paths["/api/console/model-providers/providers/{provider_code}/main-instance"]["put"];
     assert!(main_instance_operation["responses"].get("404").is_some());
-    let request_schema_name = main_instance_operation["requestBody"]["content"]
-        ["application/json"]["schema"]["$ref"]
+    let request_schema_name = main_instance_operation["requestBody"]["content"]["application/json"]
+        ["schema"]["$ref"]
         .as_str()
         .and_then(|value| value.split('/').next_back())
         .expect("main-instance request schema ref");
@@ -938,8 +948,7 @@ async fn model_provider_routes_main_instance_settings_drive_inclusion_and_groupe
         .and_then(|properties| properties.get("routing_mode"))
         .is_none());
     assert_eq!(
-        schemas["ModelProviderInstanceResponse"]["properties"]["included_in_main"]["type"]
-            .as_str(),
+        schemas["ModelProviderInstanceResponse"]["properties"]["included_in_main"]["type"].as_str(),
         Some("boolean")
     );
     assert!(schemas["ModelProviderInstanceResponse"]
@@ -1056,8 +1065,7 @@ async fn model_provider_routes_main_instance_settings_drive_inclusion_and_groupe
         .unwrap();
     assert_eq!(excluded.status(), StatusCode::CREATED);
     let excluded_payload: Value =
-        serde_json::from_slice(&to_bytes(excluded.into_body(), usize::MAX).await.unwrap())
-            .unwrap();
+        serde_json::from_slice(&to_bytes(excluded.into_body(), usize::MAX).await.unwrap()).unwrap();
     assert_eq!(
         excluded_payload["data"]["included_in_main"].as_bool(),
         Some(false)
@@ -1147,14 +1155,17 @@ async fn model_provider_routes_main_instance_settings_drive_inclusion_and_groupe
         .unwrap();
     assert_eq!(options.status(), StatusCode::OK);
     let options_payload: Value =
-        serde_json::from_slice(&to_bytes(options.into_body(), usize::MAX).await.unwrap())
-            .unwrap();
-    assert_eq!(options_payload["data"]["providers"].as_array().unwrap().len(), 1);
-    assert!(
-        options_payload["data"]["providers"][0]
-            .get("effective_instance_id")
-            .is_none()
+        serde_json::from_slice(&to_bytes(options.into_body(), usize::MAX).await.unwrap()).unwrap();
+    assert_eq!(
+        options_payload["data"]["providers"]
+            .as_array()
+            .unwrap()
+            .len(),
+        1
     );
+    assert!(options_payload["data"]["providers"][0]
+        .get("effective_instance_id")
+        .is_none());
     assert_eq!(
         options_payload["data"]["providers"][0]["main_instance"]["provider_code"].as_str(),
         Some("fixture_provider")

@@ -6,7 +6,11 @@ use time::Duration;
 async fn memory_kv_store_expires_entries_on_read() {
     let store = MemoryKvStore::new("flowbase:test");
     store
-        .set_json("session:1", json!({ "ok": true }), Some(Duration::seconds(1)))
+        .set_json(
+            "session:1",
+            json!({ "ok": true }),
+            Some(Duration::seconds(1)),
+        )
         .await
         .unwrap();
 
@@ -19,31 +23,34 @@ async fn memory_kv_store_expires_entries_on_read() {
 async fn memory_kv_store_set_if_absent_only_writes_once() {
     let store = MemoryKvStore::new("flowbase:test");
 
-    assert!(
-        store
-            .set_if_absent_json("key", json!({ "value": 1 }), None)
-            .await
-            .unwrap()
-    );
-    assert!(
-        !store
-            .set_if_absent_json("key", json!({ "value": 2 }), None)
-            .await
-            .unwrap()
-    );
+    assert!(store
+        .set_if_absent_json("key", json!({ "value": 1 }), None)
+        .await
+        .unwrap());
+    assert!(!store
+        .set_if_absent_json("key", json!({ "value": 2 }), None)
+        .await
+        .unwrap());
 }
 
 #[tokio::test]
 async fn memory_kv_store_prefixes_namespace_and_extends_ttl() {
     let store = MemoryKvStore::new("flowbase:test");
     store
-        .set_json("session:2", json!({ "ok": true }), Some(Duration::milliseconds(50)))
+        .set_json(
+            "session:2",
+            json!({ "ok": true }),
+            Some(Duration::milliseconds(50)),
+        )
         .await
         .unwrap();
 
     tokio::time::sleep(std::time::Duration::from_millis(20)).await;
 
-    assert!(store.touch("session:2", Duration::milliseconds(120)).await.unwrap());
+    assert!(store
+        .touch("session:2", Duration::milliseconds(120))
+        .await
+        .unwrap());
     assert_eq!(
         store.raw_key_for_test("session:2"),
         "flowbase:test:session:2".to_string()

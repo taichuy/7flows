@@ -59,18 +59,23 @@ where
             .entry(instance.provider_code.clone())
             .and_modify(
                 |family: &mut orchestration_runtime::compiler::FlowCompileProviderFamily| {
-                    family.is_ready |= instance.status == domain::ModelProviderInstanceStatus::Ready;
-                    family.available_models.extend(available_models.iter().cloned());
+                    family.is_ready |=
+                        instance.status == domain::ModelProviderInstanceStatus::Ready;
+                    family
+                        .available_models
+                        .extend(available_models.iter().cloned());
                     family.allow_custom_models |= allow_custom_models;
                 },
             )
-            .or_insert_with(|| orchestration_runtime::compiler::FlowCompileProviderFamily {
-                provider_code: instance.provider_code.clone(),
-                protocol: instance.protocol.clone(),
-                is_ready: instance.status == domain::ModelProviderInstanceStatus::Ready,
-                available_models,
-                allow_custom_models,
-            });
+            .or_insert_with(
+                || orchestration_runtime::compiler::FlowCompileProviderFamily {
+                    provider_code: instance.provider_code.clone(),
+                    protocol: instance.protocol.clone(),
+                    is_ready: instance.status == domain::ModelProviderInstanceStatus::Ready,
+                    available_models,
+                    allow_custom_models,
+                },
+            );
     }
 
     for entry in contributions {
@@ -333,7 +338,10 @@ mod tests {
 
     #[tokio::test]
     async fn orchestration_runtime_compile_context_requires_source_instance_id() {
-        let repository = super::super::test_support::InMemoryOrchestrationRuntimeRepository::with_permissions(vec![]);
+        let repository =
+            super::super::test_support::InMemoryOrchestrationRuntimeRepository::with_permissions(
+                vec![],
+            );
         seed_primary_routing(&repository, repository.default_provider_instance_id()).await;
 
         let field = compile_error_field(
@@ -347,7 +355,10 @@ mod tests {
 
     #[tokio::test]
     async fn orchestration_runtime_compile_context_rejects_source_instance_from_another_provider() {
-        let repository = super::super::test_support::InMemoryOrchestrationRuntimeRepository::with_permissions(vec![]);
+        let repository =
+            super::super::test_support::InMemoryOrchestrationRuntimeRepository::with_permissions(
+                vec![],
+            );
         seed_primary_routing(&repository, repository.default_provider_instance_id()).await;
         let foreign_instance_id = repository.seed_provider_instance(
             "other_provider",
@@ -373,7 +384,10 @@ mod tests {
 
     #[tokio::test]
     async fn orchestration_runtime_compile_context_rejects_non_ready_source_instance() {
-        let repository = super::super::test_support::InMemoryOrchestrationRuntimeRepository::with_permissions(vec![]);
+        let repository =
+            super::super::test_support::InMemoryOrchestrationRuntimeRepository::with_permissions(
+                vec![],
+            );
         let instance_id = repository.default_provider_instance_id();
         repository.set_instance_status(instance_id, domain::ModelProviderInstanceStatus::Disabled);
         seed_primary_routing(&repository, instance_id).await;
@@ -393,8 +407,12 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn orchestration_runtime_compile_context_rejects_source_instance_outside_main_aggregation() {
-        let repository = super::super::test_support::InMemoryOrchestrationRuntimeRepository::with_permissions(vec![]);
+    async fn orchestration_runtime_compile_context_rejects_source_instance_outside_main_aggregation(
+    ) {
+        let repository =
+            super::super::test_support::InMemoryOrchestrationRuntimeRepository::with_permissions(
+                vec![],
+            );
         seed_primary_routing(&repository, repository.default_provider_instance_id()).await;
         let excluded_instance_id = repository.seed_provider_instance(
             "fixture_provider",
@@ -420,7 +438,10 @@ mod tests {
 
     #[tokio::test]
     async fn orchestration_runtime_compile_context_validates_model_on_selected_source_instance() {
-        let repository = super::super::test_support::InMemoryOrchestrationRuntimeRepository::with_permissions(vec![]);
+        let repository =
+            super::super::test_support::InMemoryOrchestrationRuntimeRepository::with_permissions(
+                vec![],
+            );
         seed_primary_routing(&repository, repository.default_provider_instance_id()).await;
         let selected_instance_id = repository.seed_provider_instance(
             "fixture_provider",
@@ -445,9 +466,12 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn orchestration_runtime_compile_context_does_not_expand_enabled_models_from_catalog_cache()
-    {
-        let repository = super::super::test_support::InMemoryOrchestrationRuntimeRepository::with_permissions(vec![]);
+    async fn orchestration_runtime_compile_context_does_not_expand_enabled_models_from_catalog_cache(
+    ) {
+        let repository =
+            super::super::test_support::InMemoryOrchestrationRuntimeRepository::with_permissions(
+                vec![],
+            );
         seed_primary_routing(&repository, repository.default_provider_instance_id()).await;
         let selected_instance_id = repository.seed_provider_instance(
             "fixture_provider",
@@ -456,10 +480,8 @@ mod tests {
             domain::ModelProviderInstanceStatus::Ready,
             vec!["other-model"],
         );
-        repository.set_instance_catalog_models(
-            selected_instance_id,
-            vec!["other-model", "gpt-5.4-mini"],
-        );
+        repository
+            .set_instance_catalog_models(selected_instance_id, vec!["other-model", "gpt-5.4-mini"]);
 
         let field = compile_error_field(
             &repository,
@@ -478,13 +500,17 @@ mod tests {
     #[tokio::test]
     async fn orchestration_runtime_compile_context_rejects_source_instance_when_installation_unassigned(
     ) {
-        let repository = super::super::test_support::InMemoryOrchestrationRuntimeRepository::with_permissions(vec![]);
+        let repository =
+            super::super::test_support::InMemoryOrchestrationRuntimeRepository::with_permissions(
+                vec![],
+            );
         let instance_id = repository.default_provider_instance_id();
-        let installation_id = ModelProviderRepository::get_instance(&repository, Uuid::nil(), instance_id)
-            .await
-            .expect("instance lookup should succeed")
-            .expect("instance should exist")
-            .installation_id;
+        let installation_id =
+            ModelProviderRepository::get_instance(&repository, Uuid::nil(), instance_id)
+                .await
+                .expect("instance lookup should succeed")
+                .expect("instance should exist")
+                .installation_id;
         repository.remove_assignment_for_installation(Uuid::nil(), installation_id);
 
         let field = compile_error_field(
@@ -504,13 +530,17 @@ mod tests {
     #[tokio::test]
     async fn orchestration_runtime_compile_context_rejects_source_instance_when_installation_disabled(
     ) {
-        let repository = super::super::test_support::InMemoryOrchestrationRuntimeRepository::with_permissions(vec![]);
+        let repository =
+            super::super::test_support::InMemoryOrchestrationRuntimeRepository::with_permissions(
+                vec![],
+            );
         let instance_id = repository.default_provider_instance_id();
-        let installation_id = ModelProviderRepository::get_instance(&repository, Uuid::nil(), instance_id)
-            .await
-            .expect("instance lookup should succeed")
-            .expect("instance should exist")
-            .installation_id;
+        let installation_id =
+            ModelProviderRepository::get_instance(&repository, Uuid::nil(), instance_id)
+                .await
+                .expect("instance lookup should succeed")
+                .expect("instance should exist")
+                .installation_id;
         repository.set_installation_state(
             installation_id,
             domain::PluginDesiredState::Disabled,

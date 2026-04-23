@@ -366,7 +366,8 @@ fn compile_llm_runtime(
         });
     }
 
-    if !provider_instance.included_in_main || !context.provider_families.contains_key(&provider_code)
+    if !provider_instance.included_in_main
+        || !context.provider_families.contains_key(&provider_code)
     {
         compile_issues.push(CompileIssue {
             node_id: node_id.to_string(),

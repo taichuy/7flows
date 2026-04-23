@@ -230,9 +230,7 @@ pub fn router() -> Router<Arc<ApiState>> {
         .route("/plugins/tasks/:task_id", get(get_task))
 }
 
-fn service(
-    state: &ApiState,
-) -> PluginManagementService<MainDurableStore, ApiProviderRuntime> {
+fn service(state: &ApiState) -> PluginManagementService<MainDurableStore, ApiProviderRuntime> {
     PluginManagementService::new(
         state.store.clone(),
         ApiProviderRuntime::new(state.provider_runtime.clone()),

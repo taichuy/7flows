@@ -392,7 +392,11 @@ impl InMemoryOrchestrationRuntimeRepository {
         );
     }
 
-    pub(crate) fn set_instance_catalog_models(&self, instance_id: Uuid, catalog_model_ids: Vec<&str>) {
+    pub(crate) fn set_instance_catalog_models(
+        &self,
+        instance_id: Uuid,
+        catalog_model_ids: Vec<&str>,
+    ) {
         let mut inner = self.inner.lock().expect("runtime repo mutex poisoned");
         let now = OffsetDateTime::now_utc();
         inner.caches_by_instance_id.insert(
@@ -427,9 +431,16 @@ impl InMemoryOrchestrationRuntimeRepository {
         );
     }
 
-    pub(crate) fn remove_assignment_for_installation(&self, workspace_id: Uuid, installation_id: Uuid) {
+    pub(crate) fn remove_assignment_for_installation(
+        &self,
+        workspace_id: Uuid,
+        installation_id: Uuid,
+    ) {
         let mut inner = self.inner.lock().expect("runtime repo mutex poisoned");
-        let assignments = inner.assignments_by_workspace.entry(workspace_id).or_default();
+        let assignments = inner
+            .assignments_by_workspace
+            .entry(workspace_id)
+            .or_default();
         assignments.retain(|assignment| assignment.installation_id != installation_id);
     }
 

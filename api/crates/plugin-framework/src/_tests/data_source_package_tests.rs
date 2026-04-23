@@ -12,7 +12,8 @@ struct TempDataSourcePackage {
 
 impl TempDataSourcePackage {
     fn new() -> Self {
-        let root = std::env::temp_dir().join(format!("data-source-package-tests-{}", Uuid::now_v7()));
+        let root =
+            std::env::temp_dir().join(format!("data-source-package-tests-{}", Uuid::now_v7()));
         fs::create_dir_all(&root).unwrap();
         Self { root }
     }

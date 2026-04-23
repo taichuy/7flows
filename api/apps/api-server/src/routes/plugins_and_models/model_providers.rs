@@ -329,9 +329,7 @@ pub fn router() -> Router<Arc<ApiState>> {
         .route("/model-providers/:id/models/refresh", post(refresh_models))
 }
 
-fn service(
-    state: &ApiState,
-) -> ModelProviderService<MainDurableStore, ApiProviderRuntime> {
+fn service(state: &ApiState) -> ModelProviderService<MainDurableStore, ApiProviderRuntime> {
     ModelProviderService::new(
         state.store.clone(),
         ApiProviderRuntime::new(state.provider_runtime.clone()),

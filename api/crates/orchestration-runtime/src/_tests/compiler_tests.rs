@@ -272,13 +272,13 @@ fn compile_uses_selected_instance_models_instead_of_provider_family_aggregate() 
         },
     );
 
-    let plan = FlowCompiler::compile(flow_id, "draft-1", &sample_document(flow_id), &context).unwrap();
+    let plan =
+        FlowCompiler::compile(flow_id, "draft-1", &sample_document(flow_id), &context).unwrap();
 
-    assert!(
-        plan.compile_issues
-            .iter()
-            .any(|issue| issue.code == CompileIssueCode::ModelNotAvailable)
-    );
+    assert!(plan
+        .compile_issues
+        .iter()
+        .any(|issue| issue.code == CompileIssueCode::ModelNotAvailable));
 }
 
 #[test]
@@ -289,11 +289,10 @@ fn compile_collects_missing_source_instance_issue() {
 
     let plan = FlowCompiler::compile(flow_id, "draft-1", &document, &compile_context()).unwrap();
 
-    assert!(
-        plan.compile_issues
-            .iter()
-            .any(|issue| issue.code == CompileIssueCode::MissingProviderInstance)
-    );
+    assert!(plan
+        .compile_issues
+        .iter()
+        .any(|issue| issue.code == CompileIssueCode::MissingProviderInstance));
 }
 
 #[test]
@@ -308,16 +307,14 @@ fn compile_rejects_legacy_top_level_llm_config_shape() {
 
     let plan = FlowCompiler::compile(flow_id, "draft-1", &document, &compile_context()).unwrap();
 
-    assert!(
-        plan.compile_issues
-            .iter()
-            .any(|issue| issue.code == CompileIssueCode::MissingProviderInstance)
-    );
-    assert!(
-        plan.compile_issues
-            .iter()
-            .any(|issue| issue.code == CompileIssueCode::MissingModel)
-    );
+    assert!(plan
+        .compile_issues
+        .iter()
+        .any(|issue| issue.code == CompileIssueCode::MissingProviderInstance));
+    assert!(plan
+        .compile_issues
+        .iter()
+        .any(|issue| issue.code == CompileIssueCode::MissingModel));
 }
 
 #[test]

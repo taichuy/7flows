@@ -3,10 +3,10 @@ extern crate self as storage_ephemeral;
 mod backend;
 mod kv_store;
 mod lease_store;
-mod session_store;
-mod wakeup_signal;
 pub mod memory;
 pub mod redis;
+mod session_store;
+mod wakeup_signal;
 
 pub use backend::EphemeralBackendKind;
 pub use kv_store::EphemeralKvStore;

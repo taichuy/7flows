@@ -1,11 +1,11 @@
 use anyhow::{anyhow, Result};
 use axum::http::HeaderValue;
 use serde::Deserialize;
-use storage_ephemeral::EphemeralBackendKind;
 use std::{
     collections::BTreeMap,
     path::{Path, PathBuf},
 };
+use storage_ephemeral::EphemeralBackendKind;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ApiEnvironment {

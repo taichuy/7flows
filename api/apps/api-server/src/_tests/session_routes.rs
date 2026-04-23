@@ -202,5 +202,10 @@ async fn expired_memory_session_is_rejected_by_require_session() {
         .unwrap();
 
     assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
-    assert!(state.session_store.get(&session_id).await.unwrap().is_none());
+    assert!(state
+        .session_store
+        .get(&session_id)
+        .await
+        .unwrap()
+        .is_none());
 }

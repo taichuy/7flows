@@ -778,8 +778,7 @@ mod tests {
         let repository =
             test_support::InMemoryOrchestrationRuntimeRepository::with_permissions(vec![]);
         let (_, backup_instance_id) = repository.seed_primary_and_backup_provider_instances();
-        repository
-            .set_instance_enabled_models(backup_instance_id, vec!["gpt-5.4-mini"]);
+        repository.set_instance_enabled_models(backup_instance_id, vec!["gpt-5.4-mini"]);
         let invoker = RuntimeProviderInvoker {
             repository: repository.clone(),
             runtime: test_support::InMemoryProviderRuntime,
@@ -797,14 +796,11 @@ mod tests {
             .await
             .expect("selected child instance should resolve");
 
-        let repository_instance = ModelProviderRepository::get_instance(
-            &repository,
-            Uuid::nil(),
-            backup_instance_id,
-        )
-        .await
-        .expect("instance lookup should succeed")
-        .expect("instance should exist");
+        let repository_instance =
+            ModelProviderRepository::get_instance(&repository, Uuid::nil(), backup_instance_id)
+                .await
+                .expect("instance lookup should succeed")
+                .expect("instance should exist");
         assert_eq!(resolved.id, repository_instance.id);
         assert_eq!(resolved.display_name, repository_instance.display_name);
     }
@@ -821,10 +817,8 @@ mod tests {
             domain::ModelProviderInstanceStatus::Ready,
             vec!["other-model"],
         );
-        repository.set_instance_catalog_models(
-            selected_instance_id,
-            vec!["other-model", "gpt-5.4-mini"],
-        );
+        repository
+            .set_instance_catalog_models(selected_instance_id, vec!["other-model", "gpt-5.4-mini"]);
         let invoker = RuntimeProviderInvoker {
             repository,
             runtime: test_support::InMemoryProviderRuntime,

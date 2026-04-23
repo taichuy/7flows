@@ -37,12 +37,7 @@ impl MemoryLeaseStore {
 
 #[async_trait]
 impl LeaseStore for MemoryLeaseStore {
-    async fn acquire(
-        &self,
-        key: &str,
-        owner: &str,
-        ttl: time::Duration,
-    ) -> anyhow::Result<bool> {
+    async fn acquire(&self, key: &str, owner: &str, ttl: time::Duration) -> anyhow::Result<bool> {
         let namespaced_key = self.namespaced_key(key);
         let mut map = self.inner.write().await;
         let now = OffsetDateTime::now_utc();
