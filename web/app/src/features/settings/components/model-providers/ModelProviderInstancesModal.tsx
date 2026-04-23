@@ -14,18 +14,11 @@ import type {
   SettingsModelProviderMainInstance,
   SettingsModelProviderOptions
 } from '../../api/model-providers';
+import { ModelProviderTagList } from './ModelProviderTagList';
 import { ModelProviderInstancesTable } from './ModelProviderInstancesTable';
 
 type ModelGroup =
   SettingsModelProviderOptions['providers'][number]['model_groups'][number];
-
-function formatModelPreview(modelIds: string[]) {
-  if (modelIds.length === 0) {
-    return '未汇总模型';
-  }
-
-  return modelIds.join(' · ');
-}
 
 export function ModelProviderInstancesModal({
   open,
@@ -157,11 +150,10 @@ export function ModelProviderInstancesModal({
                   <Typography.Text strong>
                     {group.source_instance_display_name}
                   </Typography.Text>
-                  <Typography.Paragraph type="secondary">
-                    {formatModelPreview(
-                      group.models.map((model) => model.model_id)
-                    )}
-                  </Typography.Paragraph>
+                  <ModelProviderTagList
+                    modelIds={group.models.map((model) => model.model_id)}
+                    emptyText="未汇总模型"
+                  />
                 </section>
               ))}
             </div>

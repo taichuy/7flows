@@ -11,9 +11,11 @@ export function CachedModelSelect({
   style,
   placeholder = '缓存模型',
   value,
+  values,
   defaultValue,
   onChange,
-  emptyMode = 'text'
+  emptyMode = 'text',
+  disabled = false
 }: {
   modelIds: string[];
   ariaLabel: string;
@@ -21,9 +23,11 @@ export function CachedModelSelect({
   style?: CSSProperties;
   placeholder?: string;
   value?: string;
+  values?: string[];
   defaultValue?: string;
   onChange?: (value: string | null) => void;
   emptyMode?: EmptyMode;
+  disabled?: boolean;
 }) {
   const options = modelIds.map((modelId) => ({
     value: modelId,
@@ -39,10 +43,12 @@ export function CachedModelSelect({
       aria-label={ariaLabel}
       className={className}
       style={style}
-      value={value}
+      mode={values ? 'multiple' : undefined}
+      value={values ?? value}
       defaultValue={defaultValue}
       options={options}
       placeholder={placeholder}
+      disabled={disabled}
       filterOption={(input, option) =>
         String(option?.label ?? '')
           .toLowerCase()
@@ -50,7 +56,7 @@ export function CachedModelSelect({
       }
       optionFilterProp="label"
       popupMatchSelectWidth={false}
-      showSearch
+      showSearch={!disabled}
       allowClear={Boolean(onChange)}
       onChange={(nextValue) => onChange?.(typeof nextValue === 'string' ? nextValue : null)}
     />

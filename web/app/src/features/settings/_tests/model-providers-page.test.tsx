@@ -960,8 +960,15 @@ describe('ModelProvidersPage', () => {
       expect(
         within(modal).queryByRole('combobox', { name: '主实例' })
       ).not.toBeInTheDocument();
-      expect(within(modal).getByText('加入主实例')).toBeInTheDocument();
-      expect(within(modal).getAllByText(/gpt-4o-mini/i).length).toBeGreaterThanOrEqual(1);
+      expect(
+        within(modal).getByRole('switch', { name: '加入主实例 OpenAI Production' })
+      ).toBeInTheDocument();
+      expect(
+        within(modal).getByRole('switch', { name: '加入主实例 OpenAI Backup' })
+      ).toBeInTheDocument();
+      expect(
+        within(modal).getAllByText(/gpt-4o-mini/i).length
+      ).toBeGreaterThanOrEqual(1);
       expect(within(modal).getByText('OpenAI Backup')).toBeInTheDocument();
     }
   );
@@ -1448,6 +1455,35 @@ describe('ModelProvidersPage', () => {
     }
   );
 
+  test(
+    'keeps the provider instances modal open while opening the edit drawer',
+    { timeout: 15000 },
+    async () => {
+      authenticateWithPermissions([
+        'route_page.view.all',
+        'state_model.view.all',
+        'state_model.manage.all'
+      ]);
+
+      renderApp('/settings/model-providers');
+
+      const modal = await openProviderInstancesModal();
+      fireEvent.click(
+        within(modal).getByRole('button', {
+          name: '编辑 API Key OpenAI Production'
+        })
+      );
+
+      expect(await screen.findByText('编辑 API 密钥配置')).toBeInTheDocument();
+      expect(screen.getByText('OpenAI Compatible 实例')).toBeInTheDocument();
+      expect(
+        screen.getByRole('switch', { name: '新实例自动加入主实例' })
+      ).toBeInTheDocument();
+      expect(document.querySelector('.ant-drawer')).toHaveStyle({
+        zIndex: '1100'
+      });
+    }
+  );
 
   test(
     'folds advanced provider fields into a collapsed section in the edit drawer',
@@ -1511,8 +1547,9 @@ describe('ModelProvidersPage', () => {
       });
       fireEvent.mouseDown(cachedModelSelect);
       expect(
-        await screen.findByText(primaryContractProviderModels[0].model_id)
-      ).toBeInTheDocument();
+        (await screen.findAllByText(primaryContractProviderModels[0].model_id))
+          .length
+      ).toBeGreaterThanOrEqual(1);
       expect(screen.getByLabelText('模型 ID 1')).toHaveValue('gpt-4o-mini');
     }
   );
@@ -1572,9 +1609,7 @@ describe('ModelProvidersPage', () => {
         await within(modal).findByText('聚合视图')
       ).toBeInTheDocument();
       expect(
-        within(modal).getAllByText(
-          new RegExp(primaryContractProviderModels[0].model_id, 'i')
-        ).length
+        within(modal).getAllByText(primaryContractProviderModels[0].model_id).length
       ).toBeGreaterThanOrEqual(1);
       expect(
         within(modal).getByRole('switch', { name: '加入主实例 OpenAI Production' })
@@ -1586,7 +1621,7 @@ describe('ModelProvidersPage', () => {
   );
 
   test(
-    'renders provider instances as a flat management table beneath the main-instance summary',
+    'renders provider instances as a collapsible management list beneath the main-instance summary',
     { timeout: 15000 },
     async () => {
       authenticateWithPermissions([
@@ -1604,9 +1639,42 @@ describe('ModelProvidersPage', () => {
       expect(
         within(modal).queryByRole('combobox', { name: '主实例' })
       ).not.toBeInTheDocument();
-      expect(within(modal).getByText('Base URL')).toBeInTheDocument();
-      expect(within(modal).getAllByText(/gpt-4o-mini/).length).toBeGreaterThanOrEqual(1);
-      expect(within(modal).getByText('加入主实例')).toBeInTheDocument();
+
+      expect(
+        within(modal).getAllByText('OpenAI Production').length
+      ).toBeGreaterThanOrEqual(1);
+      expect(
+        within(modal).getByText('OpenAI Backup')
+      ).toBeInTheDocument();
+      expect(
+        within(modal).getByRole('button', {
+          name: '编辑 API Key OpenAI Production'
+        })
+      ).toBeInTheDocument();
+      expect(
+        within(modal).queryByRole('button', {
+          name: '编辑 API Key OpenAI Backup'
+        })
+      ).not.toBeInTheDocument();
+      expect(
+        within(modal).getAllByText(primaryContractProviderModels[0].model_id).length
+      ).toBeGreaterThanOrEqual(1);
+
+      fireEvent.click(
+        within(modal).getByText('OpenAI Backup')
+      );
+
+      expect(
+        await within(modal).findByRole('button', {
+          name: '编辑 API Key OpenAI Backup'
+        })
+      ).toBeInTheDocument();
+      expect(
+        within(modal).getAllByText(/gpt-4o-mini/).length
+      ).toBeGreaterThanOrEqual(1);
+      expect(
+        within(modal).getByText('gpt-4.1-mini')
+      ).toBeInTheDocument();
     }
   );
 

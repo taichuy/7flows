@@ -556,6 +556,7 @@ export function ModelProviderInstanceDrawer({
     <Drawer
       open={open}
       width={560}
+      zIndex={1100}
       forceRender
       title={title}
       onClose={onClose}

@@ -431,7 +431,6 @@ export function SettingsModelProvidersSection({
           );
         }}
         onEdit={(instance) => {
-          setInstanceModalState(null);
           setDrawerState({
             mode: 'edit',
             instanceId: instance.id

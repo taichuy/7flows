@@ -112,6 +112,7 @@
       "web/app/src/features/agent-flow/components/editor/AgentFlowEditorShell.tsx",
       "web/app/src/features/agent-flow/components/editor/AgentFlowCanvasFrame.tsx",
       "web/app/src/features/agent-flow/components/editor/AgentFlowCanvas.tsx",
+      "web/app/src/features/agent-flow/components/editor/styles/canvas.css",
       "web/app/src/features/agent-flow/components/editor/agent-flow-editor.css",
       "web/app/src/features/agent-flow/components/canvas/node-types.tsx",
       "web/app/src/features/agent-flow/components/detail/NodeDetailPanel.tsx",

@@ -385,6 +385,10 @@
   padding-top: 4px;
 }
 
+.model-provider-panel__instances-collapse {
+  border-radius: 14px;
+}
+
 /* 实例卡片头部样式 */
 .model-provider-panel__instance-header {
   display: flex;
@@ -399,6 +403,13 @@
   min-width: 0;
   display: grid;
   gap: 6px;
+}
+
+.model-provider-panel__instance-header-side {
+  display: flex;
+  align-items: flex-start;
+  gap: 20px;
+  flex-wrap: wrap;
 }
 
 .model-provider-panel__instance-title-row {
@@ -447,6 +458,18 @@
   gap: 24px;
   flex-wrap: wrap;
   min-width: max-content;
+}
+
+.model-provider-panel__instance-inclusion-card {
+  display: grid;
+  gap: 6px;
+  min-width: 132px;
+}
+
+.model-provider-panel__instance-inclusion-row {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
 }
 
 .model-provider-panel__instance-stat {
@@ -606,6 +629,22 @@
   color: var(--color-primary);
 }
 
+.model-provider-panel__model-tag-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.model-provider-panel__model-tag {
+  margin: 0;
+  padding: 6px 10px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--color-primary) 10%, var(--bg-surface));
+  color: color-mix(in srgb, var(--text-primary) 82%, var(--color-primary));
+  font-size: 13px;
+  line-height: 1.4;
+}
+
 /* 加载状态样式 */
 .model-provider-panel__instance-loading {
   display: flex;
@@ -695,5 +734,30 @@
   .model-provider-panel__instances-modal-select {
     width: 100%;
     min-width: 0;
+  }
+
+  .model-provider-panel__main-instance-head,
+  .model-provider-panel__instance-header {
+    flex-direction: column;
+  }
+
+  .model-provider-panel__main-instance-toggle {
+    min-width: 0;
+    width: 100%;
+    justify-items: start;
+  }
+
+  .model-provider-panel__instance-header-side {
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .model-provider-panel__instance-stats {
+    min-width: 0;
+    gap: 16px;
+  }
+
+  .model-provider-panel__instance-stat {
+    text-align: left;
   }
 }
