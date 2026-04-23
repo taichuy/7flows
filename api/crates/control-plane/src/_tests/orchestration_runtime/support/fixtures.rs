@@ -337,18 +337,6 @@ impl OrchestrationRuntimeService<InMemoryOrchestrationRuntimeRepository, InMemor
         )
         .await
         .expect("seed preview flow should succeed");
-        let _ = ModelProviderRepository::upsert_routing(
-            &self.repository,
-            &crate::ports::UpsertModelProviderRoutingInput {
-                workspace_id: Uuid::nil(),
-                provider_code: "fixture_provider".to_string(),
-                routing_mode: domain::ModelProviderRoutingMode::ManualPrimary,
-                primary_instance_id: self.repository.default_provider_instance_id(),
-                updated_by: actor_user_id,
-            },
-        )
-        .await
-        .expect("seed default provider routing should succeed");
 
         SeededPreviewApplication {
             actor_user_id,
@@ -423,6 +411,26 @@ impl OrchestrationRuntimeService<InMemoryOrchestrationRuntimeRepository, InMemor
         let seeded = self.seed_application_with_flow(name).await;
         let (primary_provider_instance_id, _) =
             self.repository.seed_primary_and_backup_provider_instances();
+        let editor_state = FlowRepository::get_or_create_editor_state(
+            &self.repository,
+            Uuid::nil(),
+            seeded.application_id,
+            seeded.actor_user_id,
+        )
+        .await
+        .expect("seed editor state should succeed");
+        let _ = FlowRepository::save_draft(
+            &self.repository,
+            Uuid::nil(),
+            seeded.application_id,
+            seeded.actor_user_id,
+            build_ready_provider_flow_document(editor_state.flow.id, primary_provider_instance_id),
+            domain::FlowChangeKind::Logical,
+            "seed multi instance runtime preview flow",
+        )
+        .await
+        .expect("seed multi instance draft should succeed");
+
         SeededPreviewApplication {
             actor_user_id: seeded.actor_user_id,
             application_id: seeded.application_id,
@@ -496,6 +504,7 @@ fn build_ready_provider_flow_document(flow_id: Uuid, _provider_instance_id: Uuid
                     "config": {
                         "model_provider": {
                             "provider_code": "fixture_provider",
+                            "source_instance_id": _provider_instance_id.to_string(),
                             "model_id": "gpt-5.4-mini"
                         },
                         "temperature": 0.2
@@ -558,6 +567,7 @@ fn build_human_input_flow_document(flow_id: Uuid, _provider_instance_id: Uuid) -
                     "config": {
                         "model_provider": {
                             "provider_code": "fixture_provider",
+                            "source_instance_id": _provider_instance_id.to_string(),
                             "model_id": "gpt-5.4-mini"
                         },
                         "temperature": 0.2

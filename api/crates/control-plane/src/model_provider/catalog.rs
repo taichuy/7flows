@@ -7,8 +7,8 @@ use uuid::Uuid;
 use crate::{
     i18n::{merge_i18n_catalog, plugin_namespace, trim_provider_bundles, RequestedLocales},
     model_provider::{
-        ModelProviderCatalogEntry, ModelProviderCatalogView, ModelProviderOptionEntry,
-        ModelProviderOptionsView,
+        ModelProviderCatalogEntry, ModelProviderCatalogView, ModelProviderMainInstanceSummary,
+        ModelProviderOptionEntry, ModelProviderOptionGroup, ModelProviderOptionsView,
     },
     plugin_lifecycle::reconcile_installation_snapshot,
     ports::{AuthRepository, ModelProviderRepository, PluginRepository},
@@ -106,27 +106,42 @@ where
         let installation = reconcile_installation_snapshot(repository, installation.id).await?;
         installation_map.insert(installation.id, installation);
     }
-    let mut provider_codes = repository
-        .list_routings(actor.current_workspace_id)
+    let mut instances_by_provider =
+        HashMap::<String, Vec<domain::ModelProviderInstanceRecord>>::new();
+    for instance in repository
+        .list_instances(actor.current_workspace_id)
         .await?
-        .into_iter()
-        .map(|routing| routing.provider_code)
-        .collect::<Vec<_>>();
+    {
+        if instance.status != domain::ModelProviderInstanceStatus::Ready
+            || !instance.included_in_main
+        {
+            continue;
+        }
+        instances_by_provider
+            .entry(instance.provider_code.clone())
+            .or_default()
+            .push(instance);
+    }
+    let mut provider_codes = instances_by_provider.keys().cloned().collect::<Vec<_>>();
     provider_codes.sort();
 
     let mut options = Vec::new();
     let mut i18n_catalog = BTreeMap::new();
     for provider_code in provider_codes {
-        let Some(instance) = super::routing::resolve_primary_instance(
-            repository,
-            actor.current_workspace_id,
-            &provider_code,
-        )
-        .await?
-        else {
+        let Some(mut instances) = instances_by_provider.remove(&provider_code) else {
             continue;
         };
-        let Some(installation) = installation_map.get(&instance.installation_id) else {
+        instances.sort_by(|left, right| {
+            left.display_name
+                .cmp(&right.display_name)
+                .then(left.id.cmp(&right.id))
+        });
+        let Some(first_instance) = instances.first() else {
+            continue;
+        };
+        let installation_id = first_instance.installation_id;
+        let protocol = first_instance.protocol.clone();
+        let Some(installation) = installation_map.get(&installation_id) else {
             continue;
         };
         if installation.availability_status != domain::PluginAvailabilityStatus::Available {
@@ -138,21 +153,43 @@ where
             &mut i18n_catalog,
             trim_provider_bundles(&namespace, &package.i18n, &locales),
         );
-        let models = match repository.get_catalog_cache(instance.id).await? {
-            Some(cache) => serde_json::from_value(cache.models_json).unwrap_or_default(),
-            None => package.predefined_models.clone(),
-        };
+
+        let main_instance = repository
+            .get_main_instance(actor.current_workspace_id, &provider_code)
+            .await?;
+        let mut model_groups = Vec::with_capacity(instances.len());
+        let mut model_count = 0;
+        for instance in instances {
+            let candidate_models = match repository.get_catalog_cache(instance.id).await? {
+                Some(cache) => serde_json::from_value(cache.models_json).unwrap_or_default(),
+                None => package.predefined_models.clone(),
+            };
+            let models =
+                expose_enabled_models(&namespace, candidate_models, &instance.enabled_model_ids);
+            model_count += models.len();
+            model_groups.push(ModelProviderOptionGroup {
+                source_instance_id: instance.id,
+                source_instance_display_name: instance.display_name,
+                models,
+            });
+        }
         options.push(ModelProviderOptionEntry {
-            provider_code,
+            provider_code: provider_code.clone(),
             plugin_type: "model_provider".to_string(),
             namespace: namespace.clone(),
             label_key: "provider.label".to_string(),
             description_key: Some("provider.description".to_string()),
-            protocol: instance.protocol.clone(),
+            protocol,
             display_name: package.provider.display_name.clone(),
-            effective_instance_id: instance.id,
-            effective_instance_display_name: instance.display_name.clone(),
-            models: expose_enabled_models(&namespace, models, &instance.enabled_model_ids),
+            main_instance: ModelProviderMainInstanceSummary {
+                provider_code: provider_code.clone(),
+                auto_include_new_instances: super::main_instance::auto_include_new_instances(
+                    main_instance.as_ref(),
+                ),
+                group_count: model_groups.len(),
+                model_count,
+            },
+            model_groups,
         });
     }
     Ok(ModelProviderOptionsView {

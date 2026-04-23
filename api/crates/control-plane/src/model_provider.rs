@@ -25,6 +25,7 @@ use crate::{
 
 mod catalog;
 mod instances;
+mod main_instance;
 mod options;
 pub(crate) mod routing;
 mod shared;
@@ -46,6 +47,7 @@ pub struct CreateModelProviderInstanceCommand {
     pub config_json: Value,
     pub configured_models: Vec<domain::ModelProviderConfiguredModel>,
     pub enabled_model_ids: Vec<String>,
+    pub included_in_main: Option<bool>,
     pub preview_token: Option<Uuid>,
 }
 
@@ -56,14 +58,14 @@ pub struct UpdateModelProviderInstanceCommand {
     pub config_json: Value,
     pub configured_models: Vec<domain::ModelProviderConfiguredModel>,
     pub enabled_model_ids: Vec<String>,
+    pub included_in_main: bool,
     pub preview_token: Option<Uuid>,
 }
 
-pub struct UpdateModelProviderRoutingCommand {
+pub struct UpdateModelProviderMainInstanceCommand {
     pub actor_user_id: Uuid,
     pub provider_code: String,
-    pub routing_mode: domain::ModelProviderRoutingMode,
-    pub primary_instance_id: Uuid,
+    pub auto_include_new_instances: bool,
 }
 
 pub type ModelProviderConfiguredModelInput = domain::ModelProviderConfiguredModel;
@@ -121,22 +123,18 @@ pub struct LocalizedProviderModelDescriptor {
 pub struct ModelProviderInstanceView {
     pub instance: domain::ModelProviderInstanceRecord,
     pub cache: Option<domain::ModelProviderCatalogCacheRecord>,
-    pub is_primary: bool,
 }
 
 #[derive(Debug, Clone)]
-pub struct ModelProviderRoutingView {
+pub struct ModelProviderMainInstanceView {
     pub provider_code: String,
-    pub routing_mode: String,
-    pub primary_instance_id: Uuid,
-    pub primary_instance_display_name: String,
+    pub auto_include_new_instances: bool,
 }
 
 #[derive(Debug, Clone)]
 pub struct ValidateModelProviderResult {
     pub instance: domain::ModelProviderInstanceRecord,
     pub cache: domain::ModelProviderCatalogCacheRecord,
-    pub is_primary: bool,
     pub output: Value,
 }
 
@@ -179,8 +177,22 @@ pub struct ModelProviderOptionEntry {
     pub description_key: Option<String>,
     pub protocol: String,
     pub display_name: String,
-    pub effective_instance_id: Uuid,
-    pub effective_instance_display_name: String,
+    pub main_instance: ModelProviderMainInstanceSummary,
+    pub model_groups: Vec<ModelProviderOptionGroup>,
+}
+
+#[derive(Debug, Clone)]
+pub struct ModelProviderMainInstanceSummary {
+    pub provider_code: String,
+    pub auto_include_new_instances: bool,
+    pub group_count: usize,
+    pub model_count: usize,
+}
+
+#[derive(Debug, Clone)]
+pub struct ModelProviderOptionGroup {
+    pub source_instance_id: Uuid,
+    pub source_instance_display_name: String,
     pub models: Vec<LocalizedProviderModelDescriptor>,
 }
 
@@ -228,15 +240,10 @@ where
             .repository
             .list_instances(actor.current_workspace_id)
             .await?;
-        let primary_instance_ids =
-            routing::primary_instance_ids_by_provider(&self.repository, actor.current_workspace_id)
-                .await?;
         let mut form_schemas: HashMap<Uuid, Vec<ProviderConfigField>> = HashMap::new();
         let mut output = Vec::with_capacity(instances.len());
         for instance in instances {
             let cache = self.repository.get_catalog_cache(instance.id).await?;
-            let is_primary =
-                primary_instance_ids.get(&instance.provider_code) == Some(&instance.id);
             let form_schema = match form_schemas.get(&instance.installation_id) {
                 Some(form_schema) => form_schema.clone(),
                 None => {
@@ -252,11 +259,26 @@ where
                 }
             };
             output.push(
-                self.hydrate_instance_view(instance, cache, &form_schema, is_primary)
+                self.hydrate_instance_view(instance, cache, &form_schema)
                     .await?,
             );
         }
         Ok(output)
+    }
+
+    pub async fn get_main_instance(
+        &self,
+        actor_user_id: Uuid,
+        provider_code: &str,
+    ) -> Result<ModelProviderMainInstanceView> {
+        let actor = load_actor_context_for_user(&self.repository, actor_user_id).await?;
+        ensure_state_model_permission(&actor, "view")?;
+        main_instance::get_main_instance(
+            &self.repository,
+            actor.current_workspace_id,
+            provider_code,
+        )
+        .await
     }
 
     pub async fn create_instance(
@@ -319,7 +341,7 @@ where
                 config_json: public_config.clone(),
                 configured_models: configured_models.clone(),
                 enabled_model_ids,
-                included_in_main: None,
+                included_in_main: command.included_in_main,
                 created_by: command.actor_user_id,
             })
             .await?;
@@ -371,12 +393,6 @@ where
             instance.clone(),
             self.repository.get_catalog_cache(instance.id).await?,
             &package.provider.form_schema,
-            self.is_primary_instance(
-                actor.current_workspace_id,
-                &instance.provider_code,
-                instance.id,
-            )
-            .await?,
         )
         .await
     }
@@ -465,7 +481,7 @@ where
                 config_json: merged_public_config,
                 configured_models: configured_models.clone(),
                 enabled_model_ids,
-                included_in_main: existing.included_in_main,
+                included_in_main: command.included_in_main,
                 updated_by: command.actor_user_id,
             })
             .await?;
@@ -507,12 +523,6 @@ where
             updated,
             self.repository.get_catalog_cache(existing.id).await?,
             &package.provider.form_schema,
-            self.is_primary_instance(
-                actor.current_workspace_id,
-                &existing.provider_code,
-                existing.id,
-            )
-            .await?,
         )
         .await
     }
@@ -648,18 +658,11 @@ where
                     updated_instance,
                     Some(cache.clone()),
                     &package.provider.form_schema,
-                    self.is_primary_instance(
-                        actor.current_workspace_id,
-                        &instance.provider_code,
-                        instance.id,
-                    )
-                    .await?,
                 )
                 .await?;
             Ok::<ValidateModelProviderResult, anyhow::Error>(ValidateModelProviderResult {
                 instance: masked_view.instance,
                 cache,
-                is_primary: masked_view.is_primary,
                 output,
             })
         }
@@ -931,37 +934,34 @@ where
         Ok(())
     }
 
-    pub async fn update_routing(
+    pub async fn update_main_instance(
         &self,
-        command: UpdateModelProviderRoutingCommand,
-    ) -> Result<ModelProviderRoutingView> {
+        command: UpdateModelProviderMainInstanceCommand,
+    ) -> Result<ModelProviderMainInstanceView> {
         let actor = load_actor_context_for_user(&self.repository, command.actor_user_id).await?;
         ensure_state_model_permission(&actor, "manage")?;
-
-        let (routing_record, primary_instance) =
-            routing::update_routing(&self.repository, actor.current_workspace_id, &command).await?;
+        let updated = main_instance::update_main_instance(
+            &self.repository,
+            actor.current_workspace_id,
+            &command,
+        )
+        .await?;
 
         self.repository
             .append_audit_log(&audit_log(
                 Some(actor.current_workspace_id),
                 Some(command.actor_user_id),
                 "model_provider",
-                Some(primary_instance.id),
-                "model_provider.routing_updated",
+                None,
+                "model_provider.main_instance_updated",
                 json!({
-                    "provider_code": primary_instance.provider_code,
-                    "routing_mode": routing_record.routing_mode.as_str(),
-                    "primary_instance_id": primary_instance.id,
+                    "provider_code": updated.provider_code,
+                    "auto_include_new_instances": updated.auto_include_new_instances,
                 }),
             ))
             .await?;
 
-        Ok(ModelProviderRoutingView {
-            provider_code: routing_record.provider_code,
-            routing_mode: routing_record.routing_mode.as_str().to_string(),
-            primary_instance_id: routing_record.primary_instance_id,
-            primary_instance_display_name: primary_instance.display_name,
-        })
+        Ok(updated)
     }
 
     pub async fn options(
@@ -1007,7 +1007,6 @@ where
         instance: domain::ModelProviderInstanceRecord,
         cache: Option<domain::ModelProviderCatalogCacheRecord>,
         form_schema: &[ProviderConfigField],
-        is_primary: bool,
     ) -> Result<ModelProviderInstanceView> {
         hydrate_instance_view(
             &self.repository,
@@ -1015,21 +1014,8 @@ where
             instance,
             cache,
             form_schema,
-            is_primary,
         )
         .await
-    }
-
-    async fn is_primary_instance(
-        &self,
-        workspace_id: Uuid,
-        provider_code: &str,
-        instance_id: Uuid,
-    ) -> Result<bool> {
-        Ok(
-            routing::primary_instance_id(&self.repository, workspace_id, provider_code).await?
-                == Some(instance_id),
-        )
     }
 }
 

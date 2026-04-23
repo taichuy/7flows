@@ -107,7 +107,15 @@ pub fn default_flow_document(flow_id: Uuid) -> serde_json::Value {
                     "containerId": serde_json::Value::Null,
                     "position": { "x": 360, "y": 220 },
                     "configVersion": 1,
-                    "config": { "model": "", "temperature": 0.7 },
+                    "config": {
+                        "model_provider": {
+                            "provider_code": "",
+                            "source_instance_id": "",
+                            "model_id": ""
+                        },
+                        "model": "",
+                        "temperature": 0.7
+                    },
                     "bindings": {
                         "user_prompt": { "kind": "selector", "value": ["node-start", "query"] },
                     },

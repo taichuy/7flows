@@ -26,9 +26,7 @@ mod inputs;
 mod persistence;
 
 use self::{
-    compile_context::{
-        build_compile_context, ensure_compiled_plan_runnable, select_effective_provider_instance,
-    },
+    compile_context::{build_compile_context, ensure_compiled_plan_runnable},
     inputs::{
         build_compiled_plan_input, build_complete_flow_run_input, build_complete_node_run_input,
         build_flow_run_input, build_node_run_input,
@@ -527,33 +525,49 @@ where
         &self,
         runtime: &orchestration_runtime::compiled_plan::CompiledLlmRuntime,
     ) -> Result<domain::ModelProviderInstanceRecord> {
-        if let Ok(provider_instance_id) = Uuid::parse_str(&runtime.provider_instance_id) {
-            if let Some(instance) = self
-                .repository
-                .get_instance(self.workspace_id, provider_instance_id)
-                .await?
-            {
-                if instance.status == domain::ModelProviderInstanceStatus::Ready
-                    && instance.provider_code == runtime.provider_code
-                {
-                    return Ok(instance);
-                }
-            }
+        let provider_instance_id = Uuid::parse_str(&runtime.provider_instance_id)
+            .map_err(|_| ControlPlaneError::InvalidInput("source_instance_id"))?;
+        let instance = self
+            .repository
+            .get_instance(self.workspace_id, provider_instance_id)
+            .await?
+            .ok_or(ControlPlaneError::InvalidInput("source_instance_id"))?;
+        if instance.provider_code != runtime.provider_code
+            || instance.status != domain::ModelProviderInstanceStatus::Ready
+            || !instance.included_in_main
+        {
+            return Err(ControlPlaneError::InvalidInput("source_instance_id").into());
         }
-
-        let instances = self.repository.list_instances(self.workspace_id).await?;
-        let matching_instances = instances
+        let installation = self
+            .repository
+            .get_installation(instance.installation_id)
+            .await?
+            .ok_or(ControlPlaneError::InvalidInput("source_instance_id"))?;
+        let assigned = self
+            .repository
+            .list_assignments(self.workspace_id)
+            .await?
             .into_iter()
-            .filter(|instance| instance.provider_code == runtime.provider_code)
-            .collect::<Vec<_>>();
-        let Some(instance) = select_effective_provider_instance(&matching_instances) else {
-            return Err(ControlPlaneError::InvalidInput("provider_code").into());
-        };
-        if instance.status != domain::ModelProviderInstanceStatus::Ready {
-            return Err(ControlPlaneError::InvalidInput("provider_code").into());
+            .any(|assignment| assignment.installation_id == installation.id);
+        if !assigned
+            || matches!(
+                installation.desired_state,
+                domain::PluginDesiredState::Disabled
+            )
+            || installation.availability_status != domain::PluginAvailabilityStatus::Available
+        {
+            return Err(ControlPlaneError::InvalidInput("source_instance_id").into());
+        }
+        if !instance.enabled_model_ids.is_empty()
+            && !instance
+                .enabled_model_ids
+                .iter()
+                .any(|model_id| model_id == &runtime.model)
+        {
+            return Err(ControlPlaneError::InvalidInput("model").into());
         }
 
-        Ok(instance.clone())
+        Ok(instance)
     }
 }
 
@@ -689,3 +703,148 @@ fn load_provider_package(path: &str) -> Result<ProviderPackage> {
 #[cfg(test)]
 #[path = "_tests/orchestration_runtime/support.rs"]
 mod test_support;
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::{errors::ControlPlaneError, ports::ModelProviderRepository};
+
+    #[tokio::test]
+    async fn orchestration_runtime_resolve_llm_instance_does_not_fallback_when_selected_instance_is_missing(
+    ) {
+        let repository =
+            test_support::InMemoryOrchestrationRuntimeRepository::with_permissions(vec![]);
+        let (primary_instance_id, _) = repository.seed_primary_and_backup_provider_instances();
+        let invoker = RuntimeProviderInvoker {
+            repository,
+            runtime: test_support::InMemoryProviderRuntime,
+            workspace_id: Uuid::nil(),
+            provider_secret_master_key: "test-master-key".to_string(),
+        };
+
+        let error = invoker
+            .resolve_llm_instance(&orchestration_runtime::compiled_plan::CompiledLlmRuntime {
+                provider_instance_id: Uuid::now_v7().to_string(),
+                provider_code: "fixture_provider".to_string(),
+                protocol: "openai_compatible".to_string(),
+                model: "gpt-5.4-mini".to_string(),
+            })
+            .await
+            .expect_err("missing selected instance should fail");
+
+        assert!(matches!(
+            error.downcast_ref::<ControlPlaneError>(),
+            Some(ControlPlaneError::InvalidInput("source_instance_id"))
+        ));
+        assert_ne!(primary_instance_id, Uuid::nil());
+    }
+
+    #[tokio::test]
+    async fn orchestration_runtime_resolve_llm_instance_does_not_fallback_when_selected_instance_is_not_ready(
+    ) {
+        let repository =
+            test_support::InMemoryOrchestrationRuntimeRepository::with_permissions(vec![]);
+        let (_, backup_instance_id) = repository.seed_primary_and_backup_provider_instances();
+        repository.set_instance_status(
+            backup_instance_id,
+            domain::ModelProviderInstanceStatus::Disabled,
+        );
+        let invoker = RuntimeProviderInvoker {
+            repository,
+            runtime: test_support::InMemoryProviderRuntime,
+            workspace_id: Uuid::nil(),
+            provider_secret_master_key: "test-master-key".to_string(),
+        };
+
+        let error = invoker
+            .resolve_llm_instance(&orchestration_runtime::compiled_plan::CompiledLlmRuntime {
+                provider_instance_id: backup_instance_id.to_string(),
+                provider_code: "fixture_provider".to_string(),
+                protocol: "openai_compatible".to_string(),
+                model: "gpt-5.4-mini".to_string(),
+            })
+            .await
+            .expect_err("non-ready selected instance should fail");
+
+        assert!(matches!(
+            error.downcast_ref::<ControlPlaneError>(),
+            Some(ControlPlaneError::InvalidInput("source_instance_id"))
+        ));
+    }
+
+    #[tokio::test]
+    async fn orchestration_runtime_resolve_llm_instance_uses_selected_child_instance_without_provider_fallback(
+    ) {
+        let repository =
+            test_support::InMemoryOrchestrationRuntimeRepository::with_permissions(vec![]);
+        let (_, backup_instance_id) = repository.seed_primary_and_backup_provider_instances();
+        repository
+            .set_instance_enabled_models(backup_instance_id, vec!["gpt-5.4-mini"]);
+        let invoker = RuntimeProviderInvoker {
+            repository: repository.clone(),
+            runtime: test_support::InMemoryProviderRuntime,
+            workspace_id: Uuid::nil(),
+            provider_secret_master_key: "test-master-key".to_string(),
+        };
+
+        let resolved = invoker
+            .resolve_llm_instance(&orchestration_runtime::compiled_plan::CompiledLlmRuntime {
+                provider_instance_id: backup_instance_id.to_string(),
+                provider_code: "fixture_provider".to_string(),
+                protocol: "openai_compatible".to_string(),
+                model: "gpt-5.4-mini".to_string(),
+            })
+            .await
+            .expect("selected child instance should resolve");
+
+        let repository_instance = ModelProviderRepository::get_instance(
+            &repository,
+            Uuid::nil(),
+            backup_instance_id,
+        )
+        .await
+        .expect("instance lookup should succeed")
+        .expect("instance should exist");
+        assert_eq!(resolved.id, repository_instance.id);
+        assert_eq!(resolved.display_name, repository_instance.display_name);
+    }
+
+    #[tokio::test]
+    async fn orchestration_runtime_resolve_llm_instance_rejects_model_only_present_in_catalog_cache(
+    ) {
+        let repository =
+            test_support::InMemoryOrchestrationRuntimeRepository::with_permissions(vec![]);
+        let selected_instance_id = repository.seed_provider_instance(
+            "fixture_provider",
+            "Cache Wider Than Enabled",
+            true,
+            domain::ModelProviderInstanceStatus::Ready,
+            vec!["other-model"],
+        );
+        repository.set_instance_catalog_models(
+            selected_instance_id,
+            vec!["other-model", "gpt-5.4-mini"],
+        );
+        let invoker = RuntimeProviderInvoker {
+            repository,
+            runtime: test_support::InMemoryProviderRuntime,
+            workspace_id: Uuid::nil(),
+            provider_secret_master_key: "test-master-key".to_string(),
+        };
+
+        let error = invoker
+            .resolve_llm_instance(&orchestration_runtime::compiled_plan::CompiledLlmRuntime {
+                provider_instance_id: selected_instance_id.to_string(),
+                provider_code: "fixture_provider".to_string(),
+                protocol: "openai_compatible".to_string(),
+                model: "gpt-5.4-mini".to_string(),
+            })
+            .await
+            .expect_err("model outside enabled_model_ids should fail");
+
+        assert!(matches!(
+            error.downcast_ref::<ControlPlaneError>(),
+            Some(ControlPlaneError::InvalidInput("model"))
+        ));
+    }
+}

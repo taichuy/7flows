@@ -31,7 +31,26 @@ impl InMemoryOrchestrationRuntimeRepository {
         (workspace_id, provider_code.to_string())
     }
 
-    pub(super) fn with_permissions(permissions: Vec<&str>) -> Self {
+    fn fixture_provider_installation_id(
+        inner: &InMemoryOrchestrationRuntimeState,
+        provider_code: &str,
+    ) -> Uuid {
+        inner
+            .installations_by_id
+            .values()
+            .find(|record| record.provider_code == provider_code)
+            .map(|record| record.id)
+            .or_else(|| {
+                inner
+                    .installations_by_id
+                    .values()
+                    .find(|record| record.provider_code == "fixture_provider")
+                    .map(|record| record.id)
+            })
+            .expect("fixture provider installation should exist")
+    }
+
+    pub(crate) fn with_permissions(permissions: Vec<&str>) -> Self {
         let flow = InMemoryFlowRepository::with_permissions(permissions);
         let installation_id = Uuid::now_v7();
         let capability_installation_id = Uuid::now_v7();
@@ -215,21 +234,224 @@ impl InMemoryOrchestrationRuntimeRepository {
             .await
     }
 
-    pub(super) fn default_provider_instance_id(&self) -> Uuid {
+    pub(crate) fn default_provider_instance_id(&self) -> Uuid {
         self.default_provider_instance_id
     }
 
-    pub(super) fn seed_primary_and_backup_provider_instances(&self) -> (Uuid, Uuid) {
+    pub(crate) fn seed_provider_instance(
+        &self,
+        provider_code: &str,
+        display_name: &str,
+        included_in_main: bool,
+        status: domain::ModelProviderInstanceStatus,
+        enabled_model_ids: Vec<&str>,
+    ) -> Uuid {
         let mut inner = self.inner.lock().expect("runtime repo mutex poisoned");
         let now = OffsetDateTime::now_utc();
-        let Some(installation) = inner
-            .installations_by_id
-            .values()
-            .find(|record| record.provider_code == "fixture_provider")
+        let installation_id = Self::fixture_provider_installation_id(&inner, provider_code);
+        let instance_id = Uuid::now_v7();
+        let model_ids = enabled_model_ids
+            .into_iter()
+            .map(str::to_string)
+            .collect::<Vec<_>>();
+        let configured_models = model_ids
+            .iter()
             .cloned()
-        else {
-            panic!("fixture provider installation should exist");
-        };
+            .map(|model_id| domain::ModelProviderConfiguredModel {
+                model_id,
+                enabled: true,
+            })
+            .collect::<Vec<_>>();
+        let models_json = model_ids
+            .iter()
+            .map(|model_id| {
+                json!({
+                    "model_id": model_id,
+                    "display_name": model_id,
+                    "source": "dynamic",
+                    "supports_streaming": true,
+                    "supports_tool_call": true,
+                    "supports_multimodal": false,
+                    "context_window": 128000,
+                    "max_output_tokens": 4096,
+                    "provider_metadata": {}
+                })
+            })
+            .collect::<Vec<_>>();
+
+        inner.instances_by_id.insert(
+            instance_id,
+            domain::ModelProviderInstanceRecord {
+                id: instance_id,
+                workspace_id: Uuid::nil(),
+                installation_id,
+                provider_code: provider_code.to_string(),
+                protocol: "openai_compatible".to_string(),
+                display_name: display_name.to_string(),
+                status,
+                config_json: json!({
+                    "base_url": format!("https://{}.example.com/v1", provider_code),
+                }),
+                configured_models,
+                enabled_model_ids: model_ids.clone(),
+                included_in_main,
+                created_by: Uuid::nil(),
+                updated_by: Uuid::nil(),
+                created_at: now,
+                updated_at: now,
+            },
+        );
+        inner.caches_by_instance_id.insert(
+            instance_id,
+            domain::ModelProviderCatalogCacheRecord {
+                provider_instance_id: instance_id,
+                model_discovery_mode: domain::ModelProviderDiscoveryMode::Hybrid,
+                refresh_status: domain::ModelProviderCatalogRefreshStatus::Ready,
+                source: domain::ModelProviderCatalogSource::Hybrid,
+                models_json: Value::Array(models_json),
+                last_error_message: None,
+                refreshed_at: Some(now),
+                updated_at: now,
+            },
+        );
+        inner
+            .secret_json_by_instance_id
+            .insert(instance_id, json!({ "api_key": "test-secret" }));
+
+        instance_id
+    }
+
+    pub(crate) fn set_instance_status(
+        &self,
+        instance_id: Uuid,
+        status: domain::ModelProviderInstanceStatus,
+    ) {
+        let mut inner = self.inner.lock().expect("runtime repo mutex poisoned");
+        let instance = inner
+            .instances_by_id
+            .get_mut(&instance_id)
+            .expect("provider instance should exist");
+        instance.status = status;
+        instance.updated_at = OffsetDateTime::now_utc();
+    }
+
+    pub(crate) fn set_instance_enabled_models(
+        &self,
+        instance_id: Uuid,
+        enabled_model_ids: Vec<&str>,
+    ) {
+        let mut inner = self.inner.lock().expect("runtime repo mutex poisoned");
+        let model_ids = enabled_model_ids
+            .into_iter()
+            .map(str::to_string)
+            .collect::<Vec<_>>();
+        let instance = inner
+            .instances_by_id
+            .get_mut(&instance_id)
+            .expect("provider instance should exist");
+        instance.enabled_model_ids = model_ids.clone();
+        instance.configured_models = model_ids
+            .iter()
+            .cloned()
+            .map(|model_id| domain::ModelProviderConfiguredModel {
+                model_id,
+                enabled: true,
+            })
+            .collect();
+        instance.updated_at = OffsetDateTime::now_utc();
+        let updated_at = instance.updated_at;
+        inner.caches_by_instance_id.insert(
+            instance_id,
+            domain::ModelProviderCatalogCacheRecord {
+                provider_instance_id: instance_id,
+                model_discovery_mode: domain::ModelProviderDiscoveryMode::Hybrid,
+                refresh_status: domain::ModelProviderCatalogRefreshStatus::Ready,
+                source: domain::ModelProviderCatalogSource::Hybrid,
+                models_json: Value::Array(
+                    model_ids
+                        .iter()
+                        .map(|model_id| {
+                            json!({
+                                "model_id": model_id,
+                                "display_name": model_id,
+                                "source": "dynamic",
+                                "supports_streaming": true,
+                                "supports_tool_call": true,
+                                "supports_multimodal": false,
+                                "context_window": 128000,
+                                "max_output_tokens": 4096,
+                                "provider_metadata": {}
+                            })
+                        })
+                        .collect(),
+                ),
+                last_error_message: None,
+                refreshed_at: Some(updated_at),
+                updated_at,
+            },
+        );
+    }
+
+    pub(crate) fn set_instance_catalog_models(&self, instance_id: Uuid, catalog_model_ids: Vec<&str>) {
+        let mut inner = self.inner.lock().expect("runtime repo mutex poisoned");
+        let now = OffsetDateTime::now_utc();
+        inner.caches_by_instance_id.insert(
+            instance_id,
+            domain::ModelProviderCatalogCacheRecord {
+                provider_instance_id: instance_id,
+                model_discovery_mode: domain::ModelProviderDiscoveryMode::Hybrid,
+                refresh_status: domain::ModelProviderCatalogRefreshStatus::Ready,
+                source: domain::ModelProviderCatalogSource::Hybrid,
+                models_json: Value::Array(
+                    catalog_model_ids
+                        .into_iter()
+                        .map(|model_id| {
+                            json!({
+                                "model_id": model_id,
+                                "display_name": model_id,
+                                "source": "dynamic",
+                                "supports_streaming": true,
+                                "supports_tool_call": true,
+                                "supports_multimodal": false,
+                                "context_window": 128000,
+                                "max_output_tokens": 4096,
+                                "provider_metadata": {}
+                            })
+                        })
+                        .collect(),
+                ),
+                last_error_message: None,
+                refreshed_at: Some(now),
+                updated_at: now,
+            },
+        );
+    }
+
+    pub(crate) fn remove_assignment_for_installation(&self, workspace_id: Uuid, installation_id: Uuid) {
+        let mut inner = self.inner.lock().expect("runtime repo mutex poisoned");
+        let assignments = inner.assignments_by_workspace.entry(workspace_id).or_default();
+        assignments.retain(|assignment| assignment.installation_id != installation_id);
+    }
+
+    pub(crate) fn set_installation_state(
+        &self,
+        installation_id: Uuid,
+        desired_state: domain::PluginDesiredState,
+        availability_status: domain::PluginAvailabilityStatus,
+    ) {
+        let mut inner = self.inner.lock().expect("runtime repo mutex poisoned");
+        let installation = inner
+            .installations_by_id
+            .get_mut(&installation_id)
+            .expect("installation should exist");
+        installation.desired_state = desired_state;
+        installation.availability_status = availability_status;
+    }
+
+    pub(crate) fn seed_primary_and_backup_provider_instances(&self) -> (Uuid, Uuid) {
+        let mut inner = self.inner.lock().expect("runtime repo mutex poisoned");
+        let now = OffsetDateTime::now_utc();
+        let installation_id = Self::fixture_provider_installation_id(&inner, "fixture_provider");
 
         let primary_instance_id = Uuid::now_v7();
         let backup_instance_id = self.default_provider_instance_id;
@@ -238,7 +460,7 @@ impl InMemoryOrchestrationRuntimeRepository {
         let primary_instance = domain::ModelProviderInstanceRecord {
             id: primary_instance_id,
             workspace_id: Uuid::nil(),
-            installation_id: installation.id,
+            installation_id,
             provider_code: "fixture_provider".to_string(),
             protocol: "openai_compatible".to_string(),
             display_name: "Fixture Primary".to_string(),
@@ -261,7 +483,7 @@ impl InMemoryOrchestrationRuntimeRepository {
             .instances_by_id
             .get_mut(&backup_instance_id)
             .expect("default provider instance should exist");
-        backup_instance.installation_id = installation.id;
+        backup_instance.installation_id = installation_id;
         backup_instance.provider_code = "fixture_provider".to_string();
         backup_instance.protocol = "openai_compatible".to_string();
         backup_instance.display_name = "Fixture Backup".to_string();

@@ -12,7 +12,7 @@ use crate::{
     model_provider::{
         CreateModelProviderInstanceCommand, DeleteModelProviderInstanceCommand,
         ModelProviderConfiguredModelInput, ModelProviderService, PreviewModelProviderModelsCommand,
-        UpdateModelProviderInstanceCommand,
+        UpdateModelProviderInstanceCommand, UpdateModelProviderMainInstanceCommand,
     },
     ports::{
         AuthRepository, CreateModelProviderInstanceInput, CreateModelProviderPreviewSessionInput,
@@ -170,38 +170,6 @@ impl MemoryModelProviderRepository {
             .get(&installation_id)
             .cloned()
             .expect("installation should exist for test")
-    }
-
-    async fn seed_instance(
-        &self,
-        installation_id: Uuid,
-        display_name: &str,
-        model_ids: &[&str],
-    ) -> ModelProviderInstanceRecord {
-        self.create_instance(&CreateModelProviderInstanceInput {
-            instance_id: Uuid::now_v7(),
-            workspace_id: self.actor.current_workspace_id,
-            installation_id,
-            provider_code: "fixture_provider".to_string(),
-            protocol: "openai_compatible".to_string(),
-            display_name: display_name.to_string(),
-            status: ModelProviderInstanceStatus::Ready,
-            config_json: json!({
-                "base_url": format!("https://{}.example.com/v1", display_name.to_lowercase().replace(' ', "-"))
-            }),
-            configured_models: model_ids
-                .iter()
-                .map(|model_id| domain::ModelProviderConfiguredModel {
-                    model_id: (*model_id).to_string(),
-                    enabled: true,
-                })
-                .collect(),
-            enabled_model_ids: model_ids.iter().map(|model_id| (*model_id).to_string()).collect(),
-            included_in_main: None,
-            created_by: self.actor.user_id,
-        })
-        .await
-        .expect("seed instance should succeed")
     }
 }
 
@@ -973,6 +941,7 @@ async fn model_provider_service_masks_secret_in_views_and_reveals_on_demand() {
             }),
             configured_models: Vec::new(),
             enabled_model_ids: Vec::new(),
+            included_in_main: None,
             preview_token: None,
         })
         .await
@@ -1052,12 +1021,13 @@ async fn model_provider_service_masks_secret_in_views_and_reveals_on_demand() {
 }
 
 #[tokio::test]
-async fn model_provider_service_marks_primary_instance_and_options_use_primary_routing() {
+async fn model_provider_service_create_instance_inherits_provider_main_instance_default() {
     let workspace_id = Uuid::now_v7();
     let repository = MemoryModelProviderRepository::new(actor_with_permissions(
         workspace_id,
         &["state_model.view.all", "state_model.manage.all"],
     ));
+    let runtime = MemoryProviderRuntime::default();
     let package_root = std::env::temp_dir().join(format!("provider-model-{}", Uuid::now_v7()));
     create_provider_fixture(&package_root);
     let installation_id = repository
@@ -1068,64 +1038,177 @@ async fn model_provider_service_marks_primary_instance_and_options_use_primary_r
         )
         .await;
 
-    let primary = repository
-        .seed_instance(installation_id, "OpenAI Production", &["gpt-4o-mini"])
-        .await;
-    let backup = repository
-        .seed_instance(installation_id, "OpenAI Backup", &["gpt-4.1-mini"])
-        .await;
+    let service = ModelProviderService::new(repository.clone(), runtime, "test-master-key");
 
-    repository
-        .upsert_routing(&crate::ports::UpsertModelProviderRoutingInput {
-            workspace_id: repository.actor.current_workspace_id,
+    let main_instance = service
+        .update_main_instance(UpdateModelProviderMainInstanceCommand {
+            actor_user_id: repository.actor.user_id,
             provider_code: "fixture_provider".to_string(),
-            routing_mode: domain::ModelProviderRoutingMode::ManualPrimary,
-            primary_instance_id: primary.id,
-            updated_by: repository.actor.user_id,
+            auto_include_new_instances: false,
+        })
+        .await
+        .unwrap();
+    assert!(!main_instance.auto_include_new_instances);
+
+    let created = service
+        .create_instance(CreateModelProviderInstanceCommand {
+            actor_user_id: repository.actor.user_id,
+            installation_id,
+            display_name: "Fixture Excluded".to_string(),
+            config_json: json!({
+                "base_url": "https://api.example.com",
+                "api_key": "super-secret"
+            }),
+            configured_models: Vec::new(),
+            enabled_model_ids: vec!["fixture_chat".to_string()],
+            included_in_main: None,
+            preview_token: None,
         })
         .await
         .unwrap();
 
-    let service = ModelProviderService::new(
-        repository.clone(),
-        MemoryProviderRuntime::default(),
-        "test-master-key",
-    );
+    assert!(!created.instance.included_in_main);
+}
 
+#[tokio::test]
+async fn model_provider_service_update_instance_can_flip_included_in_main_without_changing_enabled_model_ids(
+) {
+    let workspace_id = Uuid::now_v7();
+    let repository = MemoryModelProviderRepository::new(actor_with_permissions(
+        workspace_id,
+        &["state_model.view.all", "state_model.manage.all"],
+    ));
+    let runtime = MemoryProviderRuntime::default();
+    let package_root = std::env::temp_dir().join(format!("provider-model-{}", Uuid::now_v7()));
+    create_provider_fixture(&package_root);
+    let installation_id = repository
+        .seed_installation(
+            &package_root.display().to_string(),
+            PluginDesiredState::ActiveRequested,
+            true,
+        )
+        .await;
+    let service = ModelProviderService::new(repository.clone(), runtime, "test-master-key");
+
+    let created = service
+        .create_instance(CreateModelProviderInstanceCommand {
+            actor_user_id: repository.actor.user_id,
+            installation_id,
+            display_name: "Fixture Included".to_string(),
+            config_json: json!({
+                "base_url": "https://api.example.com",
+                "api_key": "super-secret"
+            }),
+            configured_models: Vec::new(),
+            enabled_model_ids: vec!["fixture_chat".to_string(), "custom-alpha".to_string()],
+            included_in_main: Some(true),
+            preview_token: None,
+        })
+        .await
+        .unwrap();
+
+    let updated = service
+        .update_instance(UpdateModelProviderInstanceCommand {
+            actor_user_id: repository.actor.user_id,
+            instance_id: created.instance.id,
+            display_name: "Fixture Included".to_string(),
+            config_json: json!({}),
+            configured_models: Vec::new(),
+            enabled_model_ids: vec!["fixture_chat".to_string(), "custom-alpha".to_string()],
+            included_in_main: false,
+            preview_token: None,
+        })
+        .await
+        .unwrap();
+
+    assert!(!updated.instance.included_in_main);
+    assert_eq!(
+        updated.instance.enabled_model_ids,
+        vec!["fixture_chat".to_string(), "custom-alpha".to_string()]
+    );
+}
+
+#[tokio::test]
+async fn model_provider_service_list_instances_returns_included_in_main_without_primary_flags() {
+    let workspace_id = Uuid::now_v7();
+    let repository = MemoryModelProviderRepository::new(actor_with_permissions(
+        workspace_id,
+        &["state_model.view.all", "state_model.manage.all"],
+    ));
+    let runtime = MemoryProviderRuntime::default();
+    let package_root = std::env::temp_dir().join(format!("provider-model-{}", Uuid::now_v7()));
+    create_provider_fixture(&package_root);
+    let installation_id = repository
+        .seed_installation(
+            &package_root.display().to_string(),
+            PluginDesiredState::ActiveRequested,
+            true,
+        )
+        .await;
+
+    let included = repository
+        .create_instance(&CreateModelProviderInstanceInput {
+            instance_id: Uuid::now_v7(),
+            workspace_id: repository.actor.current_workspace_id,
+            installation_id,
+            provider_code: "fixture_provider".to_string(),
+            protocol: "openai_compatible".to_string(),
+            display_name: "Included".to_string(),
+            status: ModelProviderInstanceStatus::Ready,
+            config_json: json!({
+                "base_url": "https://included.example.com/v1"
+            }),
+            configured_models: Vec::new(),
+            enabled_model_ids: vec!["fixture_chat".to_string()],
+            included_in_main: Some(true),
+            created_by: repository.actor.user_id,
+        })
+        .await
+        .unwrap();
+    let excluded = repository
+        .create_instance(&CreateModelProviderInstanceInput {
+            instance_id: Uuid::now_v7(),
+            workspace_id: repository.actor.current_workspace_id,
+            installation_id,
+            provider_code: "fixture_provider".to_string(),
+            protocol: "openai_compatible".to_string(),
+            display_name: "Excluded".to_string(),
+            status: ModelProviderInstanceStatus::Ready,
+            config_json: json!({
+                "base_url": "https://excluded.example.com/v1"
+            }),
+            configured_models: Vec::new(),
+            enabled_model_ids: vec!["custom-excluded".to_string()],
+            included_in_main: Some(false),
+            created_by: repository.actor.user_id,
+        })
+        .await
+        .unwrap();
+
+    let service = ModelProviderService::new(repository.clone(), runtime, "test-master-key");
     let instances = service
         .list_instances(repository.actor.user_id)
         .await
         .unwrap();
-    assert!(
-        instances
-            .iter()
-            .find(|view| view.instance.id == primary.id)
-            .unwrap()
-            .is_primary
-    );
-    assert!(
-        !instances
-            .iter()
-            .find(|view| view.instance.id == backup.id)
-            .unwrap()
-            .is_primary
-    );
 
-    let options = service
-        .options(
-            repository.actor.user_id,
-            RequestedLocales::new("zh_Hans", "en_US"),
-        )
-        .await
+    let included_view = instances
+        .into_iter()
+        .find(|view| view.instance.id == included.id)
         .unwrap();
-    assert_eq!(
-        options.providers[0].effective_instance_display_name,
-        "OpenAI Production"
-    );
-    assert_eq!(
-        options.providers[0].models[0].descriptor.model_id,
-        "gpt-4o-mini"
-    );
+    let crate::model_provider::ModelProviderInstanceView { instance, cache } = included_view;
+    assert!(cache.is_none());
+    assert!(instance.included_in_main);
+
+    let excluded_view = service
+        .list_instances(repository.actor.user_id)
+        .await
+        .unwrap()
+        .into_iter()
+        .find(|view| view.instance.id == excluded.id)
+        .unwrap();
+    let crate::model_provider::ModelProviderInstanceView { instance, cache } = excluded_view;
+    assert!(cache.is_none());
+    assert!(!instance.included_in_main);
 }
 
 #[tokio::test]
@@ -1160,6 +1243,7 @@ async fn model_provider_service_create_and_update_allow_empty_enabled_model_ids(
             }),
             configured_models: Vec::new(),
             enabled_model_ids: Vec::new(),
+            included_in_main: None,
             preview_token: None,
         })
         .await
@@ -1176,6 +1260,7 @@ async fn model_provider_service_create_and_update_allow_empty_enabled_model_ids(
             config_json: json!({}),
             configured_models: Vec::new(),
             enabled_model_ids: vec!["  ".to_string(), "".to_string()],
+            included_in_main: created.instance.included_in_main,
             preview_token: None,
         })
         .await
@@ -1186,7 +1271,7 @@ async fn model_provider_service_create_and_update_allow_empty_enabled_model_ids(
 }
 
 #[tokio::test]
-async fn model_provider_service_options_only_expose_enabled_models_and_keep_unknown_ids() {
+async fn model_provider_service_options_group_models_by_source_instance_and_keep_unknown_ids() {
     let workspace_id = Uuid::now_v7();
     let repository = MemoryModelProviderRepository::new(actor_with_permissions(
         workspace_id,
@@ -1207,25 +1292,67 @@ async fn model_provider_service_options_only_expose_enabled_models_and_keep_unkn
         .await;
     let service = ModelProviderService::new(repository.clone(), runtime, "test-master-key");
 
-    let created = service
-        .create_instance(CreateModelProviderInstanceCommand {
-            actor_user_id: repository.actor.user_id,
+    let alpha = repository
+        .create_instance(&CreateModelProviderInstanceInput {
+            instance_id: Uuid::now_v7(),
+            workspace_id: repository.actor.current_workspace_id,
             installation_id,
-            display_name: "Fixture Prod".to_string(),
+            provider_code: "fixture_provider".to_string(),
+            protocol: "openai_compatible".to_string(),
+            display_name: "Alpha".to_string(),
+            status: ModelProviderInstanceStatus::Ready,
             config_json: json!({
-                "base_url": "https://api.example.com",
-                "api_key": "super-secret"
+                "base_url": "https://alpha.example.com/v1"
             }),
             configured_models: Vec::new(),
             enabled_model_ids: vec!["fixture_chat".to_string(), "custom-enabled".to_string()],
-            preview_token: None,
+            included_in_main: Some(true),
+            created_by: repository.actor.user_id,
+        })
+        .await
+        .unwrap();
+    let beta = repository
+        .create_instance(&CreateModelProviderInstanceInput {
+            instance_id: Uuid::now_v7(),
+            workspace_id: repository.actor.current_workspace_id,
+            installation_id,
+            provider_code: "fixture_provider".to_string(),
+            protocol: "openai_compatible".to_string(),
+            display_name: "Beta".to_string(),
+            status: ModelProviderInstanceStatus::Ready,
+            config_json: json!({
+                "base_url": "https://beta.example.com/v1"
+            }),
+            configured_models: Vec::new(),
+            enabled_model_ids: vec!["beta-model".to_string()],
+            included_in_main: Some(true),
+            created_by: repository.actor.user_id,
+        })
+        .await
+        .unwrap();
+    repository
+        .create_instance(&CreateModelProviderInstanceInput {
+            instance_id: Uuid::now_v7(),
+            workspace_id: repository.actor.current_workspace_id,
+            installation_id,
+            provider_code: "fixture_provider".to_string(),
+            protocol: "openai_compatible".to_string(),
+            display_name: "Excluded".to_string(),
+            status: ModelProviderInstanceStatus::Ready,
+            config_json: json!({
+                "base_url": "https://excluded.example.com/v1"
+            }),
+            configured_models: Vec::new(),
+            enabled_model_ids: vec!["excluded-model".to_string()],
+            included_in_main: Some(false),
+            created_by: repository.actor.user_id,
         })
         .await
         .unwrap();
 
     repository
         .upsert_catalog_cache(&UpsertModelProviderCatalogCacheInput {
-            provider_instance_id: created.instance.id,
+            provider_instance_id: alpha.id,
             model_discovery_mode: domain::ModelProviderDiscoveryMode::Hybrid,
             refresh_status: ModelProviderCatalogRefreshStatus::Ready,
             source: domain::ModelProviderCatalogSource::Hybrid,
@@ -1263,12 +1390,26 @@ async fn model_provider_service_options_only_expose_enabled_models_and_keep_unkn
         .unwrap();
 
     repository
-        .upsert_routing(&crate::ports::UpsertModelProviderRoutingInput {
-            workspace_id: repository.actor.current_workspace_id,
-            provider_code: created.instance.provider_code.clone(),
-            routing_mode: domain::ModelProviderRoutingMode::ManualPrimary,
-            primary_instance_id: created.instance.id,
-            updated_by: repository.actor.user_id,
+        .upsert_catalog_cache(&UpsertModelProviderCatalogCacheInput {
+            provider_instance_id: beta.id,
+            model_discovery_mode: domain::ModelProviderDiscoveryMode::Hybrid,
+            refresh_status: ModelProviderCatalogRefreshStatus::Ready,
+            source: domain::ModelProviderCatalogSource::Hybrid,
+            models_json: serde_json::to_value(vec![ProviderModelDescriptor {
+                model_id: "beta-model".to_string(),
+                display_name: "Beta Model".to_string(),
+                source: ProviderModelSource::Dynamic,
+                supports_streaming: true,
+                supports_tool_call: false,
+                supports_multimodal: false,
+                context_window: Some(64000),
+                max_output_tokens: Some(2048),
+                parameter_form: None,
+                provider_metadata: json!({}),
+            }])
+            .unwrap(),
+            last_error_message: None,
+            refreshed_at: Some(OffsetDateTime::now_utc()),
         })
         .await
         .unwrap();
@@ -1283,7 +1424,21 @@ async fn model_provider_service_options_only_expose_enabled_models_and_keep_unkn
 
     assert_eq!(options.providers.len(), 1);
     assert_eq!(
-        options.providers[0]
+        options.providers[0].main_instance.provider_code,
+        "fixture_provider"
+    );
+    assert_eq!(options.providers[0].main_instance.group_count, 2);
+    assert_eq!(options.providers[0].main_instance.model_count, 3);
+    assert_eq!(options.providers[0].model_groups.len(), 2);
+
+    let alpha_group = options.providers[0]
+        .model_groups
+        .iter()
+        .find(|group| group.source_instance_id == alpha.id)
+        .unwrap();
+    assert_eq!(alpha_group.source_instance_display_name, "Alpha");
+    assert_eq!(
+        alpha_group
             .models
             .iter()
             .map(|model| model.descriptor.model_id.as_str())
@@ -1291,18 +1446,29 @@ async fn model_provider_service_options_only_expose_enabled_models_and_keep_unkn
         vec!["fixture_chat", "custom-enabled"]
     );
     assert_eq!(
-        options.providers[0].models[0]
-            .display_name_fallback
-            .as_deref(),
+        alpha_group.models[0].display_name_fallback.as_deref(),
         Some("Fixture Chat")
     );
     assert_eq!(
-        options.providers[0].models[1]
-            .display_name_fallback
-            .as_deref(),
+        alpha_group.models[1].display_name_fallback.as_deref(),
         Some("custom-enabled")
     );
-    assert_eq!(options.providers[0].models[1].label_key, None);
+    assert_eq!(alpha_group.models[1].label_key, None);
+
+    let beta_group = options.providers[0]
+        .model_groups
+        .iter()
+        .find(|group| group.source_instance_id == beta.id)
+        .unwrap();
+    assert_eq!(beta_group.source_instance_display_name, "Beta");
+    assert_eq!(
+        beta_group
+            .models
+            .iter()
+            .map(|model| model.descriptor.model_id.as_str())
+            .collect::<Vec<_>>(),
+        vec!["beta-model"]
+    );
 }
 
 #[tokio::test]
@@ -1350,6 +1516,7 @@ async fn model_provider_service_persists_configured_models_and_derives_enabled_m
                 },
             ],
             enabled_model_ids: vec!["legacy-should-be-ignored".to_string()],
+            included_in_main: None,
             preview_token: None,
         })
         .await
@@ -1395,6 +1562,7 @@ async fn model_provider_service_persists_configured_models_and_derives_enabled_m
                 },
             ],
             enabled_model_ids: vec!["legacy-should-be-ignored".to_string()],
+            included_in_main: created.instance.included_in_main,
             preview_token: None,
         })
         .await
@@ -1459,6 +1627,7 @@ async fn model_provider_service_normalizes_multiple_enabled_model_ids_and_allows
                 " custom-alpha ".to_string(),
                 "custom-beta".to_string(),
             ],
+            included_in_main: None,
             preview_token: None,
         })
         .await
@@ -1488,6 +1657,7 @@ async fn model_provider_service_normalizes_multiple_enabled_model_ids_and_allows
                 "custom-gamma".to_string(),
                 "  ".to_string(),
             ],
+            included_in_main: created.instance.included_in_main,
             preview_token: None,
         })
         .await
@@ -1553,6 +1723,7 @@ async fn model_provider_service_reuses_preview_token_only_to_persist_candidate_c
             }),
             configured_models: Vec::new(),
             enabled_model_ids: vec!["fixture_chat".to_string(), "custom-preview".to_string()],
+            included_in_main: None,
             preview_token: Some(preview.preview_token),
         })
         .await
@@ -1613,6 +1784,7 @@ async fn model_provider_service_refresh_failure_does_not_clear_enabled_model_ids
             }),
             configured_models: Vec::new(),
             enabled_model_ids: vec!["fixture_chat".to_string(), "custom-refresh".to_string()],
+            included_in_main: None,
             preview_token: None,
         })
         .await
@@ -1759,6 +1931,7 @@ async fn model_provider_service_enforces_permissions_and_audits_delete_conflict(
             }),
             configured_models: Vec::new(),
             enabled_model_ids: Vec::new(),
+            included_in_main: None,
             preview_token: None,
         })
         .await
@@ -1809,6 +1982,7 @@ async fn model_provider_service_enforces_permissions_and_audits_delete_conflict(
             config_json: json!({}),
             configured_models: Vec::new(),
             enabled_model_ids: Vec::new(),
+            included_in_main: None,
             preview_token: None,
         })
         .await
@@ -1853,6 +2027,7 @@ async fn model_provider_service_rejects_validating_disabled_instance() {
             }),
             configured_models: Vec::new(),
             enabled_model_ids: Vec::new(),
+            included_in_main: None,
             preview_token: None,
         })
         .await
@@ -1902,4 +2077,146 @@ async fn memory_model_provider_repository_scopes_main_instance_settings_by_works
         .await
         .unwrap()
         .is_none());
+}
+
+#[tokio::test]
+async fn model_provider_service_get_main_instance_defaults_to_auto_include_true_and_enforces_access_checks(
+) {
+    let workspace_id = Uuid::now_v7();
+    let repository = MemoryModelProviderRepository::new(actor_with_permissions(
+        workspace_id,
+        &["state_model.view.all", "state_model.manage.all"],
+    ));
+    let package_root = std::env::temp_dir().join(format!("provider-model-{}", Uuid::now_v7()));
+    create_provider_fixture(&package_root);
+    repository
+        .seed_installation(
+            &package_root.display().to_string(),
+            PluginDesiredState::ActiveRequested,
+            true,
+        )
+        .await;
+    let service = ModelProviderService::new(
+        repository.clone(),
+        MemoryProviderRuntime::default(),
+        "test-master-key",
+    );
+
+    let main_instance = service
+        .get_main_instance(repository.actor.user_id, "fixture_provider")
+        .await
+        .unwrap();
+    assert_eq!(main_instance.provider_code, "fixture_provider");
+    assert!(main_instance.auto_include_new_instances);
+
+    let missing_provider_error = service
+        .get_main_instance(repository.actor.user_id, "missing_provider")
+        .await
+        .unwrap_err();
+    assert!(matches!(
+        missing_provider_error.downcast_ref::<ControlPlaneError>(),
+        Some(ControlPlaneError::NotFound("model_provider"))
+    ));
+
+    let no_permission_repository =
+        MemoryModelProviderRepository::new(actor_with_permissions(workspace_id, &[]));
+    no_permission_repository
+        .seed_installation(
+            &package_root.display().to_string(),
+            PluginDesiredState::ActiveRequested,
+            true,
+        )
+        .await;
+    let no_permission_service = ModelProviderService::new(
+        no_permission_repository.clone(),
+        MemoryProviderRuntime::default(),
+        "test-master-key",
+    );
+
+    let permission_error = no_permission_service
+        .get_main_instance(no_permission_repository.actor.user_id, "fixture_provider")
+        .await
+        .unwrap_err();
+    assert!(matches!(
+        permission_error.downcast_ref::<ControlPlaneError>(),
+        Some(ControlPlaneError::PermissionDenied("permission_denied"))
+    ));
+}
+
+#[tokio::test]
+async fn model_provider_service_updates_provider_main_instance_settings_without_touching_child_secrets_or_config(
+) {
+    let workspace_id = Uuid::now_v7();
+    let repository = MemoryModelProviderRepository::new(actor_with_permissions(
+        workspace_id,
+        &["state_model.view.all", "state_model.manage.all"],
+    ));
+    let runtime = MemoryProviderRuntime::default();
+    let package_root = std::env::temp_dir().join(format!("provider-model-{}", Uuid::now_v7()));
+    create_provider_fixture(&package_root);
+    let installation_id = repository
+        .seed_installation(
+            &package_root.display().to_string(),
+            PluginDesiredState::ActiveRequested,
+            true,
+        )
+        .await;
+    let service = ModelProviderService::new(repository.clone(), runtime, "test-master-key");
+
+    let created = service
+        .create_instance(CreateModelProviderInstanceCommand {
+            actor_user_id: repository.actor.user_id,
+            installation_id,
+            display_name: "Fixture Stable".to_string(),
+            config_json: json!({
+                "base_url": "https://api.example.com",
+                "api_key": "super-secret"
+            }),
+            configured_models: Vec::new(),
+            enabled_model_ids: vec!["fixture_chat".to_string()],
+            included_in_main: Some(true),
+            preview_token: None,
+        })
+        .await
+        .unwrap();
+    let secret_before = repository.secret_json(created.instance.id).await;
+    let config_before = repository
+        .get_instance(repository.actor.current_workspace_id, created.instance.id)
+        .await
+        .unwrap()
+        .unwrap()
+        .config_json;
+
+    let updated = service
+        .update_main_instance(UpdateModelProviderMainInstanceCommand {
+            actor_user_id: repository.actor.user_id,
+            provider_code: "fixture_provider".to_string(),
+            auto_include_new_instances: false,
+        })
+        .await
+        .unwrap();
+
+    assert_eq!(updated.provider_code, "fixture_provider");
+    assert!(!updated.auto_include_new_instances);
+    assert_eq!(
+        repository.secret_json(created.instance.id).await,
+        secret_before
+    );
+    assert_eq!(
+        repository
+            .get_instance(repository.actor.current_workspace_id, created.instance.id)
+            .await
+            .unwrap()
+            .unwrap()
+            .config_json,
+        config_before
+    );
+    assert!(
+        repository
+            .get_instance(repository.actor.current_workspace_id, created.instance.id)
+            .await
+            .unwrap()
+            .unwrap()
+            .included_in_main
+    );
 }

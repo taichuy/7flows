@@ -2,9 +2,10 @@ use std::collections::{BTreeMap, BTreeSet};
 
 use orchestration_runtime::compiled_plan::CompileIssueCode;
 use orchestration_runtime::compiler::{
-    FlowCompileContext, FlowCompileNodeContribution, FlowCompileProviderFamily, FlowCompiler,
+    FlowCompileContext, FlowCompileNodeContribution, FlowCompileProviderFamily,
+    FlowCompileProviderInstance, FlowCompiler,
 };
-use serde_json::json;
+use serde_json::{json, Value};
 use uuid::Uuid;
 
 fn compile_context() -> FlowCompileContext {
@@ -12,10 +13,22 @@ fn compile_context() -> FlowCompileContext {
         provider_families: BTreeMap::from([(
             "fixture_provider".to_string(),
             FlowCompileProviderFamily {
-                effective_instance_id: "provider-ready".to_string(),
                 provider_code: "fixture_provider".to_string(),
                 protocol: "openai_compatible".to_string(),
                 is_ready: true,
+                available_models: BTreeSet::from(["gpt-5.4-mini".to_string()]),
+                allow_custom_models: false,
+            },
+        )]),
+        provider_instances: BTreeMap::from([(
+            "provider-selected".to_string(),
+            FlowCompileProviderInstance {
+                provider_instance_id: "provider-selected".to_string(),
+                provider_code: "fixture_provider".to_string(),
+                protocol: "openai_compatible".to_string(),
+                is_ready: true,
+                is_runnable: true,
+                included_in_main: true,
                 available_models: BTreeSet::from(["gpt-5.4-mini".to_string()]),
                 allow_custom_models: false,
             },
@@ -71,6 +84,7 @@ fn sample_document(flow_id: Uuid) -> serde_json::Value {
                     "config": {
                         "model_provider": {
                             "provider_code": "fixture_provider",
+                            "source_instance_id": "provider-selected",
                             "model_id": "gpt-5.4-mini"
                         },
                         "temperature": 0.2
@@ -183,6 +197,14 @@ fn compile_flow_document_emits_topology_selector_dependencies_and_provider_runti
             .provider_code,
         "fixture_provider"
     );
+    assert_eq!(
+        plan.nodes["node-llm"]
+            .llm_runtime
+            .as_ref()
+            .unwrap()
+            .provider_instance_id,
+        "provider-selected"
+    );
     assert!(plan.compile_issues.is_empty());
 }
 
@@ -205,6 +227,7 @@ fn compile_collects_provider_compile_issues() {
     document["graph"]["nodes"][1]["config"] = json!({
         "model_provider": {
             "provider_code": "fixture_provider",
+            "source_instance_id": "provider-selected",
             "model_id": "unknown-model"
         }
     });
@@ -215,6 +238,85 @@ fn compile_collects_provider_compile_issues() {
     assert_eq!(
         plan.compile_issues[0].code,
         CompileIssueCode::ModelNotAvailable
+    );
+}
+
+#[test]
+fn compile_uses_selected_instance_models_instead_of_provider_family_aggregate() {
+    let flow_id = Uuid::now_v7();
+    let mut context = compile_context();
+    context.provider_families.insert(
+        "fixture_provider".to_string(),
+        FlowCompileProviderFamily {
+            provider_code: "fixture_provider".to_string(),
+            protocol: "openai_compatible".to_string(),
+            is_ready: true,
+            available_models: BTreeSet::from([
+                "gpt-5.4-mini".to_string(),
+                "other-model".to_string(),
+            ]),
+            allow_custom_models: false,
+        },
+    );
+    context.provider_instances.insert(
+        "provider-selected".to_string(),
+        FlowCompileProviderInstance {
+            provider_instance_id: "provider-selected".to_string(),
+            provider_code: "fixture_provider".to_string(),
+            protocol: "openai_compatible".to_string(),
+            is_ready: true,
+            is_runnable: true,
+            included_in_main: true,
+            available_models: BTreeSet::from(["other-model".to_string()]),
+            allow_custom_models: false,
+        },
+    );
+
+    let plan = FlowCompiler::compile(flow_id, "draft-1", &sample_document(flow_id), &context).unwrap();
+
+    assert!(
+        plan.compile_issues
+            .iter()
+            .any(|issue| issue.code == CompileIssueCode::ModelNotAvailable)
+    );
+}
+
+#[test]
+fn compile_collects_missing_source_instance_issue() {
+    let flow_id = Uuid::now_v7();
+    let mut document = sample_document(flow_id);
+    document["graph"]["nodes"][1]["config"]["model_provider"]["source_instance_id"] = Value::Null;
+
+    let plan = FlowCompiler::compile(flow_id, "draft-1", &document, &compile_context()).unwrap();
+
+    assert!(
+        plan.compile_issues
+            .iter()
+            .any(|issue| issue.code == CompileIssueCode::MissingProviderInstance)
+    );
+}
+
+#[test]
+fn compile_rejects_legacy_top_level_llm_config_shape() {
+    let flow_id = Uuid::now_v7();
+    let mut document = sample_document(flow_id);
+    document["graph"]["nodes"][1]["config"] = json!({
+        "provider_code": "fixture_provider",
+        "source_instance_id": "provider-selected",
+        "model": "gpt-5.4-mini"
+    });
+
+    let plan = FlowCompiler::compile(flow_id, "draft-1", &document, &compile_context()).unwrap();
+
+    assert!(
+        plan.compile_issues
+            .iter()
+            .any(|issue| issue.code == CompileIssueCode::MissingProviderInstance)
+    );
+    assert!(
+        plan.compile_issues
+            .iter()
+            .any(|issue| issue.code == CompileIssueCode::MissingModel)
     );
 }
 

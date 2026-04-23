@@ -3,16 +3,16 @@ use std::sync::Arc;
 use axum::{
     extract::{Path, Query, State},
     http::{header::ACCEPT_LANGUAGE, HeaderMap, StatusCode},
-    routing::{get, patch, post, put},
+    routing::{get, patch, post},
     Json, Router,
 };
 use control_plane::model_provider::{
     CreateModelProviderInstanceCommand, DeleteModelProviderInstanceCommand,
     LocalizedProviderModelDescriptor, ModelProviderCatalogEntry, ModelProviderCatalogView,
-    ModelProviderInstanceView, ModelProviderModelCatalog, ModelProviderOptionEntry,
-    ModelProviderOptionsView, ModelProviderRoutingView, ModelProviderService,
+    ModelProviderInstanceView, ModelProviderMainInstanceView, ModelProviderModelCatalog,
+    ModelProviderOptionEntry, ModelProviderOptionsView, ModelProviderService,
     PreviewModelProviderModelsCommand, UpdateModelProviderInstanceCommand,
-    UpdateModelProviderRoutingCommand, ValidateModelProviderResult,
+    UpdateModelProviderMainInstanceCommand, ValidateModelProviderResult,
 };
 use plugin_framework::{
     provider_contract::{
@@ -49,6 +49,8 @@ pub struct CreateModelProviderBody {
     pub configured_models: Vec<ConfiguredModelBody>,
     #[serde(default)]
     pub enabled_model_ids: Vec<String>,
+    #[serde(default)]
+    pub included_in_main: Option<bool>,
     pub preview_token: Option<String>,
     #[schema(value_type = Object)]
     pub config: serde_json::Value,
@@ -61,15 +63,15 @@ pub struct UpdateModelProviderBody {
     pub configured_models: Vec<ConfiguredModelBody>,
     #[serde(default)]
     pub enabled_model_ids: Vec<String>,
+    pub included_in_main: bool,
     pub preview_token: Option<String>,
     #[schema(value_type = Object)]
     pub config: serde_json::Value,
 }
 
 #[derive(Debug, Deserialize, ToSchema)]
-pub struct UpdateModelProviderRoutingBody {
-    pub routing_mode: String,
-    pub primary_instance_id: String,
+pub struct UpdateModelProviderMainInstanceBody {
+    pub auto_include_new_instances: bool,
 }
 
 #[derive(Debug, Deserialize, ToSchema)]
@@ -215,7 +217,7 @@ pub struct ModelProviderInstanceResponse {
     pub protocol: String,
     pub display_name: String,
     pub status: String,
-    pub is_primary: bool,
+    pub included_in_main: bool,
     #[schema(value_type = Object)]
     pub config_json: serde_json::Value,
     pub configured_models: Vec<ConfiguredModelResponse>,
@@ -265,9 +267,8 @@ pub struct ModelProviderOptionResponse {
     pub description_key: Option<String>,
     pub protocol: String,
     pub display_name: String,
-    pub effective_instance_id: String,
-    pub effective_instance_display_name: String,
-    pub models: Vec<ProviderModelDescriptorResponse>,
+    pub main_instance: ModelProviderMainInstanceSummaryResponse,
+    pub model_groups: Vec<ModelProviderOptionGroupResponse>,
 }
 
 #[derive(Debug, Serialize, ToSchema)]
@@ -284,11 +285,24 @@ pub struct DeletedResponse {
 }
 
 #[derive(Debug, Serialize, ToSchema)]
-pub struct ModelProviderRoutingResponse {
+pub struct ModelProviderMainInstanceResponse {
     pub provider_code: String,
-    pub routing_mode: String,
-    pub primary_instance_id: String,
-    pub primary_instance_display_name: String,
+    pub auto_include_new_instances: bool,
+}
+
+#[derive(Debug, Serialize, ToSchema)]
+pub struct ModelProviderMainInstanceSummaryResponse {
+    pub provider_code: String,
+    pub auto_include_new_instances: bool,
+    pub group_count: usize,
+    pub model_count: usize,
+}
+
+#[derive(Debug, Serialize, ToSchema)]
+pub struct ModelProviderOptionGroupResponse {
+    pub source_instance_id: String,
+    pub source_instance_display_name: String,
+    pub models: Vec<ProviderModelDescriptorResponse>,
 }
 
 pub fn router() -> Router<Arc<ApiState>> {
@@ -299,8 +313,8 @@ pub fn router() -> Router<Arc<ApiState>> {
             get(list_instances).post(create_instance),
         )
         .route(
-            "/model-providers/providers/:provider_code/routing",
-            put(update_routing),
+            "/model-providers/providers/:provider_code/main-instance",
+            get(get_main_instance).put(update_main_instance),
         )
         .route("/model-providers/preview-models", post(preview_models))
         .route("/model-providers/options", get(list_options))
@@ -526,7 +540,7 @@ fn to_instance_response(view: ModelProviderInstanceView) -> ModelProviderInstanc
         protocol: view.instance.protocol,
         display_name: view.instance.display_name,
         status: view.instance.status.as_str().to_string(),
-        is_primary: view.is_primary,
+        included_in_main: view.instance.included_in_main,
         config_json: view.instance.config_json,
         configured_models: view
             .instance
@@ -559,18 +573,17 @@ fn to_validate_response(result: ValidateModelProviderResult) -> ValidateModelPro
         instance: to_instance_response(ModelProviderInstanceView {
             instance: result.instance,
             cache: Some(result.cache),
-            is_primary: result.is_primary,
         }),
         output: result.output,
     }
 }
 
-fn to_routing_response(view: ModelProviderRoutingView) -> ModelProviderRoutingResponse {
-    ModelProviderRoutingResponse {
+fn to_main_instance_response(
+    view: ModelProviderMainInstanceView,
+) -> ModelProviderMainInstanceResponse {
+    ModelProviderMainInstanceResponse {
         provider_code: view.provider_code,
-        routing_mode: view.routing_mode,
-        primary_instance_id: view.primary_instance_id.to_string(),
-        primary_instance_display_name: view.primary_instance_display_name,
+        auto_include_new_instances: view.auto_include_new_instances,
     }
 }
 
@@ -600,12 +613,24 @@ fn to_option_response(option: ModelProviderOptionEntry) -> ModelProviderOptionRe
         description_key: option.description_key,
         protocol: option.protocol,
         display_name: option.display_name,
-        effective_instance_id: option.effective_instance_id.to_string(),
-        effective_instance_display_name: option.effective_instance_display_name,
-        models: option
-            .models
+        main_instance: ModelProviderMainInstanceSummaryResponse {
+            provider_code: option.main_instance.provider_code,
+            auto_include_new_instances: option.main_instance.auto_include_new_instances,
+            group_count: option.main_instance.group_count,
+            model_count: option.main_instance.model_count,
+        },
+        model_groups: option
+            .model_groups
             .into_iter()
-            .map(to_model_descriptor_response)
+            .map(|group| ModelProviderOptionGroupResponse {
+                source_instance_id: group.source_instance_id.to_string(),
+                source_instance_display_name: group.source_instance_display_name,
+                models: group
+                    .models
+                    .into_iter()
+                    .map(to_model_descriptor_response)
+                    .collect(),
+            })
             .collect(),
     }
 }
@@ -726,6 +751,7 @@ pub async fn create_instance(
                 })
                 .collect(),
             enabled_model_ids: body.enabled_model_ids,
+            included_in_main: body.included_in_main,
             preview_token: body
                 .preview_token
                 .as_deref()
@@ -769,6 +795,7 @@ pub async fn update_instance(
                 })
                 .collect(),
             enabled_model_ids: body.enabled_model_ids,
+            included_in_main: body.included_in_main,
             preview_token: body
                 .preview_token
                 .as_deref()
@@ -799,33 +826,56 @@ pub async fn validate_instance(
 }
 
 #[utoipa::path(
-    put,
-    path = "/api/console/model-providers/providers/{provider_code}/routing",
-    operation_id = "model_provider_update_routing",
-    request_body = UpdateModelProviderRoutingBody,
-    responses((status = 200, body = ModelProviderRoutingResponse), (status = 403, body = crate::error_response::ErrorBody))
+    get,
+    path = "/api/console/model-providers/providers/{provider_code}/main-instance",
+    operation_id = "model_provider_get_main_instance",
+    responses(
+        (status = 200, body = ModelProviderMainInstanceResponse),
+        (status = 401, body = crate::error_response::ErrorBody),
+        (status = 403, body = crate::error_response::ErrorBody),
+        (status = 404, body = crate::error_response::ErrorBody)
+    )
 )]
-pub async fn update_routing(
+pub async fn get_main_instance(
     State(state): State<Arc<ApiState>>,
     Path(provider_code): Path<String>,
     headers: HeaderMap,
-    Json(body): Json<UpdateModelProviderRoutingBody>,
-) -> Result<Json<ApiSuccess<ModelProviderRoutingResponse>>, ApiError> {
+) -> Result<Json<ApiSuccess<ModelProviderMainInstanceResponse>>, ApiError> {
+    let context = require_session(&state, &headers).await?;
+    let view = service(&state)
+        .get_main_instance(context.user.id, &provider_code)
+        .await?;
+    Ok(Json(ApiSuccess::new(to_main_instance_response(view))))
+}
+
+#[utoipa::path(
+    put,
+    path = "/api/console/model-providers/providers/{provider_code}/main-instance",
+    operation_id = "model_provider_update_main_instance",
+    request_body = UpdateModelProviderMainInstanceBody,
+    responses(
+        (status = 200, body = ModelProviderMainInstanceResponse),
+        (status = 403, body = crate::error_response::ErrorBody),
+        (status = 404, body = crate::error_response::ErrorBody)
+    )
+)]
+pub async fn update_main_instance(
+    State(state): State<Arc<ApiState>>,
+    Path(provider_code): Path<String>,
+    headers: HeaderMap,
+    Json(body): Json<UpdateModelProviderMainInstanceBody>,
+) -> Result<Json<ApiSuccess<ModelProviderMainInstanceResponse>>, ApiError> {
     let context = require_session(&state, &headers).await?;
     require_csrf(&headers, &context.session)?;
-    if body.routing_mode != "manual_primary" {
-        return Err(control_plane::errors::ControlPlaneError::InvalidInput("routing_mode").into());
-    }
     let view = service(&state)
-        .update_routing(UpdateModelProviderRoutingCommand {
+        .update_main_instance(UpdateModelProviderMainInstanceCommand {
             actor_user_id: context.user.id,
             provider_code,
-            routing_mode: domain::ModelProviderRoutingMode::ManualPrimary,
-            primary_instance_id: parse_uuid(&body.primary_instance_id, "primary_instance_id")?,
+            auto_include_new_instances: body.auto_include_new_instances,
         })
         .await?;
 
-    Ok(Json(ApiSuccess::new(to_routing_response(view))))
+    Ok(Json(ApiSuccess::new(to_main_instance_response(view))))
 }
 
 #[utoipa::path(
