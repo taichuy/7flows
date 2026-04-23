@@ -18,3 +18,9 @@ fn main_durable_store_alias_points_at_storage_postgres() {
 fn postgres_builder_is_part_of_public_surface() {
     let _ = build_main_durable_postgres;
 }
+
+#[test]
+fn durable_crate_name_and_postgres_crate_name_are_stable() {
+    assert_eq!(storage_durable::crate_name(), "storage-durable");
+    assert_eq!(storage_postgres::crate_name(), "storage-postgres");
+}

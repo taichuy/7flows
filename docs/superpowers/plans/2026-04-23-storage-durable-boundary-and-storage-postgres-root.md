@@ -287,7 +287,7 @@ git commit -m "feat: add storage-durable capability crate"
 - Modify: `api/crates/storage-durable/src/_tests/runtime_tests.rs`
 - Modify: `api/crates/storage-postgres/src/lib.rs`
 
-- [ ] **Step 1: Extend the tests so the public names are explicit**
+- [x] **Step 1: Extend the tests so the public names are explicit**
 
 Add to `api/crates/storage-durable/src/_tests/runtime_tests.rs`:
 
@@ -299,7 +299,7 @@ fn durable_crate_name_and_postgres_crate_name_are_stable() {
 }
 ```
 
-- [ ] **Step 2: Run the new public-surface check**
+- [x] **Step 2: Run the new public-surface check**
 
 Run:
 
@@ -311,7 +311,7 @@ Expected:
 
 - PASS, or FAIL if the crates still leak old names.
 
-- [ ] **Step 3: Remove any temporary export noise**
+- [x] **Step 3: Remove any temporary export noise**
 
 Keep the public durable surface limited to:
 
@@ -328,7 +328,7 @@ pub use repositories::PgControlPlaneStore;
 pub async fn run_migrations(pool: &PgPool) -> Result<()>;
 ```
 
-- [ ] **Step 4: Run both new crate suites**
+- [x] **Step 4: Run both new crate suites**
 
 Run:
 
@@ -341,7 +341,7 @@ Expected:
 
 - PASS with the new boundary names frozen before consumers move.
 
-- [ ] **Step 5: Commit the frozen public surface**
+- [x] **Step 5: Commit the frozen public surface**
 
 ```bash
 git add api/crates/storage-durable api/crates/storage-postgres
