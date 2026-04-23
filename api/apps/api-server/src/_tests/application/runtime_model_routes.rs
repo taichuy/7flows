@@ -489,14 +489,17 @@ async fn create_enum_field(
 }
 
 async fn drop_runtime_table(database_url: &str, model_id: &str) {
-    let pool = storage_pg::connect(database_url).await.unwrap();
+    let durable = storage_durable::build_main_durable_postgres(database_url)
+        .await
+        .unwrap();
+    let pool = durable.store;
     let model_id = uuid::Uuid::parse_str(model_id).unwrap();
     let physical_table_name: String =
         sqlx::query_scalar("select physical_table_name from model_definitions where id = $1")
             .bind(model_id)
-            .fetch_one(&pool)
+            .fetch_one(pool.pool())
             .await
             .unwrap();
     let statement = format!("drop table if exists \"{physical_table_name}\"");
-    sqlx::query(&statement).execute(&pool).await.unwrap();
+    sqlx::query(&statement).execute(pool.pool()).await.unwrap();
 }

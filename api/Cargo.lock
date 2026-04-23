@@ -63,9 +63,9 @@ dependencies = [
  "serde_json",
  "sha2",
  "sqlx",
+ "storage-durable",
  "storage-ephemeral",
  "storage-object",
- "storage-pg",
  "tar",
  "time",
  "tokio",
@@ -2503,6 +2503,14 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "6ce2be8dc25455e1f91df71bfa12ad37d7af1092ae736f3a6cd0e37bc7810596"
 
 [[package]]
+name = "storage-durable"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "storage-postgres",
+]
+
+[[package]]
 name = "storage-ephemeral"
 version = "0.1.0"
 dependencies = [
@@ -2522,7 +2530,7 @@ name = "storage-object"
 version = "0.1.0"
 
 [[package]]
-name = "storage-pg"
+name = "storage-postgres"
 version = "0.1.0"
 dependencies = [
  "access-control",

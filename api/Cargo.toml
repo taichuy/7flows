@@ -10,7 +10,6 @@ members = [
   "crates/publish-gateway",
   "crates/access-control",
   "crates/plugin-framework",
-  "crates/storage-pg",
   "crates/storage-postgres",
   "crates/storage-durable",
   "crates/storage-ephemeral",

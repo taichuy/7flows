@@ -143,7 +143,7 @@ git commit -m "refactor: rewire api-server to storage-durable"
 - Modify: `api/apps/api-server/src/_tests/support/auth.rs`
 - Modify: `api/apps/api-server/src/_tests/support/applications.rs`
 
-- [ ] **Step 1: Measure the remaining old-name references before deletion**
+- [x] **Step 1: Measure the remaining old-name references before deletion**
 
 Run:
 
@@ -155,7 +155,7 @@ Expected:
 
 - Hits in workspace membership, imports, tests, docs, and the old crate directory.
 
-- [ ] **Step 2: Remove the old crate and final old-name imports**
+- [x] **Step 2: Remove the old crate and final old-name imports**
 
 Delete the old workspace member from `api/Cargo.toml` and replace it with the new one only:
 
@@ -187,7 +187,7 @@ rm -rf api/crates/storage-pg
 
 Update any straggling imports such as `runtime_registry_sync.rs` to read through `MainDurableStore` or the new concrete crate, whichever is architecturally correct for that file.
 
-- [ ] **Step 3: Re-run the old-name grep to verify cleanup**
+- [x] **Step 3: Re-run the old-name grep to verify cleanup**
 
 Run:
 
@@ -199,7 +199,7 @@ Expected:
 
 - No hits in active code or workspace config.
 
-- [ ] **Step 4: Run focused compile and durable tests**
+- [x] **Step 4: Run focused compile and durable tests**
 
 Run:
 
@@ -212,7 +212,7 @@ Expected:
 
 - PASS, confirming the repo no longer depends on `storage-pg`.
 
-- [ ] **Step 5: Commit the old-crate deletion**
+- [x] **Step 5: Commit the old-crate deletion**
 
 ```bash
 git add api/Cargo.toml api/apps/api-server
