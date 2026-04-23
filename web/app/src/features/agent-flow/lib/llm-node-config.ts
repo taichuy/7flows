@@ -88,6 +88,27 @@ export function buildLlmParameterState(
   };
 }
 
+export function resolveLlmParameterStateOnModelChange({
+  currentProviderCode,
+  nextProviderCode,
+  currentParameters,
+  nextSchema
+}: {
+  currentProviderCode: string;
+  nextProviderCode: string;
+  currentParameters: LlmNodeParameters;
+  nextSchema?: ConsolePluginFormSchema | null;
+}) {
+  if (
+    currentProviderCode.trim().length > 0 &&
+    currentProviderCode.trim() === nextProviderCode.trim()
+  ) {
+    return currentParameters;
+  }
+
+  return buildLlmParameterState(nextSchema);
+}
+
 export function getLlmModelProvider(config: Record<string, unknown>): LlmNodeModelProvider {
   const provider = config.model_provider;
 

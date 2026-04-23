@@ -1,23 +1,49 @@
-import { CloseOutlined, SettingOutlined } from '@ant-design/icons';
+import { CloseOutlined } from '@ant-design/icons';
 import { useQuery } from '@tanstack/react-query';
-import { Alert, Button, Modal, Select, Space, Typography } from 'antd';
+import { Alert, Button, Divider, Empty, Modal, Select, Typography } from 'antd';
 import { useMemo, useState } from 'react';
 
 import type { SchemaFieldRendererProps } from '../../../../../shared/schema-ui/registry/create-renderer-registry';
+import type {
+  SchemaDynamicFormBlock
+} from '../../../../../shared/schema-ui/contracts/canvas-node-schema';
 import {
   fetchModelProviderOptions,
   modelProviderOptionsQueryKey
 } from '../../../api/model-provider-options';
 import {
   buildLlmParameterState,
-  getLlmModelProvider
+  getLlmModelProvider,
+  getLlmParameters,
+  resolveLlmParameterStateOnModelChange
 } from '../../../lib/llm-node-config';
 import {
   findLlmModelOption,
   findLlmProviderOption,
+  formatLlmTokenCount,
   listLlmProviderOptions,
-  type LlmModelOption
+  type LlmModelGroup,
+  type LlmModelOption,
+  type LlmProviderOption
 } from '../../../lib/model-options';
+import { LlmParameterForm } from './LlmParameterForm';
+
+const EMPTY_MODEL_PROVIDER = {
+  provider_code: '',
+  source_instance_id: '',
+  model_id: '',
+  protocol: undefined,
+  provider_label: undefined,
+  model_label: undefined,
+  schema_fetched_at: undefined
+} as const;
+
+const LLM_PARAMETERS_BLOCK: SchemaDynamicFormBlock = {
+  kind: 'dynamic_form',
+  form_key: 'llm_parameters',
+  title: 'LLM 参数',
+  empty_text: '请先选择模型，随后再调整参数。'
+};
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
@@ -28,17 +54,56 @@ function getNodeConfig(adapter: SchemaFieldRendererProps['adapter']) {
   return isRecord(node?.config) ? node.config : {};
 }
 
+function getModelSearchText(provider: LlmProviderOption, group: LlmModelGroup, model: LlmModelOption) {
+  return [
+    provider.label,
+    provider.providerCode,
+    group.label,
+    group.sourceInstanceId,
+    model.label,
+    model.value,
+    model.tag
+  ]
+    .filter(Boolean)
+    .join(' ')
+    .toLowerCase();
+}
+
+function buildModelSelection(nextModel: LlmModelOption) {
+  return {
+    provider_code: nextModel.providerCode,
+    source_instance_id: nextModel.sourceInstanceId,
+    model_id: nextModel.value,
+    protocol: nextModel.protocol,
+    provider_label: nextModel.providerLabel,
+    model_label: nextModel.label,
+    schema_fetched_at: new Date().toISOString()
+  };
+}
+
+function buildContextLabel(value: number | null | undefined) {
+  const formattedValue = formatLlmTokenCount(value);
+  return formattedValue ? `上下文 ${formattedValue}` : null;
+}
+
+function buildOutputLabel(value: number | null | undefined) {
+  const formattedValue = formatLlmTokenCount(value);
+  return formattedValue ? `输出 ${formattedValue}` : null;
+}
+
 function ModelChip({
   providerLabel,
   modelLabel,
-  tag,
-  placeholder = '选择模型'
+  details = [],
+  placeholder = '选择供应商和模型'
 }: {
   providerLabel?: string | null;
   modelLabel?: string | null;
-  tag?: string;
+  details?: Array<string | null | undefined>;
   placeholder?: string;
 }) {
+  const detailItems = details.filter(Boolean);
+
   return (
     <div
       className={`agent-flow-model-chip${modelLabel ? '' : ' agent-flow-model-chip--empty'}`}
@@ -51,34 +116,33 @@ function ModelChip({
           {providerLabel || '模型供应商'}
         </span>
         <span className="agent-flow-model-chip__label">{modelLabel || placeholder}</span>
+        {detailItems.length > 0 ? (
+          <span className="agent-flow-model-chip__meta">
+            {detailItems.map((detail) => (
+              <span key={detail} className="agent-flow-model-chip__meta-item">
+                {detail}
+              </span>
+            ))}
+          </span>
+        ) : null}
       </span>
-      {tag ? <span className="agent-flow-model-chip__tag">{tag}</span> : null}
     </div>
   );
 }
 
-function getProviderSelection(option: ReturnType<typeof listLlmProviderOptions>[number] | undefined) {
-  const nextModel = option?.models[0] ?? null;
-
-  return {
-    provider_code: option?.value ?? '',
-    source_instance_id: nextModel?.sourceInstanceId ?? '',
-    model_id: nextModel?.value ?? '',
-    protocol: option?.protocol,
-    provider_label: option?.label,
-    model_label: nextModel?.label,
-    schema_fetched_at: nextModel ? new Date().toISOString() : undefined
-  };
-}
-
 export function LlmModelField({ adapter, block }: SchemaFieldRendererProps) {
   const [open, setOpen] = useState(false);
+  const [dropdownOpen, setDropdownOpen] = useState(false);
+  const [searchText, setSearchText] = useState('');
+  const [expandedProviders, setExpandedProviders] = useState<string[]>([]);
   const providerOptionsQuery = useQuery({
     queryKey: modelProviderOptionsQueryKey,
-    queryFn: fetchModelProviderOptions
+    queryFn: fetchModelProviderOptions,
+    staleTime: 60_000
   });
   const config = getNodeConfig(adapter);
   const modelProvider = getLlmModelProvider(config);
+  const currentParameters = getLlmParameters(config);
   const providerCode = modelProvider.provider_code.trim();
   const sourceInstanceId = modelProvider.source_instance_id.trim();
   const modelValue = modelProvider.model_id.trim();
@@ -93,91 +157,144 @@ export function LlmModelField({ adapter, block }: SchemaFieldRendererProps) {
     sourceInstanceId,
     modelValue
   );
-
+  const selectedSourceInstanceLabel =
+    selectedModel?.sourceInstanceLabel ??
+    selectedProvider?.modelGroups.find((group) => group.sourceInstanceId === sourceInstanceId)
+      ?.label ??
+    (sourceInstanceId || null);
   const providerUnavailable = Boolean(
     providerCode && providerOptionsQuery.isSuccess && selectedProvider === null
   );
   const modelUnavailable = Boolean(
     providerCode && modelValue && providerOptionsQuery.isSuccess && selectedModel === null
   );
-  const hasProviderOptions = providerOptions.length > 0;
-  const hasSelectedProviderModels = (selectedProvider?.models.length ?? 0) > 0;
+  const filteredProviders = useMemo(() => {
+    const normalizedSearch = searchText.trim().toLowerCase();
 
-  function closeSettings() {
-    setOpen(false);
-  }
+    if (!normalizedSearch) {
+      return providerOptions;
+    }
 
-  function selectProvider(nextProviderCode: string) {
-    const nextProvider = providerOptions.find((option) => option.value === nextProviderCode);
-    const nextSelection = getProviderSelection(nextProvider);
+    return providerOptions
+      .map((provider) => ({
+        ...provider,
+        modelGroups: provider.modelGroups
+          .map((group) => ({
+            ...group,
+            models: group.models.filter((model) =>
+              getModelSearchText(provider, group, model).includes(normalizedSearch)
+            )
+          }))
+          .filter((group) => group.models.length > 0)
+      }))
+      .filter((provider) => provider.modelGroups.length > 0);
+  }, [providerOptions, searchText]);
+  const selectOptions = useMemo(
+    () =>
+      providerOptions.flatMap((provider) =>
+        provider.modelGroups.flatMap((group) =>
+          group.models.map((model) => ({
+            value: model.selectionValue,
+            label: model.label
+          }))
+        )
+      ),
+    [providerOptions]
+  );
 
-    adapter.setValue('config.model_provider', nextSelection);
-    adapter.setValue(
-      'config.llm_parameters',
-      buildLlmParameterState(nextProvider?.models[0]?.parameterForm ?? null)
-    );
+  function clearSelection() {
+    adapter.setValue('config.model_provider', EMPTY_MODEL_PROVIDER);
+    adapter.setValue('config.llm_parameters', buildLlmParameterState(null));
   }
 
   function selectModel(nextModel: LlmModelOption) {
-    adapter.setValue('config.model_provider', {
-      provider_code: nextModel.providerCode,
-      source_instance_id: nextModel.sourceInstanceId,
-      model_id: nextModel.value,
-      protocol: nextModel.protocol,
-      provider_label: nextModel.providerLabel,
-      model_label: nextModel.label,
-      schema_fetched_at: new Date().toISOString()
-    });
-    adapter.setValue('config.llm_parameters', buildLlmParameterState(nextModel.parameterForm));
+    const nextProvider =
+      providerOptions.find((provider) => provider.providerCode === nextModel.providerCode) ?? null;
+
+    adapter.setValue('config.model_provider', buildModelSelection(nextModel));
+    adapter.setValue(
+      'config.llm_parameters',
+      resolveLlmParameterStateOnModelChange({
+        currentProviderCode: providerCode,
+        nextProviderCode: nextModel.providerCode,
+        currentParameters,
+        nextSchema: nextProvider?.parameterForm
+      })
+    );
+    setDropdownOpen(false);
+    setSearchText('');
+    setExpandedProviders([nextModel.providerCode]);
+  }
+
+  function toggleProvider(providerValue: string) {
+    setExpandedProviders((current) =>
+      current.includes(providerValue)
+        ? current.filter((value) => value !== providerValue)
+        : [...current, providerValue]
+    );
+  }
+
+  function handleDropdownOpenChange(nextOpen: boolean) {
+    setDropdownOpen(nextOpen);
+
+    if (nextOpen) {
+      setExpandedProviders((current) => {
+        const allProviderValues = providerOptions.map((provider) => provider.value);
+
+        if (searchText.trim().length > 0) {
+          return filteredProviders.map((provider) => provider.value);
+        }
+
+        if (current.length > 0) {
+          return current;
+        }
+
+        return allProviderValues;
+      });
+      return;
+    }
+
+    setSearchText('');
   }
 
   return (
     <>
-      <Space.Compact block>
-        <Select
-          showSearch
-          allowClear
-          aria-label="模型供应商"
-          placeholder="选择模型供应商"
-          value={providerCode || undefined}
-          options={providerOptions.map((option) => ({
-            label: option.label,
-            value: option.value
-          }))}
-          optionFilterProp="label"
-          onChange={(value) => {
-            selectProvider(typeof value === 'string' ? value : '');
-          }}
-          onClear={() => {
-            adapter.setValue('config.model_provider', {
-              provider_code: '',
-              source_instance_id: '',
-              model_id: '',
-              protocol: undefined,
-              provider_label: undefined,
-              model_label: undefined,
-              schema_fetched_at: undefined
-            });
-            adapter.setValue('config.llm_parameters', buildLlmParameterState(null));
-          }}
-          style={{ flex: '1 1 auto', minWidth: 0 }}
+      <button
+        type="button"
+        aria-label={block.label}
+        className="agent-flow-model-field__trigger"
+        onClick={() => setOpen(true)}
+      >
+        <ModelChip
+          providerLabel={
+            modelProvider.provider_label?.trim() ||
+            selectedModel?.providerLabel ||
+            selectedProvider?.label ||
+            providerCode ||
+            null
+          }
+          modelLabel={modelProvider.model_label?.trim() || selectedModel?.label || modelValue || null}
+          details={[
+            selectedSourceInstanceLabel,
+            buildContextLabel(selectedModel?.effectiveContextWindow)
+          ]}
         />
-        <Button
-          type="default"
-          aria-label={`${block.label}设置`}
-          className="agent-flow-model-field__settings"
-          icon={<SettingOutlined />}
-          onClick={() => setOpen(true)}
-          style={{ flex: '0 0 44px', width: 44, paddingInline: 0 }}
-        />
-      </Space.Compact>
+        <span className="agent-flow-model-field__trigger-caret" aria-hidden="true">
+          ▾
+        </span>
+      </button>
+
       <Modal
         open={open}
         footer={null}
-        width={560}
-        title="模型设置"
+        width={720}
+        title={
+          <Typography.Title level={4} className="agent-flow-model-settings__modal-title">
+            模型设置
+          </Typography.Title>
+        }
         closeIcon={<CloseOutlined />}
-        onCancel={closeSettings}
+        onCancel={() => setOpen(false)}
         className="agent-flow-model-settings"
       >
         {providerOptionsQuery.isError ? (
@@ -204,43 +321,150 @@ export function LlmModelField({ adapter, block }: SchemaFieldRendererProps) {
             message="当前节点引用的模型不在该供应商的生效模型列表中。"
           />
         ) : null}
+
         <div className="agent-flow-model-settings__section">
-          <Typography.Title level={5} className="agent-flow-model-settings__section-title">
-            生效模型
-          </Typography.Title>
+          <div className="agent-flow-model-settings__header">
+            <Typography.Title level={5} className="agent-flow-model-settings__section-title">
+              模型
+            </Typography.Title>
+            {providerCode || modelValue ? (
+              <Button type="link" onClick={clearSelection}>
+                清空
+              </Button>
+            ) : null}
+          </div>
           <Typography.Text className="agent-flow-model-settings__section-subtitle">
-            这里只展示该模型供应商在“模型供应商设置”里已经启用的模型。
+            主实例是供应商级聚合视图；节点实际仍保存来源实例与模型。
           </Typography.Text>
           <Select
-            showSearch
-            aria-label="生效模型"
-            placeholder={selectedProvider ? '选择生效模型' : '请先选择模型供应商'}
+            aria-label="选择供应商和模型"
+            className="agent-flow-model-settings__select"
+            placeholder="选择供应商和模型"
             value={selectedModel?.selectionValue}
-            disabled={!selectedProvider || !hasSelectedProviderModels}
-            options={(selectedProvider?.modelGroups ?? []).map((group) => ({
-              label: group.label,
-              options: group.models.map((option) => ({
-                label: option.label,
-                value: option.selectionValue
-              }))
-            }))}
-            optionFilterProp="label"
-            onChange={(value) => {
-              const nextModel =
-                selectedProvider?.models.find(
-                  (option) => option.selectionValue === value
-                ) ?? null;
-              if (nextModel) {
-                selectModel(nextModel);
-              }
-            }}
+            options={selectOptions}
+            showSearch
+            allowClear={false}
+            filterOption={false}
+            popupMatchSelectWidth
+            open={dropdownOpen}
+            onOpenChange={handleDropdownOpenChange}
+            onSearch={setSearchText}
+            popupRender={() => (
+              <div className="agent-flow-model-settings__dropdown">
+                {filteredProviders.length === 0 ? (
+                  <div className="agent-flow-model-settings__empty">
+                    <Empty
+                      image={Empty.PRESENTED_IMAGE_SIMPLE}
+                      description={
+                        searchText.trim().length > 0 ? '没有匹配的模型结果' : '当前还没有可选模型'
+                      }
+                    />
+                  </div>
+                ) : (
+                  <div className="agent-flow-model-settings__provider-sections">
+                    {filteredProviders.map((provider) => {
+                      const providerExpanded =
+                        searchText.trim().length > 0 || expandedProviders.includes(provider.value);
+
+                      return (
+                        <section
+                          key={provider.value}
+                          className="agent-flow-model-settings__provider-section"
+                        >
+                          <button
+                            type="button"
+                            className="agent-flow-model-settings__provider-head"
+                            aria-expanded={providerExpanded}
+                            onClick={() => toggleProvider(provider.value)}
+                          >
+                            <div>
+                              <Typography.Text strong>{provider.label}</Typography.Text>
+                              <div className="agent-flow-model-settings__provider-meta">
+                                主实例聚合 · {provider.modelGroups.length} 个来源实例 ·{' '}
+                                {provider.models.length} 个模型
+                              </div>
+                            </div>
+                            <span className="agent-flow-model-settings__provider-caret" aria-hidden="true">
+                              {providerExpanded ? '▾' : '▸'}
+                            </span>
+                          </button>
+                          {providerExpanded
+                            ? provider.modelGroups.map((group) => (
+                                <div
+                                  key={group.key}
+                                  className="agent-flow-model-settings__provider-group"
+                                >
+                                  <div className="agent-flow-model-settings__group-head">
+                                    <span>{group.label}</span>
+                                    <span>{group.models.length} 个模型</span>
+                                  </div>
+                                  <div className="agent-flow-model-settings__options">
+                                    {group.models.map((option) => {
+                                      const active =
+                                        option.sourceInstanceId === sourceInstanceId &&
+                                        option.value === modelValue;
+
+                                      return (
+                                        <button
+                                          key={option.selectionValue}
+                                          type="button"
+                                          aria-label={`${provider.label} ${group.label} ${option.label}`}
+                                          className={[
+                                            'agent-flow-model-settings__option',
+                                            active
+                                              ? 'agent-flow-model-settings__option--active'
+                                              : null
+                                          ]
+                                            .filter(Boolean)
+                                            .join(' ')}
+                                          onClick={() => selectModel(option)}
+                                        >
+                                          <span className="agent-flow-model-settings__option-main">
+                                            {option.label}
+                                          </span>
+                                          <span className="agent-flow-model-settings__option-meta">
+                                            <span>{option.value}</span>
+                                            {buildContextLabel(option.effectiveContextWindow) ? (
+                                              <span>
+                                                {buildContextLabel(option.effectiveContextWindow)}
+                                              </span>
+                                            ) : null}
+                                            {buildOutputLabel(option.maxOutputTokens) ? (
+                                              <span>{buildOutputLabel(option.maxOutputTokens)}</span>
+                                            ) : null}
+                                            {option.tag ? <span>{option.tag}</span> : null}
+                                          </span>
+                                        </button>
+                                      );
+                                    })}
+                                  </div>
+                                </div>
+                              ))
+                            : null}
+                        </section>
+                      );
+                    })}
+                  </div>
+                )}
+                <button
+                  type="button"
+                  className="agent-flow-model-settings__provider-link"
+                  onClick={() => window.location.assign('/settings/model-providers')}
+                >
+                  模型供应商设置
+                </button>
+              </div>
+            )}
           />
-          {!selectedProvider && hasProviderOptions ? (
-            <Typography.Text type="secondary">请先在节点里选择模型供应商。</Typography.Text>
-          ) : null}
-          {selectedProvider && !hasSelectedProviderModels ? (
-            <Typography.Text type="secondary">当前供应商还没有配置生效模型。</Typography.Text>
-          ) : null}
+        </div>
+
+        <Divider />
+
+        <div className="agent-flow-model-settings__section">
+          <Typography.Title level={5} className="agent-flow-model-settings__section-title">
+            参数
+          </Typography.Title>
+          <LlmParameterForm adapter={adapter} block={LLM_PARAMETERS_BLOCK} />
         </div>
       </Modal>
     </>

@@ -13,7 +13,7 @@ import {
   getLlmParameters,
   type LlmNodeParameters
 } from '../../../lib/llm-node-config';
-import { findLlmModelOption } from '../../../lib/model-options';
+import { findLlmModelOption, findLlmProviderOption } from '../../../lib/model-options';
 
 function getNodeConfig(adapter: SchemaDynamicFormRendererProps['adapter']) {
   const node = adapter.getDerived('node') as { config?: Record<string, unknown> } | null | undefined;
@@ -38,18 +38,23 @@ function updateParameters(
 export function LlmParameterForm({ adapter, block }: SchemaDynamicFormRendererProps) {
   const providerOptionsQuery = useQuery({
     queryKey: modelProviderOptionsQueryKey,
-    queryFn: fetchModelProviderOptions
+    queryFn: fetchModelProviderOptions,
+    staleTime: 60_000
   });
   const config = getNodeConfig(adapter);
   const modelProvider = getLlmModelProvider(config);
   const parameters = getLlmParameters(config);
+  const selectedProvider = findLlmProviderOption(
+    providerOptionsQuery.data,
+    modelProvider.provider_code
+  );
   const selectedModel = findLlmModelOption(
     providerOptionsQuery.data,
     modelProvider.provider_code,
     modelProvider.source_instance_id,
     modelProvider.model_id
   );
-  const parameterForm = selectedModel?.parameterForm ?? null;
+  const parameterForm = selectedProvider?.parameterForm ?? null;
 
   const groupedFields = useMemo(() => {
     if (!parameterForm) {
@@ -88,6 +93,10 @@ export function LlmParameterForm({ adapter, block }: SchemaDynamicFormRendererPr
     );
   }
 
+  if (!selectedProvider) {
+    return <Alert type="warning" showIcon message="当前模型供应商不可用，无法渲染参数表单。" />;
+  }
+
   if (!selectedModel) {
     return <Alert type="warning" showIcon message="当前模型不可用，无法渲染参数表单。" />;
   }
@@ -96,7 +105,7 @@ export function LlmParameterForm({ adapter, block }: SchemaDynamicFormRendererPr
     return (
       <Empty
         image={Empty.PRESENTED_IMAGE_SIMPLE}
-        description={block.empty_text ?? '当前模型没有可调参数。'}
+        description="当前供应商没有可调参数。"
       />
     );
   }

@@ -4,6 +4,10 @@ import { describe, expect, test, vi } from 'vitest';
 
 import { createDefaultAgentFlowDocument } from '@1flowbase/flow-schema';
 import { AppProviders } from '../../../app/AppProviders';
+import {
+  modelProviderOptionsContract,
+  modelProviderOptionsProviders
+} from '../../../test/model-provider-contract-fixtures';
 
 const schemaRuntimeSpies = vi.hoisted(() => ({
   resolveAgentFlowNodeSchema: vi.fn(),
@@ -52,6 +56,14 @@ import { useAgentFlowEditorStore } from '../store/editor/provider';
 import { selectWorkingDocument } from '../store/editor/selectors';
 
 const NODE_DETAIL_PANEL_TEST_TIMEOUT = 15_000;
+const primaryProviderOption = modelProviderOptionsProviders[0];
+const primaryProviderFirstGroup = primaryProviderOption.model_groups[0];
+const primaryProviderFirstModel = primaryProviderFirstGroup.models[0];
+const primaryProviderSecondGroup = primaryProviderOption.model_groups[1];
+const primaryProviderSecondModel = primaryProviderSecondGroup.models[0];
+const secondaryProviderOption = modelProviderOptionsProviders[1];
+const secondaryProviderFirstGroup = secondaryProviderOption.model_groups[0];
+const secondaryProviderFirstModel = secondaryProviderFirstGroup.models[0];
 
 function createInitialState() {
   return {
@@ -98,6 +110,37 @@ function SelectionSeed({ nodeId }: { nodeId: string }) {
 
 function renderWithProviders(ui: ReactNode) {
   return render(<AppProviders>{ui}</AppProviders>);
+}
+
+function getLlmNodeConfig(document: ReturnType<typeof createDefaultAgentFlowDocument>) {
+  const llmNode = document.graph.nodes.find((node) => node.id === 'node-llm');
+
+  if (!llmNode) {
+    throw new Error('expected default LLM node');
+  }
+
+  return llmNode.config;
+}
+
+async function openModelSettings() {
+  fireEvent.click(await screen.findByRole('button', { name: '模型' }));
+  expect(await screen.findByRole('heading', { name: '模型设置' })).toBeInTheDocument();
+}
+
+async function openModelDropdown() {
+  fireEvent.mouseDown(await screen.findByRole('combobox', { name: '选择供应商和模型' }));
+}
+
+async function clickModelOption(label: string) {
+  const [option] = await screen.findAllByText((content, element) => {
+    if (!element || !element.matches('.agent-flow-model-settings__option-main')) {
+      return false;
+    }
+
+    return content.trim() === label;
+  });
+
+  fireEvent.click(option.closest('button') as HTMLButtonElement);
 }
 
 describe('NodeDetailPanel', () => {
@@ -161,6 +204,8 @@ describe('NodeDetailPanel', () => {
     expect(screen.queryByText('节点说明')).not.toBeInTheDocument();
     expect(screen.queryByText('帮助文档')).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: '模型' })).toBeInTheDocument();
+    expect(screen.queryByText('LLM 参数')).not.toBeInTheDocument();
+    expect(screen.queryByText('返回格式')).not.toBeInTheDocument();
     expect(screen.queryByText('输出契约')).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: '添加下一个节点' })).not.toBeInTheDocument();
     expect(screen.getAllByText('添加并行节点')).toHaveLength(1);
@@ -242,5 +287,172 @@ describe('NodeDetailPanel', () => {
         })
       ])
     );
+  }, NODE_DETAIL_PANEL_TEST_TIMEOUT);
+
+  test('keeps llm_parameters when switching models within the same provider', async () => {
+    let latestDocument = createDefaultAgentFlowDocument({ flowId: 'flow-1' });
+    const state = createInitialState();
+    const llmNodeConfig = getLlmNodeConfig(state.draft.document);
+
+    llmNodeConfig.model_provider = {
+      provider_code: primaryProviderOption.provider_code,
+      source_instance_id: primaryProviderFirstGroup.source_instance_id,
+      model_id: primaryProviderFirstModel.model_id,
+      provider_label: primaryProviderOption.display_name,
+      model_label: primaryProviderFirstModel.display_name
+    };
+    llmNodeConfig.llm_parameters = {
+      schema_version: '1.0.0',
+      items: {
+        temperature: {
+          enabled: true,
+          value: 0.42
+        }
+      }
+    };
+    modelProviderOptionsApi.fetchModelProviderOptions.mockResolvedValueOnce(
+      modelProviderOptionsContract
+    );
+
+    renderWithProviders(
+      <AgentFlowEditorStoreProvider initialState={state}>
+        <DocumentObserver
+          onChange={(document) => {
+            latestDocument = document;
+          }}
+        />
+        <NodeConfigTab />
+      </AgentFlowEditorStoreProvider>
+    );
+
+    await openModelSettings();
+    await openModelDropdown();
+    await clickModelOption(primaryProviderSecondModel.display_name);
+
+    await waitFor(() => {
+      expect(getLlmNodeConfig(latestDocument)).toMatchObject({
+        model_provider: {
+          provider_code: primaryProviderOption.provider_code,
+          source_instance_id: primaryProviderSecondGroup.source_instance_id,
+          model_id: primaryProviderSecondModel.model_id
+        },
+        llm_parameters: {
+          schema_version: '1.0.0',
+          items: {
+            temperature: {
+              enabled: true,
+              value: 0.42
+            }
+          }
+        }
+      });
+    });
+  }, NODE_DETAIL_PANEL_TEST_TIMEOUT);
+
+  test('reinitializes llm_parameters when switching to a different provider', async () => {
+    let latestDocument = createDefaultAgentFlowDocument({ flowId: 'flow-1' });
+    const duplicatedContract = JSON.parse(
+      JSON.stringify(modelProviderOptionsContract)
+    ) as typeof modelProviderOptionsContract;
+    const duplicatedSecondaryProvider = duplicatedContract.providers[1];
+    const duplicatedSecondaryModel = duplicatedSecondaryProvider.model_groups[0].models[0];
+    const state = createInitialState();
+    const llmNodeConfig = getLlmNodeConfig(state.draft.document);
+
+    duplicatedSecondaryProvider.parameter_form = {
+      schema_version: '1.0.0',
+      fields: [
+        {
+          key: 'top_p',
+          label: 'Top P',
+          type: 'number',
+          send_mode: 'optional',
+          enabled_by_default: true,
+          options: [],
+          visible_when: [],
+          disabled_when: [],
+          default_value: 0.9
+        }
+      ]
+    };
+    llmNodeConfig.model_provider = {
+      provider_code: primaryProviderOption.provider_code,
+      source_instance_id: primaryProviderFirstGroup.source_instance_id,
+      model_id: primaryProviderFirstModel.model_id,
+      provider_label: primaryProviderOption.display_name,
+      model_label: primaryProviderFirstModel.display_name
+    };
+    llmNodeConfig.llm_parameters = {
+      schema_version: '1.0.0',
+      items: {
+        temperature: {
+          enabled: true,
+          value: 0.42
+        }
+      }
+    };
+    modelProviderOptionsApi.fetchModelProviderOptions.mockResolvedValueOnce(
+      duplicatedContract
+    );
+
+    renderWithProviders(
+      <AgentFlowEditorStoreProvider initialState={state}>
+        <DocumentObserver
+          onChange={(document) => {
+            latestDocument = document;
+          }}
+        />
+        <NodeConfigTab />
+      </AgentFlowEditorStoreProvider>
+    );
+
+    await openModelSettings();
+    await openModelDropdown();
+    await clickModelOption(duplicatedSecondaryModel.display_name);
+
+    await waitFor(() => {
+      expect(getLlmNodeConfig(latestDocument)).toMatchObject({
+        model_provider: {
+          provider_code: duplicatedSecondaryProvider.provider_code,
+          source_instance_id: secondaryProviderFirstGroup.source_instance_id,
+          model_id: duplicatedSecondaryModel.model_id
+        },
+        llm_parameters: {
+          schema_version: '1.0.0',
+          items: {
+            top_p: {
+              enabled: true,
+              value: 0.9
+            }
+          }
+        }
+      });
+    });
+  }, NODE_DETAIL_PANEL_TEST_TIMEOUT);
+
+  test('renders the empty-state copy when the selected provider has no parameter schema', async () => {
+    const state = createInitialState();
+    const llmNodeConfig = getLlmNodeConfig(state.draft.document);
+
+    llmNodeConfig.model_provider = {
+      provider_code: secondaryProviderOption.provider_code,
+      source_instance_id: secondaryProviderFirstGroup.source_instance_id,
+      model_id: secondaryProviderFirstModel.model_id,
+      provider_label: secondaryProviderOption.display_name,
+      model_label: secondaryProviderFirstModel.display_name
+    };
+    modelProviderOptionsApi.fetchModelProviderOptions.mockResolvedValueOnce(
+      modelProviderOptionsContract
+    );
+
+    renderWithProviders(
+      <AgentFlowEditorStoreProvider initialState={state}>
+        <NodeConfigTab />
+      </AgentFlowEditorStoreProvider>
+    );
+
+    await openModelSettings();
+
+    expect(await screen.findByText('当前供应商没有可调参数。')).toBeInTheDocument();
   }, NODE_DETAIL_PANEL_TEST_TIMEOUT);
 });

@@ -16,6 +16,7 @@ vi.mock('../api/model-provider-options', () => modelProviderOptionsApi);
 import { createDefaultAgentFlowDocument } from '@1flowbase/flow-schema';
 import { AppProviders } from '../../../app/AppProviders';
 import { NodeConfigTab } from '../components/detail/tabs/NodeConfigTab';
+import { listLlmProviderOptions } from '../lib/model-options';
 import { AgentFlowEditorStoreProvider } from '../store/editor/AgentFlowEditorStoreProvider';
 import { useAgentFlowEditorStore } from '../store/editor/provider';
 import { selectWorkingDocument } from '../store/editor/selectors';
@@ -63,23 +64,25 @@ function renderWithProviders(ui: ReactNode) {
   return render(<AppProviders>{ui}</AppProviders>);
 }
 
-async function selectProviderOption(label: string) {
-  const providerSelect = await screen.findByRole('combobox', {
-    name: '模型供应商'
-  });
+async function openModelSettings() {
+  fireEvent.click(await screen.findByRole('button', { name: '模型' }));
+  expect(await screen.findByRole('heading', { name: '模型设置' })).toBeInTheDocument();
+}
 
-  fireEvent.mouseDown(providerSelect);
-  const [option] = await screen.findAllByText((_, element) => {
-    if (!element) {
+async function openModelDropdown() {
+  fireEvent.mouseDown(await screen.findByRole('combobox', { name: '选择供应商和模型' }));
+}
+
+async function clickModelOption(label: string) {
+  const [option] = await screen.findAllByText((content, element) => {
+    if (!element || !element.matches('.agent-flow-model-settings__option-main')) {
       return false;
     }
 
-    return (
-      element.matches('.ant-select-item-option-content') &&
-      Boolean(element.textContent?.includes(label))
-    );
+    return content.trim() === label;
   });
-  fireEvent.click(option);
+
+  fireEvent.click(option.closest('button') as HTMLButtonElement);
 }
 
 describe('LlmModelField', () => {
@@ -90,7 +93,21 @@ describe('LlmModelField', () => {
     );
   });
 
-  test('writes selected provider code and model back to the llm node config', async () => {
+  test('maps provider-level parameter schema and effective model limits from provider options', () => {
+    const providerOptions = listLlmProviderOptions(modelProviderOptionsContract);
+    const openaiProvider = providerOptions.find(
+      (option) => option.value === primaryProviderOption.provider_code
+    );
+
+    expect(openaiProvider?.parameterForm?.fields[0]?.key).toBe('temperature');
+    expect(openaiProvider?.models[0]).toMatchObject({
+      contextWindow: primaryProviderFirstModel.context_window,
+      effectiveContextWindow: primaryProviderFirstModel.context_window,
+      maxOutputTokens: primaryProviderFirstModel.max_output_tokens
+    });
+  });
+
+  test('opens a unified model dialog and writes the selected grouped model back to the llm node config', async () => {
     let latestDocument = createDefaultAgentFlowDocument({ flowId: 'flow-1' });
 
     const { container } = renderWithProviders(
@@ -106,79 +123,67 @@ describe('LlmModelField', () => {
 
     expect(container.querySelector('.agent-flow-model-field')).toBeNull();
 
-    await selectProviderOption(primaryProviderOption.display_name);
-    await waitFor(() => {
-      expect(latestDocument.graph.nodes).toEqual(
-        expect.arrayContaining([
-          expect.objectContaining({
-            id: 'node-llm',
-            config: expect.objectContaining({
-              model_provider: expect.objectContaining({
-                provider_code: 'openai_compatible',
-                source_instance_id: primaryProviderFirstGroup.source_instance_id,
-                model_id: primaryProviderFirstModel.model_id
-              })
-            })
-          })
-        ])
-      );
-    });
-    expect(screen.getByRole('button', { name: '模型设置' })).not.toHaveTextContent(
-      primaryProviderFirstModel.display_name
-    );
-    fireEvent.click(screen.getByRole('button', { name: '模型设置' }));
-
-    expect(await screen.findByRole('heading', { name: '生效模型' })).toBeInTheDocument();
-    expect(screen.queryByPlaceholderText('搜索生效模型')).not.toBeInTheDocument();
-    expect(screen.queryByRole('link', { name: '模型供应商设置' })).not.toBeInTheDocument();
-    fireEvent.mouseDown(screen.getByRole('combobox', { name: '生效模型' }));
+    await openModelSettings();
+    expect(screen.getByRole('combobox', { name: '选择供应商和模型' })).toBeInTheDocument();
+    expect(screen.queryByText(primaryProviderOption.display_name)).not.toBeInTheDocument();
+    await openModelDropdown();
+    expect(screen.getByText(primaryProviderOption.display_name)).toBeInTheDocument();
     expect(
-      await screen.findByText(primaryProviderFirstGroup.source_instance_display_name)
+      screen.getByText(primaryProviderFirstGroup.source_instance_display_name)
     ).toBeInTheDocument();
     expect(
       screen.getByText(primaryProviderSecondGroup.source_instance_display_name)
     ).toBeInTheDocument();
-    const [nextModelOption] = await screen.findAllByText((_, element) => {
-      if (!element) {
-        return false;
-      }
+    expect(screen.getByRole('button', { name: '模型供应商设置' })).toBeInTheDocument();
 
-      return (
-        element.matches('.ant-select-item-option-content') &&
-        element.textContent?.trim() === primaryProviderSecondModel.display_name
-      );
-    });
-    fireEvent.click(nextModelOption);
+    await clickModelOption(primaryProviderSecondModel.display_name);
 
     await waitFor(() => {
-      expect(latestDocument.graph.nodes).toEqual(
-        expect.arrayContaining([
-          expect.objectContaining({
-            id: 'node-llm',
-            config: expect.objectContaining({
-              model_provider: expect.objectContaining({
-                provider_code: 'openai_compatible',
-                source_instance_id: primaryProviderSecondGroup.source_instance_id,
-                model_id: primaryProviderSecondModel.model_id,
-                provider_label: primaryProviderOption.display_name,
-                model_label: primaryProviderSecondModel.display_name
-              }),
-              llm_parameters: {
-                schema_version: '1.0.0',
-                items: {}
-              }
-            })
-          })
-        ])
-      );
+      const llmNode = latestDocument.graph.nodes.find((node) => node.id === 'node-llm');
+
+      expect(llmNode?.config).toMatchObject({
+        model_provider: {
+          provider_code: 'openai_compatible',
+          source_instance_id: primaryProviderSecondGroup.source_instance_id,
+          model_id: primaryProviderSecondModel.model_id,
+          provider_label: primaryProviderOption.display_name,
+          model_label: primaryProviderSecondModel.display_name
+        },
+        llm_parameters: {
+          schema_version: '1.0.0',
+          items: {
+            temperature: {
+              enabled: false,
+              value: 0.7
+            }
+          }
+        }
+      });
     });
   }, 10_000);
 
-  test('resolves parameter schema from the selected grouped model entry', async () => {
+  test('renders provider-level parameter controls inside the model dialog instead of the inspector body', async () => {
     const duplicatedModelContract = JSON.parse(
       JSON.stringify(modelProviderOptionsContract)
     ) as typeof modelProviderOptionsContract;
     const duplicatedProvider = duplicatedModelContract.providers[0];
+
+    duplicatedProvider.parameter_form = {
+      schema_version: '1.0.0',
+      fields: [
+        {
+          key: 'top_p',
+          label: 'Top P',
+          type: 'number',
+          send_mode: 'optional',
+          enabled_by_default: true,
+          options: [],
+          visible_when: [],
+          disabled_when: [],
+          default_value: 0.9
+        }
+      ]
+    };
 
     duplicatedProvider.model_groups = [
       {
@@ -188,23 +193,7 @@ describe('LlmModelField', () => {
           {
             ...primaryProviderFirstModel,
             model_id: 'gpt-4o-mini',
-            display_name: 'GPT-4o Mini',
-            parameter_form: {
-              schema_version: '1.0.0',
-              fields: [
-                {
-                  key: 'temperature',
-                  label: 'Temperature',
-                  type: 'number',
-                  send_mode: 'optional',
-                  enabled_by_default: false,
-                  options: [],
-                  visible_when: [],
-                  disabled_when: [],
-                  default_value: 0.7
-                }
-              ]
-            }
+            display_name: 'GPT-4o Mini'
           }
         ]
       },
@@ -215,23 +204,7 @@ describe('LlmModelField', () => {
           {
             ...primaryProviderFirstModel,
             model_id: 'gpt-4o-mini',
-            display_name: 'GPT-4o Mini',
-            parameter_form: {
-              schema_version: '1.0.0',
-              fields: [
-                {
-                  key: 'top_p',
-                  label: 'Top P',
-                  type: 'number',
-                  send_mode: 'optional',
-                  enabled_by_default: true,
-                  options: [],
-                  visible_when: [],
-                  disabled_when: [],
-                  default_value: 0.9
-                }
-              ]
-            }
+            display_name: 'GPT-4o Mini'
           }
         ]
       }
@@ -261,8 +234,37 @@ describe('LlmModelField', () => {
       </AgentFlowEditorStoreProvider>
     );
 
+    await openModelSettings();
     expect(await screen.findByText('Top P')).toBeInTheDocument();
     expect(screen.queryByText('Temperature')).not.toBeInTheDocument();
+    expect(screen.queryByText('返回格式')).not.toBeInTheDocument();
+  });
+
+  test('renders effective context and optional max output in the model selector options', async () => {
+    const duplicatedModelContract = JSON.parse(
+      JSON.stringify(modelProviderOptionsContract)
+    ) as typeof modelProviderOptionsContract;
+
+    duplicatedModelContract.providers[0].model_groups[0].models[0].context_window = 256000;
+    duplicatedModelContract.providers[0].model_groups[0].models[0].max_output_tokens = 8192;
+    duplicatedModelContract.providers[0].model_groups[1].models[0].context_window = 64000;
+    duplicatedModelContract.providers[0].model_groups[1].models[0].max_output_tokens = null;
+    modelProviderOptionsApi.fetchModelProviderOptions.mockResolvedValueOnce(
+      duplicatedModelContract
+    );
+
+    renderWithProviders(
+      <AgentFlowEditorStoreProvider initialState={createInitialState()}>
+        <NodeConfigTab />
+      </AgentFlowEditorStoreProvider>
+    );
+
+    await openModelSettings();
+    await openModelDropdown();
+
+    expect(await screen.findByText('上下文 256K')).toBeInTheDocument();
+    expect(screen.getAllByText('输出 8192').length).toBeGreaterThanOrEqual(1);
+    expect(screen.getByText('上下文 64K')).toBeInTheDocument();
   });
 
   test('shows a formal error state when the current provider is unavailable', async () => {
@@ -285,14 +287,15 @@ describe('LlmModelField', () => {
       </AgentFlowEditorStoreProvider>
     );
 
-    fireEvent.click(screen.getByRole('button', { name: '模型设置' }));
+    await openModelSettings();
+    await openModelDropdown();
 
     expect(
       await screen.findByText('当前节点引用的模型供应商不可用。')
     ).toBeInTheDocument();
   });
 
-  test('resets to the new provider first enabled model when switching providers', async () => {
+  test('switches provider by choosing a model from another provider group', async () => {
     let latestDocument = createDefaultAgentFlowDocument({ flowId: 'flow-1' });
 
     renderWithProviders(
@@ -306,7 +309,9 @@ describe('LlmModelField', () => {
       </AgentFlowEditorStoreProvider>
     );
 
-    await selectProviderOption(secondaryProviderOption.display_name);
+    await openModelSettings();
+    await openModelDropdown();
+    await clickModelOption(secondaryProviderFirstModel.display_name);
 
     await waitFor(() => {
       expect(latestDocument.graph.nodes).toEqual(
@@ -325,6 +330,13 @@ describe('LlmModelField', () => {
           })
         ])
       );
+    });
+    await waitFor(() => {
+      expect(
+        screen.queryByRole('button', {
+          name: `${secondaryProviderOption.display_name} ${secondaryProviderFirstGroup.source_instance_display_name} ${secondaryProviderFirstModel.display_name}`
+        })
+      ).not.toBeInTheDocument();
     });
   });
 });

@@ -5,6 +5,7 @@ export interface LlmProviderOption {
   label: string;
   providerCode: string;
   protocol: string;
+  parameterForm: AgentFlowModelProviderOptions['providers'][number]['parameter_form'];
   modelGroups: LlmModelGroup[];
   models: LlmModelOption[];
 }
@@ -25,9 +26,9 @@ export interface LlmModelOption {
   protocol: string;
   sourceInstanceId: string;
   sourceInstanceLabel: string;
-  parameterForm: NonNullable<
-    AgentFlowModelProviderOptions['providers'][number]['model_groups'][number]['models'][number]['parameter_form']
-  > | null;
+  contextWindow: number | null;
+  effectiveContextWindow: number | null;
+  maxOutputTokens: number | null;
   tag?: string;
 }
 
@@ -43,6 +44,77 @@ function encodeModelSelectionValue(sourceInstanceId: string, modelId: string) {
   return `${sourceInstanceId}::${modelId}`;
 }
 
+function mapLlmModelOption(
+  provider: AgentFlowModelProviderOptions['providers'][number],
+  group: AgentFlowModelProviderOptions['providers'][number]['model_groups'][number],
+  model: AgentFlowModelProviderOptions['providers'][number]['model_groups'][number]['models'][number]
+): LlmModelOption {
+  return {
+    value: model.model_id,
+    selectionValue: encodeModelSelectionValue(
+      group.source_instance_id,
+      model.model_id
+    ),
+    label: model.display_name || model.model_id,
+    providerLabel: provider.display_name,
+    providerCode: provider.provider_code,
+    protocol: provider.protocol,
+    sourceInstanceId: group.source_instance_id,
+    sourceInstanceLabel: group.source_instance_display_name,
+    contextWindow: model.context_window,
+    effectiveContextWindow: model.context_window,
+    maxOutputTokens: model.max_output_tokens,
+    tag: toTag(model.source)
+  };
+}
+
+export function formatLlmTokenCount(value: number | null | undefined) {
+  if (value === null || value === undefined) {
+    return null;
+  }
+
+  if (value >= 1000000 && value % 1000000 === 0) {
+    return `${value / 1000000}M`;
+  }
+
+  if (value >= 1000 && value % 1000 === 0) {
+    return `${value / 1000}K`;
+  }
+
+  return String(value);
+}
+
+export function buildLlmModelMetadataSummary(model: LlmModelOption) {
+  return [
+    model.value,
+    model.tag,
+    model.effectiveContextWindow !== null
+      ? `上下文 ${formatLlmTokenCount(model.effectiveContextWindow)}`
+      : null,
+    model.maxOutputTokens !== null
+      ? `输出 ${formatLlmTokenCount(model.maxOutputTokens)}`
+      : null
+  ]
+    .filter(Boolean)
+    .join(' · ');
+}
+
+export function formatModelTokenCount(value: number | null | undefined) {
+  if (value === null || value === undefined) {
+    return null;
+  }
+
+  if (value >= 1000000 && value % 1000000 === 0) {
+    return `${value / 1000000}M`;
+  }
+
+  if (value >= 1000 && value % 1000 === 0) {
+    return `${value / 1000}K`;
+  }
+
+  return String(value);
+}
+
 export function listLlmProviderOptions(
   options: AgentFlowModelProviderOptions | null | undefined
 ): LlmProviderOption[] {
@@ -51,42 +123,15 @@ export function listLlmProviderOptions(
     label: provider.display_name,
     providerCode: provider.provider_code,
     protocol: provider.protocol,
+    parameterForm: provider.parameter_form,
     modelGroups: provider.model_groups.map((group) => ({
       key: group.source_instance_id,
       label: group.source_instance_display_name,
       sourceInstanceId: group.source_instance_id,
-      models: group.models.map((model) => ({
-        value: model.model_id,
-        selectionValue: encodeModelSelectionValue(
-          group.source_instance_id,
-          model.model_id
-        ),
-        label: model.display_name || model.model_id,
-        providerLabel: provider.display_name,
-        providerCode: provider.provider_code,
-        protocol: provider.protocol,
-        sourceInstanceId: group.source_instance_id,
-        sourceInstanceLabel: group.source_instance_display_name,
-        parameterForm: model.parameter_form,
-        tag: toTag(model.source)
-      }))
+      models: group.models.map((model) => mapLlmModelOption(provider, group, model))
     })),
     models: provider.model_groups.flatMap((group) =>
-      group.models.map((model) => ({
-        value: model.model_id,
-        selectionValue: encodeModelSelectionValue(
-          group.source_instance_id,
-          model.model_id
-        ),
-        label: model.display_name || model.model_id,
-        providerLabel: provider.display_name,
-        providerCode: provider.provider_code,
-        protocol: provider.protocol,
-        sourceInstanceId: group.source_instance_id,
-        sourceInstanceLabel: group.source_instance_display_name,
-        parameterForm: model.parameter_form,
-        tag: toTag(model.source)
-      }))
+      group.models.map((model) => mapLlmModelOption(provider, group, model))
     )
   }));
 }

@@ -2,7 +2,6 @@ import type { FlowNodeType } from '@1flowbase/flow-schema';
 
 import type {
   SchemaBlock,
-  SchemaDynamicFormBlock,
   SchemaFieldBlock,
   SchemaSectionBlock
 } from '../../../shared/schema-ui/contracts/canvas-node-schema';
@@ -86,25 +85,19 @@ export function buildNodeCardBlocks(nodeType: FlowNodeType): SchemaBlock[] {
 
 export function buildCommonConfigBlocks(nodeType: FlowNodeType): SchemaBlock[] {
   const definitionSections = getNodeDefinitionSections(nodeType)
-    .filter((section) => section.key !== 'basics' && section.key !== 'outputs')
-    .flatMap((section) => {
-      const blocks: SchemaBlock[] = [createSectionBlock(section.title, section.fields)];
-
-      if (nodeType === 'llm' && section.key === 'inputs') {
-        blocks.push({
-          kind: 'section',
-          title: 'LLM 参数',
-          blocks: [
-            {
-              kind: 'dynamic_form',
-              form_key: 'llm_parameters',
-              title: 'LLM 参数'
-            } satisfies SchemaDynamicFormBlock
-          ]
-        });
+    .filter((section) => {
+      if (section.key === 'basics' || section.key === 'outputs') {
+        return false;
       }
 
-      return blocks;
+      if (nodeType === 'llm' && section.key === 'advanced') {
+        return false;
+      }
+
+      return true;
+    })
+    .flatMap((section) => {
+      return [createSectionBlock(section.title, section.fields)];
     });
   const policyBlocks: SchemaBlock[] =
     nodeType === 'start'

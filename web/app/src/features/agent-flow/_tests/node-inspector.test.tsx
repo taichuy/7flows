@@ -4,6 +4,10 @@ import { describe, expect, test, vi } from 'vitest';
 
 import { createDefaultAgentFlowDocument } from '@1flowbase/flow-schema';
 import { AppProviders } from '../../../app/AppProviders';
+import {
+  modelProviderOptionsContract,
+  modelProviderOptionsProviders
+} from '../../../test/model-provider-contract-fixtures';
 
 const schemaRuntimeSpies = vi.hoisted(() => ({
   resolveAgentFlowNodeSchema: vi.fn(),
@@ -52,6 +56,10 @@ import { NodeInspector } from '../components/inspector/NodeInspector';
 import { AgentFlowEditorStoreProvider } from '../store/editor/AgentFlowEditorStoreProvider';
 import { useAgentFlowEditorStore } from '../store/editor/provider';
 import { selectWorkingDocument } from '../store/editor/selectors';
+
+const primaryProviderOption = modelProviderOptionsProviders[0];
+const primaryProviderFirstGroup = primaryProviderOption.model_groups[0];
+const primaryProviderFirstModel = primaryProviderFirstGroup.models[0];
 
 function createInitialState() {
   return {
@@ -152,6 +160,16 @@ function renderWithProviders(ui: ReactNode) {
   return render(<AppProviders>{ui}</AppProviders>);
 }
 
+function getLlmNodeConfig(document: ReturnType<typeof createDefaultAgentFlowDocument>) {
+  const llmNode = document.graph.nodes.find((node) => node.id === 'node-llm');
+
+  if (!llmNode) {
+    throw new Error('expected default LLM node');
+  }
+
+  return llmNode.config;
+}
+
 describe('NodeInspector', () => {
   modelProviderOptionsApi.fetchModelProviderOptions.mockResolvedValue({
     providers: []
@@ -189,7 +207,9 @@ describe('NodeInspector', () => {
     expect(screen.queryByLabelText('节点简介')).not.toBeInTheDocument();
     expect(screen.queryByText('Inputs')).not.toBeInTheDocument();
     expect(screen.queryByText('Outputs')).not.toBeInTheDocument();
-    expect(screen.getByText('Advanced')).toBeInTheDocument();
+    expect(screen.queryByText('Advanced')).not.toBeInTheDocument();
+    expect(screen.queryByText('LLM 参数')).not.toBeInTheDocument();
+    expect(screen.queryByText('返回格式')).not.toBeInTheDocument();
     expect(screen.getByLabelText('失败重试')).toBeInTheDocument();
     expect(screen.getByRole('combobox', { name: '异常处理' })).toBeInTheDocument();
     expect(screen.getByLabelText('System Prompt')).toBeInTheDocument();
@@ -247,6 +267,34 @@ describe('NodeInspector', () => {
 
     await waitFor(() => {
       expect(screen.getByRole('button', { name: '模型' })).toHaveFocus();
+    });
+  });
+
+  test('shows the effective context in the model summary trigger', async () => {
+    const state = createInitialState();
+    const llmNodeConfig = getLlmNodeConfig(state.draft.document);
+
+    llmNodeConfig.model_provider = {
+      provider_code: primaryProviderOption.provider_code,
+      source_instance_id: primaryProviderFirstGroup.source_instance_id,
+      model_id: primaryProviderFirstModel.model_id,
+      provider_label: primaryProviderOption.display_name,
+      model_label: primaryProviderFirstModel.display_name
+    };
+    modelProviderOptionsApi.fetchModelProviderOptions.mockResolvedValue(
+      modelProviderOptionsContract
+    );
+
+    renderWithProviders(
+      <AgentFlowEditorStoreProvider initialState={state}>
+        <NodeConfigTab />
+      </AgentFlowEditorStoreProvider>
+    );
+
+    const modelTrigger = await screen.findByRole('button', { name: '模型' });
+
+    await waitFor(() => {
+      expect(within(modelTrigger).getByText('上下文 128K')).toBeInTheDocument();
     });
   });
 
