@@ -367,7 +367,7 @@ Expected:
 
 - PASS with the new tables and repository methods working through `PgControlPlaneStore`.
 
-- [ ] **Step 5: Commit the persistence layer**
+- [x] **Step 5: Commit the persistence layer**
 
 ```bash
 git add api/crates/storage-postgres
@@ -386,7 +386,7 @@ git commit -m "feat: persist data source platform state"
 - Modify: `api/apps/api-server/src/openapi.rs`
 - Create: `api/apps/api-server/src/_tests/data_sources_routes.rs`
 
-- [ ] **Step 1: Write failing route tests for create, validate, and preview**
+- [x] **Step 1: Write failing route tests for create, validate, and preview**
 
 Create `api/apps/api-server/src/_tests/data_sources_routes.rs`:
 
@@ -417,7 +417,7 @@ Also add route tests for:
 2. `POST /api/console/data-sources/instances/{id}/preview-read`
 3. `GET /api/console/data-sources/catalog`
 
-- [ ] **Step 2: Run the focused API-server route test to verify failure**
+- [x] **Step 2: Run the focused API-server route test to verify failure**
 
 Run:
 
@@ -429,7 +429,7 @@ Expected:
 
 - FAIL because the runtime host wiring and routes do not exist yet.
 
-- [ ] **Step 3: Add API runtime support and route handlers**
+- [x] **Step 3: Add API runtime support and route handlers**
 
 Extend `api/apps/api-server/src/provider_runtime.rs` so `ApiRuntimeServices` owns a `DataSourceHost` and the runtime wrapper implements `DataSourceRuntimePort`:
 
@@ -464,7 +464,7 @@ Register it in:
 3. `api/apps/api-server/src/lib.rs`
 4. `api/apps/api-server/src/openapi.rs`
 
-- [ ] **Step 4: Re-run the data-source API tests**
+- [x] **Step 4: Re-run the data-source API tests**
 
 Run:
 
@@ -476,7 +476,7 @@ Expected:
 
 - PASS with the API-server owning the protocol surface while still delegating runtime work to the plugin host.
 
-- [ ] **Step 5: Commit the API surface**
+- [x] **Step 5: Commit the API surface**
 
 ```bash
 git add api/apps/api-server

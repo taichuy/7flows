@@ -42,7 +42,7 @@
 - Create: `api/plugins/templates/data_source_http_fixture/README.md`
 - Modify: `api/apps/plugin-runner/tests/data_source_runtime_routes.rs`
 
-- [ ] **Step 1: Add a failing integration test that loads the checked-in template**
+- [x] **Step 1: Add a failing integration test that loads the checked-in template**
 
 Extend `api/apps/plugin-runner/tests/data_source_runtime_routes.rs` with a test like:
 
@@ -71,7 +71,7 @@ async fn loads_checked_in_data_source_template_package() {
 }
 ```
 
-- [ ] **Step 2: Run the focused test to verify failure**
+- [x] **Step 2: Run the focused test to verify failure**
 
 Run:
 
@@ -83,7 +83,7 @@ Expected:
 
 - FAIL because the checked-in template package does not exist yet.
 
-- [ ] **Step 3: Create the checked-in template package**
+- [x] **Step 3: Create the checked-in template package**
 
 Create `api/plugins/templates/data_source_http_fixture/manifest.yaml`:
 
@@ -180,7 +180,7 @@ case "${payload}" in
 esac
 ```
 
-- [ ] **Step 4: Re-run the checked-in template integration test**
+- [x] **Step 4: Re-run the checked-in template integration test**
 
 Run:
 
@@ -192,7 +192,7 @@ Expected:
 
 - PASS with the checked-in example package loadable through the real host path.
 
-- [ ] **Step 5: Commit the example template**
+- [x] **Step 5: Commit the example template**
 
 ```bash
 git add api/plugins/templates api/apps/plugin-runner/tests/data_source_runtime_routes.rs
@@ -207,7 +207,7 @@ git commit -m "feat: add example data source plugin template"
 - Modify: `api/AGENTS.md`
 - Modify: `api/plugins/templates/data_source_http_fixture/README.md`
 
-- [ ] **Step 1: Draft the author-facing rules in the new plugins guide**
+- [x] **Step 1: Draft the author-facing rules in the new plugins guide**
 
 Create `api/plugins/README.md` with sections like:
 
@@ -224,7 +224,7 @@ Create `api/plugins/README.md` with sections like:
 6. Preview access is temporary; only host-controlled import writes durable platform state.
 ```
 
-- [ ] **Step 2: Run a quick grep to confirm the new guide still needs to be wired into local docs**
+- [x] **Step 2: Run a quick grep to confirm the new guide still needs to be wired into local docs**
 
 Run:
 
@@ -236,7 +236,7 @@ Expected:
 
 - The new guide exists, but the local API docs and rules are still missing the new plugin path.
 
-- [ ] **Step 3: Update the local docs and template README**
+- [x] **Step 3: Update the local docs and template README**
 
 Add to `api/README.md`:
 
@@ -264,7 +264,7 @@ And add a usage walkthrough in `api/plugins/templates/data_source_http_fixture/R
 4. Keep the method names and output shapes identical to the contract.
 ```
 
-- [ ] **Step 4: Re-run the doc grep**
+- [x] **Step 4: Re-run the doc grep**
 
 Run:
 
@@ -276,7 +276,7 @@ Expected:
 
 - PASS with the local docs and rules aligned to the new architecture.
 
-- [ ] **Step 5: Commit the author guide**
+- [x] **Step 5: Commit the author guide**
 
 ```bash
 git add api/README.md api/AGENTS.md api/plugins
@@ -288,7 +288,7 @@ git commit -m "docs: add data source plugin author guide"
 **Files:**
 - Create: `tmp/test-governance/storage-durable-and-data-source-platform-qa.md`
 
-- [ ] **Step 1: Run the targeted regression suite**
+- [x] **Step 1: Run the targeted regression suite**
 
 Run:
 
@@ -296,7 +296,7 @@ Run:
 cargo test --manifest-path api/Cargo.toml -p storage-durable -- --nocapture
 cargo test --manifest-path api/Cargo.toml -p storage-postgres data_source_repository_tests -- --nocapture
 cargo test --manifest-path api/Cargo.toml -p plugin-framework data_source_package -- --nocapture
-cargo test --manifest-path api/Cargo.toml -p plugin-runner data_source_runtime_routes -- --nocapture
+cargo test --manifest-path api/Cargo.toml -p plugin-runner --test data_source_runtime_routes -- --nocapture
 cargo test --manifest-path api/Cargo.toml -p control-plane data_source_service_tests -- --nocapture
 cargo test --manifest-path api/Cargo.toml -p api-server data_sources_routes -- --nocapture
 cargo check --manifest-path api/Cargo.toml -p api-server
@@ -306,7 +306,7 @@ Expected:
 
 - PASS with durable-boundary, plugin-contract, platform service, and API route slices all green.
 
-- [ ] **Step 2: Run `qa-evaluation` and write the QA closeout**
+- [x] **Step 2: Run `qa-evaluation` and write the QA closeout**
 
 Capture the QA summary in:
 
@@ -322,7 +322,7 @@ The report must include:
 4. Residual risks
 5. Explicit statement that main repo officially supports PostgreSQL only
 
-- [ ] **Step 3: Verify the QA artifact exists**
+- [x] **Step 3: Verify the QA artifact exists**
 
 Run:
 
@@ -334,7 +334,7 @@ Expected:
 
 - Exit code `0`.
 
-- [ ] **Step 4: Re-run one final old-name grep across active code**
+- [x] **Step 4: Re-run one final old-name grep across active code**
 
 Run:
 
@@ -346,7 +346,7 @@ Expected:
 
 - No hits in active code or docs.
 
-- [ ] **Step 5: Commit the QA closeout**
+- [x] **Step 5: Commit the QA closeout**
 
 ```bash
 git add tmp/test-governance/storage-durable-and-data-source-platform-qa.md
