@@ -66,16 +66,23 @@ function renderWithProviders(ui: ReactNode) {
 
 async function openModelSettings() {
   fireEvent.click(await screen.findByRole('button', { name: '模型' }));
-  expect(await screen.findByRole('heading', { name: '模型设置' })).toBeInTheDocument();
+  expect(
+    await screen.findByRole('heading', { name: '模型设置' })
+  ).toBeInTheDocument();
 }
 
 async function openModelDropdown() {
-  fireEvent.mouseDown(await screen.findByRole('combobox', { name: '选择供应商和模型' }));
+  fireEvent.mouseDown(
+    await screen.findByRole('combobox', { name: '选择供应商和模型' })
+  );
 }
 
 async function clickModelOption(label: string) {
   const [option] = await screen.findAllByText((content, element) => {
-    if (!element || !element.matches('.agent-flow-model-settings__option-main')) {
+    if (
+      !element ||
+      !element.matches('.agent-flow-model-settings__option-main')
+    ) {
       return false;
     }
 
@@ -94,7 +101,9 @@ describe('LlmModelField', () => {
   });
 
   test('maps provider-level parameter schema and effective model limits from provider options', () => {
-    const providerOptions = listLlmProviderOptions(modelProviderOptionsContract);
+    const providerOptions = listLlmProviderOptions(
+      modelProviderOptionsContract
+    );
     const openaiProvider = providerOptions.find(
       (option) => option.value === primaryProviderOption.provider_code
     );
@@ -124,22 +133,32 @@ describe('LlmModelField', () => {
     expect(container.querySelector('.agent-flow-model-field')).toBeNull();
 
     await openModelSettings();
-    expect(screen.getByRole('combobox', { name: '选择供应商和模型' })).toBeInTheDocument();
-    expect(screen.queryByText(primaryProviderOption.display_name)).not.toBeInTheDocument();
+    expect(
+      screen.getByRole('combobox', { name: '选择供应商和模型' })
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByText(primaryProviderOption.display_name)
+    ).not.toBeInTheDocument();
     await openModelDropdown();
-    expect(screen.getByText(primaryProviderOption.display_name)).toBeInTheDocument();
+    expect(
+      screen.getByText(primaryProviderOption.display_name)
+    ).toBeInTheDocument();
     expect(
       screen.getByText(primaryProviderFirstGroup.source_instance_display_name)
     ).toBeInTheDocument();
     expect(
       screen.getByText(primaryProviderSecondGroup.source_instance_display_name)
     ).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: '模型供应商设置' })).toBeInTheDocument();
+    expect(
+      screen.getByRole('button', { name: '模型供应商设置' })
+    ).toBeInTheDocument();
 
     await clickModelOption(primaryProviderSecondModel.display_name);
 
     await waitFor(() => {
-      const llmNode = latestDocument.graph.nodes.find((node) => node.id === 'node-llm');
+      const llmNode = latestDocument.graph.nodes.find(
+        (node) => node.id === 'node-llm'
+      );
 
       expect(llmNode?.config).toMatchObject({
         model_provider: {
@@ -214,7 +233,9 @@ describe('LlmModelField', () => {
     );
 
     const state = createInitialState();
-    const llmNode = state.draft.document.graph.nodes.find((node) => node.id === 'node-llm');
+    const llmNode = state.draft.document.graph.nodes.find(
+      (node) => node.id === 'node-llm'
+    );
 
     if (!llmNode) {
       throw new Error('expected default LLM node');
@@ -240,6 +261,131 @@ describe('LlmModelField', () => {
     expect(screen.queryByText('返回格式')).not.toBeInTheDocument();
   });
 
+  test('renders extended openai-compatible parameters with inline row sections in the model dialog', async () => {
+    const extendedContract = JSON.parse(
+      JSON.stringify(modelProviderOptionsContract)
+    ) as typeof modelProviderOptionsContract;
+    const extendedProvider = extendedContract.providers[0];
+
+    extendedProvider.parameter_form = {
+      schema_version: '1.0.0',
+      fields: [
+        {
+          key: 'temperature',
+          label: 'Temperature',
+          type: 'number',
+          control: 'slider',
+          send_mode: 'optional',
+          enabled_by_default: false,
+          options: [],
+          visible_when: [],
+          disabled_when: [],
+          default_value: 0.7,
+          min: 0,
+          max: 2,
+          step: 0.1
+        },
+        {
+          key: 'presence_penalty',
+          label: 'Presence Penalty',
+          type: 'number',
+          control: 'slider',
+          send_mode: 'optional',
+          enabled_by_default: false,
+          options: [],
+          visible_when: [],
+          disabled_when: [],
+          default_value: 0,
+          min: -2,
+          max: 2,
+          step: 0.1
+        },
+        {
+          key: 'stop',
+          label: 'Stop',
+          type: 'string',
+          send_mode: 'optional',
+          enabled_by_default: false,
+          options: [],
+          visible_when: [],
+          disabled_when: [],
+          default_value: ''
+        },
+        {
+          key: 'user',
+          label: 'User',
+          type: 'string',
+          send_mode: 'optional',
+          enabled_by_default: false,
+          options: [],
+          visible_when: [],
+          disabled_when: [],
+          default_value: ''
+        }
+      ]
+    };
+    modelProviderOptionsApi.fetchModelProviderOptions.mockResolvedValueOnce(
+      extendedContract
+    );
+
+    const state = createInitialState();
+    const llmNode = state.draft.document.graph.nodes.find(
+      (node) => node.id === 'node-llm'
+    );
+
+    if (!llmNode) {
+      throw new Error('expected default LLM node');
+    }
+
+    llmNode.config.model_provider = {
+      provider_code: extendedProvider.provider_code,
+      source_instance_id: primaryProviderFirstGroup.source_instance_id,
+      model_id: primaryProviderFirstModel.model_id,
+      provider_label: extendedProvider.display_name,
+      model_label: primaryProviderFirstModel.display_name
+    };
+
+    renderWithProviders(
+      <AgentFlowEditorStoreProvider initialState={state}>
+        <NodeConfigTab />
+      </AgentFlowEditorStoreProvider>
+    );
+
+    await openModelSettings();
+    expect(await screen.findByText('Presence Penalty')).toBeInTheDocument();
+    expect(screen.getByText('Stop')).toBeInTheDocument();
+    expect(screen.getByText('User')).toBeInTheDocument();
+
+    const temperatureRow = screen
+      .getByText('Temperature')
+      .closest('.agent-flow-llm-parameter-form__row');
+    const stopRow = screen
+      .getByText('Stop')
+      .closest('.agent-flow-llm-parameter-form__row');
+
+    expect(temperatureRow).not.toBeNull();
+    expect(
+      temperatureRow?.querySelector('.agent-flow-llm-parameter-form__row-label')
+    ).not.toBeNull();
+    expect(
+      temperatureRow?.querySelector(
+        '.agent-flow-llm-parameter-form__row-control'
+      )
+    ).not.toBeNull();
+    expect(
+      temperatureRow?.querySelector(
+        '.agent-flow-llm-parameter-form__row-toggle'
+      )
+    ).not.toBeNull();
+    expect(temperatureRow?.querySelector('.ant-slider')).not.toBeNull();
+    expect(stopRow?.querySelector('input')).not.toBeNull();
+    expect(
+      document.body.querySelectorAll(
+        '.agent-flow-llm-parameter-form__row-control'
+      ).length
+    ).toBe(4);
+  });
+
   test('renders effective context and optional max output in the model selector options', async () => {
     const duplicatedModelContract = JSON.parse(
       JSON.stringify(modelProviderOptionsContract)
@@ -248,7 +394,8 @@ describe('LlmModelField', () => {
     duplicatedModelContract.providers[0].model_groups[0].models[0].context_window = 256000;
     duplicatedModelContract.providers[0].model_groups[0].models[0].max_output_tokens = 8192;
     duplicatedModelContract.providers[0].model_groups[1].models[0].context_window = 64000;
-    duplicatedModelContract.providers[0].model_groups[1].models[0].max_output_tokens = null;
+    duplicatedModelContract.providers[0].model_groups[1].models[0].max_output_tokens =
+      null;
     modelProviderOptionsApi.fetchModelProviderOptions.mockResolvedValueOnce(
       duplicatedModelContract
     );
@@ -269,7 +416,9 @@ describe('LlmModelField', () => {
 
   test('shows a formal error state when the current provider is unavailable', async () => {
     const state = createInitialState();
-    const llmNode = state.draft.document.graph.nodes.find((node) => node.id === 'node-llm');
+    const llmNode = state.draft.document.graph.nodes.find(
+      (node) => node.id === 'node-llm'
+    );
 
     if (!llmNode) {
       throw new Error('expected default LLM node');
@@ -321,7 +470,8 @@ describe('LlmModelField', () => {
             config: expect.objectContaining({
               model_provider: expect.objectContaining({
                 provider_code: secondaryProviderOption.provider_code,
-                source_instance_id: secondaryProviderFirstGroup.source_instance_id,
+                source_instance_id:
+                  secondaryProviderFirstGroup.source_instance_id,
                 model_id: secondaryProviderFirstModel.model_id,
                 provider_label: secondaryProviderOption.display_name,
                 model_label: secondaryProviderFirstModel.display_name

@@ -6,7 +6,11 @@
   bottom: 0;
   border: none;
   background:
-    radial-gradient(circle at top left, rgba(196, 224, 203, 0.35), transparent 34%),
+    radial-gradient(
+      circle at top left,
+      rgba(196, 224, 203, 0.35),
+      transparent 34%
+    ),
     linear-gradient(180deg, #fbfdfb, #f4f8f4);
   overflow: hidden;
 }
@@ -143,7 +147,9 @@
   border-radius: 14px;
   background: #f5f7fa;
   text-align: left;
-  transition: background-color 0.2s ease, border-color 0.2s ease;
+  transition:
+    background-color 0.2s ease,
+    border-color 0.2s ease;
 }
 
 .agent-flow-model-field__trigger:hover,
@@ -298,7 +304,8 @@
   overflow: auto;
 }
 
-.agent-flow-model-settings__provider-section + .agent-flow-model-settings__provider-section {
+.agent-flow-model-settings__provider-section
+  + .agent-flow-model-settings__provider-section {
   border-top: 1px solid #edf1f5;
 }
 
@@ -427,6 +434,72 @@
   margin-bottom: 16px;
 }
 
+.agent-flow-llm-parameter-form {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.agent-flow-llm-parameter-form__group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.agent-flow-llm-parameter-form__group-title {
+  font-size: 12px;
+}
+
+.agent-flow-llm-parameter-form__rows {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.agent-flow-llm-parameter-form__row {
+  display: grid;
+  grid-template-columns: 168px minmax(0, 1fr) auto;
+  gap: 14px;
+  align-items: center;
+}
+
+.agent-flow-llm-parameter-form__row-label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.agent-flow-llm-parameter-form__row-description {
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.agent-flow-llm-parameter-form__row-control {
+  min-width: 0;
+}
+
+.agent-flow-llm-parameter-form__row-control .ant-input,
+.agent-flow-llm-parameter-form__row-control .ant-input-number,
+.agent-flow-llm-parameter-form__row-control .ant-select {
+  width: 100%;
+}
+
+.agent-flow-llm-parameter-form__row-control .ant-slider {
+  margin: 0;
+}
+
+.agent-flow-llm-parameter-form__row-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  min-width: 64px;
+}
+
+.agent-flow-llm-parameter-form__row-fixed {
+  white-space: nowrap;
+}
+
 .agent-flow-model-settings__rows {
   display: flex;
   flex-direction: column;
@@ -520,7 +593,9 @@
   box-shadow: 0 2px 8px rgba(22, 119, 255, 0.4);
 }
 
-.react-flow__node:hover .agent-flow-node-handle--source .agent-flow-node-handle__icon,
+.react-flow__node:hover
+  .agent-flow-node-handle--source
+  .agent-flow-node-handle__icon,
 .agent-flow-node-handle--source.react-flow__handle[aria-expanded='true']
   .agent-flow-node-handle__icon {
   opacity: 1;
@@ -533,7 +608,9 @@
 
 .agent-flow-edge-label-container {
   opacity: 1;
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  transition:
+    transform 0.2s ease,
+    box-shadow 0.2s ease;
   background: white;
   border-radius: 50%;
   box-shadow: 0 2px 8px rgba(33, 62, 44, 0.12);
@@ -673,6 +750,26 @@
 }
 
 @media (max-width: 768px) {
+  .agent-flow-llm-parameter-form__row {
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 8px 12px;
+    align-items: start;
+  }
+
+  .agent-flow-llm-parameter-form__row-label {
+    grid-column: 1 / 2;
+  }
+
+  .agent-flow-llm-parameter-form__row-toggle {
+    grid-column: 2 / 3;
+    justify-self: end;
+    min-width: auto;
+  }
+
+  .agent-flow-llm-parameter-form__row-control {
+    grid-column: 1 / -1;
+  }
+
   .agent-flow-model-settings__row {
     grid-template-columns: 1fr;
     gap: 8px;
