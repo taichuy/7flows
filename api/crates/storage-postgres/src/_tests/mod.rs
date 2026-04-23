@@ -1,5 +1,6 @@
 mod application_repository_tests;
 mod crate_smoke_tests;
+mod data_source_repository_tests;
 mod flow_repository_tests;
 mod member_mapper_tests;
 mod migration_smoke;

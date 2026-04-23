@@ -242,7 +242,7 @@ Expected:
 
 - PASS with the new service layer and ports rooted.
 
-- [ ] **Step 5: Commit the domain and control-plane surface**
+- [x] **Step 5: Commit the domain and control-plane surface**
 
 ```bash
 git add api/crates/domain api/crates/control-plane
@@ -258,7 +258,7 @@ git commit -m "feat: add data source platform domain and service"
 - Modify: `api/crates/storage-postgres/src/lib.rs`
 - Modify: `api/crates/storage-postgres/src/_tests/mod.rs`
 
-- [ ] **Step 1: Write the failing repository tests**
+- [x] **Step 1: Write the failing repository tests**
 
 Create `api/crates/storage-postgres/src/_tests/data_source_repository_tests.rs`:
 
@@ -290,7 +290,7 @@ async fn creates_instance_secret_and_catalog_cache_rows() {
 }
 ```
 
-- [ ] **Step 2: Run the focused repository test to verify failure**
+- [x] **Step 2: Run the focused repository test to verify failure**
 
 Run:
 
@@ -302,7 +302,7 @@ Expected:
 
 - FAIL because the migration, repository file, and trait impl do not exist yet.
 
-- [ ] **Step 3: Add the migration and repository implementation**
+- [x] **Step 3: Add the migration and repository implementation**
 
 Create `api/crates/storage-postgres/migrations/20260423190000_add_data_source_platform.sql`:
 
@@ -355,7 +355,7 @@ Add the new repository module to `api/crates/storage-postgres/src/lib.rs`:
 pub mod data_source_repository;
 ```
 
-- [ ] **Step 4: Re-run the PostgreSQL repository tests**
+- [x] **Step 4: Re-run the PostgreSQL repository tests**
 
 Run:
 

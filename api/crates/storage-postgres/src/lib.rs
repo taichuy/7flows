@@ -3,6 +3,7 @@ extern crate self as storage_postgres;
 pub mod application_repository;
 pub mod auth_repository;
 mod connection;
+pub mod data_source_repository;
 pub mod flow_repository;
 pub mod mappers;
 pub mod member_repository;
