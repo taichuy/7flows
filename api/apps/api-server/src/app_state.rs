@@ -2,7 +2,7 @@ use async_trait::async_trait;
 use control_plane::ports::{OfficialPluginSourcePort, SessionStore};
 use domain::SessionRecord;
 use runtime_core::runtime_engine::RuntimeEngine;
-use storage_pg::PgControlPlaneStore;
+use storage_durable::MainDurableStore;
 use storage_ephemeral::{MemorySessionStore, RedisBackedSessionStore};
 use time::OffsetDateTime;
 
@@ -51,7 +51,7 @@ impl SessionStore for SessionStoreHandle {
 
 #[derive(Clone)]
 pub struct ApiState {
-    pub store: PgControlPlaneStore,
+    pub store: MainDurableStore,
     pub runtime_engine: std::sync::Arc<RuntimeEngine>,
     pub provider_runtime: std::sync::Arc<ApiRuntimeServices>,
     pub process_started_at: OffsetDateTime,

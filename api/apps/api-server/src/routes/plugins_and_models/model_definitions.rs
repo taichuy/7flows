@@ -13,6 +13,7 @@ use control_plane::model_definition::{
 };
 use control_plane::runtime_registry_sync::ModelDefinitionMutationService;
 use serde::{Deserialize, Serialize};
+use storage_durable::MainDurableStore;
 use utoipa::ToSchema;
 use uuid::Uuid;
 
@@ -197,7 +198,7 @@ fn parse_field_kind(raw: &str) -> Result<domain::ModelFieldKind, ApiError> {
 
 fn mutation_service(
     state: &ApiState,
-) -> ModelDefinitionMutationService<storage_pg::PgControlPlaneStore, ApiRuntimeRegistrySync> {
+) -> ModelDefinitionMutationService<MainDurableStore, ApiRuntimeRegistrySync> {
     ModelDefinitionMutationService::new(
         state.store.clone(),
         ApiRuntimeRegistrySync::new(state.store.clone(), state.runtime_engine.registry().clone()),

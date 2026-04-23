@@ -16,6 +16,7 @@ use control_plane::{
     ports::OrchestrationRuntimeRepository,
 };
 use serde::{Deserialize, Serialize};
+use storage_durable::MainDurableStore;
 use time::format_description::well_known::Rfc3339;
 use utoipa::ToSchema;
 use uuid::Uuid;
@@ -531,15 +532,14 @@ pub async fn list_application_runs(
     let context = require_session(&state, &headers).await?;
     ensure_application_visible(&state, context.user.id, id).await?;
 
-    let runs =
-        <storage_pg::PgControlPlaneStore as OrchestrationRuntimeRepository>::list_application_runs(
-            &state.store,
-            id,
-        )
-        .await?
-        .into_iter()
-        .map(to_flow_run_summary_response)
-        .collect();
+    let runs = <MainDurableStore as OrchestrationRuntimeRepository>::list_application_runs(
+        &state.store,
+        id,
+    )
+    .await?
+    .into_iter()
+    .map(to_flow_run_summary_response)
+    .collect();
 
     Ok(Json(ApiSuccess::new(runs)))
 }
@@ -566,14 +566,13 @@ pub async fn get_application_run_detail(
     let context = require_session(&state, &headers).await?;
     ensure_application_visible(&state, context.user.id, id).await?;
 
-    let detail =
-        <storage_pg::PgControlPlaneStore as OrchestrationRuntimeRepository>::get_application_run_detail(
-            &state.store,
-            id,
-            run_id,
-        )
-        .await?
-        .ok_or(ControlPlaneError::NotFound("flow_run"))?;
+    let detail = <MainDurableStore as OrchestrationRuntimeRepository>::get_application_run_detail(
+        &state.store,
+        id,
+        run_id,
+    )
+    .await?
+    .ok_or(ControlPlaneError::NotFound("flow_run"))?;
 
     Ok(Json(ApiSuccess::new(to_application_run_detail_response(
         detail,
@@ -602,14 +601,13 @@ pub async fn get_node_last_run(
     let context = require_session(&state, &headers).await?;
     ensure_application_visible(&state, context.user.id, id).await?;
 
-    let last_run =
-        <storage_pg::PgControlPlaneStore as OrchestrationRuntimeRepository>::get_latest_node_run(
-            &state.store,
-            id,
-            &node_id,
-        )
-        .await?
-        .map(to_node_last_run_response);
+    let last_run = <MainDurableStore as OrchestrationRuntimeRepository>::get_latest_node_run(
+        &state.store,
+        id,
+        &node_id,
+    )
+    .await?
+    .map(to_node_last_run_response);
 
     Ok(Json(ApiSuccess::new(last_run)))
 }

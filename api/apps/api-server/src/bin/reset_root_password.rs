@@ -5,15 +5,13 @@ use argon2::{
     Argon2,
 };
 use rand_core::OsRng;
-use storage_pg::{connect, run_migrations, PgControlPlaneStore};
+use storage_durable::build_main_durable_postgres;
 
 #[tokio::main]
 async fn main() -> Result<()> {
     let config = ApiConfig::from_env()?;
-    let pool = connect(&config.database_url).await?;
-    run_migrations(&pool).await?;
-
-    let store = PgControlPlaneStore::new(pool);
+    let durable = build_main_durable_postgres(&config.database_url).await?;
+    let store = durable.store;
     let tenant = store.upsert_root_tenant().await?;
     let workspace = store
         .upsert_workspace(tenant.id, &config.bootstrap_workspace_name)

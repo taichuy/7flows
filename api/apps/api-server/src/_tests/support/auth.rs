@@ -99,10 +99,10 @@ async fn test_state_with_runtime_profile_state(
 ) -> (Arc<ApiState>, String) {
     let mut config = default_test_config();
     config.database_url = isolated_database_url(&config.database_url).await;
-    let pool = storage_pg::connect(&config.database_url).await.unwrap();
-    storage_pg::run_migrations(&pool).await.unwrap();
-
-    let store = storage_pg::PgControlPlaneStore::new(pool);
+    let durable = storage_durable::build_main_durable_postgres(&config.database_url)
+        .await
+        .unwrap();
+    let store = durable.store.clone();
     let salt = SaltString::generate(&mut rand_core::OsRng);
     let root_password_hash = Argon2::default()
         .hash_password(config.bootstrap_root_password.as_bytes(), &salt)

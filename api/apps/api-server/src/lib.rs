@@ -25,7 +25,7 @@ use axum::{routing::get, Json, Router};
 use control_plane::bootstrap::{BootstrapConfig, BootstrapService};
 use rand_core::OsRng;
 use serde::Serialize;
-use storage_pg::{connect, run_migrations, PgControlPlaneStore};
+use storage_durable::build_main_durable_postgres;
 use storage_ephemeral::{EphemeralBackendKind, MemorySessionStore, RedisBackedSessionStore};
 use time::OffsetDateTime;
 use tokio::sync::RwLock;
@@ -157,10 +157,8 @@ pub async fn app_from_env() -> Result<Router> {
 }
 
 pub async fn app_from_config(config: &ApiConfig) -> Result<Router> {
-    let pool = connect(&config.database_url).await?;
-    run_migrations(&pool).await?;
-
-    let store = PgControlPlaneStore::new(pool);
+    let durable = build_main_durable_postgres(&config.database_url).await?;
+    let store = durable.store.clone();
     let session_store = match config.ephemeral_backend {
         EphemeralBackendKind::Memory => {
             SessionStoreHandle::Memory(MemorySessionStore::new(SESSION_STORE_NAMESPACE))

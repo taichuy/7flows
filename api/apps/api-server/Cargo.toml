@@ -33,6 +33,7 @@ runtime-core = { path = "../../crates/runtime-core" }
 publish-gateway = { path = "../../crates/publish-gateway" }
 access-control = { path = "../../crates/access-control" }
 plugin-framework = { path = "../../crates/plugin-framework" }
+storage-durable = { path = "../../crates/storage-durable" }
 storage-pg = { path = "../../crates/storage-pg" }
 storage-ephemeral = { path = "../../crates/storage-ephemeral" }
 storage-object = { path = "../../crates/storage-object" }

@@ -14,6 +14,7 @@ use control_plane::plugin_management::{
     PluginManagementService, SwitchPluginVersionCommand, UpgradeLatestPluginFamilyCommand,
 };
 use serde::{Deserialize, Serialize};
+use storage_durable::MainDurableStore;
 use time::format_description::well_known::Rfc3339;
 use utoipa::{IntoParams, ToSchema};
 use uuid::Uuid;
@@ -231,7 +232,7 @@ pub fn router() -> Router<Arc<ApiState>> {
 
 fn service(
     state: &ApiState,
-) -> PluginManagementService<storage_pg::PgControlPlaneStore, ApiProviderRuntime> {
+) -> PluginManagementService<MainDurableStore, ApiProviderRuntime> {
     PluginManagementService::new(
         state.store.clone(),
         ApiProviderRuntime::new(state.provider_runtime.clone()),

@@ -2,16 +2,16 @@ use anyhow::Result;
 use async_trait::async_trait;
 use control_plane::ports::RuntimeRegistrySync;
 use runtime_core::runtime_model_registry::RuntimeModelRegistry;
-use storage_pg::PgControlPlaneStore;
+use storage_durable::MainDurableStore;
 
 #[derive(Clone)]
 pub struct ApiRuntimeRegistrySync {
-    store: PgControlPlaneStore,
+    store: MainDurableStore,
     registry: RuntimeModelRegistry,
 }
 
 impl ApiRuntimeRegistrySync {
-    pub fn new(store: PgControlPlaneStore, registry: RuntimeModelRegistry) -> Self {
+    pub fn new(store: MainDurableStore, registry: RuntimeModelRegistry) -> Self {
         Self { store, registry }
     }
 }

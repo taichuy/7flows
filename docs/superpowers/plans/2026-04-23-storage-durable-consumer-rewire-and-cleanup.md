@@ -44,7 +44,7 @@
 - Modify: `api/apps/api-server/src/_tests/support/auth.rs`
 - Modify: `api/apps/api-server/src/_tests/support/applications.rs`
 
-- [ ] **Step 1: Make one consumer test compile against the durable boundary first**
+- [x] **Step 1: Make one consumer test compile against the durable boundary first**
 
 Update `api/apps/api-server/tests/health_routes.rs` and the shared support helpers to expect the new builder:
 
@@ -61,7 +61,7 @@ And update type imports away from `storage_pg::PgControlPlaneStore`:
 use storage_durable::MainDurableStore;
 ```
 
-- [ ] **Step 2: Run the focused API-server tests to verify the compile break**
+- [x] **Step 2: Run the focused API-server tests to verify the compile break**
 
 Run:
 
@@ -73,7 +73,7 @@ Expected:
 
 - FAIL because API-server still imports `storage_pg` directly.
 
-- [ ] **Step 3: Rewire the API-server host bootstrap**
+- [x] **Step 3: Rewire the API-server host bootstrap**
 
 Update `api/apps/api-server/Cargo.toml`:
 
@@ -114,7 +114,7 @@ let durable = storage_durable::build_main_durable_postgres(&config.database_url)
 let store = durable.store;
 ```
 
-- [ ] **Step 4: Run the focused API-server tests**
+- [x] **Step 4: Run the focused API-server tests**
 
 Run:
 
@@ -127,7 +127,7 @@ Expected:
 
 - PASS with API-server bootstrapping through `storage-durable`.
 
-- [ ] **Step 5: Commit the consumer rewire**
+- [x] **Step 5: Commit the consumer rewire**
 
 ```bash
 git add api/apps/api-server/Cargo.toml api/apps/api-server/src api/apps/api-server/tests
