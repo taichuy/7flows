@@ -1,0 +1,24 @@
+source_code: data_source_http_fixture
+display_name: Data Source HTTP Fixture
+auth_modes:
+  - api_key
+capabilities:
+  - validate_config
+  - test_connection
+  - discover_catalog
+  - describe_resource
+  - preview_read
+  - import_snapshot
+supports_sync: true
+supports_webhook: false
+resource_kinds:
+  - endpoint
+config_schema:
+  - key: base_url
+    label: Base URL
+    type: string
+    required: true
+  - key: api_key
+    label: API Key
+    type: string
+    required: true

@@ -387,3 +387,26 @@ async fn validates_and_discovers_catalog_through_data_source_routes() {
     assert_eq!(status, StatusCode::OK);
     assert_eq!(import_payload["schema_version"], "v1");
 }
+
+#[tokio::test]
+async fn loads_checked_in_data_source_template_package() {
+    let package_root = Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("../../plugins/templates/data_source_http_fixture");
+
+    let app = app();
+    let (status, payload) = request_json(
+        &app,
+        Method::POST,
+        "/data-sources/load",
+        json!({
+            "package_root": package_root,
+        }),
+    )
+    .await;
+
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(
+        payload["plugin_id"].as_str(),
+        Some("data_source_http_fixture@0.1.0")
+    );
+}

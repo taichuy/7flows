@@ -1,0 +1,4 @@
+{
+  "plugin.display_name": "Data Source HTTP Fixture",
+  "plugin.description": "Example data source runtime extension package"
+}

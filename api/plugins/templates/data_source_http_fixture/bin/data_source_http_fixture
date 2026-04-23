@@ -1,0 +1,28 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+payload="$(cat)"
+case "${payload}" in
+  *'"method":"validate_config"'*)
+    printf '%s' '{"ok":true,"result":{"ok":true}}'
+    ;;
+  *'"method":"test_connection"'*)
+    printf '%s' '{"ok":true,"result":{"status":"ok"}}'
+    ;;
+  *'"method":"discover_catalog"'*)
+    printf '%s' '{"ok":true,"result":[{"resource_key":"contacts","display_name":"Contacts","resource_kind":"endpoint","metadata":{}}]}'
+    ;;
+  *'"method":"describe_resource"'*)
+    printf '%s' '{"ok":true,"result":{"resource_key":"contacts","primary_key":"id","fields":[],"supports_preview_read":true,"supports_import_snapshot":true,"metadata":{}}}'
+    ;;
+  *'"method":"preview_read"'*)
+    printf '%s' '{"ok":true,"result":{"rows":[{"id":"1","email":"person@example.com"}],"next_cursor":null}}'
+    ;;
+  *'"method":"import_snapshot"'*)
+    printf '%s' '{"ok":true,"result":{"rows":[{"id":"1","email":"person@example.com"}],"schema_version":"v1","metadata":{}}}'
+    ;;
+  *)
+    printf '%s' '{"ok":false,"error":{"kind":"provider_invalid_response","message":"unknown method","provider_summary":null}}'
+    exit 1
+    ;;
+esac

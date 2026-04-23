@@ -1,0 +1,28 @@
+manifest_version: 1
+plugin_id: data_source_http_fixture@0.1.0
+version: 0.1.0
+vendor: flowbase
+display_name: Data Source HTTP Fixture
+description: Example data source runtime extension package
+source_kind: filesystem_dropin
+trust_level: unverified
+consumption_kind: runtime_extension
+execution_mode: process_per_call
+slot_codes:
+  - data_source
+binding_targets:
+  - workspace
+selection_mode: assignment_then_select
+minimum_host_version: 0.1.0
+contract_version: 1flowbase.data_source/v1
+schema_version: 1flowbase.plugin.manifest/v1
+permissions:
+  network: outbound_only
+  secrets: provider_instance_only
+  storage: none
+  mcp: none
+  subprocess: deny
+runtime:
+  protocol: stdio_json
+  entry: bin/data_source_http_fixture
+node_contributions: []
