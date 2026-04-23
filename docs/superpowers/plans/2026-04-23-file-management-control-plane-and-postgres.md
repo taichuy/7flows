@@ -225,7 +225,7 @@ git commit -m "feat: add file management domain and permissions"
 - Modify: `api/crates/control-plane/src/_tests/mod.rs`
 - Modify: `api/crates/control-plane/src/_tests/support.rs`
 
-- [ ] **Step 1: Write the failing service-level authorization tests**
+- [x] **Step 1: Write the failing service-level authorization tests**
 
 Create `api/crates/control-plane/src/_tests/file_management_service_tests.rs`:
 
@@ -278,7 +278,7 @@ async fn only_root_can_rebind_file_table_storage() {
 }
 ```
 
-- [ ] **Step 2: Run the focused control-plane tests to verify they fail**
+- [x] **Step 2: Run the focused control-plane tests to verify they fail**
 
 Run:
 
@@ -290,7 +290,7 @@ Expected:
 
 - FAIL because the file-management ports, commands, and test repository do not exist yet.
 
-- [ ] **Step 3: Define repository ports and service commands**
+- [x] **Step 3: Define repository ports and service commands**
 
 Create `api/crates/control-plane/src/ports/file_management.rs`:
 
@@ -471,7 +471,7 @@ mod file_management;
 pub use file_management::*;
 ```
 
-- [ ] **Step 4: Re-run the focused control-plane tests**
+- [x] **Step 4: Re-run the focused control-plane tests**
 
 Run:
 
@@ -483,7 +483,7 @@ Expected:
 
 - PASS with non-root actors denied for storage creation and binding changes.
 
-- [ ] **Step 5: Commit the control-plane service layer**
+- [x] **Step 5: Commit the control-plane service layer**
 
 ```bash
 git add api/crates/control-plane

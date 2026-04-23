@@ -1,6 +1,7 @@
 mod application;
 mod auth;
 mod data_source;
+mod file_management;
 mod flow;
 mod model_definition;
 mod model_provider;
@@ -24,6 +25,7 @@ use uuid::Uuid;
 pub use application::*;
 pub use auth::*;
 pub use data_source::*;
+pub use file_management::*;
 pub use flow::*;
 pub use model_definition::*;
 pub use model_provider::*;

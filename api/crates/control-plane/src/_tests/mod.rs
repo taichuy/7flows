@@ -2,6 +2,7 @@ mod application;
 mod bootstrap_tests;
 mod capability_plugin_runtime_tests;
 mod data_source_service_tests;
+mod file_management_service_tests;
 mod flow;
 mod host_extension_service_tests;
 mod member;

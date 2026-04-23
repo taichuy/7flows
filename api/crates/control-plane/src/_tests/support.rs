@@ -12,17 +12,20 @@ use argon2::{
     Argon2,
 };
 use async_trait::async_trait;
+use time::OffsetDateTime;
 use tokio::sync::RwLock;
 use uuid::Uuid;
 
 use crate::ports::{
-    AuthRepository, BootstrapRepository, CreateMemberInput, CreateWorkspaceRoleInput,
-    MemberRepository, RoleRepository, SessionStore, UpdateProfileInput, UpdateWorkspaceRoleInput,
+    AuthRepository, BootstrapRepository, CreateFileStorageInput, CreateMemberInput,
+    CreateWorkspaceRoleInput, FileManagementRepository, MemberRepository, RoleRepository,
+    SessionStore, UpdateFileStorageBindingInput, UpdateProfileInput, UpdateWorkspaceRoleInput,
     WorkspaceRepository,
 };
 use domain::{
-    ActorContext, AuditLogRecord, AuthenticatorRecord, BoundRole, PermissionDefinition,
-    RoleScopeKind, RoleTemplate, ScopeContext, SessionRecord, TenantRecord, UserRecord, UserStatus,
+    ActorContext, AuditLogRecord, AuthenticatorRecord, BoundRole, FileStorageHealthStatus,
+    FileStorageRecord, FileTableRecord, FileTableScopeKind, PermissionDefinition, RoleScopeKind,
+    RoleTemplate, ScopeContext, SessionRecord, TenantRecord, UserRecord, UserStatus,
     WorkspaceRecord,
 };
 
@@ -831,5 +834,136 @@ impl SessionStore for MemorySessionStore {
             existing.expires_at_unix = expires_at_unix;
         }
         Ok(())
+    }
+}
+
+pub fn memory_actor_context(is_root: bool, permissions: &[&str]) -> ActorContext {
+    let user_id = Uuid::now_v7();
+    let workspace_id = Uuid::nil();
+    if is_root {
+        ActorContext::root(user_id, workspace_id, "root")
+    } else {
+        ActorContext::scoped(
+            user_id,
+            workspace_id,
+            "manager",
+            permissions.iter().map(|permission| permission.to_string()),
+        )
+    }
+}
+
+#[derive(Clone)]
+pub struct MemoryFileManagementRepository {
+    actor: ActorContext,
+    file_storages: Arc<RwLock<HashMap<Uuid, FileStorageRecord>>>,
+    file_tables: Arc<RwLock<HashMap<Uuid, FileTableRecord>>>,
+}
+
+impl MemoryFileManagementRepository {
+    pub fn new(actor: ActorContext) -> Self {
+        Self {
+            actor,
+            file_storages: Arc::new(RwLock::new(HashMap::new())),
+            file_tables: Arc::new(RwLock::new(HashMap::new())),
+        }
+    }
+}
+
+#[async_trait]
+impl FileManagementRepository for MemoryFileManagementRepository {
+    async fn load_actor_context_for_user(&self, actor_user_id: Uuid) -> Result<ActorContext> {
+        let mut actor = self.actor.clone();
+        actor.user_id = actor_user_id;
+        Ok(actor)
+    }
+
+    async fn create_file_storage(
+        &self,
+        input: &CreateFileStorageInput,
+    ) -> Result<FileStorageRecord> {
+        let now = OffsetDateTime::now_utc();
+        let record = FileStorageRecord {
+            id: input.storage_id,
+            code: input.code.clone(),
+            title: input.title.clone(),
+            driver_type: input.driver_type.clone(),
+            enabled: input.enabled,
+            is_default: input.is_default,
+            config_json: input.config_json.clone(),
+            rule_json: input.rule_json.clone(),
+            health_status: FileStorageHealthStatus::Unknown,
+            last_health_error: None,
+            created_by: input.actor_user_id,
+            updated_by: input.actor_user_id,
+            created_at: now,
+            updated_at: now,
+        };
+        self.file_storages
+            .write()
+            .await
+            .insert(record.id, record.clone());
+        Ok(record)
+    }
+
+    async fn list_file_storages(&self) -> Result<Vec<FileStorageRecord>> {
+        Ok(self.file_storages.read().await.values().cloned().collect())
+    }
+
+    async fn get_default_file_storage(&self) -> Result<Option<FileStorageRecord>> {
+        Ok(self
+            .file_storages
+            .read()
+            .await
+            .values()
+            .find(|record| record.is_default)
+            .cloned())
+    }
+
+    async fn get_file_storage(&self, storage_id: Uuid) -> Result<Option<FileStorageRecord>> {
+        Ok(self.file_storages.read().await.get(&storage_id).cloned())
+    }
+
+    async fn list_visible_file_tables(&self, workspace_id: Uuid) -> Result<Vec<FileTableRecord>> {
+        Ok(self
+            .file_tables
+            .read()
+            .await
+            .values()
+            .filter(|record| {
+                matches!(record.scope_kind, FileTableScopeKind::System)
+                    || record.scope_id == workspace_id
+            })
+            .cloned()
+            .collect())
+    }
+
+    async fn update_file_table_binding(
+        &self,
+        input: &UpdateFileStorageBindingInput,
+    ) -> Result<FileTableRecord> {
+        let mut file_tables = self.file_tables.write().await;
+        let now = OffsetDateTime::now_utc();
+        let record = file_tables
+            .entry(input.file_table_id)
+            .or_insert_with(|| FileTableRecord {
+                id: input.file_table_id,
+                code: format!("file-table-{}", input.file_table_id),
+                title: "File Table".to_string(),
+                scope_kind: FileTableScopeKind::Workspace,
+                scope_id: Uuid::nil(),
+                model_definition_id: Uuid::nil(),
+                bound_storage_id: input.bound_storage_id,
+                is_builtin: false,
+                is_default: false,
+                status: "active".to_string(),
+                created_by: input.actor_user_id,
+                updated_by: input.actor_user_id,
+                created_at: now,
+                updated_at: now,
+            });
+        record.bound_storage_id = input.bound_storage_id;
+        record.updated_by = input.actor_user_id;
+        record.updated_at = now;
+        Ok(record.clone())
     }
 }
