@@ -16,8 +16,8 @@ match_when:
   - 需要评估多模态附件、图片生成产物或模型文件输入输出链路
   - 需要区分插件产物存储与业务文件存储
 created_at: 2026-04-23 20
-updated_at: 2026-04-23 20
-last_verified_at: 2026-04-23 20
+updated_at: 2026-04-23 22
+last_verified_at: 2026-04-23 22
 decision_policy: verify_before_decision
 scope:
   - api/crates/storage-object
@@ -70,8 +70,12 @@ scope:
 - 系统内建默认 `attachment/files` 文件表模板；新建文件表第一版直接复用这套固定字段模板，不支持额外自定义扩展字段。
 - 文件表权限不单独发明新模型，直接复用动态建表运行态数据权限体系，按 CRUD 与 `own/all` 范围控制。
 - 文件表改绑存储器第一版只影响之后的新上传；旧文件继续保留原 `storage_id`，不做迁移任务。
+- 该方向的正式 spec 已落到 `docs/superpowers/specs/2026-04-23-file-manager-storage-design.md`。
+- 实施阶段已拆成 `1+n` implementation plan，索引文档为 `docs/superpowers/plans/2026-04-23-file-manager-storage-index.md`，后续执行按子计划顺序推进。
 
 ## 关联文档
 
 - `api/crates/storage-object`
 - `api/apps/api-server/src/config.rs`
+- `docs/superpowers/specs/2026-04-23-file-manager-storage-design.md`
+- `docs/superpowers/plans/2026-04-23-file-manager-storage-index.md`
