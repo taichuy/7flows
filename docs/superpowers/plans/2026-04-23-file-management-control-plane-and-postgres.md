@@ -817,7 +817,7 @@ git commit -m "feat: persist file management metadata in postgres"
 **Files:**
 - Modify: `api/crates/control-plane/src/_tests/support.rs`
 
-- [ ] **Step 1: Add a minimal in-memory file-management repository to test support**
+- [x] **Step 1: Add a minimal in-memory file-management repository to test support**
 
 Add to `api/crates/control-plane/src/_tests/support.rs`:
 
@@ -844,7 +844,7 @@ pub fn memory_actor_context(is_root: bool, permissions: &[&str]) -> domain::Acto
 }
 ```
 
-- [ ] **Step 2: Run the focused control-plane and repository tests together**
+- [x] **Step 2: Run the focused control-plane and repository tests together**
 
 Run:
 
@@ -857,7 +857,7 @@ Expected:
 
 - PASS for both crates with the same metadata semantics.
 
-- [ ] **Step 3: Run the bootstrap-related smoke tests to protect catalog growth**
+- [x] **Step 3: Run the bootstrap-related smoke tests to protect catalog growth**
 
 Run:
 
@@ -869,7 +869,7 @@ Expected:
 
 - PASS, confirming new permissions do not break auto-grant role behavior.
 
-- [ ] **Step 4: Review the diff for scope leakage**
+- [x] **Step 4: Review the diff for scope leakage**
 
 Run:
 
@@ -881,7 +881,7 @@ Expected:
 
 - `storage-object` not touched here, and no multipart or route code appears in this metadata plan.
 
-- [ ] **Step 5: Commit the completed control-plane and persistence foundation**
+- [x] **Step 5: Commit the completed control-plane and persistence foundation**
 
 ```bash
 git add api/crates/domain api/crates/access-control api/crates/control-plane api/crates/storage-postgres

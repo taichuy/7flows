@@ -14,12 +14,12 @@
 
 - Last updated: 2026-04-23 20
 - Overall status: In progress
-- Current phase: Phase 2 - Metadata, Permission, And Persistence Root
-- Current task: `2026-04-23-file-management-control-plane-and-postgres.md` / Task 4
+- Current phase: Phase 3 - Provisioning, Upload, And Runtime Access
+- Current task: `2026-04-23-file-table-template-upload-and-runtime-access.md` / Task 1
 - Phase snapshot:
   - Phase 1 - Driver Boundary Root: Completed
-  - Phase 2 - Metadata, Permission, And Persistence Root: In progress
-  - Phase 3 - Provisioning, Upload, And Runtime Access: Pending
+  - Phase 2 - Metadata, Permission, And Persistence Root: Completed
+  - Phase 3 - Provisioning, Upload, And Runtime Access: In progress
   - Phase 4 - Console And Final Regression: Pending
 
 ## Approved Design Source
