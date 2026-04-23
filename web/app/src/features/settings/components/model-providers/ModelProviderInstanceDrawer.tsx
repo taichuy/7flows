@@ -240,6 +240,7 @@ export function ModelProviderInstanceDrawer({
   function clearPreviewState() {
     setPreviewModels([]);
     setPreviewToken(undefined);
+    setSelectedCachedModelId(undefined);
   }
 
   function normalizeConfiguredModels(rows: ConfiguredModelRow[]) {
@@ -277,33 +278,24 @@ export function ModelProviderInstanceDrawer({
   }
 
   function applyCachedModelSelection(modelId: string | null) {
-    if (!modelId) {
+    setSelectedCachedModelId(modelId ?? undefined);
+  }
+
+  function handleAppendConfiguredModelRow() {
+    const selectedModelId = selectedCachedModelId?.trim();
+
+    if (!selectedModelId) {
+      appendConfiguredModelRow();
+      return;
+    }
+
+    if (configuredModels.some((row) => row.model_id.trim() === selectedModelId)) {
       setSelectedCachedModelId(undefined);
       return;
     }
 
+    appendConfiguredModelRow({ model_id: selectedModelId });
     setSelectedCachedModelId(undefined);
-    setConfiguredModels((current) => {
-      if (current.some((row) => row.model_id.trim() === modelId)) {
-        return current;
-      }
-
-      const emptyRowIndex = current.findIndex((row) => row.model_id.trim().length === 0);
-      if (emptyRowIndex >= 0) {
-        return current.map((row, index) =>
-          index === emptyRowIndex ? { ...row, model_id: modelId, enabled: true } : row
-        );
-      }
-
-      return [
-        ...current,
-        {
-          key: nextConfiguredModelKey(),
-          model_id: modelId,
-          enabled: true
-        }
-      ];
-    });
   }
 
   async function handleRevealSecret(fieldKey: string) {
@@ -621,7 +613,7 @@ export function ModelProviderInstanceDrawer({
                   emptyMode="disabled-select"
                   onChange={applyCachedModelSelection}
                 />
-                <Button type="dashed" onClick={() => appendConfiguredModelRow()}>
+                <Button type="dashed" onClick={handleAppendConfiguredModelRow}>
                   添加模型
                 </Button>
               </Flex>

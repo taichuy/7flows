@@ -1107,9 +1107,12 @@ describe('ModelProvidersPage', () => {
       fireEvent.mouseDown(cachedModelSelect);
       fireEvent.click(await screen.findByText('gpt-4o-mini'));
 
-      expect(screen.getByLabelText('模型 ID 1')).toHaveValue('gpt-4o-mini');
+      expect(screen.queryByLabelText('模型 ID 1')).not.toBeInTheDocument();
 
       fireEvent.click(screen.getByRole('button', { name: '添加模型' }));
+
+      expect(screen.getByLabelText('模型 ID 1')).toHaveValue('gpt-4o-mini');
+
       fireEvent.click(screen.getByRole('button', { name: '添加模型' }));
 
       fireEvent.change(screen.getByLabelText('模型 ID 2'), {
