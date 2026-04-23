@@ -14,6 +14,12 @@ pub struct BootstrapConfig {
     pub root_nickname: String,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct BootstrapResult {
+    pub workspace_id: uuid::Uuid,
+    pub root_user_id: uuid::Uuid,
+}
+
 pub struct BootstrapService<R> {
     repository: R,
 }
@@ -26,7 +32,7 @@ where
         Self { repository }
     }
 
-    pub async fn run(&self, config: &BootstrapConfig) -> Result<()> {
+    pub async fn run(&self, config: &BootstrapConfig) -> Result<BootstrapResult> {
         self.repository
             .upsert_authenticator(&AuthenticatorRecord {
                 name: "password-local".into(),
@@ -47,7 +53,8 @@ where
             .upsert_workspace(tenant.id, &config.workspace_name)
             .await?;
         self.repository.upsert_builtin_roles(workspace.id).await?;
-        self.repository
+        let root_user = self
+            .repository
             .upsert_root_user(
                 workspace.id,
                 &config.root_account,
@@ -58,6 +65,9 @@ where
             )
             .await?;
 
-        Ok(())
+        Ok(BootstrapResult {
+            workspace_id: workspace.id,
+            root_user_id: root_user.id,
+        })
     }
 }

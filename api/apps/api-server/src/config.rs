@@ -32,6 +32,7 @@ impl ApiEnvironment {
 pub struct ApiConfig {
     pub env: ApiEnvironment,
     pub database_url: String,
+    pub business_file_local_root: String,
     pub ephemeral_backend: EphemeralBackendKind,
     pub ephemeral_redis_url: Option<String>,
     pub plugin_runner_internal_base_url: String,
@@ -164,6 +165,7 @@ impl ApiConfig {
         Ok(Self {
             env,
             database_url: get("API_DATABASE_URL")?,
+            business_file_local_root: default_business_file_local_root(),
             ephemeral_backend,
             ephemeral_redis_url,
             plugin_runner_internal_base_url: map
@@ -269,6 +271,16 @@ fn default_provider_install_root() -> String {
         .unwrap_or(current_dir)
         .join("api")
         .join("plugins")
+        .display()
+        .to_string()
+}
+
+fn default_business_file_local_root() -> String {
+    let current_dir = std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."));
+    find_workspace_root(&current_dir)
+        .unwrap_or(current_dir)
+        .join("api")
+        .join("storage")
         .display()
         .to_string()
 }

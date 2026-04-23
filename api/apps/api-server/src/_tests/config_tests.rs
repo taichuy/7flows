@@ -110,6 +110,23 @@ fn api_config_defaults_provider_install_root_to_api_workspace_plugins_directory(
 }
 
 #[test]
+fn api_config_uses_api_storage_as_default_business_file_root() {
+    let config = ApiConfig::from_env_map(&[
+        (
+            "API_DATABASE_URL",
+            "postgres://postgres:1flowbase@127.0.0.1:35432/1flowbase",
+        ),
+        ("BOOTSTRAP_WORKSPACE_NAME", "System"),
+        ("BOOTSTRAP_ROOT_ACCOUNT", "root"),
+        ("BOOTSTRAP_ROOT_EMAIL", "root@example.com"),
+        ("BOOTSTRAP_ROOT_PASSWORD", "password"),
+    ])
+    .unwrap();
+
+    assert!(config.business_file_local_root.ends_with("api/storage"));
+}
+
+#[test]
 fn api_config_rejects_production_without_allowed_origins() {
     let error = ApiConfig::from_env_map(&[
         (

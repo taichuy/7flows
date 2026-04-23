@@ -177,8 +177,9 @@ pub async fn app_from_config(config: &ApiConfig) -> Result<Router> {
         .hash_password(config.bootstrap_root_password.as_bytes(), &salt)
         .map_err(|err| anyhow::anyhow!("failed to hash bootstrap root password: {err}"))?
         .to_string();
+    let _file_storage_registry = Arc::new(storage_object::builtin_driver_registry());
 
-    BootstrapService::new(store.clone())
+    let bootstrap_result = BootstrapService::new(store.clone())
         .run(&BootstrapConfig {
             workspace_name: config.bootstrap_workspace_name.clone(),
             root_account: config.bootstrap_root_account.clone(),
@@ -187,6 +188,35 @@ pub async fn app_from_config(config: &ApiConfig) -> Result<Router> {
             root_name: config.bootstrap_root_name.clone(),
             root_nickname: config.bootstrap_root_nickname.clone(),
         })
+        .await?;
+    let default_storage = if let Some(existing) =
+        <storage_durable::MainDurableStore as control_plane::ports::FileManagementRepository>::get_default_file_storage(&store)
+            .await?
+    {
+        existing
+    } else {
+        control_plane::file_management::FileStorageService::new(store.clone())
+            .create_storage(control_plane::file_management::CreateFileStorageCommand {
+                actor_user_id: bootstrap_result.root_user_id,
+                code: "local_default".into(),
+                title: "Local".into(),
+                driver_type: "local".into(),
+                enabled: true,
+                is_default: true,
+                config_json: serde_json::json!({
+                    "root_path": config.business_file_local_root.clone(),
+                    "public_base_url": null
+                }),
+                rule_json: serde_json::json!({}),
+            })
+            .await?
+    };
+    control_plane::file_management::FileManagementBootstrapService::new(store.clone())
+        .ensure_builtin_attachments(
+            bootstrap_result.root_user_id,
+            default_storage.id,
+            "attachments",
+        )
         .await?;
     let runtime_registry = runtime_core::runtime_model_registry::RuntimeModelRegistry::default();
     runtime_registry.rebuild(store.list_runtime_model_metadata().await?);

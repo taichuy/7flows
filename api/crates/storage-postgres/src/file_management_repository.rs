@@ -1,7 +1,8 @@
 use anyhow::Result;
 use async_trait::async_trait;
 use control_plane::ports::{
-    AuthRepository, CreateFileStorageInput, FileManagementRepository,
+    AuthRepository, CreateFileStorageInput, CreateFileTableRegistrationInput,
+    FileManagementRepository,
     UpdateFileStorageBindingInput,
 };
 use sqlx::Row;
@@ -73,6 +74,30 @@ impl FileManagementRepository for PgControlPlaneStore {
         AuthRepository::load_actor_context_for_user(self, actor_user_id).await
     }
 
+    async fn find_file_table_by_code(
+        &self,
+        code: &str,
+    ) -> Result<Option<domain::FileTableRecord>> {
+        let row = sqlx::query("select * from file_tables where code = $1")
+            .bind(code)
+            .fetch_optional(self.pool())
+            .await?;
+
+        row.map(map_file_table).transpose()
+    }
+
+    async fn get_file_table(
+        &self,
+        file_table_id: Uuid,
+    ) -> Result<Option<domain::FileTableRecord>> {
+        let row = sqlx::query("select * from file_tables where id = $1")
+            .bind(file_table_id)
+            .fetch_optional(self.pool())
+            .await?;
+
+        row.map(map_file_table).transpose()
+    }
+
     async fn create_file_storage(
         &self,
         input: &CreateFileStorageInput,
@@ -124,6 +149,50 @@ impl FileManagementRepository for PgControlPlaneStore {
         .await?;
 
         map_file_storage(row)
+    }
+
+    async fn create_file_table_registration(
+        &self,
+        input: &CreateFileTableRegistrationInput,
+    ) -> Result<domain::FileTableRecord> {
+        let row = sqlx::query(
+            r#"
+            insert into file_tables (
+                id,
+                code,
+                title,
+                scope_kind,
+                scope_id,
+                model_definition_id,
+                bound_storage_id,
+                is_builtin,
+                is_default,
+                status,
+                created_by,
+                updated_by
+            ) values (
+                $1, $2, $3, $4, $5, $6, $7, $8, $9, 'active', $10, $10
+            )
+            returning *
+            "#,
+        )
+        .bind(input.file_table_id)
+        .bind(&input.code)
+        .bind(&input.title)
+        .bind(match input.scope_kind {
+            domain::FileTableScopeKind::System => "system",
+            domain::FileTableScopeKind::Workspace => "workspace",
+        })
+        .bind(input.scope_id)
+        .bind(input.model_definition_id)
+        .bind(input.bound_storage_id)
+        .bind(input.is_builtin)
+        .bind(input.is_default)
+        .bind(input.actor_user_id)
+        .fetch_one(self.pool())
+        .await?;
+
+        map_file_table(row)
     }
 
     async fn list_file_storages(&self) -> Result<Vec<domain::FileStorageRecord>> {

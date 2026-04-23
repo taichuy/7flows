@@ -421,6 +421,8 @@ git commit -m "feat: add file table provisioning services"
 
 ### Task 2: Wire Startup Bootstrap And The Storage Driver Registry Into API State
 
+> Execution note (2026-04-23 20): This task landed the business-file local root config, default local storage bootstrap, and builtin `attachments` startup provisioning in the API startup flow. The storage driver registry is initialized during startup, but a persistent `ApiState` field is deferred to the later route/upload slice because the current `ApiState` test support constructs the state directly and would otherwise force a broad test-surface expansion in this step.
+
 **Files:**
 - Modify: `api/crates/control-plane/src/bootstrap.rs`
 - Modify: `api/crates/control-plane/src/_tests/bootstrap_tests.rs`
@@ -431,7 +433,7 @@ git commit -m "feat: add file table provisioning services"
 - Modify: `api/apps/api-server/src/config.rs`
 - Modify: `api/apps/api-server/src/lib.rs`
 
-- [ ] **Step 1: Write the failing config and startup tests**
+- [x] **Step 1: Write the failing config and startup tests**
 
 Add to `api/apps/api-server/src/_tests/config_tests.rs`:
 
@@ -451,7 +453,7 @@ fn api_config_uses_api_storage_as_default_business_file_root() {
 }
 ```
 
-- [ ] **Step 2: Run the focused config test to verify it fails**
+- [x] **Step 2: Run the focused config test to verify it fails**
 
 Run:
 
@@ -463,7 +465,7 @@ Expected:
 
 - FAIL because `business_file_local_root` does not exist yet.
 
-- [ ] **Step 3: Add the startup root-path setting and bootstrap call**
+- [x] **Step 3: Add the startup root-path setting and bootstrap call**
 
 Update `api/crates/control-plane/src/bootstrap.rs` so startup can reuse the seeded root user id:
 
@@ -606,7 +608,7 @@ And add the new fields when building `ApiState`:
         business_file_local_root: config.business_file_local_root.clone(),
 ```
 
-- [ ] **Step 4: Re-run the focused config test**
+- [x] **Step 4: Re-run the focused config test**
 
 Run:
 
@@ -618,7 +620,7 @@ Expected:
 
 - PASS with the derived default root ending in `api/storage`.
 
-- [ ] **Step 5: Commit the startup bootstrap wiring**
+- [x] **Step 5: Commit the startup bootstrap wiring**
 
 ```bash
 git add api/crates/control-plane api/crates/storage-postgres api/apps/api-server
