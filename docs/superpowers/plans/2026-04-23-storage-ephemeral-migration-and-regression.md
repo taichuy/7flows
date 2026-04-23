@@ -48,7 +48,7 @@
 - Modify: `api/Cargo.lock`
 - Modify: `api/apps/api-server/Cargo.toml`
 
-- [ ] **Step 1: Write the failing search checks**
+- [x] **Step 1: Write the failing search checks**
 
 Run the pre-delete checks:
 
@@ -60,7 +60,7 @@ Expected:
 
 - FINDINGS in workspace membership, crate references, API-server imports, and docs. These are the migration targets.
 
-- [ ] **Step 2: Delete the old crate and switch dependency names**
+- [x] **Step 2: Delete the old crate and switch dependency names**
 
 Apply changes like:
 
@@ -78,7 +78,7 @@ And:
 storage-ephemeral = { path = "../../crates/storage-ephemeral" }
 ```
 
-- [ ] **Step 3: Re-run the search checks**
+- [x] **Step 3: Re-run the search checks**
 
 Run:
 
@@ -90,7 +90,7 @@ Expected:
 
 - PASS with no code references remaining. Documentation updates may still be pending in the next task if the search is intentionally scoped to code only.
 
-- [ ] **Step 4: Refresh the lockfile**
+- [x] **Step 4: Refresh the lockfile**
 
 Run:
 
@@ -103,7 +103,7 @@ Expected:
 
 - PASS with `Cargo.lock` refreshed to the new crate name and the API-server compiling against `storage-ephemeral`.
 
-- [ ] **Step 5: Commit the crate migration**
+- [x] **Step 5: Commit the crate migration**
 
 ```bash
 git add api/Cargo.toml api/Cargo.lock api/apps/api-server/Cargo.toml
@@ -121,7 +121,7 @@ git commit -m "refactor: replace storage-redis with storage-ephemeral"
 - Modify: `api/apps/api-server/.env.production.example`
 - Modify: `web/app/.env.example`
 
-- [ ] **Step 1: Write the failing doc/env search checks**
+- [x] **Step 1: Write the failing doc/env search checks**
 
 Run:
 
@@ -133,7 +133,7 @@ Expected:
 
 - FINDINGS that still describe Redis as the default or mandatory backend.
 
-- [ ] **Step 2: Update docs and environment vocabulary**
+- [x] **Step 2: Update docs and environment vocabulary**
 
 Make the docs and env files say:
 
@@ -148,7 +148,7 @@ API_EPHEMERAL_BACKEND=memory
 # API_EPHEMERAL_REDIS_URL=redis://:1flowbase@127.0.0.1:36379
 ```
 
-- [ ] **Step 3: Re-run the doc/env search checks**
+- [x] **Step 3: Re-run the doc/env search checks**
 
 Run:
 
@@ -160,7 +160,7 @@ Expected:
 
 - PASS with the new capability name and optional Redis config spelled consistently.
 
-- [ ] **Step 4: Commit the docs and env updates**
+- [x] **Step 4: Commit the docs and env updates**
 
 ```bash
 git add api/README.md api/AGENTS.md api/apps/api-server/.env api/apps/api-server/.env.example api/apps/api-server/.env.production.example web/app/.env.example
@@ -175,7 +175,7 @@ git commit -m "docs: update storage-ephemeral naming and env examples"
 - Modify: `api/apps/api-server/tests/health_routes.rs`
 - Create: `tmp/test-governance/storage-ephemeral-qa.md`
 
-- [ ] **Step 1: Add or update focused regression coverage**
+- [x] **Step 1: Add or update focused regression coverage**
 
 Ensure coverage exists for:
 
@@ -190,7 +190,7 @@ async fn logout_and_revoke_all_remove_memory_backed_sessions() { ... }
 async fn switch_workspace_rewrites_memory_backed_session_payload() { ... }
 ```
 
-- [ ] **Step 2: Run the focused regression suite**
+- [x] **Step 2: Run the focused regression suite**
 
 Run:
 
@@ -207,7 +207,7 @@ Expected:
 
 - PASS with memory backend as the default and session behavior green across auth, logout, revoke-all, and workspace switching.
 
-- [ ] **Step 3: Run `qa-evaluation` and save the closeout artifact**
+- [x] **Step 3: Run `qa-evaluation` and save the closeout artifact**
 
 Create `tmp/test-governance/storage-ephemeral-qa.md` with sections:
 
@@ -223,7 +223,7 @@ Create `tmp/test-governance/storage-ephemeral-qa.md` with sections:
 
 And record the exact test commands plus pass/fail outcome there.
 
-- [ ] **Step 4: Commit the regression closeout**
+- [x] **Step 4: Commit the regression closeout**
 
 ```bash
 git add api/apps/api-server/src/_tests/support/auth.rs api/apps/api-server/src/_tests/config_tests.rs api/apps/api-server/tests/health_routes.rs tmp/test-governance/storage-ephemeral-qa.md
