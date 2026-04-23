@@ -23,6 +23,7 @@ import type {
   PreviewSettingsModelProviderModelsResponse
 } from '../../api/model-providers';
 import { CollapseShell } from '../../../../shared/ui/collapse-shell/CollapseShell';
+import { CachedModelSelect } from './CachedModelSelect';
 
 type DrawerMode = 'create' | 'edit';
 type ModelProviderFormValue = string | boolean;
@@ -170,6 +171,7 @@ export function ModelProviderInstanceDrawer({
   const [previewModels, setPreviewModels] = useState<PreviewModelDescriptor[]>([]);
   const configuredModelKeyRef = useRef(0);
   const [configuredModels, setConfiguredModels] = useState<ConfiguredModelRow[]>([]);
+  const [selectedCachedModelId, setSelectedCachedModelId] = useState<string | undefined>();
   const [previewToken, setPreviewToken] = useState<string | undefined>();
   const [previewingModels, setPreviewingModels] = useState(false);
 
@@ -205,6 +207,7 @@ export function ModelProviderInstanceDrawer({
       setPreviewModels([]);
       configuredModelKeyRef.current = 0;
       setConfiguredModels([]);
+      setSelectedCachedModelId(undefined);
       setPreviewToken(undefined);
       setPreviewingModels(false);
       return;
@@ -215,6 +218,7 @@ export function ModelProviderInstanceDrawer({
       config: buildInitialConfig(mode, catalogEntry, instance)
     });
     setConfiguredModels(buildInitialConfiguredModels());
+    setSelectedCachedModelId(undefined);
     setSecretDrafts({});
     setRevealedSecretKeys({});
     setRevealingSecretKey(null);
@@ -260,6 +264,36 @@ export function ModelProviderInstanceDrawer({
         enabled: initial?.enabled ?? true
       }
     ]);
+  }
+
+  function applyCachedModelSelection(modelId: string | null) {
+    if (!modelId) {
+      setSelectedCachedModelId(undefined);
+      return;
+    }
+
+    setSelectedCachedModelId(undefined);
+    setConfiguredModels((current) => {
+      if (current.some((row) => row.model_id.trim() === modelId)) {
+        return current;
+      }
+
+      const emptyRowIndex = current.findIndex((row) => row.model_id.trim().length === 0);
+      if (emptyRowIndex >= 0) {
+        return current.map((row, index) =>
+          index === emptyRowIndex ? { ...row, model_id: modelId, enabled: true } : row
+        );
+      }
+
+      return [
+        ...current,
+        {
+          key: nextConfiguredModelKey(),
+          model_id: modelId,
+          enabled: true
+        }
+      ];
+    });
   }
 
   async function handleRevealSecret(fieldKey: string) {
@@ -569,9 +603,14 @@ export function ModelProviderInstanceDrawer({
             <Divider orientation="left">模型配置</Divider>
             <Space direction="vertical" size={12} style={{ width: '100%' }}>
               <Flex justify="space-between" align="center" gap={12}>
-                <Typography.Text type="secondary">
-                  缓存模型
-                </Typography.Text>
+                <CachedModelSelect
+                  modelIds={previewModels.map((model) => model.model_id)}
+                  ariaLabel="缓存模型"
+                  placeholder="缓存模型"
+                  value={selectedCachedModelId}
+                  emptyMode="disabled-select"
+                  onChange={applyCachedModelSelection}
+                />
                 <Button type="dashed" onClick={() => appendConfiguredModelRow()}>
                   添加模型
                 </Button>

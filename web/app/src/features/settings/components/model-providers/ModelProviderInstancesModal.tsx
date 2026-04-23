@@ -16,6 +16,7 @@ import type {
   SettingsModelProviderModelCatalog
 } from '../../api/model-providers';
 import { CollapseShell } from '../../../../shared/ui/collapse-shell/CollapseShell';
+import { CachedModelSelect } from './CachedModelSelect';
 
 function renderStatusTag(status: string) {
   switch (status) {
@@ -83,32 +84,6 @@ function formatCatalogRefreshedAt(value: string | null) {
   }
 
   return `${matched[1]} ${matched[2]}`;
-}
-
-function renderModelSelect(modelIds: string[], instanceDisplayName: string) {
-  if (modelIds.length === 0) {
-    return <Typography.Text type="secondary">暂无候选模型</Typography.Text>;
-  }
-
-  return (
-    <Select
-      aria-label={`候选缓存 ${instanceDisplayName}`}
-      className="model-provider-panel__model-select"
-      defaultValue={modelIds[0]}
-      options={modelIds.map((modelId) => ({
-        value: modelId,
-        label: modelId
-      }))}
-      filterOption={(input, option) =>
-        String(option?.label ?? '')
-          .toLowerCase()
-          .includes(input.toLowerCase())
-      }
-      optionFilterProp="label"
-      popupMatchSelectWidth={false}
-      showSearch
-    />
-  );
 }
 
 export function ModelProviderInstancesModal({
@@ -333,7 +308,12 @@ export function ModelProviderInstancesModal({
                               </span>
                             </div>
                           ) : hasLoadedModels ? (
-                            renderModelSelect(cachedModels, instance.display_name)
+                            <CachedModelSelect
+                              modelIds={cachedModels}
+                              ariaLabel={`候选缓存 ${instance.display_name}`}
+                              className="model-provider-panel__model-select"
+                              defaultValue={cachedModels[0]}
+                            />
                           ) : (
                             <Typography.Text type="secondary">
                               当前仅显示摘要，点击展开时会自动拉取候选缓存。

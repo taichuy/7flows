@@ -1102,12 +1102,15 @@ describe('ModelProvidersPage', () => {
         expect(previewModels).toHaveBeenCalledWith(expectedConfig);
       });
 
+      const cachedModelSelect = screen.getByRole('combobox', { name: '缓存模型' });
+      fireEvent.mouseDown(cachedModelSelect);
+      fireEvent.click(await screen.findByText('gpt-4o-mini'));
+
+      expect(screen.getByLabelText('模型 ID 1')).toHaveValue('gpt-4o-mini');
+
       fireEvent.click(screen.getByRole('button', { name: '添加模型' }));
       fireEvent.click(screen.getByRole('button', { name: '添加模型' }));
 
-      fireEvent.change(screen.getByLabelText('模型 ID 1'), {
-        target: { value: 'gpt-4o-mini' }
-      });
       fireEvent.change(screen.getByLabelText('模型 ID 2'), {
         target: { value: 'manual-model-id' }
       });
