@@ -1,5 +1,8 @@
+# 记忆
+与用户交流过程中命中对应记忆存储规则自动更新对应记忆中
 @.memory/AGENTS.md
 @user-memory.md
+
 # 本项目相关skill在
 .agents/skills
 如果没有注册，请自行更新到对应约定目录
