@@ -34,7 +34,7 @@
 - Modify: `/home/taichu/git/1flowbase-official-plugins/runtime-extensions/model-providers/openai_compatible/provider/openai_compatible.yaml`
 - Modify: `/home/taichu/git/1flowbase-official-plugins/runtime-extensions/model-providers/openai_compatible/readme/README_en_US.md`
 
-- [ ] **Step 1: Write the schema section in provider metadata**
+- [x] **Step 1: Write the schema section in provider metadata**
   - Add `parameter_form` to `provider/openai_compatible.yaml`.
   - Include first-pass fields:
     - `temperature`
@@ -42,7 +42,7 @@
     - `max_tokens`
     - `seed`
 
-- [ ] **Step 2: Validate the YAML shape against host expectations**
+- [x] **Step 2: Validate the YAML shape against host expectations**
 
 Run from `/home/taichu/git/1flowbase`:
 
@@ -54,7 +54,7 @@ Expected:
 
 - PASS once the host-side provider-package parser from the backend plan is available.
 
-- [ ] **Step 3: Update README contract notes**
+- [x] **Step 3: Update README contract notes**
   - Document that the plugin now exposes provider-level parameter schema and explicit model metadata extraction only.
 
 ### Task 2: Extract Explicit Model Metadata In `src/lib.rs`
@@ -62,7 +62,7 @@ Expected:
 **Files:**
 - Modify: `/home/taichu/git/1flowbase-official-plugins/runtime-extensions/model-providers/openai_compatible/src/lib.rs`
 
-- [ ] **Step 1: Add failing unit tests around model normalization**
+- [x] **Step 1: Add failing unit tests around model normalization**
   - Cover payloads exposing:
     - `context_window`
     - `context_length`
@@ -72,7 +72,7 @@ Expected:
     - `max_tokens`
   - Cover a payload with none of the above and assert `None`.
 
-- [ ] **Step 2: Run plugin unit tests and verify RED**
+- [x] **Step 2: Run plugin unit tests and verify RED**
 
 Run:
 
@@ -84,12 +84,12 @@ Expected:
 
 - FAIL because `normalize_model_entry()` still hard-codes `context_window = None` and `max_output_tokens = None`.
 
-- [ ] **Step 3: Implement explicit field extraction**
+- [x] **Step 3: Implement explicit field extraction**
   - Add numeric extraction helpers that accept integer JSON values from the known aliases only.
   - Keep unknown or malformed values as `None`.
   - Leave invocation passthrough behavior unchanged.
 
-- [ ] **Step 4: Re-run plugin unit tests and verify GREEN**
+- [x] **Step 4: Re-run plugin unit tests and verify GREEN**
 
 Run:
 
@@ -107,13 +107,16 @@ Expected:
 - Modify: `/home/taichu/git/1flowbase-official-plugins/runtime-extensions/model-providers/openai_compatible/manifest.yaml`
 - Modify: `/home/taichu/git/1flowbase-official-plugins/runtime-extensions/model-providers/openai_compatible/Cargo.toml`
 
-- [ ] **Step 1: Update version metadata**
+Current repo constraint:
+- `Cargo.toml` keeps the sentinel crate version `0.0.0`; repo workflow tests enforce `manifest.yaml` as the single release-version source for `openai_compatible`.
+
+- [x] **Step 1: Update version metadata**
   - Bump the plugin package version in:
     - `manifest.yaml`
     - `Cargo.toml`
   - Keep both files aligned.
 
-- [ ] **Step 2: Build the plugin binary and verify it still compiles**
+- [x] **Step 2: Build the plugin binary and verify it still compiles**
 
 Run:
 
@@ -130,7 +133,7 @@ Expected:
 **Files:**
 - Modify only the files listed above in the sibling plugin repository
 
-- [ ] **Step 1: Stage the plugin-repo files**
+- [x] **Step 1: Stage the plugin-repo files**
 
 Run:
 
@@ -143,7 +146,7 @@ git -C /home/taichu/git/1flowbase-official-plugins add \
   runtime-extensions/model-providers/openai_compatible/readme/README_en_US.md
 ```
 
-- [ ] **Step 2: Commit the plugin slice**
+- [x] **Step 2: Commit the plugin slice**
 
 Run:
 
