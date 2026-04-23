@@ -499,7 +499,7 @@ git commit -m "feat: add file management control plane services"
 - Modify: `api/crates/storage-postgres/src/lib.rs`
 - Modify: `api/crates/storage-postgres/src/_tests/mod.rs`
 
-- [ ] **Step 1: Write the failing PostgreSQL repository tests**
+- [x] **Step 1: Write the failing PostgreSQL repository tests**
 
 Create `api/crates/storage-postgres/src/_tests/file_management_repository_tests.rs`:
 
@@ -546,7 +546,7 @@ async fn file_management_repository_creates_default_storage_and_updates_bindings
 }
 ```
 
-- [ ] **Step 2: Run the focused storage-postgres tests to verify they fail**
+- [x] **Step 2: Run the focused storage-postgres tests to verify they fail**
 
 Run:
 
@@ -558,7 +558,7 @@ Expected:
 
 - FAIL because the migration, repository file, and exports do not exist yet.
 
-- [ ] **Step 3: Add the migration and repository implementation**
+- [x] **Step 3: Add the migration and repository implementation**
 
 Create `api/crates/storage-postgres/migrations/20260423203000_add_file_management_platform.sql`:
 
@@ -793,7 +793,7 @@ pub mod file_management_repository;
 mod file_management_repository_tests;
 ```
 
-- [ ] **Step 4: Re-run the focused storage-postgres tests**
+- [x] **Step 4: Re-run the focused storage-postgres tests**
 
 Run:
 
@@ -805,7 +805,7 @@ Expected:
 
 - PASS with the migration applied and basic create/list/binding behavior available.
 
-- [ ] **Step 5: Commit the durable metadata layer**
+- [x] **Step 5: Commit the durable metadata layer**
 
 ```bash
 git add api/crates/storage-postgres
