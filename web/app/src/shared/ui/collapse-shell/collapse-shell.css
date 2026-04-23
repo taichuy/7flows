@@ -26,14 +26,30 @@
 .collapse-shell > .ant-collapse-item > .ant-collapse-header {
   background: transparent;
   border-radius: 0 !important;
+  color: var(--text-primary);
   transition:
     background 0.2s ease,
-    box-shadow 0.2s ease;
+    box-shadow 0.2s ease,
+    color 0.2s ease;
+}
+
+.collapse-shell > .ant-collapse-item > .ant-collapse-header .ant-collapse-arrow {
+  color: var(--text-tertiary);
+  transition: color 0.2s ease;
 }
 
 .collapse-shell > .ant-collapse-item-active > .ant-collapse-header {
-  background: transparent;
+  background: linear-gradient(
+    90deg,
+    color-mix(in srgb, var(--color-primary) 12%, transparent) 0%,
+    color-mix(in srgb, var(--color-primary-strong) 6%, transparent) 100%
+  );
   box-shadow: none;
+  color: color-mix(in srgb, var(--text-primary) 78%, var(--color-primary-strong));
+}
+
+.collapse-shell > .ant-collapse-item-active > .ant-collapse-header .ant-collapse-arrow {
+  color: var(--color-primary);
 }
 
 .collapse-shell > .ant-collapse-item > .ant-collapse-content {

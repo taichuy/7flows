@@ -231,7 +231,8 @@ export function ApplicationListPage() {
         {canCreate && (
           <div
             style={{
-              background: 'linear-gradient(180deg, #f8fafc 0%, #eef6ff 100%)',
+              background:
+                'linear-gradient(180deg, rgba(248, 250, 252, 0.5) 0%, #7affc62e 100%)',
               borderRadius: 18,
               padding: 20,
               display: 'flex',
