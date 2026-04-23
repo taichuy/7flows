@@ -3,7 +3,9 @@ use storage_durable::{build_main_durable_postgres, DurableBackendKind, MainDurab
 #[test]
 fn durable_backend_kind_parses_postgres() {
     assert_eq!(
-        DurableBackendKind::from_env_value("postgres").unwrap().as_str(),
+        DurableBackendKind::from_env_value("postgres")
+            .unwrap()
+            .as_str(),
         "postgres"
     );
 }

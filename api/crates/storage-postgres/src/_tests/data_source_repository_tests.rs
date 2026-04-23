@@ -163,12 +163,11 @@ async fn creates_instance_secret_and_catalog_cache_rows() {
     .unwrap();
     assert_eq!(cache.refresh_status, DataSourceCatalogRefreshStatus::Ready);
 
-    let loaded_secret = <PgControlPlaneStore as DataSourceRepository>::get_secret_json(
-        &store, created.id,
-    )
-    .await
-    .unwrap()
-    .unwrap();
+    let loaded_secret =
+        <PgControlPlaneStore as DataSourceRepository>::get_secret_json(&store, created.id)
+            .await
+            .unwrap()
+            .unwrap();
     assert_eq!(loaded_secret, json!({ "client_secret": "secret" }));
 }
 

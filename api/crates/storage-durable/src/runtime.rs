@@ -8,9 +8,7 @@ pub struct MainDurableRuntime {
     pub store: MainDurableStore,
 }
 
-pub async fn build_main_durable_postgres(
-    database_url: &str,
-) -> anyhow::Result<MainDurableRuntime> {
+pub async fn build_main_durable_postgres(database_url: &str) -> anyhow::Result<MainDurableRuntime> {
     let pool = storage_postgres::connect(database_url).await?;
     storage_postgres::run_migrations(&pool).await?;
 

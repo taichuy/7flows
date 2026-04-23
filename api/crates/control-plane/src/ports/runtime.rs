@@ -1,5 +1,7 @@
 use super::*;
-use plugin_framework::data_source_contract::{DataSourcePreviewReadInput, DataSourcePreviewReadOutput};
+use plugin_framework::data_source_contract::{
+    DataSourcePreviewReadInput, DataSourcePreviewReadOutput,
+};
 
 #[async_trait]
 pub trait RuntimeRegistrySync: Send + Sync {

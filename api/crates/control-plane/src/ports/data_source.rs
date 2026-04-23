@@ -68,10 +68,8 @@ pub trait DataSourceRepository: Send + Sync {
         &self,
         input: &UpsertDataSourceSecretInput,
     ) -> anyhow::Result<domain::DataSourceSecretRecord>;
-    async fn get_secret_json(
-        &self,
-        instance_id: Uuid,
-    ) -> anyhow::Result<Option<serde_json::Value>>;
+    async fn get_secret_json(&self, instance_id: Uuid)
+        -> anyhow::Result<Option<serde_json::Value>>;
     async fn upsert_catalog_cache(
         &self,
         input: &UpsertDataSourceCatalogCacheInput,

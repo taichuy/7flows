@@ -236,10 +236,7 @@ impl DataSourceRepository for PgControlPlaneStore {
         map_secret(row)
     }
 
-    async fn get_secret_json(
-        &self,
-        instance_id: Uuid,
-    ) -> Result<Option<serde_json::Value>> {
+    async fn get_secret_json(&self, instance_id: Uuid) -> Result<Option<serde_json::Value>> {
         let row = sqlx::query(
             r#"
             select encrypted_secret_json

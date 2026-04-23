@@ -321,7 +321,10 @@ impl DataSourceRepository for InMemoryDataSourceRepository {
             created_at: OffsetDateTime::now_utc(),
             updated_at: OffsetDateTime::now_utc(),
         };
-        self.instances.write().await.insert(record.id, record.clone());
+        self.instances
+            .write()
+            .await
+            .insert(record.id, record.clone());
         Ok(record)
     }
 
