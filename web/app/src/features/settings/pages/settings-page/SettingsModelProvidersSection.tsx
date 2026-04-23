@@ -13,10 +13,8 @@ import { ModelProviderInstancesModal } from '../../components/model-providers/Mo
 import { OfficialPluginInstallPanel } from '../../components/model-providers/OfficialPluginInstallPanel';
 import { PluginUploadInstallModal } from '../../components/model-providers/PluginUploadInstallModal';
 import {
-  fetchSettingsModelProviderModels,
   settingsModelProviderCatalogQueryKey,
   settingsModelProviderInstancesQueryKey,
-  settingsModelProviderModelsQueryKey,
   settingsModelProviderOptionsQueryKey
 } from '../../api/model-providers';
 import {
@@ -27,8 +25,8 @@ import '../../components/model-providers/model-provider-panel.css';
 import { ModelProviderOverviewSummary } from './model-providers/ModelProviderOverviewSummary';
 import {
   getErrorMessage,
+  MODEL_PROVIDER_MAIN_INSTANCE_QUERY_KEY_PREFIX,
   MODEL_PROVIDER_MODELS_QUERY_KEY_PREFIX,
-  pickPreferredInstanceId,
   resetUploadState,
   type ModelProviderDrawerState,
   type ModelProviderInstanceModalState,
@@ -90,6 +88,9 @@ export function SettingsModelProvidersSection({
         queryKey: settingsModelProviderOptionsQueryKey
       }),
       queryClient.invalidateQueries({
+        queryKey: MODEL_PROVIDER_MAIN_INSTANCE_QUERY_KEY_PREFIX
+      }),
+      queryClient.invalidateQueries({
         queryKey: MODEL_PROVIDER_MODELS_QUERY_KEY_PREFIX
       }),
       queryClient.invalidateQueries({
@@ -109,35 +110,37 @@ export function SettingsModelProvidersSection({
     familiesQuery,
     officialCatalogQuery,
     instancesQuery,
-    modelsQuery,
+    optionsQuery,
+    mainInstanceQuery,
     families,
     officialCatalogEntries,
     officialSourceMeta,
     currentCatalogEntriesByProviderCode,
     familiesByProviderCode,
-    instancesByProviderCode,
     instanceCounts,
-    primaryInstanceSummary,
+    includedInstanceCounts,
     editingInstance,
     editingModelCatalog,
     drawerCatalogEntry,
+    drawerDefaultIncludedInMain,
     modalInstances,
     modalCatalogEntry,
+    modalProviderOption,
     overviewRows
   } = useModelProviderData({
     drawerState,
-    instanceModalState,
-    setInstanceModalState
+    instanceModalState
   });
   const {
     createMutation,
     updateMutation,
+    updateInstanceInclusionMutation,
+    updateMainInstanceSettingsMutation,
     previewMutation,
     validateMutation,
     refreshMutation,
     revealSecretMutation,
     deleteMutation,
-    updateRoutingMutation,
     familyDeleteMutation,
     officialInstallMutation,
     uploadMutation,
@@ -158,15 +161,17 @@ export function SettingsModelProvidersSection({
     getErrorMessage(familiesQuery.error) ??
     getErrorMessage(officialCatalogQuery.error) ??
     getErrorMessage(instancesQuery.error) ??
-    getErrorMessage(modelsQuery.error) ??
+    getErrorMessage(optionsQuery.error) ??
+    getErrorMessage(mainInstanceQuery.error) ??
     getErrorMessage(createMutation.error) ??
     getErrorMessage(updateMutation.error) ??
+    getErrorMessage(updateInstanceInclusionMutation.error) ??
+    getErrorMessage(updateMainInstanceSettingsMutation.error) ??
     getErrorMessage(previewMutation.error) ??
     getErrorMessage(revealSecretMutation.error) ??
     getErrorMessage(validateMutation.error) ??
     getErrorMessage(refreshMutation.error) ??
     getErrorMessage(deleteMutation.error) ??
-    getErrorMessage(updateRoutingMutation.error) ??
     getErrorMessage(familyDeleteMutation.error) ??
     getErrorMessage(officialInstallMutation.error) ??
     getErrorMessage(versionMutation.error) ??
@@ -196,7 +201,7 @@ export function SettingsModelProvidersSection({
               entries={families}
               currentCatalogEntries={currentCatalogEntriesByProviderCode}
               instanceCounts={instanceCounts}
-              primaryInstanceSummary={primaryInstanceSummary}
+              includedInstanceCounts={includedInstanceCounts}
               loading={catalogQuery.isLoading || familiesQuery.isLoading}
               canManage={canManage}
               deletingProviderCode={
@@ -217,11 +222,8 @@ export function SettingsModelProvidersSection({
                   : null
               }
               onViewInstances={(entry) => {
-                const providerInstances =
-                  instancesByProviderCode[entry.provider_code] ?? [];
                 setInstanceModalState({
-                  providerCode: entry.provider_code,
-                  selectedInstanceId: pickPreferredInstanceId(providerInstances)
+                  providerCode: entry.provider_code
                 });
               }}
               onCreate={(entry) => {
@@ -322,6 +324,7 @@ export function SettingsModelProvidersSection({
         catalogEntry={drawerCatalogEntry}
         instance={editingInstance}
         cachedModelCatalog={editingModelCatalog}
+        defaultIncludedInMain={drawerDefaultIncludedInMain}
         submitting={createMutation.isPending || updateMutation.isPending}
         onClose={() => setDrawerState(null)}
         onRevealSecret={async (fieldKey) => {
@@ -343,6 +346,7 @@ export function SettingsModelProvidersSection({
             await updateMutation.mutateAsync({
               instanceId: editingInstance.id,
               display_name: values.display_name,
+              included_in_main: values.included_in_main,
               configured_models: values.configured_models,
               preview_token: values.preview_token,
               config: values.config
@@ -357,6 +361,7 @@ export function SettingsModelProvidersSection({
           await createMutation.mutateAsync({
             installationId: drawerCatalogEntry.installation_id,
             display_name: values.display_name,
+            included_in_main: values.included_in_main,
             configured_models: values.configured_models,
             preview_token: values.preview_token,
             config: values.config
@@ -384,9 +389,24 @@ export function SettingsModelProvidersSection({
       <ModelProviderInstancesModal
         open={instanceModalState !== null}
         catalogEntry={modalCatalogEntry}
+        mainInstance={
+          mainInstanceQuery.data ??
+          (modalProviderOption
+            ? {
+                provider_code: modalProviderOption.provider_code,
+                auto_include_new_instances:
+                  modalProviderOption.main_instance.auto_include_new_instances
+              }
+            : null)
+        }
+        modelGroups={modalProviderOption?.model_groups ?? []}
         instances={modalInstances}
-        modelCatalog={modelsQuery.data ?? null}
-        modelsLoading={modelsQuery.isFetching}
+        updatingMainInstance={updateMainInstanceSettingsMutation.isPending}
+        updatingInstanceId={
+          updateInstanceInclusionMutation.isPending
+            ? (updateInstanceInclusionMutation.variables?.instance.id ?? null)
+            : null
+        }
         refreshingCandidates={validateMutation.isPending}
         refreshing={refreshMutation.isPending}
         deleting={deleteMutation.isPending}
@@ -410,22 +430,6 @@ export function SettingsModelProvidersSection({
               : current
           );
         }}
-        onChangeInstance={(instanceId) => {
-          setInstanceModalState((current) =>
-            current
-              ? {
-                  ...current,
-                  selectedInstanceId: instanceId
-                }
-              : current
-          );
-        }}
-        onFetchModels={(instance) => {
-          void queryClient.fetchQuery({
-            queryKey: settingsModelProviderModelsQueryKey(instance.id),
-            queryFn: () => fetchSettingsModelProviderModels(instance.id)
-          });
-        }}
         onEdit={(instance) => {
           setInstanceModalState(null);
           setDrawerState({
@@ -442,14 +446,20 @@ export function SettingsModelProvidersSection({
         onDelete={(instance) => {
           deleteMutation.mutate(instance.id);
         }}
-        onUpdatePrimary={(instanceId) => {
+        onToggleAutoIncludeNewInstances={(checked) => {
           if (!instanceModalState) {
             return;
           }
 
-          updateRoutingMutation.mutate({
+          updateMainInstanceSettingsMutation.mutate({
             providerCode: instanceModalState.providerCode,
-            primaryInstanceId: instanceId
+            auto_include_new_instances: checked
+          });
+        }}
+        onToggleIncludedInMain={(instance, checked) => {
+          updateInstanceInclusionMutation.mutate({
+            instance,
+            included_in_main: checked
           });
         }}
       />

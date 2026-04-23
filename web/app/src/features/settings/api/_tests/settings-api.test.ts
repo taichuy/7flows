@@ -1,9 +1,72 @@
 import { afterEach, describe, expect, test, vi } from 'vitest';
 import {
   modelProviderCatalogContract,
-  modelProviderCatalogEntries,
-  modelProviderOptionsContract
+  modelProviderCatalogEntries
 } from '../../../../test/model-provider-contract-fixtures';
+
+const modelProviderApiFixtures = vi.hoisted(() => ({
+  mainInstance: {
+    provider_code: 'openai_compatible',
+    auto_include_new_instances: true
+  },
+  options: {
+    locale_meta: {
+      requested_locale: 'zh_Hans',
+      resolved_locale: 'zh_Hans',
+      user_preferred_locale: 'zh_Hans',
+      accept_language: 'zh-Hans-CN,zh;q=0.9,en;q=0.8',
+      fallback_locale: 'en_US',
+      supported_locales: ['zh_Hans', 'en_US']
+    },
+    i18n_catalog: {
+      'plugin.openai_compatible': {
+        zh_Hans: {
+          'provider.label': 'OpenAI Compatible',
+          'provider.description': 'OpenAI 协议兼容供应商'
+        }
+      }
+    },
+    providers: [
+      {
+        provider_code: 'openai_compatible',
+        plugin_type: 'model_provider',
+        namespace: 'plugin.openai_compatible',
+        label_key: 'provider.label',
+        description_key: 'provider.description',
+        protocol: 'openai_responses',
+        display_name: 'OpenAI Compatible',
+        main_instance: {
+          provider_code: 'openai_compatible',
+          auto_include_new_instances: true,
+          group_count: 2,
+          model_count: 2
+        },
+        model_groups: [
+          {
+            source_instance_id: 'provider-openai-prod',
+            source_instance_display_name: 'OpenAI Production',
+            models: [
+              {
+                model_id: 'gpt-4o-mini',
+                display_name: 'GPT-4o Mini',
+                source: 'runtime_catalog',
+                supports_streaming: true,
+                supports_tool_call: true,
+                supports_multimodal: true,
+                context_window: 128000,
+                max_output_tokens: 16384,
+                parameter_form: null,
+                provider_metadata: {}
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}));
+
+const modelProviderOptionsContract = modelProviderApiFixtures.options;
 
 vi.mock('@1flowbase/api-client', () => ({
   fetchConsoleApiDocsCatalog: vi.fn().mockResolvedValue({ categories: [] }),
@@ -33,7 +96,10 @@ vi.mock('@1flowbase/api-client', () => ({
   listConsoleModelProviderInstances: vi.fn().mockResolvedValue([]),
   listConsoleModelProviderOptions: vi
     .fn()
-    .mockResolvedValue(modelProviderOptionsContract),
+    .mockResolvedValue(modelProviderApiFixtures.options),
+  getConsoleModelProviderMainInstance: vi
+    .fn()
+    .mockResolvedValue(modelProviderApiFixtures.mainInstance),
   getConsoleModelProviderModels: vi.fn().mockResolvedValue({
     provider_instance_id: 'provider-1',
     models: []
@@ -47,12 +113,9 @@ vi.mock('@1flowbase/api-client', () => ({
     id: 'provider-1'
   }),
   updateConsoleModelProviderInstance: vi.fn().mockResolvedValue(undefined),
-  updateConsoleModelProviderRouting: vi.fn().mockResolvedValue({
-    provider_code: 'openai_compatible',
-    routing_mode: 'manual_primary',
-    primary_instance_id: 'provider-1',
-    primary_instance_display_name: 'OpenAI Production'
-  }),
+  updateConsoleModelProviderMainInstance: vi
+    .fn()
+    .mockResolvedValue(modelProviderApiFixtures.mainInstance),
   validateConsoleModelProviderInstance: vi.fn().mockResolvedValue({
     instance: {
       id: 'provider-1',
@@ -61,7 +124,7 @@ vi.mock('@1flowbase/api-client', () => ({
       protocol: 'openai_compatible',
       display_name: 'OpenAI Production',
       status: 'ready',
-      is_primary: true,
+      included_in_main: true,
       config_json: {
         base_url: 'https://api.openai.com/v1'
       },
@@ -148,11 +211,12 @@ import {
   listConsoleModelProviderCatalog,
   listConsoleModelProviderInstances,
   listConsoleModelProviderOptions,
+  getConsoleModelProviderMainInstance,
   getConsoleModelProviderModels,
   previewConsoleModelProviderModels,
   createConsoleModelProviderInstance,
   updateConsoleModelProviderInstance,
-  updateConsoleModelProviderRouting,
+  updateConsoleModelProviderMainInstance,
   validateConsoleModelProviderInstance,
   refreshConsoleModelProviderModels,
   revealConsoleModelProviderSecret,
@@ -167,7 +231,7 @@ import {
 } from '@1flowbase/api-client';
 import type { ConsoleModelProviderInstance } from '@1flowbase/api-client';
 
-type _IsPrimaryContract = ConsoleModelProviderInstance['is_primary'];
+type _IncludedInMainContract = ConsoleModelProviderInstance['included_in_main'];
 type _EnabledModelIdsContract = ConsoleModelProviderInstance['enabled_model_ids'];
 // @ts-expect-error validation_model_id should no longer exist on the instance DTO
 type _LegacyValidationModelIdContract = ConsoleModelProviderInstance['validation_model_id'];
@@ -210,11 +274,12 @@ import {
   fetchSettingsModelProviderCatalog,
   fetchSettingsModelProviderInstances,
   fetchSettingsModelProviderOptions,
+  fetchSettingsModelProviderMainInstance,
   fetchSettingsModelProviderModels,
   previewSettingsModelProviderModels,
   createSettingsModelProviderInstance,
   updateSettingsModelProviderInstance,
-  updateSettingsModelProviderRouting,
+  updateSettingsModelProviderMainInstance,
   validateSettingsModelProviderInstance,
   refreshSettingsModelProviderModels,
   revealSettingsModelProviderSecret,
@@ -223,9 +288,9 @@ import {
 import type {
   CreateSettingsModelProviderInput,
   SettingsModelProviderInstance,
-  SettingsModelProviderRouting,
+  SettingsModelProviderMainInstance,
   UpdateSettingsModelProviderInput,
-  UpdateSettingsModelProviderRoutingInput
+  UpdateSettingsModelProviderMainInstanceInput
 } from '../model-providers';
 import {
   settingsPluginFamiliesQueryKey,
@@ -331,6 +396,7 @@ describe('settings api wrappers', () => {
     const createInput = {
       installation_id: 'installation-1',
       display_name: 'OpenAI Production',
+      included_in_main: true,
       configured_models: [
         {
           model_id: 'gpt-4o-mini',
@@ -348,6 +414,7 @@ describe('settings api wrappers', () => {
     } satisfies CreateSettingsModelProviderInput;
     const updateInput = {
       display_name: 'OpenAI Backup',
+      included_in_main: false,
       configured_models: [
         {
           model_id: 'gpt-4o',
@@ -370,7 +437,7 @@ describe('settings api wrappers', () => {
       protocol: 'openai_compatible',
       display_name: 'OpenAI Production',
       status: 'ready',
-      is_primary: true,
+      included_in_main: true,
       config_json: {
         base_url: 'https://api.openai.com/v1'
       },
@@ -390,10 +457,9 @@ describe('settings api wrappers', () => {
       catalog_refreshed_at: '2026-04-18T10:01:00Z',
       model_count: 2
     } satisfies SettingsModelProviderInstance;
-    const routingInput = {
-      routing_mode: 'manual_primary',
-      primary_instance_id: 'provider-1'
-    } satisfies UpdateSettingsModelProviderRoutingInput;
+    const mainInstanceInput = {
+      auto_include_new_instances: false
+    } satisfies UpdateSettingsModelProviderMainInstanceInput;
 
     expect(settingsModelProviderCatalogQueryKey).toEqual([
       'settings',
@@ -445,6 +511,12 @@ describe('settings api wrappers', () => {
     await expect(fetchSettingsModelProviderOptions()).resolves.toEqual(
       modelProviderOptionsContract
     );
+    vi.mocked(getConsoleModelProviderMainInstance).mockResolvedValueOnce({
+      provider_code: 'openai_compatible',
+      auto_include_new_instances: false
+    });
+    const fetchedMainInstance =
+      await fetchSettingsModelProviderMainInstance('openai_compatible');
     await fetchSettingsModelProviderModels('provider-1');
     await previewSettingsModelProviderModels(
       {
@@ -458,9 +530,9 @@ describe('settings api wrappers', () => {
     );
     await createSettingsModelProviderInstance(createInput as never, 'csrf-123');
     await updateSettingsModelProviderInstance('provider-1', updateInput as never, 'csrf-123');
-    const routingResult = await updateSettingsModelProviderRouting(
+    const mainInstanceResult = await updateSettingsModelProviderMainInstance(
       'openai_compatible',
-      routingInput,
+      mainInstanceInput,
       'csrf-123'
     );
     const validatedInstance = await validateSettingsModelProviderInstance(
@@ -474,6 +546,9 @@ describe('settings api wrappers', () => {
     expect(listConsoleModelProviderCatalog).toHaveBeenCalledTimes(1);
     expect(listConsoleModelProviderInstances).toHaveBeenCalledTimes(1);
     expect(listConsoleModelProviderOptions).toHaveBeenCalledTimes(1);
+    expect(getConsoleModelProviderMainInstance).toHaveBeenCalledWith(
+      'openai_compatible'
+    );
     expect(getConsoleModelProviderModels).toHaveBeenCalledWith('provider-1');
     expect(previewConsoleModelProviderModels).toHaveBeenCalledWith(
       {
@@ -494,9 +569,9 @@ describe('settings api wrappers', () => {
       updateInput,
       'csrf-123'
     );
-    expect(updateConsoleModelProviderRouting).toHaveBeenCalledWith(
+    expect(updateConsoleModelProviderMainInstance).toHaveBeenCalledWith(
       'openai_compatible',
-      routingInput,
+      mainInstanceInput,
       'csrf-123'
     );
     expect(validateConsoleModelProviderInstance).toHaveBeenCalledWith(
@@ -519,20 +594,23 @@ describe('settings api wrappers', () => {
             enabled: false
           }
         ],
+        included_in_main: true,
         enabled_model_ids: ['gpt-4o-mini']
       })
     );
-    expect(routingResult).toEqual({
+    expect(fetchedMainInstance).toEqual({
       provider_code: 'openai_compatible',
-      routing_mode: 'manual_primary',
-      primary_instance_id: 'provider-1',
-      primary_instance_display_name: 'OpenAI Production'
-    } satisfies SettingsModelProviderRouting);
+      auto_include_new_instances: false
+    } satisfies SettingsModelProviderMainInstance);
+    expect(mainInstanceResult).toEqual({
+      provider_code: 'openai_compatible',
+      auto_include_new_instances: true
+    } satisfies SettingsModelProviderMainInstance);
     expect(validatedInstance.instance).not.toHaveProperty('validation_model_id');
     expect(validatedInstance.instance).not.toHaveProperty('last_validated_at');
     expect(validatedInstance.instance).not.toHaveProperty('last_validation_status');
     expect(validatedInstance.instance).not.toHaveProperty('last_validation_message');
-    expect(validatedInstance.instance.is_primary).toBe(true);
+    expect(validatedInstance.instance.included_in_main).toBe(true);
     expect(revealConsoleModelProviderSecret).toHaveBeenCalledWith(
       'provider-1',
       'api_key',
@@ -544,14 +622,27 @@ describe('settings api wrappers', () => {
     );
     expect(modelProviderOptionsContract.providers[0]).toEqual(
       expect.objectContaining({
-        effective_instance_id: 'provider-openai-prod',
         provider_code: 'openai_compatible',
         plugin_type: 'model_provider',
         namespace: 'plugin.openai_compatible',
         label_key: 'provider.label',
-        description_key: 'provider.description'
+        description_key: 'provider.description',
+        main_instance: expect.objectContaining({
+          provider_code: 'openai_compatible',
+          auto_include_new_instances: true
+        }),
+        model_groups: [
+          expect.objectContaining({
+            source_instance_id: 'provider-openai-prod',
+            source_instance_display_name: 'OpenAI Production'
+          })
+        ]
       })
     );
+    expect(modelProviderOptionsContract.providers[0]).not.toHaveProperty(
+      'effective_instance_id'
+    );
+    expect(validatedInstance.instance).not.toHaveProperty('is_primary');
   });
 
   test('forwards plugin query keys and request helpers', async () => {

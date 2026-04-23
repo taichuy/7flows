@@ -87,11 +87,13 @@ const modelProvidersApi = vi.hoisted(() => ({
   ]),
   fetchSettingsModelProviderCatalog: vi.fn(),
   fetchSettingsModelProviderInstances: vi.fn(),
+  fetchSettingsModelProviderOptions: vi.fn(),
+  fetchSettingsModelProviderMainInstance: vi.fn(),
   fetchSettingsModelProviderModels: vi.fn(),
   previewSettingsModelProviderModels: vi.fn(),
   createSettingsModelProviderInstance: vi.fn(),
   updateSettingsModelProviderInstance: vi.fn(),
-  updateSettingsModelProviderRouting: vi.fn(),
+  updateSettingsModelProviderMainInstance: vi.fn(),
   revealSettingsModelProviderSecret: vi.fn(),
   validateSettingsModelProviderInstance: vi.fn(),
   refreshSettingsModelProviderModels: vi.fn(),
@@ -128,6 +130,108 @@ import { ModelProviderInstanceDrawer } from '../components/model-providers/Model
 import { SettingsModelProvidersSection } from '../pages/settings-page/SettingsModelProvidersSection';
 
 const useBreakpointSpy = vi.spyOn(Grid, 'useBreakpoint');
+
+function buildSettingsModelProviderInstances() {
+  return [
+    {
+      id: 'provider-1',
+      installation_id: modelProviderCatalogEntries[0].installation_id,
+      provider_code: modelProviderCatalogEntries[0].provider_code,
+      protocol: modelProviderCatalogEntries[0].protocol,
+      display_name: 'OpenAI Production',
+      status: 'ready',
+      config_json: {
+        base_url: 'https://api.openai.com/v1',
+        api_key: 'supe****cret'
+      },
+      included_in_main: true,
+      configured_models: [
+        {
+          model_id: 'gpt-4o-mini',
+          enabled: true
+        },
+        {
+          model_id: 'gpt-4o',
+          enabled: true
+        }
+      ],
+      enabled_model_ids: ['gpt-4o-mini', 'gpt-4o'],
+      catalog_refresh_status: 'ready',
+      catalog_last_error_message: null,
+      catalog_refreshed_at: '2026-04-18T10:01:00Z',
+      model_count: 1
+    },
+    {
+      id: 'provider-2',
+      installation_id: modelProviderCatalogEntries[0].installation_id,
+      provider_code: modelProviderCatalogEntries[0].provider_code,
+      protocol: modelProviderCatalogEntries[0].protocol,
+      display_name: 'OpenAI Backup',
+      status: 'ready',
+      config_json: {
+        base_url: 'https://backup.openai.example/v1',
+        api_key: 'back****cret'
+      },
+      included_in_main: false,
+      configured_models: [
+        {
+          model_id: 'gpt-4.1-mini',
+          enabled: true
+        }
+      ],
+      enabled_model_ids: ['gpt-4.1-mini'],
+      catalog_refresh_status: 'ready',
+      catalog_last_error_message: null,
+      catalog_refreshed_at: '2026-04-18T09:58:00Z',
+      model_count: 1
+    }
+  ];
+}
+
+function buildSettingsModelProviderOptions() {
+  return {
+    locale_meta: {
+      requested_locale: 'zh_Hans',
+      resolved_locale: 'zh_Hans',
+      user_preferred_locale: 'zh_Hans',
+      accept_language: 'zh-Hans-CN,zh;q=0.9,en;q=0.8',
+      fallback_locale: 'en_US',
+      supported_locales: ['zh_Hans', 'en_US']
+    },
+    i18n_catalog: {},
+    providers: [
+      {
+        provider_code: modelProviderCatalogEntries[0].provider_code,
+        plugin_type: 'model_provider',
+        namespace: modelProviderCatalogEntries[0].namespace,
+        label_key: modelProviderCatalogEntries[0].label_key,
+        description_key: modelProviderCatalogEntries[0].description_key,
+        protocol: modelProviderCatalogEntries[0].protocol,
+        display_name: modelProviderCatalogEntries[0].display_name,
+        main_instance: {
+          provider_code: modelProviderCatalogEntries[0].provider_code,
+          auto_include_new_instances: true,
+          group_count: 1,
+          model_count: primaryContractProviderModels.length
+        },
+        model_groups: [
+          {
+            source_instance_id: 'provider-1',
+            source_instance_display_name: 'OpenAI Production',
+            models: primaryContractProviderModels
+          }
+        ]
+      }
+    ]
+  };
+}
+
+function buildMainInstanceSettings(autoIncludeNewInstances = true) {
+  return {
+    provider_code: modelProviderCatalogEntries[0].provider_code,
+    auto_include_new_instances: autoIncludeNewInstances
+  };
+}
 
 function authenticateWithPermissions(
   permissions: string[],
@@ -173,17 +277,7 @@ async function openProviderInstancesModal() {
 
   fireEvent.click(within(catalogRow).getByRole('button', { name: '配置' }));
 
-  await screen.findByText('查看供应商实例');
-
-  return screen.findByRole('dialog');
-}
-
-function clickProviderInstanceTitle(modal: HTMLElement, displayName: string) {
-  fireEvent.click(
-    within(modal).getByText(displayName, {
-      selector: '.model-provider-panel__instance-title'
-    })
-  );
+  return screen.findByRole('dialog', { name: /OpenAI Compatible 实例/ });
 }
 
 describe('ModelProvidersPage', () => {
@@ -223,66 +317,18 @@ describe('ModelProvidersPage', () => {
     modelProvidersApi.fetchSettingsModelProviderCatalog.mockResolvedValue(
       modelProviderCatalogEntries
     );
-    modelProvidersApi.fetchSettingsModelProviderInstances.mockResolvedValue([
-      {
-        id: 'provider-1',
-        installation_id: modelProviderCatalogEntries[0].installation_id,
-        provider_code: modelProviderCatalogEntries[0].provider_code,
-        protocol: modelProviderCatalogEntries[0].protocol,
-        display_name: 'OpenAI Production',
-        status: 'ready',
-        config_json: {
-          base_url: 'https://api.openai.com/v1',
-          api_key: 'supe****cret'
-        },
-        is_primary: true,
-        configured_models: [
-          {
-            model_id: 'gpt-4o-mini',
-            enabled: true
-          },
-          {
-            model_id: 'gpt-4o',
-            enabled: true
-          }
-        ],
-        enabled_model_ids: ['gpt-4o-mini', 'gpt-4o'],
-        catalog_refresh_status: 'ready',
-        catalog_last_error_message: null,
-        catalog_refreshed_at: '2026-04-18T10:01:00Z',
-        model_count: 1
-      },
-      {
-        id: 'provider-2',
-        installation_id: modelProviderCatalogEntries[0].installation_id,
-        provider_code: modelProviderCatalogEntries[0].provider_code,
-        protocol: modelProviderCatalogEntries[0].protocol,
-        display_name: 'OpenAI Backup',
-        status: 'ready',
-        config_json: {
-          base_url: 'https://backup.openai.example/v1',
-          api_key: 'back****cret'
-        },
-        is_primary: false,
-        configured_models: [
-          {
-            model_id: 'gpt-4.1-mini',
-            enabled: true
-          }
-        ],
-        enabled_model_ids: ['gpt-4.1-mini'],
-        catalog_refresh_status: 'ready',
-        catalog_last_error_message: null,
-        catalog_refreshed_at: '2026-04-18T09:58:00Z',
-        model_count: 1
-      }
-    ]);
-    modelProvidersApi.updateSettingsModelProviderRouting.mockResolvedValue({
-      provider_code: 'openai_compatible',
-      routing_mode: 'manual_primary',
-      primary_instance_id: 'provider-2',
-      primary_instance_display_name: 'OpenAI Backup'
-    });
+    modelProvidersApi.fetchSettingsModelProviderInstances.mockResolvedValue(
+      buildSettingsModelProviderInstances()
+    );
+    modelProvidersApi.fetchSettingsModelProviderOptions.mockResolvedValue(
+      buildSettingsModelProviderOptions()
+    );
+    modelProvidersApi.fetchSettingsModelProviderMainInstance.mockResolvedValue(
+      buildMainInstanceSettings()
+    );
+    modelProvidersApi.updateSettingsModelProviderMainInstance.mockResolvedValue(
+      buildMainInstanceSettings(false)
+    );
     modelProvidersApi.previewSettingsModelProviderModels.mockResolvedValue({
       models: [
         {
@@ -688,7 +734,7 @@ describe('ModelProvidersPage', () => {
         protocol: modelProviderCatalogEntries[0].protocol,
         display_name: 'OpenAI Draft',
         status: 'ready',
-        is_primary: false,
+        included_in_main: true,
         config_json: {
           base_url: 'https://api.openai.com/v1',
           api_key: 'supe****cret'
@@ -715,6 +761,9 @@ describe('ModelProvidersPage', () => {
       fireEvent.click(await screen.findByRole('button', { name: '添加' }));
 
       expect(await screen.findByText('API 密钥授权配置')).toBeInTheDocument();
+      expect(
+        screen.getByRole('switch', { name: '加入主实例' })
+      ).toBeChecked();
 
       fireEvent.change(screen.getByLabelText('API Endpoint'), {
         target: { value: 'https://api.openai.com/v1' }
@@ -773,6 +822,7 @@ describe('ModelProvidersPage', () => {
                 enabled: true
               }
             ],
+            included_in_main: true,
             preview_token: 'preview-1'
           },
           'csrf-123'
@@ -846,18 +896,22 @@ describe('ModelProvidersPage', () => {
         within(modal).getAllByText('OpenAI Production').length
       ).toBeGreaterThanOrEqual(1);
       expect(
-        within(modal).getByText(
-          '为该供应商选择一个主实例；agent-flow 和运行时都会按这个主实例解析。'
-        )
+        within(modal).getByText('聚合视图')
       ).toBeInTheDocument();
-      expect(within(modal).getAllByText('生效模型').length).toBeGreaterThanOrEqual(1);
-      expect(within(modal).getAllByText('缓存模型').length).toBeGreaterThanOrEqual(1);
+      expect(
+        within(modal).getByRole('switch', { name: '新实例自动加入主实例' })
+      ).toBeInTheDocument();
+      expect(
+        within(modal).queryByRole('combobox', { name: '主实例' })
+      ).not.toBeInTheDocument();
+      expect(within(modal).getByText('加入主实例')).toBeInTheDocument();
+      expect(within(modal).getAllByText(/gpt-4o-mini/i).length).toBeGreaterThanOrEqual(1);
       expect(within(modal).getByText('OpenAI Backup')).toBeInTheDocument();
     }
   );
 
   test(
-    'switches the primary instance from the provider instances modal and reflects it in the catalog row',
+    'updates provider defaults and child-instance inclusion from the provider instances modal',
     { timeout: 15000 },
     async () => {
       authenticateWithPermissions([
@@ -866,118 +920,87 @@ describe('ModelProvidersPage', () => {
         'state_model.manage.all'
       ]);
 
-      let instancesState = [
-        {
-          id: 'provider-1',
-          installation_id: modelProviderCatalogEntries[0].installation_id,
-          provider_code: modelProviderCatalogEntries[0].provider_code,
-          protocol: modelProviderCatalogEntries[0].protocol,
-          display_name: 'OpenAI Production',
-          status: 'ready',
-          is_primary: true,
-          config_json: {
-            base_url: 'https://api.openai.com/v1',
-            api_key: 'supe****cret'
-          },
-          configured_models: [
-            {
-              model_id: 'gpt-4o-mini',
-              enabled: true
-            }
-          ],
-          enabled_model_ids: ['gpt-4o-mini'],
-          catalog_refresh_status: 'ready',
-          catalog_last_error_message: null,
-          catalog_refreshed_at: '2026-04-18T10:01:00Z',
-          model_count: 1
-        },
-        {
-          id: 'provider-2',
-          installation_id: modelProviderCatalogEntries[0].installation_id,
-          provider_code: modelProviderCatalogEntries[0].provider_code,
-          protocol: modelProviderCatalogEntries[0].protocol,
-          display_name: 'OpenAI Backup',
-          status: 'ready',
-          is_primary: false,
-          config_json: {
-            base_url: 'https://backup.openai.example/v1',
-            api_key: 'back****cret'
-          },
-          configured_models: [
-            {
-              model_id: 'gpt-4.1-mini',
-              enabled: true
-            }
-          ],
-          enabled_model_ids: ['gpt-4.1-mini'],
-          catalog_refresh_status: 'ready',
-          catalog_last_error_message: null,
-          catalog_refreshed_at: '2026-04-18T09:58:00Z',
-          model_count: 1
-        }
-      ];
+      let instancesState = buildSettingsModelProviderInstances();
+      let mainInstanceState = buildMainInstanceSettings();
 
       modelProvidersApi.fetchSettingsModelProviderInstances.mockImplementation(
         async () => instancesState
       );
-      modelProvidersApi.updateSettingsModelProviderRouting.mockImplementation(
+      modelProvidersApi.fetchSettingsModelProviderMainInstance.mockImplementation(
+        async () => mainInstanceState
+      );
+      modelProvidersApi.updateSettingsModelProviderMainInstance.mockImplementation(
         async (providerCode, input, csrfToken) => {
           expect(providerCode).toBe('openai_compatible');
           expect(csrfToken).toBe('csrf-123');
+          mainInstanceState = {
+            provider_code: providerCode,
+            auto_include_new_instances: input.auto_include_new_instances
+          };
 
-          instancesState = instancesState.map((instance) => ({
-            ...instance,
-            is_primary: instance.id === input.primary_instance_id
-          }));
-
-          const nextPrimary = instancesState.find(
-            (instance) => instance.id === input.primary_instance_id
+          return mainInstanceState;
+        }
+      );
+      modelProvidersApi.updateSettingsModelProviderInstance.mockImplementation(
+        async (instanceId, input, csrfToken) => {
+          expect(csrfToken).toBe('csrf-123');
+          instancesState = instancesState.map((instance) =>
+            instance.id === instanceId
+              ? {
+                  ...instance,
+                  display_name: input.display_name,
+                  included_in_main: input.included_in_main,
+                  configured_models: input.configured_models,
+                  enabled_model_ids: input.configured_models
+                    .filter((model: { enabled: boolean }) => model.enabled)
+                    .map((model: { model_id: string }) => model.model_id),
+                  config_json: input.config
+                }
+              : instance
           );
 
-          return {
-            provider_code: providerCode,
-            routing_mode: input.routing_mode,
-            primary_instance_id: input.primary_instance_id,
-            primary_instance_display_name: nextPrimary?.display_name ?? ''
-          };
+          return instancesState.find((instance) => instance.id === instanceId);
         }
       );
 
       renderApp('/settings/model-providers');
 
       const modal = await openProviderInstancesModal();
-      const primarySelect = within(modal).getByRole('combobox', {
-        name: '主实例'
+      const autoIncludeSwitch = within(modal).getByRole('switch', {
+        name: '新实例自动加入主实例'
       });
-
-      fireEvent.mouseDown(primarySelect);
-      const [backupOption] = await screen.findAllByText((_, element) => {
-        if (!element) {
-          return false;
-        }
-
-        return (
-          element.matches('.ant-select-item-option-content') &&
-          Boolean(element.textContent?.includes('OpenAI Backup'))
-        );
-      });
-      fireEvent.click(backupOption);
+      expect(autoIncludeSwitch).toBeChecked();
+      fireEvent.click(autoIncludeSwitch);
 
       await waitFor(() => {
         expect(
-          modelProvidersApi.updateSettingsModelProviderRouting
+          modelProvidersApi.updateSettingsModelProviderMainInstance
         ).toHaveBeenCalledWith(
           'openai_compatible',
           {
-            routing_mode: 'manual_primary',
-            primary_instance_id: 'provider-2'
+            auto_include_new_instances: false
           },
           'csrf-123'
         );
       });
 
+      const includedSwitch = within(modal).getByRole('switch', {
+        name: '加入主实例 OpenAI Backup'
+      });
+      expect(includedSwitch).not.toBeChecked();
+      fireEvent.click(includedSwitch);
+
       await waitFor(() => {
-        expect(screen.getByText('主实例：OpenAI Backup')).toBeInTheDocument();
+        expect(
+          modelProvidersApi.updateSettingsModelProviderInstance
+        ).toHaveBeenCalledWith(
+          'provider-2',
+          expect.objectContaining({
+            display_name: 'OpenAI Backup',
+            included_in_main: true
+          }),
+          'csrf-123'
+        );
       });
     }
   );
@@ -1006,8 +1029,6 @@ describe('ModelProvidersPage', () => {
       renderApp('/settings/model-providers');
 
       const modal = await openProviderInstancesModal();
-
-      clickProviderInstanceTitle(modal, 'OpenAI Production');
 
       fireEvent.click(
         await screen.findByRole('button', { name: '刷新候选模型 OpenAI Production' })
@@ -1069,6 +1090,7 @@ describe('ModelProvidersPage', () => {
           catalogEntry={modelProviderCatalogEntries[0]}
           instance={null}
           cachedModelCatalog={null}
+          defaultIncludedInMain={true}
           submitting={false}
           onClose={() => undefined}
           onSubmit={submit}
@@ -1175,10 +1197,59 @@ describe('ModelProvidersPage', () => {
               enabled: false
             }
           ],
+          included_in_main: true,
           preview_token: 'preview-2'
         });
       });
       expect(previewModels).toHaveBeenNthCalledWith(2, expectedConfig);
+    }
+  );
+
+  test(
+    'hydrates included_in_main from the instance in edit mode and submits it back unchanged',
+    { timeout: 15000 },
+    async () => {
+      const submit = vi.fn().mockResolvedValue(undefined);
+      const instance = {
+        ...buildSettingsModelProviderInstances()[1],
+        included_in_main: false
+      };
+
+      render(
+        <ModelProviderInstanceDrawer
+          open
+          mode="edit"
+          catalogEntry={modelProviderCatalogEntries[0]}
+          instance={instance}
+          cachedModelCatalog={null}
+          defaultIncludedInMain={true}
+          submitting={false}
+          onClose={() => undefined}
+          onSubmit={submit}
+          onPreviewModels={async () => ({
+            models: [],
+            preview_token: 'preview-1',
+            expires_at: '2026-04-22T12:00:00Z'
+          })}
+          onRevealSecret={async () => 'backup-secret'}
+        />
+      );
+
+      expect(await screen.findByText('编辑 API 密钥配置')).toBeInTheDocument();
+      expect(
+        screen.getByRole('switch', { name: '加入主实例' })
+      ).not.toBeChecked();
+
+      fireEvent.click(screen.getByRole('button', { name: /保\s*存/ }));
+
+      await waitFor(() => {
+        expect(submit).toHaveBeenCalledWith(
+          expect.objectContaining({
+            display_name: 'OpenAI Backup',
+            included_in_main: false
+          })
+        );
+      });
     }
   );
 
@@ -1195,7 +1266,6 @@ describe('ModelProvidersPage', () => {
       renderApp('/settings/model-providers');
 
       const modal = await openProviderInstancesModal();
-      clickProviderInstanceTitle(modal, 'OpenAI Production');
       fireEvent.click(
         within(modal).getByRole('button', {
           name: '编辑 API Key OpenAI Production'
@@ -1226,13 +1296,6 @@ describe('ModelProvidersPage', () => {
       renderApp('/settings/model-providers');
 
       const modal = await openProviderInstancesModal();
-      clickProviderInstanceTitle(modal, 'OpenAI Production');
-
-      await waitFor(() => {
-        expect(
-          modelProvidersApi.fetchSettingsModelProviderModels
-        ).toHaveBeenCalledWith('provider-1');
-      });
 
       fireEvent.click(
         within(modal).getByRole('button', {
@@ -1241,6 +1304,11 @@ describe('ModelProvidersPage', () => {
       );
 
       expect(await screen.findByText('编辑 API 密钥配置')).toBeInTheDocument();
+      await waitFor(() => {
+        expect(
+          modelProvidersApi.fetchSettingsModelProviderModels
+        ).toHaveBeenCalledWith('provider-1');
+      });
 
       const cachedModelSelect = await screen.findByRole('combobox', {
         name: '缓存模型'
@@ -1266,7 +1334,6 @@ describe('ModelProvidersPage', () => {
       renderApp('/settings/model-providers');
 
       const modal = await openProviderInstancesModal();
-      clickProviderInstanceTitle(modal, 'OpenAI Production');
       fireEvent.click(
         within(modal).getByRole('button', {
           name: '编辑 API Key OpenAI Production'
@@ -1293,7 +1360,7 @@ describe('ModelProvidersPage', () => {
   );
 
   test(
-    'fetches cached models for the selected instance and renders them in the expanded panel',
+    'renders grouped model previews and instance inclusion toggles in the main-instance modal',
     { timeout: 15000 },
     async () => {
       authenticateWithPermissions([
@@ -1305,30 +1372,23 @@ describe('ModelProvidersPage', () => {
       renderApp('/settings/model-providers');
 
       const modal = await openProviderInstancesModal();
-      clickProviderInstanceTitle(modal, 'OpenAI Production');
-
-      await waitFor(() => {
-        expect(
-          modelProvidersApi.fetchSettingsModelProviderModels
-        ).toHaveBeenCalledWith('provider-1');
-      });
       expect(
-        await within(modal).findByText(primaryContractProviderModels[0].model_id)
+        await within(modal).findByText('聚合视图')
       ).toBeInTheDocument();
       expect(
-        within(modal).getByRole('combobox', { name: '候选缓存 OpenAI Production' })
+        within(modal).getByText(primaryContractProviderModels[0].model_id)
       ).toBeInTheDocument();
       expect(
-        within(modal).getByText('Base URL')
+        within(modal).getByRole('switch', { name: '加入主实例 OpenAI Production' })
       ).toBeInTheDocument();
       expect(
-        within(modal).getByText('2026-04-18 10:01:00')
+        within(modal).getByRole('switch', { name: '加入主实例 OpenAI Backup' })
       ).toBeInTheDocument();
     }
   );
 
   test(
-    'renders provider instances as a collapsed management list with base url grouped under refreshed time',
+    'renders provider instances as a flat management table beneath the main-instance summary',
     { timeout: 15000 },
     async () => {
       authenticateWithPermissions([
@@ -1341,24 +1401,14 @@ describe('ModelProvidersPage', () => {
 
       const modal = await openProviderInstancesModal();
       expect(
-        within(modal).getByText('OpenAI Production', {
-          selector: '.model-provider-panel__instance-title'
-        })
-      ).toBeInTheDocument();
+        within(modal).getAllByText('OpenAI Production').length
+      ).toBeGreaterThanOrEqual(1);
       expect(
-        within(modal).getByRole('combobox', { name: '主实例' })
-      ).toBeInTheDocument();
-      expect(within(modal).queryByText('Base URL')).not.toBeInTheDocument();
-      expect(within(modal).queryByText('2026-04-18 10:01:00')).not.toBeInTheDocument();
-
-      clickProviderInstanceTitle(modal, 'OpenAI Production');
-
-      expect(await within(modal).findByText('Base URL')).toBeInTheDocument();
-      expect(within(modal).getByText('2026-04-18 10:01:00')).toBeInTheDocument();
+        within(modal).queryByRole('combobox', { name: '主实例' })
+      ).not.toBeInTheDocument();
+      expect(within(modal).getByText('Base URL')).toBeInTheDocument();
       expect(within(modal).getAllByText(/gpt-4o-mini/).length).toBeGreaterThanOrEqual(1);
-      expect(
-        modal.querySelector('.model-provider-panel__instance-content')
-      ).toBeNull();
+      expect(within(modal).getByText('加入主实例')).toBeInTheDocument();
     }
   );
 

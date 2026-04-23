@@ -138,6 +138,7 @@ export function ModelProviderInstanceDrawer({
   catalogEntry,
   instance,
   cachedModelCatalog,
+  defaultIncludedInMain,
   submitting,
   onClose,
   onSubmit,
@@ -149,10 +150,12 @@ export function ModelProviderInstanceDrawer({
   catalogEntry: SettingsModelProviderCatalogEntry | null;
   instance: SettingsModelProviderInstance | null;
   cachedModelCatalog: SettingsModelProviderModelCatalog | null;
+  defaultIncludedInMain: boolean;
   submitting: boolean;
   onClose: () => void;
   onSubmit: (input: {
     display_name: string;
+    included_in_main: boolean;
     config: Record<string, unknown>;
     configured_models: Array<{
       model_id: string;
@@ -165,6 +168,7 @@ export function ModelProviderInstanceDrawer({
 }) {
   const [form] = Form.useForm<{
     display_name: string;
+    included_in_main: boolean;
     config: Record<string, ModelProviderFormValue>;
   }>();
   const [secretDrafts, setSecretDrafts] = useState<Record<string, string>>({});
@@ -217,6 +221,7 @@ export function ModelProviderInstanceDrawer({
 
     form.setFieldsValue({
       display_name: instance?.display_name ?? catalogEntry?.display_name ?? '',
+      included_in_main: instance?.included_in_main ?? defaultIncludedInMain,
       config: buildInitialConfig(mode, catalogEntry, instance)
     });
     setPreviewModels([]);
@@ -227,7 +232,7 @@ export function ModelProviderInstanceDrawer({
     setRevealingSecretKey(null);
     setPreviewToken(undefined);
     setPreviewingModels(false);
-  }, [catalogEntry, form, instance, mode, open]);
+  }, [catalogEntry, defaultIncludedInMain, form, instance, mode, open]);
 
   useEffect(() => {
     if (!open || mode !== 'edit' || !cachedModelCatalog || previewModels.length > 0) {
@@ -373,9 +378,14 @@ export function ModelProviderInstanceDrawer({
   }
 
   async function handleSubmit() {
-    const values = await form.validateFields([['display_name'], ...configFieldNames]);
+    const values = await form.validateFields([
+      ['display_name'],
+      ['included_in_main'],
+      ...configFieldNames
+    ]);
     await onSubmit({
       display_name: values.display_name,
+      included_in_main: values.included_in_main,
       config: buildDraftConfig((values.config ?? {}) as Record<string, ModelProviderFormValue>),
       configured_models: normalizeConfiguredModels(configuredModels),
       preview_token: previewToken
@@ -562,6 +572,15 @@ export function ModelProviderInstanceDrawer({
             >
               配置完成后，当前 workspace 内的成员都可以在模型选择器中使用这个实例。密钥仅会加密存储。
             </Typography.Paragraph>
+
+            <Form.Item
+              label="加入主实例"
+              name="included_in_main"
+              valuePropName="checked"
+              extra="加入后，该实例的已启用模型会汇总到主实例聚合视图中。"
+            >
+              <Switch aria-label="加入主实例" />
+            </Form.Item>
 
             <Form.Item
               label="凭据名称"

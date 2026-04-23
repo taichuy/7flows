@@ -1,8 +1,6 @@
-import { Button, Empty, Space, Table, Tag, Typography } from 'antd';
+import { Button, Empty, Space, Switch, Table, Tag, Typography } from 'antd';
 
-import type {
-  SettingsModelProviderInstance
-} from '../../api/model-providers';
+import type { SettingsModelProviderInstance } from '../../api/model-providers';
 
 function renderStatusTag(status: string) {
   switch (status) {
@@ -21,6 +19,8 @@ export function ModelProviderInstancesTable({
   instances,
   loading,
   canManage,
+  updatingInstanceId,
+  onToggleIncludedInMain,
   onEdit,
   onRefreshCandidates,
   onRefreshModels,
@@ -29,6 +29,11 @@ export function ModelProviderInstancesTable({
   instances: SettingsModelProviderInstance[];
   loading?: boolean;
   canManage: boolean;
+  updatingInstanceId?: string | null;
+  onToggleIncludedInMain: (
+    instance: SettingsModelProviderInstance,
+    checked: boolean
+  ) => void;
   onEdit: (instance: SettingsModelProviderInstance) => void;
   onRefreshCandidates: (instance: SettingsModelProviderInstance) => void;
   onRefreshModels: (instance: SettingsModelProviderInstance) => void;
@@ -64,7 +69,12 @@ export function ModelProviderInstancesTable({
             key: 'instance',
             render: (_, instance) => (
               <div className="model-provider-panel__instance-cell">
-                <Typography.Text strong>{instance.display_name}</Typography.Text>
+                <Typography.Text
+                  strong
+                  className="model-provider-panel__instance-title"
+                >
+                  {instance.display_name}
+                </Typography.Text>
                 <Typography.Text type="secondary">
                   {instance.provider_code} · {instance.protocol}
                 </Typography.Text>
@@ -76,6 +86,28 @@ export function ModelProviderInstancesTable({
             dataIndex: 'status',
             width: 110,
             render: (status: string) => renderStatusTag(status)
+          },
+          {
+            title: '加入主实例',
+            key: 'included_in_main',
+            width: 180,
+            render: (_, instance) => (
+              <div className="model-provider-panel__instance-inclusion">
+                <Switch
+                  aria-label={`加入主实例 ${instance.display_name}`}
+                  checked={instance.included_in_main}
+                  disabled={
+                    !canManage || updatingInstanceId === instance.id
+                  }
+                  onChange={(checked) => {
+                    onToggleIncludedInMain(instance, checked);
+                  }}
+                />
+                <Typography.Text type="secondary">
+                  {instance.included_in_main ? '已接入' : '未接入'}
+                </Typography.Text>
+              </div>
+            )
           },
           {
             title: 'Base URL',
@@ -98,33 +130,23 @@ export function ModelProviderInstancesTable({
               </div>
             )
           },
-          {
-            title: '模型',
-            key: 'models',
-            width: 140,
-            render: (_, instance) => (
-              <div className="model-provider-panel__instance-cell">
-                <Typography.Text>{instance.model_count} 个</Typography.Text>
-                <Typography.Text type="secondary">
-                  {instance.catalog_refresh_status ?? 'idle'}
-                </Typography.Text>
-              </div>
-            )
-          },
           ...(canManage
             ? [
                 {
                   title: '操作',
                   key: 'actions',
                   width: 280,
-                  render: (_: unknown, instance: SettingsModelProviderInstance) => (
+                  render: (
+                    _: unknown,
+                    instance: SettingsModelProviderInstance
+                  ) => (
                     <Space size={4} wrap>
                       <Button
                         type="link"
-                        aria-label={`查看 API Key ${instance.display_name}`}
+                        aria-label={`编辑 API Key ${instance.display_name}`}
                         onClick={() => onEdit(instance)}
                       >
-                        查看 API Key
+                        编辑 API Key
                       </Button>
                       <Button
                         type="link"
@@ -143,10 +165,10 @@ export function ModelProviderInstancesTable({
                       <Button
                         danger
                         type="link"
-                        aria-label={`删除 ${instance.display_name}`}
+                        aria-label={`删除实例 ${instance.display_name}`}
                         onClick={() => onDelete(instance)}
                       >
-                        删除
+                        删除实例
                       </Button>
                     </Space>
                   )

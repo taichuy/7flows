@@ -9,11 +9,11 @@ import {
   revealSettingsModelProviderSecret,
   settingsModelProviderCatalogQueryKey,
   settingsModelProviderInstancesQueryKey,
-  settingsModelProviderModelsQueryKey,
   settingsModelProviderOptionsQueryKey,
   updateSettingsModelProviderInstance,
-  updateSettingsModelProviderRouting,
-  validateSettingsModelProviderInstance
+  updateSettingsModelProviderMainInstance,
+  validateSettingsModelProviderInstance,
+  type SettingsModelProviderInstance
 } from '../../../api/model-providers';
 import {
   deleteSettingsPluginFamily,
@@ -29,6 +29,7 @@ import {
   formatTrustLabel,
   isTaskSucceeded,
   isTaskTerminal,
+  MODEL_PROVIDER_MAIN_INSTANCE_QUERY_KEY_PREFIX,
   MODEL_PROVIDER_MODELS_QUERY_KEY_PREFIX,
   type ModelProviderDrawerState,
   type ModelProviderInstanceModalState,
@@ -71,6 +72,9 @@ export function useModelProviderMutations({
         queryKey: settingsModelProviderOptionsQueryKey
       }),
       queryClient.invalidateQueries({
+        queryKey: MODEL_PROVIDER_MAIN_INSTANCE_QUERY_KEY_PREFIX
+      }),
+      queryClient.invalidateQueries({
         queryKey: MODEL_PROVIDER_MODELS_QUERY_KEY_PREFIX
       }),
       queryClient.invalidateQueries({
@@ -83,6 +87,7 @@ export function useModelProviderMutations({
     mutationFn: async (input: {
       installationId: string;
       display_name: string;
+      included_in_main: boolean;
       configured_models: Array<{ model_id: string; enabled: boolean }>;
       preview_token?: string;
       config: Record<string, unknown>;
@@ -95,6 +100,7 @@ export function useModelProviderMutations({
         {
           installation_id: input.installationId,
           display_name: input.display_name,
+          included_in_main: input.included_in_main,
           configured_models: input.configured_models,
           preview_token: input.preview_token,
           config: input.config
@@ -112,6 +118,7 @@ export function useModelProviderMutations({
     mutationFn: async (input: {
       instanceId: string;
       display_name: string;
+      included_in_main: boolean;
       configured_models: Array<{ model_id: string; enabled: boolean }>;
       preview_token?: string;
       config: Record<string, unknown>;
@@ -124,6 +131,7 @@ export function useModelProviderMutations({
         input.instanceId,
         {
           display_name: input.display_name,
+          included_in_main: input.included_in_main,
           configured_models: input.configured_models,
           preview_token: input.preview_token,
           config: input.config
@@ -135,6 +143,49 @@ export function useModelProviderMutations({
       setDrawerState(null);
       await invalidateModelProviderQueries();
     }
+  });
+
+  const updateInstanceInclusionMutation = useMutation({
+    mutationFn: async (input: {
+      instance: SettingsModelProviderInstance;
+      included_in_main: boolean;
+    }) => {
+      if (!csrfToken) {
+        throw new Error('missing csrf token');
+      }
+
+      return updateSettingsModelProviderInstance(
+        input.instance.id,
+        {
+          display_name: input.instance.display_name,
+          included_in_main: input.included_in_main,
+          configured_models: input.instance.configured_models,
+          config: input.instance.config_json
+        },
+        csrfToken
+      );
+    },
+    onSuccess: invalidateModelProviderQueries
+  });
+
+  const updateMainInstanceSettingsMutation = useMutation({
+    mutationFn: async (input: {
+      providerCode: string;
+      auto_include_new_instances: boolean;
+    }) => {
+      if (!csrfToken) {
+        throw new Error('missing csrf token');
+      }
+
+      return updateSettingsModelProviderMainInstance(
+        input.providerCode,
+        {
+          auto_include_new_instances: input.auto_include_new_instances
+        },
+        csrfToken
+      );
+    },
+    onSuccess: invalidateModelProviderQueries
   });
 
   const previewMutation = useMutation({
@@ -177,11 +228,7 @@ export function useModelProviderMutations({
 
       return refreshSettingsModelProviderModels(instanceId, csrfToken);
     },
-    onSuccess: async (catalog) => {
-      queryClient.setQueryData(
-        settingsModelProviderModelsQueryKey(catalog.provider_instance_id),
-        catalog
-      );
+    onSuccess: async () => {
       await invalidateModelProviderQueries();
     }
   });
@@ -207,26 +254,6 @@ export function useModelProviderMutations({
       }
 
       return deleteSettingsModelProviderInstance(instanceId, csrfToken);
-    },
-    onSuccess: invalidateModelProviderQueries
-  });
-  const updateRoutingMutation = useMutation({
-    mutationFn: async (input: {
-      providerCode: string;
-      primaryInstanceId: string;
-    }) => {
-      if (!csrfToken) {
-        throw new Error('missing csrf token');
-      }
-
-      return updateSettingsModelProviderRouting(
-        input.providerCode,
-        {
-          routing_mode: 'manual_primary',
-          primary_instance_id: input.primaryInstanceId
-        },
-        csrfToken
-      );
     },
     onSuccess: invalidateModelProviderQueries
   });
@@ -364,12 +391,13 @@ export function useModelProviderMutations({
   return {
     createMutation,
     updateMutation,
+    updateInstanceInclusionMutation,
+    updateMainInstanceSettingsMutation,
     previewMutation,
     validateMutation,
     refreshMutation,
     revealSecretMutation,
     deleteMutation,
-    updateRoutingMutation,
     familyDeleteMutation,
     officialInstallMutation,
     uploadMutation,

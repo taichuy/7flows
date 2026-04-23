@@ -13,7 +13,6 @@ export type ModelProviderDrawerState =
 
 export type ModelProviderInstanceModalState = {
   providerCode: string;
-  selectedInstanceId: string | null;
 } | null;
 
 export type OfficialInstallState = {
@@ -49,6 +48,11 @@ export const MODEL_PROVIDER_MODELS_QUERY_KEY_PREFIX = [
   'model-providers',
   'models'
 ] as const;
+export const MODEL_PROVIDER_MAIN_INSTANCE_QUERY_KEY_PREFIX = [
+  'settings',
+  'model-providers',
+  'main-instance'
+] as const;
 
 export function getErrorMessage(error: unknown) {
   return error instanceof Error ? error.message : null;
@@ -66,17 +70,6 @@ export function isTaskTerminal(status: string | null | undefined) {
 
 export function isTaskSucceeded(status: string | null | undefined) {
   return status === 'success' || status === 'succeeded';
-}
-
-export function pickPreferredInstanceId(
-  instances: { id: string; status: string; is_primary?: boolean }[]
-) {
-  return (
-    instances.find((instance) => instance.is_primary)?.id ??
-    instances.find((instance) => instance.status === 'ready')?.id ??
-    instances[0]?.id ??
-    null
-  );
 }
 
 export function parseTaskDetailString(

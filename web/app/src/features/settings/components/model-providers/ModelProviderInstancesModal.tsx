@@ -1,11 +1,9 @@
-import { useMemo, useState } from 'react';
-
 import {
   Alert,
-  Descriptions,
   Empty,
   Modal,
-  Select,
+  Space,
+  Switch,
   Tag,
   Typography
 } from 'antd';
@@ -13,104 +11,50 @@ import {
 import type {
   SettingsModelProviderCatalogEntry,
   SettingsModelProviderInstance,
-  SettingsModelProviderModelCatalog
+  SettingsModelProviderMainInstance,
+  SettingsModelProviderOptions
 } from '../../api/model-providers';
-import { CollapseShell } from '../../../../shared/ui/collapse-shell/CollapseShell';
-import { CachedModelSelect } from './CachedModelSelect';
+import { ModelProviderInstancesTable } from './ModelProviderInstancesTable';
 
-function renderStatusTag(status: string) {
-  switch (status) {
-    case 'ready':
-      return (
-        <Tag 
-          className="model-provider-panel__instance-status-tag"
-          color="green"
-          bordered={false}
-        >
-          ready
-        </Tag>
-      );
-    case 'invalid':
-      return (
-        <Tag 
-          className="model-provider-panel__instance-status-tag"
-          color="red"
-          bordered={false}
-        >
-          invalid
-        </Tag>
-      );
-    case 'disabled':
-      return (
-        <Tag 
-          className="model-provider-panel__instance-status-tag"
-          bordered={false}
-        >
-          disabled
-        </Tag>
-      );
-    default:
-      return (
-        <Tag 
-          className="model-provider-panel__instance-status-tag"
-          color="gold"
-          bordered={false}
-        >
-          {status}
-        </Tag>
-      );
-  }
-}
+type ModelGroup =
+  SettingsModelProviderOptions['providers'][number]['model_groups'][number];
 
-function formatModelPreview(modelIds: string[], maxItems = 3) {
+function formatModelPreview(modelIds: string[]) {
   if (modelIds.length === 0) {
-    return '未设置';
+    return '未汇总模型';
   }
 
-  const preview = modelIds.slice(0, maxItems).join(' · ');
-  return modelIds.length > maxItems ? `${preview} · …` : preview;
-}
-
-function formatCatalogRefreshedAt(value: string | null) {
-  if (!value) {
-    return '未刷新';
-  }
-
-  const matched = value.match(
-    /^(\d{4}-\d{2}-\d{2})[T\s](\d{2}:\d{2}:\d{2})/
-  );
-  if (!matched) {
-    return value;
-  }
-
-  return `${matched[1]} ${matched[2]}`;
+  return modelIds.join(' · ');
 }
 
 export function ModelProviderInstancesModal({
   open,
   catalogEntry,
+  mainInstance,
+  modelGroups,
   instances,
-  modelCatalog,
-  modelsLoading,
+  updatingMainInstance,
+  updatingInstanceId,
   refreshingCandidates,
   refreshing,
   deleting,
   canManage,
   versionSwitchNotice,
   onClose,
-  onChangeInstance,
   onEdit,
-  onFetchModels,
   onRefreshCandidates,
   onRefreshModels,
   onDelete,
-  onUpdatePrimary
+  onToggleAutoIncludeNewInstances,
+  onToggleIncludedInMain
 }: {
   open: boolean;
   catalogEntry: SettingsModelProviderCatalogEntry | null;
+  mainInstance: SettingsModelProviderMainInstance | null;
+  modelGroups: ModelGroup[];
   instances: SettingsModelProviderInstance[];
-  modelCatalog: SettingsModelProviderModelCatalog | null;
-  modelsLoading: boolean;
+  updatingMainInstance: boolean;
+  updatingInstanceId?: string | null;
   refreshingCandidates: boolean;
   refreshing: boolean;
   deleting: boolean;
@@ -120,29 +64,28 @@ export function ModelProviderInstancesModal({
     migratedInstanceCount: number | null;
   } | null;
   onClose: () => void;
-  onChangeInstance: (instanceId: string) => void;
   onEdit: (instance: SettingsModelProviderInstance) => void;
-  onFetchModels: (instance: SettingsModelProviderInstance) => void;
   onRefreshCandidates: (instance: SettingsModelProviderInstance) => void;
   onRefreshModels: (instance: SettingsModelProviderInstance) => void;
   onDelete: (instance: SettingsModelProviderInstance) => void;
-  onUpdatePrimary: (instanceId: string) => void;
+  onToggleAutoIncludeNewInstances: (checked: boolean) => void;
+  onToggleIncludedInMain: (
+    instance: SettingsModelProviderInstance,
+    checked: boolean
+  ) => void;
 }) {
-  const [expandedInstanceId, setExpandedInstanceId] = useState<string | null>(null);
-  const loadedModelsByInstanceId = useMemo(() => {
-    if (!modelCatalog) {
-      return {};
-    }
-
-    return {
-      [modelCatalog.provider_instance_id]: modelCatalog.models
-    } as Record<string, SettingsModelProviderModelCatalog['models']>;
-  }, [modelCatalog]);
+  const includedCount = instances.filter(
+    (instance) => instance.included_in_main
+  ).length;
+  const aggregatedModelCount = modelGroups.reduce(
+    (total, group) => total + group.models.length,
+    0
+  );
 
   return (
     <Modal
       open={open}
-      width={920}
+      width={960}
       title={catalogEntry ? `${catalogEntry.display_name} 实例` : '供应商实例'}
       onCancel={onClose}
       footer={null}
@@ -162,230 +105,92 @@ export function ModelProviderInstancesModal({
           />
         ) : null}
 
-        <div className="model-provider-panel__instances-modal-head">
-          <div>
-            <Typography.Text strong>查看供应商实例</Typography.Text>
-            <Typography.Paragraph type="secondary">
-              为该供应商选择一个主实例；agent-flow 和运行时都会按这个主实例解析。
-            </Typography.Paragraph>
-          </div>
-          {canManage ? (
-            <div className="model-provider-panel__instances-modal-select">
-              <Typography.Text type="secondary">主实例</Typography.Text>
-              <Select
-                aria-label="主实例"
-                placeholder="选择 ready 实例"
-                value={instances.find((instance) => instance.is_primary)?.id}
-                options={instances
-                  .filter((instance) => instance.status === 'ready')
-                  .map((instance) => ({
-                    value: instance.id,
-                    label: instance.display_name
-                  }))}
-                onChange={(instanceId) => {
-                  const nextPrimaryInstance = instances.find(
-                    (instance) => instance.id === instanceId
-                  );
-
-                  if (nextPrimaryInstance) {
-                    setExpandedInstanceId(nextPrimaryInstance.id);
-                    onChangeInstance(nextPrimaryInstance.id);
-                    onFetchModels(nextPrimaryInstance);
-                  }
-
-                  onUpdatePrimary(instanceId);
-                }}
-              />
+        <section className="model-provider-panel__main-instance-card">
+          <div className="model-provider-panel__main-instance-head">
+            <div>
+              <Typography.Text strong>主实例</Typography.Text>
+              <Typography.Paragraph type="secondary">
+                聚合视图会按已接入实例合并模型，agent-flow 使用这里的汇总结果。
+              </Typography.Paragraph>
             </div>
-          ) : null}
-        </div>
+            <Space
+              direction="vertical"
+              size={4}
+              className="model-provider-panel__main-instance-toggle"
+            >
+              <Typography.Text type="secondary">
+                新实例自动加入主实例
+              </Typography.Text>
+              <Switch
+                aria-label="新实例自动加入主实例"
+                checked={mainInstance?.auto_include_new_instances ?? false}
+                disabled={!canManage || updatingMainInstance}
+                onChange={onToggleAutoIncludeNewInstances}
+              />
+            </Space>
+          </div>
 
-        {instances.length === 0 ? (
-          <Empty
-            className="model-provider-panel__empty"
-            image={Empty.PRESENTED_IMAGE_SIMPLE}
-            description="当前供应商还没有可用实例"
-          />
-        ) : (
-          <CollapseShell
-            activeKey={expandedInstanceId ? [expandedInstanceId] : []}
-            onChange={(nextKeys) => {
-              const resolvedKeys = Array.isArray(nextKeys) ? nextKeys : [nextKeys];
-              const nextExpandedId = resolvedKeys[resolvedKeys.length - 1];
-              setExpandedInstanceId(
-                typeof nextExpandedId === 'string' ? nextExpandedId : null
-              );
-              if (!nextExpandedId) {
-                return;
-              }
+          <div className="model-provider-panel__main-instance-summary">
+            <Tag bordered={false} color="blue">
+              聚合视图
+            </Tag>
+            <Typography.Text type="secondary">
+              已接入 {includedCount} 个实例
+            </Typography.Text>
+            <Typography.Text type="secondary">
+              已汇总 {aggregatedModelCount} 个模型
+            </Typography.Text>
+          </div>
 
-              const expandedInstance = instances.find((instance) => instance.id === nextExpandedId);
-              if (expandedInstance) {
-                onChangeInstance(expandedInstance.id);
-                onFetchModels(expandedInstance);
-              }
-            }}
-            items={instances.map((instance) => {
-              const cachedModels =
-                loadedModelsByInstanceId[instance.id]?.map((model) => model.model_id) ?? [];
-              const hasLoadedModels = cachedModels.length > 0;
-              const isLoadingCurrentCatalog =
-                modelsLoading && modelCatalog?.provider_instance_id === instance.id;
+          {modelGroups.length === 0 ? (
+            <Empty
+              image={Empty.PRESENTED_IMAGE_SIMPLE}
+              description="当前主实例还没有接入任何子实例模型"
+            />
+          ) : (
+            <div className="model-provider-panel__main-instance-groups">
+              {modelGroups.map((group) => (
+                <section
+                  key={group.source_instance_id}
+                  className="model-provider-panel__main-instance-group"
+                >
+                  <Typography.Text strong>
+                    {group.source_instance_display_name}
+                  </Typography.Text>
+                  <Typography.Paragraph type="secondary">
+                    {formatModelPreview(
+                      group.models.map((model) => model.model_id)
+                    )}
+                  </Typography.Paragraph>
+                </section>
+              ))}
+            </div>
+          )}
+        </section>
 
-              return {
-                key: instance.id,
-                header: (
-                  <div className="model-provider-panel__instance-header">
-                    <div className="model-provider-panel__instance-header-main">
-                      <div className="model-provider-panel__instance-title-row">
-                        <span className="model-provider-panel__instance-title">
-                          {instance.display_name}
-                        </span>
-                        {instance.is_primary ? (
-                          <Tag
-                            className="model-provider-panel__instance-primary-tag"
-                            color="blue"
-                            bordered={false}
-                          >
-                            主实例
-                          </Tag>
-                        ) : null}
-                        {renderStatusTag(instance.status)}
-                      </div>
-                      <Typography.Paragraph
-                        className="model-provider-panel__instance-subtitle"
-                        ellipsis={{ rows: 1 }}
-                      >
-                        {instance.provider_code} · {instance.protocol}
-                      </Typography.Paragraph>
-                    </div>
-                    <div className="model-provider-panel__instance-stats">
-                      <div className="model-provider-panel__instance-stat">
-                        <span className="model-provider-panel__instance-stat-label">
-                          生效模型
-                        </span>
-                        <span className="model-provider-panel__instance-stat-value">
-                          {instance.enabled_model_ids.length}
-                        </span>
-                      </div>
-                      <div className="model-provider-panel__instance-stat">
-                        <span className="model-provider-panel__instance-stat-label">
-                          缓存模型
-                        </span>
-                        <span className="model-provider-panel__instance-stat-value">
-                          {instance.model_count}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                ),
-                children: (
-                  <>
-                    <Descriptions
-                      className="model-provider-panel__instance-descriptions"
-                      size="small"
-                      column={1}
-                      items={[
-                        {
-                          key: 'enabled-models',
-                          label: '生效模型',
-                          children: (
-                            <Typography.Text>
-                              {formatModelPreview(instance.enabled_model_ids)}
-                            </Typography.Text>
-                          )
-                        },
-                        {
-                          key: 'cached-models',
-                          label: '候选缓存',
-                          children: isLoadingCurrentCatalog ? (
-                            <div className="model-provider-panel__instance-loading">
-                              <span>正在加载候选模型</span>
-                              <span className="model-provider-panel__instance-loading-dots">
-                                <span className="model-provider-panel__instance-loading-dot" />
-                                <span className="model-provider-panel__instance-loading-dot" />
-                                <span className="model-provider-panel__instance-loading-dot" />
-                              </span>
-                            </div>
-                          ) : hasLoadedModels ? (
-                            <CachedModelSelect
-                              modelIds={cachedModels}
-                              ariaLabel={`候选缓存 ${instance.display_name}`}
-                              className="model-provider-panel__model-select"
-                              defaultValue={cachedModels[0]}
-                            />
-                          ) : (
-                            <Typography.Text type="secondary">
-                              当前仅显示摘要，点击展开时会自动拉取候选缓存。
-                            </Typography.Text>
-                          )
-                        },
-                        {
-                          key: 'refreshed-at',
-                          label: '最近刷新',
-                          children: (
-                            <Typography.Text type="secondary">
-                              {formatCatalogRefreshedAt(instance.catalog_refreshed_at)}
-                            </Typography.Text>
-                          )
-                        },
-                        {
-                          key: 'base-url',
-                          label: 'Base URL',
-                          children: (
-                            <Typography.Paragraph
-                              className="model-provider-panel__instance-baseurl-value"
-                              ellipsis={{ rows: 2, expandable: true, symbol: '展开' }}
-                              style={{ marginBottom: 0 }}
-                            >
-                              {String(instance.config_json.base_url ?? '未配置')}
-                            </Typography.Paragraph>
-                          )
-                        }
-                      ]}
-                    />
-
-                    {canManage ? (
-                      <div className="model-provider-panel__instance-actions">
-                        <button
-                          className="model-provider-panel__instance-action-btn"
-                          onClick={() => onEdit(instance)}
-                          aria-label={`编辑 API Key ${instance.display_name}`}
-                        >
-                          编辑 API Key
-                        </button>
-                        <button
-                          className="model-provider-panel__instance-action-btn"
-                          onClick={() => onRefreshCandidates(instance)}
-                          aria-label={`刷新候选模型 ${instance.display_name}`}
-                          disabled={refreshingCandidates}
-                        >
-                          {refreshingCandidates ? '刷新中...' : '刷新候选模型'}
-                        </button>
-                        <button
-                          className="model-provider-panel__instance-action-btn"
-                          onClick={() => onRefreshModels(instance)}
-                          aria-label={`刷新模型 ${instance.display_name}`}
-                          disabled={refreshing}
-                        >
-                          {refreshing ? '刷新中...' : '刷新模型'}
-                        </button>
-                        <button
-                          className="model-provider-panel__instance-action-btn model-provider-panel__instance-action-btn--danger"
-                          onClick={() => onDelete(instance)}
-                          aria-label={`删除实例 ${instance.display_name}`}
-                          disabled={deleting}
-                        >
-                          {deleting ? '删除中...' : '删除实例'}
-                        </button>
-                      </div>
-                    ) : null}
-                  </>
-                )
-              };
-            })}
-          />
-        )}
+        <ModelProviderInstancesTable
+          instances={instances}
+          canManage={canManage}
+          loading={false}
+          updatingInstanceId={updatingInstanceId}
+          onToggleIncludedInMain={onToggleIncludedInMain}
+          onEdit={onEdit}
+          onRefreshCandidates={(instance) => {
+            if (!refreshingCandidates) {
+              onRefreshCandidates(instance);
+            }
+          }}
+          onRefreshModels={(instance) => {
+            if (!refreshing) {
+              onRefreshModels(instance);
+            }
+          }}
+          onDelete={(instance) => {
+            if (!deleting) {
+              onDelete(instance);
+            }
+          }}
+        />
       </div>
     </Modal>
   );

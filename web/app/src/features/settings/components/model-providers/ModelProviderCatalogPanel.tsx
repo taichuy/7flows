@@ -26,7 +26,7 @@ export function ModelProviderCatalogPanel({
   entries,
   currentCatalogEntries,
   instanceCounts,
-  primaryInstanceSummary,
+  includedInstanceCounts,
   loading,
   canManage,
   deletingProviderCode,
@@ -44,7 +44,7 @@ export function ModelProviderCatalogPanel({
     SettingsModelProviderCatalogEntry | null
   >;
   instanceCounts: Record<string, number>;
-  primaryInstanceSummary: Record<string, string>;
+  includedInstanceCounts: Record<string, number>;
   loading?: boolean;
   canManage: boolean;
   deletingProviderCode?: string | null;
@@ -137,8 +137,13 @@ export function ModelProviderCatalogPanel({
                   type="secondary"
                   className="model-provider-panel__catalog-meta"
                 >
-                  主实例：
-                  {primaryInstanceSummary[entry.provider_code] ?? '未设置'}
+                  主实例：聚合视图
+                </Typography.Text>
+                <Typography.Text
+                  type="secondary"
+                  className="model-provider-panel__catalog-meta"
+                >
+                  已接入：{includedInstanceCounts[entry.provider_code] ?? 0} 个实例
                 </Typography.Text>
               </div>
             )

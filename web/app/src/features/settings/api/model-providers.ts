@@ -1,6 +1,7 @@
 import {
   createConsoleModelProviderInstance,
   deleteConsoleModelProviderInstance,
+  getConsoleModelProviderMainInstance,
   getConsoleModelProviderModels,
   listConsoleModelProviderCatalog,
   listConsoleModelProviderInstances,
@@ -9,20 +10,20 @@ import {
   revealConsoleModelProviderSecret,
   refreshConsoleModelProviderModels,
   updateConsoleModelProviderInstance,
-  updateConsoleModelProviderRouting,
+  updateConsoleModelProviderMainInstance,
   validateConsoleModelProviderInstance,
   type ConsoleModelProviderCatalogEntry,
   type ConsoleModelProviderInstance,
+  type ConsoleModelProviderMainInstance,
   type RevealConsoleModelProviderSecretResult,
   type ConsoleModelProviderOptions,
   type ConsoleModelProviderModelCatalog,
-  type ConsoleModelProviderRouting,
   type ConsoleValidateModelProviderResult,
   type CreateConsoleModelProviderInput,
   type PreviewConsoleModelProviderModelsInput,
   type PreviewConsoleModelProviderModelsResponse,
   type UpdateConsoleModelProviderInput,
-  type UpdateConsoleModelProviderRoutingInput
+  type UpdateConsoleModelProviderMainInstanceInput
 } from '@1flowbase/api-client';
 
 export type SettingsModelProviderCatalogEntry = ConsoleModelProviderCatalogEntry;
@@ -31,14 +32,14 @@ export type SettingsModelProviderOptions = ConsoleModelProviderOptions;
 export type SettingsModelProviderModelCatalog = ConsoleModelProviderModelCatalog;
 export type SettingsRevealModelProviderSecretResult = RevealConsoleModelProviderSecretResult;
 export type SettingsValidateModelProviderResult = ConsoleValidateModelProviderResult;
+export type SettingsModelProviderMainInstance = ConsoleModelProviderMainInstance;
 export type CreateSettingsModelProviderInput = CreateConsoleModelProviderInput;
 export type PreviewSettingsModelProviderModelsInput = PreviewConsoleModelProviderModelsInput;
 export type PreviewSettingsModelProviderModelsResponse =
   PreviewConsoleModelProviderModelsResponse;
 export type UpdateSettingsModelProviderInput = UpdateConsoleModelProviderInput;
-export type SettingsModelProviderRouting = ConsoleModelProviderRouting;
-export type UpdateSettingsModelProviderRoutingInput =
-  UpdateConsoleModelProviderRoutingInput;
+export type UpdateSettingsModelProviderMainInstanceInput =
+  UpdateConsoleModelProviderMainInstanceInput;
 
 export const settingsModelProviderCatalogQueryKey = [
   'settings',
@@ -72,6 +73,10 @@ export function fetchSettingsModelProviderOptions() {
   return listConsoleModelProviderOptions();
 }
 
+export function fetchSettingsModelProviderMainInstance(providerCode: string) {
+  return getConsoleModelProviderMainInstance(providerCode);
+}
+
 export function fetchSettingsModelProviderModels(instanceId: string) {
   return getConsoleModelProviderModels(instanceId);
 }
@@ -98,12 +103,12 @@ export function updateSettingsModelProviderInstance(
   return updateConsoleModelProviderInstance(instanceId, input, csrfToken);
 }
 
-export function updateSettingsModelProviderRouting(
+export function updateSettingsModelProviderMainInstance(
   providerCode: string,
-  input: UpdateSettingsModelProviderRoutingInput,
+  input: UpdateSettingsModelProviderMainInstanceInput,
   csrfToken: string
 ) {
-  return updateConsoleModelProviderRouting(providerCode, input, csrfToken);
+  return updateConsoleModelProviderMainInstance(providerCode, input, csrfToken);
 }
 
 export function validateSettingsModelProviderInstance(

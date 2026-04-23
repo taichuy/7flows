@@ -104,7 +104,7 @@ export interface ConsoleModelProviderInstance {
   protocol: string;
   display_name: string;
   status: string;
-  is_primary: boolean;
+  included_in_main: boolean;
   config_json: Record<string, unknown>;
   configured_models: ConsoleModelProviderConfiguredModel[];
   enabled_model_ids: string[];
@@ -117,6 +117,7 @@ export interface ConsoleModelProviderInstance {
 export interface CreateConsoleModelProviderInput {
   installation_id: string;
   display_name: string;
+  included_in_main?: boolean;
   configured_models: ConsoleModelProviderConfiguredModel[];
   preview_token?: string | null;
   config: Record<string, unknown>;
@@ -136,14 +137,15 @@ export interface PreviewConsoleModelProviderModelsResponse {
 
 export interface UpdateConsoleModelProviderInput {
   display_name: string;
+  included_in_main?: boolean;
   configured_models: ConsoleModelProviderConfiguredModel[];
   preview_token?: string | null;
   config: Record<string, unknown>;
 }
 
-export interface UpdateConsoleModelProviderRoutingInput {
-  routing_mode: 'manual_primary';
-  primary_instance_id: string;
+export interface ConsoleModelProviderMainInstance {
+  provider_code: string;
+  auto_include_new_instances: boolean;
 }
 
 export interface ConsoleValidateModelProviderResult {
@@ -165,6 +167,19 @@ export interface RevealConsoleModelProviderSecretResult {
   value: unknown;
 }
 
+export interface ConsoleModelProviderMainInstanceSummary {
+  provider_code: string;
+  auto_include_new_instances: boolean;
+  group_count: number;
+  model_count: number;
+}
+
+export interface ConsoleModelProviderOptionGroup {
+  source_instance_id: string;
+  source_instance_display_name: string;
+  models: ConsoleProviderModelDescriptor[];
+}
+
 export interface ConsoleModelProviderOption {
   provider_code: string;
   plugin_type: string;
@@ -173,9 +188,8 @@ export interface ConsoleModelProviderOption {
   description_key: string | null;
   protocol: string;
   display_name: string;
-  effective_instance_id: string | null;
-  effective_instance_display_name: string | null;
-  models: ConsoleProviderModelDescriptor[];
+  main_instance: ConsoleModelProviderMainInstanceSummary;
+  model_groups: ConsoleModelProviderOptionGroup[];
 }
 
 export interface ConsoleModelProviderOptions {
@@ -188,11 +202,8 @@ export interface DeleteConsoleModelProviderResult {
   deleted: boolean;
 }
 
-export interface ConsoleModelProviderRouting {
-  provider_code: string;
-  routing_mode: string;
-  primary_instance_id: string;
-  primary_instance_display_name: string;
+export interface UpdateConsoleModelProviderMainInstanceInput {
+  auto_include_new_instances: boolean;
 }
 
 export function listConsoleModelProviderCatalog(baseUrl?: string) {
@@ -252,14 +263,24 @@ export function updateConsoleModelProviderInstance(
   });
 }
 
-export function updateConsoleModelProviderRouting(
+export function getConsoleModelProviderMainInstance(
   providerCode: string,
-  input: UpdateConsoleModelProviderRoutingInput,
+  baseUrl?: string
+) {
+  return apiFetch<ConsoleModelProviderMainInstance>({
+    path: `/api/console/model-providers/providers/${providerCode}/main-instance`,
+    baseUrl
+  });
+}
+
+export function updateConsoleModelProviderMainInstance(
+  providerCode: string,
+  input: UpdateConsoleModelProviderMainInstanceInput,
   csrfToken: string,
   baseUrl?: string
 ) {
-  return apiFetch<ConsoleModelProviderRouting>({
-    path: `/api/console/model-providers/providers/${providerCode}/routing`,
+  return apiFetch<ConsoleModelProviderMainInstance>({
+    path: `/api/console/model-providers/providers/${providerCode}/main-instance`,
     method: 'PUT',
     body: input,
     csrfToken,

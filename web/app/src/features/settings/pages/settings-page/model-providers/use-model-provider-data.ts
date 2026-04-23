@@ -1,14 +1,16 @@
-import { useEffect, useMemo } from 'react';
-import type { Dispatch, SetStateAction } from 'react';
+import { useMemo } from 'react';
 
 import { useQuery } from '@tanstack/react-query';
 
 import {
   fetchSettingsModelProviderCatalog,
   fetchSettingsModelProviderInstances,
+  fetchSettingsModelProviderMainInstance,
   fetchSettingsModelProviderModels,
+  fetchSettingsModelProviderOptions,
   settingsModelProviderCatalogQueryKey,
   settingsModelProviderInstancesQueryKey,
+  settingsModelProviderOptionsQueryKey,
   settingsModelProviderModelsQueryKey
 } from '../../../api/model-providers';
 import {
@@ -22,21 +24,17 @@ import {
   EMPTY_MODEL_PROVIDER_INSTANCES,
   EMPTY_PLUGIN_FAMILIES,
   IDLE_MODEL_PROVIDER_MODELS_QUERY_KEY,
-  pickPreferredInstanceId,
+  MODEL_PROVIDER_MAIN_INSTANCE_QUERY_KEY_PREFIX,
   type ModelProviderDrawerState,
   type ModelProviderInstanceModalState
 } from './shared';
 
 export function useModelProviderData({
   drawerState,
-  instanceModalState,
-  setInstanceModalState
+  instanceModalState
 }: {
   drawerState: ModelProviderDrawerState;
   instanceModalState: ModelProviderInstanceModalState;
-  setInstanceModalState: Dispatch<
-    SetStateAction<ModelProviderInstanceModalState>
-  >;
 }) {
   const catalogQuery = useQuery({
     queryKey: settingsModelProviderCatalogQueryKey,
@@ -54,6 +52,10 @@ export function useModelProviderData({
     queryKey: settingsModelProviderInstancesQueryKey,
     queryFn: fetchSettingsModelProviderInstances
   });
+  const optionsQuery = useQuery({
+    queryKey: settingsModelProviderOptionsQueryKey,
+    queryFn: fetchSettingsModelProviderOptions
+  });
 
   const instances = instancesQuery.data ?? EMPTY_MODEL_PROVIDER_INSTANCES;
   const catalogEntries = catalogQuery.data ?? EMPTY_MODEL_PROVIDER_CATALOG;
@@ -66,6 +68,7 @@ export function useModelProviderData({
         registryUrl: officialCatalogQuery.data.registry_url
       }
     : null;
+
   const catalogEntriesByInstallationId = useMemo(() => {
     const grouped: Record<string, (typeof catalogEntries)[number]> = {};
 
@@ -75,6 +78,7 @@ export function useModelProviderData({
 
     return grouped;
   }, [catalogEntries]);
+
   const currentCatalogEntriesByProviderCode = useMemo(() => {
     const grouped: Record<string, (typeof catalogEntries)[number] | null> = {};
 
@@ -89,6 +93,7 @@ export function useModelProviderData({
 
     return grouped;
   }, [catalogEntries, catalogEntriesByInstallationId, families]);
+
   const familiesByProviderCode = useMemo(() => {
     const grouped: Record<string, (typeof families)[number]> = {};
 
@@ -98,6 +103,7 @@ export function useModelProviderData({
 
     return grouped;
   }, [families]);
+
   const instancesByProviderCode = useMemo(() => {
     const grouped: Record<string, typeof instances> = {};
 
@@ -108,6 +114,20 @@ export function useModelProviderData({
 
     return grouped;
   }, [instances]);
+
+  const providerOptionsByProviderCode = useMemo(() => {
+    const grouped: Record<
+      string,
+      NonNullable<(typeof optionsQuery.data)['providers']>[number]
+    > = {};
+
+    for (const provider of optionsQuery.data?.providers ?? []) {
+      grouped[provider.provider_code] = provider;
+    }
+
+    return grouped;
+  }, [optionsQuery.data]);
+
   const instanceCounts = useMemo(() => {
     const counts: Record<string, number> = {};
 
@@ -119,22 +139,27 @@ export function useModelProviderData({
 
     return counts;
   }, [instancesByProviderCode]);
-  const primaryInstanceSummary = useMemo(() => {
-    return Object.fromEntries(
-      Object.entries(instancesByProviderCode).map(
-        ([providerCode, providerInstances]) => [
-          providerCode,
-          providerInstances.find((instance) => instance.is_primary)
-            ?.display_name ?? '未设置'
-        ]
-      )
-    );
+
+  const includedInstanceCounts = useMemo(() => {
+    const counts: Record<string, number> = {};
+
+    for (const [providerCode, providerInstances] of Object.entries(
+      instancesByProviderCode
+    )) {
+      counts[providerCode] = providerInstances.filter(
+        (instance) => instance.included_in_main
+      ).length;
+    }
+
+    return counts;
   }, [instancesByProviderCode]);
+
   const editingInstance =
     drawerState?.mode === 'edit'
       ? (instances.find((instance) => instance.id === drawerState.instanceId) ??
         null)
       : null;
+
   const drawerCatalogEntry =
     drawerState?.mode === 'create'
       ? (currentCatalogEntriesByProviderCode[drawerState.providerCode] ??
@@ -145,6 +170,13 @@ export function useModelProviderData({
           currentCatalogEntriesByProviderCode[editingInstance.provider_code] ??
           null)
         : null;
+
+  const drawerDefaultIncludedInMain =
+    drawerState?.mode === 'create'
+      ? providerOptionsByProviderCode[drawerState.providerCode]?.main_instance
+          .auto_include_new_instances ?? false
+      : editingInstance?.included_in_main ?? false;
+
   const modalInstances = useMemo(
     () =>
       instanceModalState
@@ -153,66 +185,32 @@ export function useModelProviderData({
         : EMPTY_MODEL_PROVIDER_INSTANCES,
     [instanceModalState, instancesByProviderCode]
   );
-  const modalSelectedInstanceId =
-    instanceModalState &&
-    modalInstances.some(
-      (instance) => instance.id === instanceModalState.selectedInstanceId
-    )
-      ? instanceModalState.selectedInstanceId
-      : pickPreferredInstanceId(modalInstances);
-  const selectedModalInstance =
-    modalInstances.find(
-      (instance) => instance.id === modalSelectedInstanceId
-    ) ??
-    modalInstances[0] ??
-    null;
+
   const modalCatalogEntry = instanceModalState
-    ? selectedModalInstance
-      ? (catalogEntriesByInstallationId[
-          selectedModalInstance.installation_id
-        ] ??
-        currentCatalogEntriesByProviderCode[instanceModalState.providerCode] ??
-        null)
-      : (currentCatalogEntriesByProviderCode[instanceModalState.providerCode] ??
-        null)
+    ? (currentCatalogEntriesByProviderCode[instanceModalState.providerCode] ??
+      null)
     : null;
-  const modelsQuery = useQuery({
-    queryKey: modalSelectedInstanceId
-      ? settingsModelProviderModelsQueryKey(modalSelectedInstanceId)
-      : IDLE_MODEL_PROVIDER_MODELS_QUERY_KEY,
-    queryFn: () => fetchSettingsModelProviderModels(modalSelectedInstanceId!),
-    enabled: false
+
+  const modalProviderOption = instanceModalState
+    ? (providerOptionsByProviderCode[instanceModalState.providerCode] ?? null)
+    : null;
+
+  const mainInstanceQuery = useQuery({
+    queryKey: instanceModalState
+      ? [...MODEL_PROVIDER_MAIN_INSTANCE_QUERY_KEY_PREFIX, instanceModalState.providerCode]
+      : [...MODEL_PROVIDER_MAIN_INSTANCE_QUERY_KEY_PREFIX, 'idle'],
+    queryFn: () =>
+      fetchSettingsModelProviderMainInstance(instanceModalState!.providerCode),
+    enabled: Boolean(instanceModalState)
   });
+
   const editingModelsQuery = useQuery({
     queryKey: editingInstance
       ? settingsModelProviderModelsQueryKey(editingInstance.id)
       : IDLE_MODEL_PROVIDER_MODELS_QUERY_KEY,
     queryFn: () => fetchSettingsModelProviderModels(editingInstance!.id),
-    enabled: false
+    enabled: Boolean(editingInstance)
   });
-
-  useEffect(() => {
-    if (!instanceModalState) {
-      return;
-    }
-
-    const nextSelectedInstanceId = pickPreferredInstanceId(modalInstances);
-
-    if (!modalSelectedInstanceId && !nextSelectedInstanceId) {
-      return;
-    }
-
-    if (modalSelectedInstanceId !== instanceModalState.selectedInstanceId) {
-      setInstanceModalState((current) =>
-        current
-          ? {
-              ...current,
-              selectedInstanceId: modalSelectedInstanceId
-            }
-          : current
-      );
-    }
-  }, [instanceModalState, modalInstances, modalSelectedInstanceId, setInstanceModalState]);
 
   const readyCount = instances.filter(
     (instance) => instance.status === 'ready'
@@ -234,7 +232,8 @@ export function useModelProviderData({
     familiesQuery,
     officialCatalogQuery,
     instancesQuery,
-    modelsQuery,
+    optionsQuery,
+    mainInstanceQuery,
     instances,
     families,
     officialCatalogEntries,
@@ -242,14 +241,16 @@ export function useModelProviderData({
     currentCatalogEntriesByProviderCode,
     familiesByProviderCode,
     instancesByProviderCode,
+    providerOptionsByProviderCode,
     instanceCounts,
-    primaryInstanceSummary,
+    includedInstanceCounts,
     editingInstance,
     editingModelCatalog: editingModelsQuery.data ?? null,
     drawerCatalogEntry,
+    drawerDefaultIncludedInMain,
     modalInstances,
-    modalSelectedInstanceId,
     modalCatalogEntry,
+    modalProviderOption,
     overviewRows
   };
 }

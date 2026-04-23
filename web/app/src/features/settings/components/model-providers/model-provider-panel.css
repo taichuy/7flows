@@ -112,6 +112,11 @@
   gap: 2px;
 }
 
+.model-provider-panel__instance-inclusion {
+  display: grid;
+  gap: 6px;
+}
+
 .model-provider-panel__mono {
   font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
 }
@@ -325,26 +330,55 @@
   gap: 20px;
 }
 
-.model-provider-panel__instances-modal-head {
+.model-provider-panel__main-instance-card {
+  display: grid;
+  gap: 16px;
+  padding: 16px;
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  border-radius: 16px;
+  background: linear-gradient(
+    180deg,
+    rgba(248, 252, 255, 0.98) 0%,
+    #ffffff 100%
+  );
+}
+
+.model-provider-panel__main-instance-head {
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
   gap: 16px;
-  padding: 4px 0;
 }
 
-.model-provider-panel__instances-modal-head .ant-typography {
+.model-provider-panel__main-instance-head .ant-typography {
   margin: 0;
 }
 
-.model-provider-panel__instances-modal-select {
-  min-width: 240px;
+.model-provider-panel__main-instance-toggle {
+  min-width: 180px;
   display: grid;
-  gap: 8px;
+  justify-items: end;
 }
 
-.model-provider-panel__instances-modal-select .ant-select {
-  width: 100%;
+.model-provider-panel__main-instance-summary {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+}
+
+.model-provider-panel__main-instance-groups {
+  display: grid;
+  gap: 12px;
+}
+
+.model-provider-panel__main-instance-group {
+  display: grid;
+  gap: 4px;
+  padding: 12px 14px;
+  border-radius: 12px;
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  background: rgba(255, 255, 255, 0.92);
 }
 
 .model-provider-panel__instances-modal-actions {
