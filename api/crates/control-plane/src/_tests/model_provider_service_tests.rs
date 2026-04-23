@@ -22,17 +22,15 @@ use crate::{
         UpdatePluginArtifactSnapshotInput, UpdatePluginDesiredStateInput,
         UpdatePluginRuntimeSnapshotInput, UpdatePluginTaskStatusInput, UpdateProfileInput,
         UpsertModelProviderCatalogCacheInput, UpsertModelProviderMainInstanceInput,
-        UpsertModelProviderSecretInput,
-        UpsertPluginInstallationInput,
+        UpsertModelProviderSecretInput, UpsertPluginInstallationInput,
     },
 };
 use domain::{
     ActorContext, AuditLogRecord, AuthenticatorRecord, ModelProviderCatalogCacheRecord,
     ModelProviderCatalogRefreshStatus, ModelProviderInstanceRecord, ModelProviderInstanceStatus,
-    ModelProviderMainInstanceRecord, ModelProviderPreviewSessionRecord,
-    ModelProviderSecretRecord, PermissionDefinition, PluginArtifactStatus,
-    PluginAssignmentRecord, PluginAvailabilityStatus, PluginDesiredState,
-    PluginInstallationRecord, PluginRuntimeStatus, PluginTaskRecord,
+    ModelProviderMainInstanceRecord, ModelProviderPreviewSessionRecord, ModelProviderSecretRecord,
+    PermissionDefinition, PluginArtifactStatus, PluginAssignmentRecord, PluginAvailabilityStatus,
+    PluginDesiredState, PluginInstallationRecord, PluginRuntimeStatus, PluginTaskRecord,
     PluginVerificationStatus, ScopeContext, UserRecord,
 };
 use plugin_framework::provider_contract::{
@@ -52,13 +50,17 @@ struct MemoryModelProviderRepository {
     caches: Arc<RwLock<HashMap<Uuid, ModelProviderCatalogCacheRecord>>>,
     preview_sessions: Arc<RwLock<HashMap<Uuid, ModelProviderPreviewSessionRecord>>>,
     secrets: Arc<RwLock<HashMap<Uuid, (ModelProviderSecretRecord, Value)>>>,
-    main_instances: Arc<RwLock<HashMap<String, ModelProviderMainInstanceRecord>>>,
+    main_instances: Arc<RwLock<HashMap<(Uuid, String), ModelProviderMainInstanceRecord>>>,
     routings: Arc<RwLock<HashMap<String, domain::ModelProviderRoutingRecord>>>,
     references: Arc<RwLock<HashMap<Uuid, u64>>>,
     audit_events: Arc<RwLock<Vec<String>>>,
 }
 
 impl MemoryModelProviderRepository {
+    fn main_instance_key(workspace_id: Uuid, provider_code: &str) -> (Uuid, String) {
+        (workspace_id, provider_code.to_string())
+    }
+
     fn new(actor: ActorContext) -> Self {
         Self {
             actor,
@@ -503,7 +505,10 @@ impl ModelProviderRepository for MemoryModelProviderRepository {
                 .main_instances
                 .read()
                 .await
-                .get(&input.provider_code)
+                .get(&Self::main_instance_key(
+                    input.workspace_id,
+                    &input.provider_code,
+                ))
                 .map(|record| record.auto_include_new_instances)
                 .unwrap_or(true),
         };
@@ -660,7 +665,8 @@ impl ModelProviderRepository for MemoryModelProviderRepository {
     ) -> Result<ModelProviderMainInstanceRecord> {
         let now = OffsetDateTime::now_utc();
         let mut main_instances = self.main_instances.write().await;
-        let existing = main_instances.get(&input.provider_code).cloned();
+        let key = Self::main_instance_key(input.workspace_id, &input.provider_code);
+        let existing = main_instances.get(&key).cloned();
         let record = ModelProviderMainInstanceRecord {
             workspace_id: input.workspace_id,
             provider_code: input.provider_code.clone(),
@@ -676,16 +682,21 @@ impl ModelProviderRepository for MemoryModelProviderRepository {
                 .unwrap_or(now),
             updated_at: now,
         };
-        main_instances.insert(record.provider_code.clone(), record.clone());
+        main_instances.insert(key, record.clone());
         Ok(record)
     }
 
     async fn get_main_instance(
         &self,
-        _workspace_id: Uuid,
+        workspace_id: Uuid,
         provider_code: &str,
     ) -> Result<Option<ModelProviderMainInstanceRecord>> {
-        Ok(self.main_instances.read().await.get(provider_code).cloned())
+        Ok(self
+            .main_instances
+            .read()
+            .await
+            .get(&Self::main_instance_key(workspace_id, provider_code))
+            .cloned())
     }
 
     async fn upsert_routing(
@@ -1860,4 +1871,35 @@ async fn model_provider_service_rejects_validating_disabled_instance() {
         Some(ControlPlaneError::InvalidStateTransition { resource, from, to, .. })
             if *resource == "model_provider_instance" && from == "disabled" && to == "ready"
     ));
+}
+
+#[tokio::test]
+async fn memory_model_provider_repository_scopes_main_instance_settings_by_workspace() {
+    let workspace_a = Uuid::now_v7();
+    let workspace_b = Uuid::now_v7();
+    let repository = MemoryModelProviderRepository::new(actor_with_permissions(
+        workspace_a,
+        &["state_model.manage.all"],
+    ));
+
+    repository
+        .upsert_main_instance(&UpsertModelProviderMainInstanceInput {
+            workspace_id: workspace_a,
+            provider_code: "fixture_provider".to_string(),
+            auto_include_new_instances: false,
+            updated_by: repository.actor.user_id,
+        })
+        .await
+        .unwrap();
+
+    assert!(repository
+        .get_main_instance(workspace_a, "fixture_provider")
+        .await
+        .unwrap()
+        .is_some());
+    assert!(repository
+        .get_main_instance(workspace_b, "fixture_provider")
+        .await
+        .unwrap()
+        .is_none());
 }

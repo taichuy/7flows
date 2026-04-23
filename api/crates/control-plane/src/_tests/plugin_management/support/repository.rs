@@ -10,7 +10,7 @@ pub(crate) struct MemoryPluginManagementRepository {
     tasks: Arc<RwLock<HashMap<Uuid, PluginTaskRecord>>>,
     instances: Arc<RwLock<HashMap<Uuid, ModelProviderInstanceRecord>>>,
     caches: Arc<RwLock<HashMap<Uuid, ModelProviderCatalogCacheRecord>>>,
-    main_instances: Arc<RwLock<HashMap<String, domain::ModelProviderMainInstanceRecord>>>,
+    main_instances: Arc<RwLock<HashMap<(Uuid, String), domain::ModelProviderMainInstanceRecord>>>,
     routings: Arc<RwLock<HashMap<String, domain::ModelProviderRoutingRecord>>>,
     node_contributions: Arc<RwLock<Vec<domain::NodeContributionRegistryEntry>>>,
     audit_events: Arc<RwLock<Vec<String>>>,
@@ -18,6 +18,10 @@ pub(crate) struct MemoryPluginManagementRepository {
 }
 
 impl MemoryPluginManagementRepository {
+    fn main_instance_key(workspace_id: Uuid, provider_code: &str) -> (Uuid, String) {
+        (workspace_id, provider_code.to_string())
+    }
+
     pub(crate) fn new(actor: ActorContext) -> Self {
         Self {
             actor,
@@ -509,7 +513,10 @@ impl ModelProviderRepository for MemoryPluginManagementRepository {
                 .main_instances
                 .read()
                 .await
-                .get(&input.provider_code)
+                .get(&Self::main_instance_key(
+                    input.workspace_id,
+                    &input.provider_code,
+                ))
                 .map(|record| record.auto_include_new_instances)
                 .unwrap_or(true),
         };
@@ -649,7 +656,8 @@ impl ModelProviderRepository for MemoryPluginManagementRepository {
     ) -> Result<domain::ModelProviderMainInstanceRecord> {
         let now = OffsetDateTime::now_utc();
         let mut main_instances = self.main_instances.write().await;
-        let existing = main_instances.get(&input.provider_code).cloned();
+        let key = Self::main_instance_key(input.workspace_id, &input.provider_code);
+        let existing = main_instances.get(&key).cloned();
         let record = domain::ModelProviderMainInstanceRecord {
             workspace_id: input.workspace_id,
             provider_code: input.provider_code.clone(),
@@ -665,16 +673,21 @@ impl ModelProviderRepository for MemoryPluginManagementRepository {
                 .unwrap_or(now),
             updated_at: now,
         };
-        main_instances.insert(record.provider_code.clone(), record.clone());
+        main_instances.insert(key, record.clone());
         Ok(record)
     }
 
     async fn get_main_instance(
         &self,
-        _workspace_id: Uuid,
+        workspace_id: Uuid,
         provider_code: &str,
     ) -> Result<Option<domain::ModelProviderMainInstanceRecord>> {
-        Ok(self.main_instances.read().await.get(provider_code).cloned())
+        Ok(self
+            .main_instances
+            .read()
+            .await
+            .get(&Self::main_instance_key(workspace_id, provider_code))
+            .cloned())
     }
 
     async fn upsert_routing(
