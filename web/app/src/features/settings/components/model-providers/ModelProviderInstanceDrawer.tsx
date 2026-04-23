@@ -588,15 +588,18 @@ export function ModelProviderInstanceDrawer({
 
             <Divider orientation="left">模型配置</Divider>
             <Space direction="vertical" size={12} style={{ width: '100%' }}>
-              <Flex justify="space-between" align="center" gap={12}>
-                <CachedModelSelect
-                  modelIds={previewModels.map((model) => model.model_id)}
-                  ariaLabel="缓存模型"
-                  placeholder="缓存模型"
-                  value={selectedCachedModelId}
-                  emptyMode="select"
-                  onChange={applyCachedModelSelection}
-                />
+              <Flex align="center" gap={12} style={{ width: '100%' }}>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <CachedModelSelect
+                    modelIds={previewModels.map((model) => model.model_id)}
+                    ariaLabel="缓存模型"
+                    placeholder="缓存模型"
+                    value={selectedCachedModelId}
+                    emptyMode="select"
+                    style={{ width: '100%' }}
+                    onChange={applyCachedModelSelection}
+                  />
+                </div>
                 <Button type="dashed" onClick={() => appendConfiguredModelRow()}>
                   添加模型
                 </Button>

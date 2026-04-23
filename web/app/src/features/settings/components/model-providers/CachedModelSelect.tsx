@@ -1,3 +1,5 @@
+import type { CSSProperties } from 'react';
+
 import { Select, Typography } from 'antd';
 
 type EmptyMode = 'text' | 'select';
@@ -6,6 +8,7 @@ export function CachedModelSelect({
   modelIds,
   ariaLabel,
   className,
+  style,
   placeholder = '缓存模型',
   value,
   defaultValue,
@@ -15,6 +18,7 @@ export function CachedModelSelect({
   modelIds: string[];
   ariaLabel: string;
   className?: string;
+  style?: CSSProperties;
   placeholder?: string;
   value?: string;
   defaultValue?: string;
@@ -34,6 +38,7 @@ export function CachedModelSelect({
     <Select
       aria-label={ariaLabel}
       className={className}
+      style={style}
       value={value}
       defaultValue={defaultValue}
       options={options}
