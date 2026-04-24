@@ -1,5 +1,10 @@
 import type { AgentFlowModelProviderOptions } from '../api/model-provider-options';
 
+type LocaleAwareOptions = Pick<
+  AgentFlowModelProviderOptions,
+  'locale_meta' | 'i18n_catalog'
+>;
+
 export interface LlmProviderOption {
   value: string;
   label: string;
@@ -84,6 +89,118 @@ export function formatLlmTokenCount(value: number | null | undefined) {
   return String(value);
 }
 
+function asRecord(value: unknown): Record<string, unknown> | null {
+  return typeof value === 'object' && value !== null
+    ? (value as Record<string, unknown>)
+    : null;
+}
+
+function pickPreferredLocales(localeMeta: Record<string, unknown>) {
+  const candidates = [
+    localeMeta.resolved_locale,
+    localeMeta.fallback_locale,
+    'zh_Hans',
+    'en_US'
+  ];
+
+  return candidates.filter(
+    (value, index): value is string =>
+      typeof value === 'string' && candidates.indexOf(value) === index
+  );
+}
+
+function readLocalizedValue(
+  bundle: Record<string, unknown>,
+  dottedKey: string
+): string | null {
+  let current: unknown = bundle;
+
+  for (const segment of dottedKey.split('.')) {
+    current = asRecord(current)?.[segment];
+    if (current === undefined) {
+      return null;
+    }
+  }
+
+  return typeof current === 'string' ? current : null;
+}
+
+function localizeText(
+  options: LocaleAwareOptions,
+  namespace: string,
+  value: string | undefined
+) {
+  if (!value) {
+    return value;
+  }
+
+  const namespaceCatalog = asRecord(options.i18n_catalog)?.[namespace];
+  const localeCatalog = asRecord(namespaceCatalog);
+  if (!localeCatalog) {
+    return value;
+  }
+
+  for (const locale of pickPreferredLocales(options.locale_meta)) {
+    const localizedBundle = asRecord(localeCatalog[locale]);
+    if (!localizedBundle) {
+      continue;
+    }
+
+    const localized = readLocalizedValue(localizedBundle, value);
+    if (localized) {
+      return localized;
+    }
+  }
+
+  return value;
+}
+
+function localizeParameterForm(
+  options: LocaleAwareOptions,
+  provider: AgentFlowModelProviderOptions['providers'][number]
+) {
+  const parameterForm = provider.parameter_form;
+
+  if (!parameterForm) {
+    return parameterForm;
+  }
+
+  return {
+    ...parameterForm,
+    title: localizeText(options, provider.namespace, parameterForm.title),
+    description: localizeText(
+      options,
+      provider.namespace,
+      parameterForm.description
+    ),
+    fields: parameterForm.fields.map((field) => ({
+      ...field,
+      label: localizeText(options, provider.namespace, field.label) ?? field.label,
+      description: localizeText(
+        options,
+        provider.namespace,
+        field.description
+      ),
+      placeholder: localizeText(
+        options,
+        provider.namespace,
+        field.placeholder
+      ),
+      options: field.options.map((option) => ({
+        ...option,
+        label:
+          localizeText(options, provider.namespace, option.label) ??
+          option.label,
+        description: localizeText(
+          options,
+          provider.namespace,
+          option.description
+        )
+      }))
+    }))
+  };
+}
+
 export function buildLlmModelMetadataSummary(model: LlmModelOption) {
   return [
     model.value,
@@ -118,12 +235,16 @@ export function formatModelTokenCount(value: number | null | undefined) {
 export function listLlmProviderOptions(
   options: AgentFlowModelProviderOptions | null | undefined
 ): LlmProviderOption[] {
-  return (options?.providers ?? []).map((provider) => ({
+  if (!options) {
+    return [];
+  }
+
+  return options.providers.map((provider) => ({
     value: provider.provider_code,
     label: provider.display_name,
     providerCode: provider.provider_code,
     protocol: provider.protocol,
-    parameterForm: provider.parameter_form,
+    parameterForm: localizeParameterForm(options, provider),
     modelGroups: provider.model_groups.map((group) => ({
       key: group.source_instance_id,
       label: group.source_instance_display_name,

@@ -73,8 +73,12 @@ async function openModelSettings() {
 }
 
 async function openModelDropdown() {
+  const combobox = await screen.findByRole('combobox', {
+    name: '选择供应商和模型'
+  });
+
   fireEvent.mouseDown(
-    await screen.findByRole('combobox', { name: '选择供应商和模型' })
+    combobox.closest('.ant-select-selector') ?? combobox
   );
 }
 
@@ -114,6 +118,78 @@ describe('LlmModelField', () => {
       contextWindow: primaryProviderFirstModel.context_window,
       effectiveContextWindow: primaryProviderFirstModel.context_window,
       maxOutputTokens: primaryProviderFirstModel.max_output_tokens
+    });
+  });
+
+  test('localizes provider parameter form fields and reasoning effort options from i18n catalog', () => {
+    const localizedContract = JSON.parse(
+      JSON.stringify(modelProviderOptionsContract)
+    ) as typeof modelProviderOptionsContract;
+    const localizedProvider = localizedContract.providers[0];
+
+    localizedContract.locale_meta = {
+      requested_locale: 'zh_Hans',
+      resolved_locale: 'zh_Hans',
+      user_preferred_locale: 'zh_Hans',
+      accept_language: 'zh-Hans-CN,zh;q=0.9,en;q=0.8',
+      fallback_locale: 'en_US',
+      supported_locales: ['zh_Hans', 'en_US']
+    };
+    localizedContract.i18n_catalog = {
+      [localizedProvider.namespace]: {
+        zh_Hans: {
+          parameters: {
+            reasoning_effort: {
+              label: '推理强度',
+              description: '控制推理模型投入的推理量。',
+              options: {
+                xhigh: {
+                  label: '极高'
+                }
+              }
+            }
+          }
+        }
+      }
+    };
+    localizedProvider.parameter_form = {
+      schema_version: '1.0.0',
+      fields: [
+        {
+          key: 'reasoning_effort',
+          label: 'parameters.reasoning_effort.label',
+          description: 'parameters.reasoning_effort.description',
+          type: 'enum',
+          control: 'select',
+          send_mode: 'optional',
+          enabled_by_default: false,
+          options: [
+            {
+              label: 'parameters.reasoning_effort.options.xhigh.label',
+              value: 'xhigh'
+            }
+          ],
+          visible_when: [],
+          disabled_when: []
+        }
+      ]
+    };
+
+    const providerOptions = listLlmProviderOptions(localizedContract);
+    const openaiProvider = providerOptions.find(
+      (option) => option.value === localizedProvider.provider_code
+    );
+    const reasoningField = openaiProvider?.parameterForm?.fields[0];
+
+    expect(reasoningField).toMatchObject({
+      key: 'reasoning_effort',
+      label: '推理强度',
+      description: '控制推理模型投入的推理量。',
+      control: 'select'
+    });
+    expect(reasoningField?.options[0]).toMatchObject({
+      label: '极高',
+      value: 'xhigh'
     });
   });
 
