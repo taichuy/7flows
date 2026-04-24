@@ -25,7 +25,7 @@ export function AppShell({ title, navigation, actions, children }: AppShellProps
       >
         <div className="app-shell-header-main">
           <div className="app-shell-brand">
-            <span className="app-shell-signal" aria-hidden="true" />
+            <img className="app-shell-logo" src="/icon.svg" alt="" aria-hidden="true" />
             <Typography.Title level={4} className="app-shell-title">
               {title}
             </Typography.Title>

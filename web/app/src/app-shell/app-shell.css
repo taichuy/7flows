@@ -37,12 +37,10 @@
   flex: none;
 }
 
-.app-shell-signal {
-  width: 10px;
-  height: 10px;
-  border-radius: 999px;
-  background: linear-gradient(135deg, var(--color-primary-strong), var(--color-primary));
-  box-shadow: var(--glow-soft);
+.app-shell-logo {
+  width: 20px;
+  height: 20px;
+  display: block;
   flex: none;
 }
 
