@@ -126,6 +126,7 @@ pub struct OfficialPluginCatalogEntryResponse {
     pub label_key: String,
     pub description_key: Option<String>,
     pub provider_label_key: String,
+    pub icon: Option<String>,
     pub protocol: String,
     pub latest_version: String,
     pub selected_artifact: OfficialPluginArtifactResponse,
@@ -351,6 +352,7 @@ fn to_official_catalog_entry_response(
         label_key: entry.label_key,
         description_key: entry.description_key,
         provider_label_key: entry.provider_label_key,
+        icon: entry.icon,
         protocol: entry.protocol,
         latest_version: entry.latest_version,
         selected_artifact: OfficialPluginArtifactResponse {

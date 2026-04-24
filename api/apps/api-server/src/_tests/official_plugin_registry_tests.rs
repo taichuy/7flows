@@ -21,6 +21,7 @@ fn select_artifact_prefers_exact_linux_match() {
         display_name: "OpenAI-Compatible API Provider".into(),
         protocol: "openai_compatible".into(),
         latest_version: "0.2.1".into(),
+        icon: None,
         help_url: None,
         model_discovery_mode: "hybrid".into(),
         i18n_summary: OfficialRegistryI18nSummary {
@@ -83,6 +84,7 @@ fn select_artifact_returns_none_when_no_platform_matches() {
         display_name: "OpenAI-Compatible API Provider".into(),
         protocol: "openai_compatible".into(),
         latest_version: "0.2.1".into(),
+        icon: None,
         help_url: None,
         model_discovery_mode: "hybrid".into(),
         i18n_summary: OfficialRegistryI18nSummary {

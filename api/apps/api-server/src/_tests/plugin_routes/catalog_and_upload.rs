@@ -81,6 +81,10 @@ async fn plugin_routes_list_official_catalog_with_source_metadata() {
         payload["data"]["entries"][0]["plugin_id"],
         "1flowbase.openai_compatible"
     );
+    assert_eq!(
+        payload["data"]["entries"][0]["icon"],
+        "https://raw.githubusercontent.com/taichuy/1flowbase-official-plugins/main/runtime-extensions/model-providers/openai_compatible/_assets/icon.svg"
+    );
 }
 
 #[tokio::test]

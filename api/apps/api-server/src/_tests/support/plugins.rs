@@ -21,6 +21,10 @@ impl OfficialPluginSourcePort for InMemoryOfficialPluginSource {
                 namespace: "plugin.openai_compatible".to_string(),
                 protocol: "openai_compatible".to_string(),
                 latest_version: "0.2.0".to_string(),
+                icon: Some(
+                    "https://raw.githubusercontent.com/taichuy/1flowbase-official-plugins/main/runtime-extensions/model-providers/openai_compatible/_assets/icon.svg"
+                        .to_string(),
+                ),
                 selected_artifact: OfficialPluginArtifact {
                     os: "linux".to_string(),
                     arch: "amd64".to_string(),

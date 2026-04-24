@@ -94,6 +94,7 @@ impl OfficialPluginSourcePort for ApiOfficialPluginRegistry {
                         namespace,
                         protocol: entry.protocol,
                         latest_version: entry.latest_version,
+                        icon: entry.icon,
                         selected_artifact: OfficialPluginArtifact {
                             os: selected.os,
                             arch: selected.arch,
@@ -168,6 +169,8 @@ pub struct OfficialRegistryEntry {
     pub display_name: String,
     pub protocol: String,
     pub latest_version: String,
+    #[serde(default)]
+    pub icon: Option<String>,
     pub help_url: Option<String>,
     pub model_discovery_mode: String,
     #[serde(default)]

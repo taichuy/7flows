@@ -83,6 +83,11 @@ function pickPreferredOfficialEntry(
 
 const OFFICIAL_PLUGIN_RELEASES_URL =
   'https://github.com/taichuy/1flowbase-official-plugins/releases';
+const DEFAULT_PROVIDER_ICON_SRC = '/icon.svg';
+
+function getOfficialPluginIconSrc(entry: SettingsOfficialPluginCatalogEntry) {
+  return entry.icon?.trim() || DEFAULT_PROVIDER_ICON_SRC;
+}
 
 function getTagColor(tag: string) {
   switch (tag) {
@@ -252,8 +257,8 @@ export function OfficialPluginInstallPanel({
           <Typography.Title level={5}>模型供应商</Typography.Title>
           {sourceMeta ? (
             <Typography.Text type="secondary">
-              当前从{sourceMeta.sourceLabel}读取可安装供应商目录，可直接查看说明后安装到当前
-              workspace。
+              当前从{sourceMeta.sourceLabel}
+              读取可安装供应商目录，可直接查看说明后安装到当前 workspace。
             </Typography.Text>
           ) : null}
           <div className="model-provider-panel__official-toolbar">
@@ -322,6 +327,20 @@ export function OfficialPluginInstallPanel({
               >
                 <div className="model-provider-panel__catalog-item-main">
                   <div className="model-provider-panel__catalog-item-title-row">
+                    <img
+                      className="model-provider-panel__provider-icon"
+                      src={getOfficialPluginIconSrc(entry)}
+                      alt=""
+                      aria-hidden="true"
+                      loading="lazy"
+                      onError={(event) => {
+                        const image = event.currentTarget;
+                        if (image.src.endsWith(DEFAULT_PROVIDER_ICON_SRC)) {
+                          return;
+                        }
+                        image.src = DEFAULT_PROVIDER_ICON_SRC;
+                      }}
+                    />
                     <Typography.Title level={5}>
                       {entry.display_name}
                     </Typography.Title>

@@ -336,7 +336,11 @@ afterEach(() => {
 
 describe('settings api wrappers', () => {
   test('forwards api docs query keys and request helpers', async () => {
-    expect(settingsApiDocsCatalogQueryKey).toEqual(['settings', 'docs', 'catalog']);
+    expect(settingsApiDocsCatalogQueryKey).toEqual([
+      'settings',
+      'docs',
+      'catalog'
+    ]);
     expect(settingsApiDocsCategoryOperationsQueryKey('console')).toEqual([
       'settings',
       'docs',
@@ -357,7 +361,9 @@ describe('settings api wrappers', () => {
     await fetchSettingsApiDocsOperationSpec('op-1');
 
     expect(fetchConsoleApiDocsCatalog).toHaveBeenCalledTimes(1);
-    expect(fetchConsoleApiDocsCategoryOperations).toHaveBeenCalledWith('console');
+    expect(fetchConsoleApiDocsCategoryOperations).toHaveBeenCalledWith(
+      'console'
+    );
     expect(fetchConsoleApiOperationSpec).toHaveBeenCalledWith('op-1');
   });
 
@@ -382,15 +388,27 @@ describe('settings api wrappers', () => {
     await fetchSettingsMembers();
     await createSettingsMember(memberInput as never, 'csrf-123');
     await disableSettingsMember('member-1', 'csrf-123');
-    await resetSettingsMemberPassword('member-1', passwordInput as never, 'csrf-123');
-    await replaceSettingsMemberRoles('member-1', memberRolesInput as never, 'csrf-123');
+    await resetSettingsMemberPassword(
+      'member-1',
+      passwordInput as never,
+      'csrf-123'
+    );
+    await replaceSettingsMemberRoles(
+      'member-1',
+      memberRolesInput as never,
+      'csrf-123'
+    );
     await fetchSettingsPermissions();
     await fetchSettingsRoles();
     await createSettingsRole(roleInput as never, 'csrf-123');
     await updateSettingsRole('manager', roleUpdateInput as never, 'csrf-123');
     await deleteSettingsRole('manager', 'csrf-123');
     await fetchSettingsRolePermissions('manager');
-    await replaceSettingsRolePermissions('manager', rolePermissionsInput as never, 'csrf-123');
+    await replaceSettingsRolePermissions(
+      'manager',
+      rolePermissionsInput as never,
+      'csrf-123'
+    );
 
     expect(listConsoleMembers).toHaveBeenCalledTimes(1);
     expect(createConsoleMember).toHaveBeenCalledWith(memberInput, 'csrf-123');
@@ -408,7 +426,11 @@ describe('settings api wrappers', () => {
     expect(listConsolePermissions).toHaveBeenCalledTimes(1);
     expect(listConsoleRoles).toHaveBeenCalledTimes(1);
     expect(createConsoleRole).toHaveBeenCalledWith(roleInput, 'csrf-123');
-    expect(updateConsoleRole).toHaveBeenCalledWith('manager', roleUpdateInput, 'csrf-123');
+    expect(updateConsoleRole).toHaveBeenCalledWith(
+      'manager',
+      roleUpdateInput,
+      'csrf-123'
+    );
     expect(deleteConsoleRole).toHaveBeenCalledWith('manager', 'csrf-123');
     expect(fetchConsoleRolePermissions).toHaveBeenCalledWith('manager');
     expect(replaceConsoleRolePermissions).toHaveBeenCalledWith(
@@ -518,7 +540,9 @@ describe('settings api wrappers', () => {
     await expect(fetchSettingsModelProviderCatalog()).resolves.toEqual(
       modelProviderCatalogEntries
     );
-    vi.mocked(listConsoleModelProviderInstances).mockResolvedValueOnce([instance]);
+    vi.mocked(listConsoleModelProviderInstances).mockResolvedValueOnce([
+      instance
+    ]);
     const fetchedInstances = await fetchSettingsModelProviderInstances();
     expect(fetchedInstances).toHaveLength(1);
     expect(fetchedInstances[0]).toEqual(
@@ -563,7 +587,11 @@ describe('settings api wrappers', () => {
       'csrf-123'
     );
     await createSettingsModelProviderInstance(createInput as never, 'csrf-123');
-    await updateSettingsModelProviderInstance('provider-1', updateInput as never, 'csrf-123');
+    await updateSettingsModelProviderInstance(
+      'provider-1',
+      updateInput as never,
+      'csrf-123'
+    );
     const mainInstanceResult = await updateSettingsModelProviderMainInstance(
       'openai_compatible',
       mainInstanceInput,
@@ -574,7 +602,11 @@ describe('settings api wrappers', () => {
       'csrf-123'
     );
     await refreshSettingsModelProviderModels('provider-1', 'csrf-123');
-    await revealSettingsModelProviderSecret('provider-1', 'api_key', 'csrf-123');
+    await revealSettingsModelProviderSecret(
+      'provider-1',
+      'api_key',
+      'csrf-123'
+    );
     await deleteSettingsModelProviderInstance('provider-1', 'csrf-123');
 
     expect(listConsoleModelProviderCatalog).toHaveBeenCalledTimes(1);
@@ -642,10 +674,16 @@ describe('settings api wrappers', () => {
       provider_code: 'openai_compatible',
       auto_include_new_instances: true
     } satisfies SettingsModelProviderMainInstance);
-    expect(validatedInstance.instance).not.toHaveProperty('validation_model_id');
+    expect(validatedInstance.instance).not.toHaveProperty(
+      'validation_model_id'
+    );
     expect(validatedInstance.instance).not.toHaveProperty('last_validated_at');
-    expect(validatedInstance.instance).not.toHaveProperty('last_validation_status');
-    expect(validatedInstance.instance).not.toHaveProperty('last_validation_message');
+    expect(validatedInstance.instance).not.toHaveProperty(
+      'last_validation_status'
+    );
+    expect(validatedInstance.instance).not.toHaveProperty(
+      'last_validation_message'
+    );
     expect(validatedInstance.instance.included_in_main).toBe(true);
     expect(revealConsoleModelProviderSecret).toHaveBeenCalledWith(
       'provider-1',
@@ -699,7 +737,8 @@ describe('settings api wrappers', () => {
           zh_Hans: {
             plugin: {
               label: 'OpenAI 兼容插件',
-              description: '面向 OpenAI 兼容 Chat Completions API 的 provider 插件。'
+              description:
+                '面向 OpenAI 兼容 Chat Completions API 的 provider 插件。'
             },
             provider: {
               label: 'OpenAI Compatible'
@@ -754,7 +793,8 @@ describe('settings api wrappers', () => {
           zh_Hans: {
             plugin: {
               label: 'OpenAI 兼容插件',
-              description: '面向 OpenAI 兼容 Chat Completions API 的 provider 插件。'
+              description:
+                '面向 OpenAI 兼容 Chat Completions API 的 provider 插件。'
             },
             provider: {
               label: 'OpenAI Compatible'
@@ -781,6 +821,7 @@ describe('settings api wrappers', () => {
           label_key: 'plugin.label',
           description_key: 'plugin.description',
           provider_label_key: 'provider.label',
+          icon: 'https://raw.githubusercontent.com/taichuy/1flowbase-official-plugins/main/runtime-extensions/model-providers/openai_compatible/_assets/icon.svg',
           protocol: 'openai_compatible',
           latest_version: '0.3.7',
           selected_artifact: {
@@ -827,8 +868,10 @@ describe('settings api wrappers', () => {
           expect.objectContaining({
             plugin_id: '1flowbase.openai_compatible',
             display_name: 'OpenAI Compatible',
-            description: '面向 OpenAI 兼容 Chat Completions API 的 provider 插件。',
+            description:
+              '面向 OpenAI 兼容 Chat Completions API 的 provider 插件。',
             plugin_type: 'model_provider',
+            icon: 'https://raw.githubusercontent.com/taichuy/1flowbase-official-plugins/main/runtime-extensions/model-providers/openai_compatible/_assets/icon.svg',
             latest_version: '0.3.7'
           })
         ])
@@ -854,7 +897,10 @@ describe('settings api wrappers', () => {
       { plugin_id: 'openai_compatible@0.2.0' },
       'csrf-123'
     );
-    expect(uploadConsolePluginPackage).toHaveBeenCalledWith(uploadFile, 'csrf-123');
+    expect(uploadConsolePluginPackage).toHaveBeenCalledWith(
+      uploadFile,
+      'csrf-123'
+    );
     expect(upgradeConsolePluginFamilyLatest).toHaveBeenCalledWith(
       'openai_compatible',
       'csrf-123'

@@ -117,6 +117,7 @@ pub struct OfficialPluginSourceEntry {
     pub namespace: String,
     pub protocol: String,
     pub latest_version: String,
+    pub icon: Option<String>,
     pub selected_artifact: OfficialPluginArtifact,
     pub i18n_summary: OfficialPluginI18nSummary,
     pub release_tag: String,
