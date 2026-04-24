@@ -43,7 +43,7 @@ description: Use when evaluating 1flowbase task outcomes or current project qual
 - 评估范围命中共享 console API DTO、`style-boundary` mock、settings / agent-flow 的 model provider consumer 时，必须检查 `node scripts/node/test-contracts.js` 或等价四条定向 contract consumer vitest，并确认 `verify-repo` 已包含该 gate
 - 没有运行时证据时，前端样式结论默认降级为受限结论
 - 只要评估范围涉及后端 API、状态入口、插件边界、runtime、`resource kernel` 或 `route / service / repository / domain / mapper` 分层，就必须加载后端专项检查
-- 后端任务必查：三平面、接口包装、状态写入口、`host-extension / runtime extension / capability plugin` 边界、`storage-pg` 的 repository/mapper 拆分、`workspace/system` 命名面、`SYSTEM_SCOPE_ID`、runtime `scope_id`、无 legacy alias、验证命令与 blast radius
+- 后端任务必查：三平面、接口包装、状态写入口、`host-extension / runtime extension / capability plugin` 边界、`storage-postgres` 的 repository/mapper 拆分、`storage-durable / storage-object` 边界、`workspace/system` 命名面、`SYSTEM_SCOPE_ID`、runtime `scope_id`、无 legacy alias、验证命令与 blast radius
 - 同一工作区内执行后端 `cargo` 验证命令时默认串行，不要为了加速 QA 并发启动多条 `cargo test / check / clippy` 导致锁等待和结论失真
 - 前端层级、入口、L0 / L1 / L2 / L3 问题：联动 `frontend-logic-design`
 - 后端契约、状态入口、边界污染问题：联动 `backend-development`

@@ -16,7 +16,10 @@
 | `features/*/pages` | 页面容器、页面级状态、页面级组合 | 可复用通用组件、底层请求 client |
 | `features/*/components` | 当前 feature 私有组件 | 过早共享组件、路由真值层 |
 | `features/*/api` | 当前 feature 的 query key、queryFn、mutation、请求适配 | 通用 transport、全站共享 client |
+| `features/*/hooks` | 当前 feature 的交互和组合 hooks | 跨 feature 工具、全局状态 |
 | `features/*/lib` | 当前 feature 内部 helper、mapper、view model | 跨 feature 纯工具、全局共享请求 |
+| `features/*/schema` | 当前 feature 的 schema adapter、fragment、renderer registry | 通用 schema UI 基础组件 |
+| `features/*/store` | 当前 feature 私有客户端状态 | 跨页面共享状态、服务端数据缓存 |
 | `shared/ui` | 多个 feature 真实复用的稳定组件 | 壳层专属组件、单 feature 组件 |
 | `shared/utils` | 纯函数工具、格式化、解析、轻量 helper | 请求、副作用、全局状态依赖 |
 | `shared/api` | 多个 feature 共享的请求编排 | 单 feature 请求消费 |
@@ -68,6 +71,7 @@
 - `shared/ui` 里出现 `embedded app`、`agent flow` 这类业务词
 - `shared/utils` 里依赖 `window`、store、network 请求或 feature 状态
 - `shared/api` 只有一个 feature 在用
+- section 页面绕过 `shared/ui/section-page-layout` 自造侧栏、移动端 tabs 或权限分流
 - 为了“以后可能复用”提前把东西提到 `shared/*`
 
 ## Minimal Examples

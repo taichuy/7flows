@@ -10,14 +10,16 @@
 - `apps/api-server` 是控制面 HTTP API 宿主；只承载 `route`、`middleware`、`response`、`openapi` 与应用组装。
 - `apps/plugin-runner` 是插件运行宿主；不承载控制面业务逻辑。
 - `crates/control-plane` 放业务 `service`、状态写入口、审计入口、`repository trait`。
+- `crates/orchestration-runtime` 放编排编译、绑定运行时、执行引擎、预览执行器。
 - `crates/domain` 放领域模型、作用域语义、稳定核心对象。
 - `crates/access-control` 放权限目录、内建角色、权限校验。
 - `crates/runtime-core` 放 runtime registry 与 runtime CRUD 核心。
+- `crates/runtime-profile` 放运行目标、locale、profile fingerprint 与插件运行环境快照。
 - `crates/plugin-framework` 放插件消费类型、绑定约束、插件边界。
 - `crates/storage-durable` 放平台主存储边界、主存储启动入口与健康检查入口；只暴露宿主消费的稳定入口。
 - `crates/storage-postgres` 放 PostgreSQL `repository impl`、查询、事务、`migrations`、存储层 `mapper`。
 - `crates/storage-ephemeral` 放非持久 session store、短期协同原语与可选 backend 适配。
-- `crates/storage-object` 是对象存储边界。
+- `crates/storage-object` 放业务文件对象存储 driver 边界；内建 `local` 与 `rustfs` driver。
 - `crates/publish-gateway` 是发布网关边界。
 - `crates/observability` 放日志、trace 与可观测性基础能力。
 - `target` 是构建产物目录，不手工修改。
@@ -28,12 +30,16 @@
 ## Local Rules
 - `apps/api-server/src/routes` 只做协议层：参数解析、上下文提取、调用 service、响应与错误映射、OpenAPI 暴露。
 - `apps/api-server/src/middleware` 只做请求链路约束，不写业务状态变更。
-- `crates/control-plane/src/*.rs` 是业务边界；关键写动作只能从命名明确的 `service command` 进入。
-- `crates/control-plane/src/ports.rs` 统一定义 `repository trait` 与外部端口。
-- `crates/storage-postgres/src/*_repository.rs`、`crates/storage-ephemeral/src/*` 只实现存储或短期协同端口，不承载 HTTP 语义。
+- `crates/control-plane/src/*` 是业务边界；关键写动作只能从命名明确的 `service command` 进入。
+- `crates/control-plane/src/ports/` 统一定义 `repository trait` 与外部端口。
+- `crates/storage-postgres/src/**/*_repository.rs`、`crates/storage-ephemeral/src/*` 只实现存储或短期协同端口，不承载 HTTP 语义。
 - actor / scope 过滤型查询属于持久化查询职责；状态流转、权限决策、审计写入属于 `control-plane`。
 - `crates/storage-postgres/src/mappers` 只做存储模型与领域模型转换，不承载业务规则。
 - 主仓 durable 后端官方只支持 PostgreSQL；不要把额外 durable backend 塞进主存储边界。
+- 业务文件二进制走 `storage-object`；插件安装包和业务文件禁止复用 `api/plugins` 存储目录。
+- 默认本地业务文件根目录固定为 `api/storage`；`rustfs` driver 内建但不默认启用。
+- `file_storages` 是 `root/system` 资源；`workspace` 可创建和消费可见 `file_tables`，存储配置与文件表存储绑定只允许 `root/system` 管理。
+- 文件记录必须保存实际 `storage_id`；文件表改绑只影响后续新上传，不迁移旧记录。
 - session 必须显式持有 `tenant_id` 与 `current_workspace_id`。
 - 单个请求链路只允许落在一个显式 `workspace` 上下文。
 - `root/system` 与业务 `workspace` 严格分离。
@@ -62,8 +68,8 @@
 ## 新增资源最低模板
 - 新增关键写资源至少包含：
   - `apps/api-server/src/routes/<resource>.rs`
-  - `crates/control-plane/src/<resource>.rs`
-  - `crates/control-plane/src/ports.rs` 中对应的 `repository trait`
+  - `crates/control-plane/src/<resource>.rs` 或 `crates/control-plane/src/<resource>/mod.rs`
+  - `crates/control-plane/src/ports/<resource>.rs` 中对应的 `repository trait`
   - `crates/storage-postgres/src/<resource>_repository.rs` 或 `crates/storage-ephemeral/src/<resource>_repository.rs`
   - 对应 `_tests`
 - `dto` 可定义在 route 模块内，不为凑结构拆空文件。

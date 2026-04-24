@@ -13,17 +13,17 @@
 - 不要因为“看起来更模块化”就先抽
 - 先看变化原因是否单一、是否会出现第二个真实使用点
 
-## Scenario 2: Overview Scope Creep
+## Scenario 2: Home Scope Creep
 
 症状：
 
-- 你在应用根概览页里顺手加完整画布、完整 API 卡片、完整日志列表
+- 你在 `home` 应用目录里顺手加完整画布、完整 API 卡片、完整日志列表
 - 页面看起来更“充实”，但主问题开始模糊
 
 结论：
 
-- `overview` 只回答概览问题
-- 回到固定 recipe：头信息、发布状态、最近运行摘要、单一主入口
+- `home` 只回答应用目录、创建 / 导入和筛选问题
+- 应用内编排、日志、API 和监控回到 `/applications/:id/<section>`
 
 ## Scenario 3: Nested Widget State Sprawl
 

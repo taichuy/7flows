@@ -14,8 +14,11 @@
 - `routes/` 负责路由真值层：`route id / path / selected state / permission key / guard`。
 - `features/*/pages` 放页面容器，`features/*/components` 放 feature 内部组件。
 - `features/*/api` 放 feature 级请求消费层，例如 query key、queryFn、mutation 和当前 feature 的请求适配。
+- `features/*/hooks` 放 feature 内部交互 hooks；跨 feature 复用前不要上提。
+- `features/*/store` 放 feature 私有客户端状态；跨页面共享状态才进入 `state/`。
+- `features/*/schema` 放 feature 私有 schema UI adapter、fragment、renderer registry。
 - `features/*/lib` 放 feature 内部工具，不对其他 feature 默认开放。
-- `shared/ui` 放跨 feature 复用组件，不承担 `app-shell` 专属结构。
+- `shared/ui` 放跨 feature 复用组件，不承担 `app-shell` 专属结构；多 section 页面优先复用 `shared/ui/section-page-layout`。
 - `shared/utils` 只放纯函数工具，不放请求、副作用和界面组件。
 - `shared/api` 只放多个 feature 共同依赖的请求编排；若只是单 feature 使用，优先留在 `features/*/api`。
 - `state/` 只放跨页面共享的客户端状态；feature 私有状态留在 feature 内，服务端数据优先留在 query/mutation 消费层，不要塞进 store。

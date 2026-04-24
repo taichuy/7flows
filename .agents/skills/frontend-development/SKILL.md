@@ -11,7 +11,7 @@ description: Use when building or changing 1flowbase frontend/UI pages, page req
 
 ## When to Use
 
-- 新增或修改 `overview / orchestration / api / logs / monitoring` 等 1flowbase 页面或工作台视图
+- 新增或修改 `home / applications / settings / embedded-apps / tools` 页面，或 `orchestration / api / logs / monitoring` 应用详情 section
 - 改动壳层列表、抽屉、编排画布、`Inspector`、节点组件等核心前端表面
 - 新增节点类型，或调整节点详情、节点卡片、节点运行态、节点定义目录结构
 - 改动 `schema ui` 合同、runtime、renderer registry、overlay shell 或节点 schema adapter
@@ -62,7 +62,7 @@ description: Use when building or changing 1flowbase frontend/UI pages, page req
 - Single source of truth: `DESIGN.md`
 - Shell/UI baseline: `Ant Design` 负责 Shell Layer，`Editor UI` 只做薄封装，不另起一套视觉语言
 - Page/UI request artifact: 实现前先产出一版面向用户的需求整理，至少覆盖页面目标、主要对象、关键动作、页面交互、关键状态、视觉约束
-- Placement anchors: 页面和壳层落在 `app-shell / routes / features/* / shared/*`，不要把页面、壳层、路由真值层和请求消费重新堆回一个文件
+- Placement anchors: 页面和壳层落在 `app-shell / routes / features/* / shared/*`，feature 内部可按 `api / components / hooks / lib / pages / schema / store` 拆分，不要把页面、壳层、路由真值层和请求消费重新堆回一个文件
 - API consumption chain: `api-client -> features/*/api -> shared/api`
 - Schema UI split: `shared/schema-ui -> features/*/schema -> features/*/lib/node-definitions`
 - Node implementation chain: `node-definitions -> schema fragments/registry -> renderer -> consumer`

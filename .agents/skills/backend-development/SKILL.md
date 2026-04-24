@@ -30,6 +30,7 @@ description: Use when building or changing backend APIs, state transitions, modu
 
 - 核心状态机、对外协议、权限策略、插件边界、核心对象定义：先问人
 - 先分清稳定核心和边界适配层，再写代码
+- 能力边界优先使用能力名，具体实现留在 adapter / repository / driver
 - API 输入保持短、平、单动作
 - 状态必须写清：状态集合、流转规则、动作约束
 - 多个模块都能改同一关键状态：立即收口

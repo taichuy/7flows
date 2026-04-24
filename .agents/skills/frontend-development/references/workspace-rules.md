@@ -1,4 +1,4 @@
-# 1flowbase Workspace Rules
+# 1flowbase Product Surface Rules
 
 ## Execution Order
 
@@ -11,21 +11,23 @@
 
 前三步没收敛前，不要先抛光样式。
 
-## Fixed Page Recipes
+## Fixed Surface Recipes
 
-| 页面 | 主块 | 辅助块 |
+| 页面 / section | 主块 | 辅助块 |
 | --- | --- | --- |
-| `overview` | 应用头信息 + 发布状态 + 最近运行摘要 + 单一主入口 `进入编排` | 应用操作区、标签、最近活动时间 |
-| `orchestration` | 画布 stage + Inspector + 当前 flow 状态 / 发布准备条 | 节点列表、版本信息、移动端摘要块 |
-| `api` | 当前发布契约摘要 + 接入方式 / 认证说明 + 请求 / 响应结构 | 版本信息、示例片段、变更提示 |
-| `logs` | 筛选区 + 运行列表 + Run Drawer | 时间范围、聚合计数、导出入口 |
-| `monitoring` | 健康摘要 + 关键指标卡 / 图 + 异常热点列表 | 时间范围切换、阈值说明、刷新时间 |
+| `home` | 应用目录、类型 / 标签 / 关键词筛选、创建入口 | 编辑、标签管理、导入入口 |
+| `application/orchestration` | AgentFlow 画布 stage + Inspector + draft/runtime 控制 | 节点选择、版本 / 历史、问题抽屉、移动端摘要 |
+| `application/api` | 当前发布契约摘要 + 接入方式 / 认证说明 + 请求 / 响应结构 | 版本信息、示例片段、变更提示 |
+| `application/logs` | 筛选区 + 运行列表 + Run Drawer / resume card | 时间范围、聚合计数、导出入口 |
+| `application/monitoring` | 健康摘要 + 关键指标卡 / 图 + 异常热点列表 | 时间范围切换、阈值说明、刷新时间 |
+| `settings` | `SectionPageLayout` + 当前设置 section body | `docs / system-runtime / files / model-providers / members / roles` |
 
 规则：
 
-- 一页只回答一个任务域
-- `overview` 不承接完整编排、完整日志、API 正文或设计说明
-- `overview` 的唯一主 CTA 是 `进入编排`
+- 一页或一个 section 只回答一个任务域
+- `home` 只承接应用目录、应用创建 / 导入和目录筛选，不承接具体应用的编排、日志、API 正文或运行监控
+- 应用详情 section 统一由 `features/applications/lib/application-sections.tsx` 定义
+- 设置页 section 统一由 `features/settings/lib/settings-sections.tsx` 定义，不重复造侧栏和权限路由真值层
 
 ## L1 Detail Models
 
