@@ -1,5 +1,5 @@
 /* eslint-disable testing-library/no-container, testing-library/no-node-access */
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { useEffect, type ReactNode } from 'react';
 import { beforeEach, describe, expect, test, vi } from 'vitest';
 import {
@@ -7,15 +7,9 @@ import {
   modelProviderOptionsContract
 } from '../../../test/model-provider-contract-fixtures';
 
-const modelProviderOptionsApi = vi.hoisted(() => ({
-  modelProviderOptionsQueryKey: ['model-providers', 'options'] as const,
-  fetchModelProviderOptions: vi.fn()
-}));
-
-vi.mock('../api/model-provider-options', () => modelProviderOptionsApi);
-
 import { createDefaultAgentFlowDocument } from '@1flowbase/flow-schema';
 import { AppProviders } from '../../../app/AppProviders';
+import * as modelProviderOptionsApi from '../api/model-provider-options';
 import { NodeConfigTab } from '../components/detail/tabs/NodeConfigTab';
 import { listLlmProviderOptions } from '../lib/model-options';
 import { AgentFlowEditorStoreProvider } from '../store/editor/AgentFlowEditorStoreProvider';
@@ -30,6 +24,10 @@ const primaryProviderSecondModel = primaryProviderSecondGroup.models[0];
 const secondaryProviderOption = modelProviderOptionsProviders[1];
 const secondaryProviderFirstGroup = secondaryProviderOption.model_groups[0];
 const secondaryProviderFirstModel = secondaryProviderFirstGroup.models[0];
+const fetchModelProviderOptionsSpy = vi.spyOn(
+  modelProviderOptionsApi,
+  'fetchModelProviderOptions'
+);
 
 function createInitialState() {
   return {
@@ -65,8 +63,30 @@ function renderWithProviders(ui: ReactNode) {
   return render(<AppProviders>{ui}</AppProviders>);
 }
 
+function mockElementRect(
+  element: Element,
+  rect: Partial<DOMRect> & Pick<DOMRect, 'width' | 'height' | 'left' | 'top'>
+) {
+  const resolvedRect = {
+    x: rect.left,
+    y: rect.top,
+    width: rect.width,
+    height: rect.height,
+    top: rect.top,
+    left: rect.left,
+    right: rect.right ?? rect.left + rect.width,
+    bottom: rect.bottom ?? rect.top + rect.height,
+    toJSON: () => ''
+  } satisfies DOMRect;
+
+  vi.spyOn(element, 'getBoundingClientRect').mockReturnValue(resolvedRect);
+}
+
 async function openModelSettings() {
-  fireEvent.click(await screen.findByRole('button', { name: '模型' }));
+  await act(async () => {
+    fireEvent.click(await screen.findByRole('button', { name: '模型' }));
+    await Promise.resolve();
+  });
   expect(
     await screen.findByRole('heading', { name: '模型设置' })
   ).toBeInTheDocument();
@@ -77,9 +97,11 @@ async function openModelDropdown() {
     name: '选择供应商和模型'
   });
 
-  fireEvent.mouseDown(
-    combobox.closest('.ant-select-selector') ?? combobox
-  );
+  await act(async () => {
+    fireEvent.mouseDown(combobox.closest('.ant-select-selector') ?? combobox);
+    fireEvent.keyDown(combobox, { key: 'ArrowDown' });
+    await Promise.resolve();
+  });
 }
 
 async function clickModelOption(label: string) {
@@ -94,13 +116,16 @@ async function clickModelOption(label: string) {
     return content.trim() === label;
   });
 
-  fireEvent.click(option.closest('button') as HTMLButtonElement);
+  await act(async () => {
+    fireEvent.click(option.closest('button') as HTMLButtonElement);
+    await Promise.resolve();
+  });
 }
 
 describe('LlmModelField', () => {
   beforeEach(() => {
-    modelProviderOptionsApi.fetchModelProviderOptions.mockReset();
-    modelProviderOptionsApi.fetchModelProviderOptions.mockResolvedValue(
+    fetchModelProviderOptionsSpy.mockReset();
+    fetchModelProviderOptionsSpy.mockResolvedValue(
       modelProviderOptionsContract
     );
   });
@@ -218,13 +243,13 @@ describe('LlmModelField', () => {
     ).not.toBeInTheDocument();
     await openModelDropdown();
     expect(
-      screen.getByText(primaryProviderOption.display_name)
+      await screen.findByText(primaryProviderOption.display_name)
     ).toBeInTheDocument();
     expect(
-      screen.getByText(primaryProviderFirstGroup.source_instance_display_name)
+      await screen.findByText(primaryProviderFirstGroup.source_instance_display_name)
     ).toBeInTheDocument();
     expect(
-      screen.getByText(primaryProviderSecondGroup.source_instance_display_name)
+      await screen.findByText(primaryProviderSecondGroup.source_instance_display_name)
     ).toBeInTheDocument();
     expect(
       screen.getByRole('button', { name: '模型供应商设置' })
@@ -257,6 +282,168 @@ describe('LlmModelField', () => {
       });
     });
   }, 10_000);
+
+  test('renders the model settings inside the canvas body with minimum width and half-height', async () => {
+    const { container } = renderWithProviders(
+      <div className="agent-flow-editor__body">
+        <AgentFlowEditorStoreProvider initialState={createInitialState()}>
+          <NodeConfigTab />
+        </AgentFlowEditorStoreProvider>
+      </div>
+    );
+
+    const editorBody = container.querySelector('.agent-flow-editor__body');
+    const trigger = await screen.findByRole('button', { name: '模型' });
+
+    if (!editorBody) {
+      throw new Error('expected editor body container');
+    }
+
+    mockElementRect(editorBody, {
+      left: 0,
+      top: 0,
+      width: 1200,
+      height: 800
+    });
+    mockElementRect(trigger, {
+      left: 980,
+      top: 160,
+      width: 240,
+      height: 40
+    });
+
+    fireEvent.click(trigger);
+
+    const dialog = await screen.findByRole('dialog', { name: '模型设置' });
+
+    expect(dialog).toHaveClass('agent-flow-model-settings__panel');
+    expect(editorBody.contains(dialog)).toBe(true);
+    expect(dialog).toHaveStyle({
+      width: '320px',
+      height: '400px'
+    });
+  });
+
+  test('resizes the model settings panel width while keeping the 320px minimum', async () => {
+    const { container } = renderWithProviders(
+      <div className="agent-flow-editor__body">
+        <AgentFlowEditorStoreProvider initialState={createInitialState()}>
+          <NodeConfigTab />
+        </AgentFlowEditorStoreProvider>
+      </div>
+    );
+
+    const editorBody = container.querySelector('.agent-flow-editor__body');
+    const trigger = await screen.findByRole('button', { name: '模型' });
+
+    if (!editorBody) {
+      throw new Error('expected editor body container');
+    }
+
+    mockElementRect(editorBody, {
+      left: 0,
+      top: 0,
+      width: 1200,
+      height: 800
+    });
+    mockElementRect(trigger, {
+      left: 980,
+      top: 160,
+      width: 240,
+      height: 40
+    });
+
+    fireEvent.click(trigger);
+
+    const dialog = await screen.findByRole('dialog', { name: '模型设置' });
+    const resizeHandle = screen.getByTestId(
+      'agent-flow-model-settings-resize-handle'
+    );
+
+    fireEvent.mouseDown(resizeHandle, {
+      clientX: 320,
+      clientY: 180
+    });
+    fireEvent.mouseMove(window, {
+      clientX: 460,
+      clientY: 180
+    });
+    fireEvent.mouseUp(window);
+
+    await waitFor(() => {
+      expect(dialog).toHaveStyle({
+        width: '460px'
+      });
+    });
+
+    fireEvent.mouseDown(resizeHandle, {
+      clientX: 460,
+      clientY: 180
+    });
+    fireEvent.mouseMove(window, {
+      clientX: 120,
+      clientY: 180
+    });
+    fireEvent.mouseUp(window);
+
+    await waitFor(() => {
+      expect(dialog).toHaveStyle({
+        width: '320px'
+      });
+    });
+  });
+
+  test('supports dragging the model settings panel within the canvas bounds', async () => {
+    const { container } = renderWithProviders(
+      <div className="agent-flow-editor__body">
+        <AgentFlowEditorStoreProvider initialState={createInitialState()}>
+          <NodeConfigTab />
+        </AgentFlowEditorStoreProvider>
+      </div>
+    );
+
+    const editorBody = container.querySelector('.agent-flow-editor__body');
+    const trigger = await screen.findByRole('button', { name: '模型' });
+
+    if (!editorBody) {
+      throw new Error('expected editor body container');
+    }
+
+    mockElementRect(editorBody, {
+      left: 0,
+      top: 0,
+      width: 1200,
+      height: 800
+    });
+    mockElementRect(trigger, {
+      left: 980,
+      top: 160,
+      width: 240,
+      height: 40
+    });
+
+    fireEvent.click(trigger);
+
+    const dialog = await screen.findByRole('dialog', { name: '模型设置' });
+    const dragHandle = screen.getByTestId('agent-flow-model-settings-drag-handle');
+
+    fireEvent.mouseDown(dragHandle, {
+      clientX: 680,
+      clientY: 180
+    });
+    fireEvent.mouseMove(window, {
+      clientX: -120,
+      clientY: -80
+    });
+    fireEvent.mouseUp(window);
+
+    await waitFor(() => {
+      expect(dialog).toHaveStyle({
+        left: '16px',
+        top: '16px'
+      });
+    });
+  });
 
   test('renders provider-level parameter controls inside the model dialog instead of the inspector body', async () => {
     const duplicatedModelContract = JSON.parse(
@@ -305,7 +492,7 @@ describe('LlmModelField', () => {
         ]
       }
     ];
-    modelProviderOptionsApi.fetchModelProviderOptions.mockResolvedValueOnce(
+    fetchModelProviderOptionsSpy.mockResolvedValueOnce(
       duplicatedModelContract
     );
 
@@ -401,7 +588,7 @@ describe('LlmModelField', () => {
         }
       ]
     };
-    modelProviderOptionsApi.fetchModelProviderOptions.mockResolvedValueOnce(
+    fetchModelProviderOptionsSpy.mockResolvedValueOnce(
       extendedContract
     );
 
@@ -473,7 +660,7 @@ describe('LlmModelField', () => {
     duplicatedModelContract.providers[0].model_groups[1].models[0].context_window = 64000;
     duplicatedModelContract.providers[0].model_groups[1].models[0].max_output_tokens =
       null;
-    modelProviderOptionsApi.fetchModelProviderOptions.mockResolvedValueOnce(
+    fetchModelProviderOptionsSpy.mockResolvedValueOnce(
       duplicatedModelContract
     );
 
