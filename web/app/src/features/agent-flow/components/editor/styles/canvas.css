@@ -145,7 +145,7 @@
   padding: 10px 12px;
   border: 1px solid #d9e1ea;
   border-radius: 14px;
-  background: #f5f7fa;
+  background: transparent;
   text-align: left;
   transition:
     background-color 0.2s ease,
@@ -155,7 +155,7 @@
 .agent-flow-model-field__trigger:hover,
 .agent-flow-model-field__trigger:focus-visible {
   border-color: #b8c6d6;
-  background: #eef3f8;
+  background: transparent;
 }
 
 .agent-flow-model-field__trigger-caret {
