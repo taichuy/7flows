@@ -72,6 +72,8 @@ interface FloatingPanelPosition {
   top: number;
 }
 
+type FloatingPanelResizeEdge = 'left' | 'right';
+
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
@@ -561,7 +563,10 @@ export function LlmModelField({ adapter, block }: SchemaFieldRendererProps) {
     window.addEventListener('mouseup', cleanup);
   }
 
-  function handleResizeStart(event: ReactMouseEvent<HTMLDivElement>) {
+  function handleResizeStart(
+    event: ReactMouseEvent<HTMLDivElement>,
+    edge: FloatingPanelResizeEdge
+  ) {
     if (event.button !== 0) {
       return;
     }
@@ -571,6 +576,8 @@ export function LlmModelField({ adapter, block }: SchemaFieldRendererProps) {
     const bounds = resolveFloatingPanelBounds(panelContainer);
     const startX = event.clientX;
     const startWidth = panelWidth;
+    const startLeft = panelPosition.left;
+    const startRight = startLeft + startWidth;
     const previousCursor = document.body.style.cursor;
     const previousUserSelect = document.body.style.userSelect;
 
@@ -579,13 +586,32 @@ export function LlmModelField({ adapter, block }: SchemaFieldRendererProps) {
     document.body.style.userSelect = 'none';
 
     const handleMouseMove = (moveEvent: MouseEvent) => {
-      setPanelWidth(
-        clampFloatingPanelWidth(
-          startWidth + moveEvent.clientX - startX,
-          bounds,
-          panelPosition
-        )
+      if (edge === 'right') {
+        setPanelWidth(
+          clampFloatingPanelWidth(
+            startWidth + moveEvent.clientX - startX,
+            bounds,
+            panelPosition
+          )
+        );
+        return;
+      }
+
+      const maxWidth = Math.max(
+        FLOATING_PANEL_MIN_WIDTH,
+        startRight - FLOATING_PANEL_MARGIN
       );
+      const nextWidth = clamp(
+        startRight - (moveEvent.clientX - bounds.left),
+        FLOATING_PANEL_MIN_WIDTH,
+        maxWidth
+      );
+
+      setPanelWidth(nextWidth);
+      setPanelPosition((current) => ({
+        ...current,
+        left: startRight - nextWidth
+      }));
     };
 
     const cleanup = () => {
@@ -644,11 +670,20 @@ export function LlmModelField({ adapter, block }: SchemaFieldRendererProps) {
       </div>
 
       <div
-        aria-label="调整模型设置宽度"
+        aria-label="从左侧调整模型设置宽度"
         aria-orientation="vertical"
-        className="agent-flow-model-settings__resize-handle"
+        className="agent-flow-model-settings__resize-handle agent-flow-model-settings__resize-handle--left"
+        data-testid="agent-flow-model-settings-resize-handle-left"
+        onMouseDown={(event) => handleResizeStart(event, 'left')}
+        role="separator"
+      />
+
+      <div
+        aria-label="从右侧调整模型设置宽度"
+        aria-orientation="vertical"
+        className="agent-flow-model-settings__resize-handle agent-flow-model-settings__resize-handle--right"
         data-testid="agent-flow-model-settings-resize-handle"
-        onMouseDown={handleResizeStart}
+        onMouseDown={(event) => handleResizeStart(event, 'right')}
         role="separator"
       />
 

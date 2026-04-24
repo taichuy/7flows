@@ -316,23 +316,37 @@
 .agent-flow-model-settings__resize-handle {
   position: absolute;
   top: 40px;
-  right: 0;
   bottom: 0;
   z-index: 2;
   width: 8px;
   cursor: ew-resize;
 }
 
+.agent-flow-model-settings__resize-handle--left {
+  left: 0;
+}
+
+.agent-flow-model-settings__resize-handle--right {
+  right: 0;
+}
+
 .agent-flow-model-settings__resize-handle::after {
   position: absolute;
   top: 50%;
-  right: 3px;
   width: 2px;
   height: 48px;
   border-radius: 999px;
   background: rgba(115, 129, 150, 0.22);
   content: '';
   transform: translateY(-50%);
+}
+
+.agent-flow-model-settings__resize-handle--left::after {
+  left: 3px;
+}
+
+.agent-flow-model-settings__resize-handle--right::after {
+  right: 3px;
 }
 
 .agent-flow-model-settings__resize-handle:hover::after,

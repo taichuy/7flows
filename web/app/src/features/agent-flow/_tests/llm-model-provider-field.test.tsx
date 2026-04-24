@@ -1,5 +1,5 @@
 /* eslint-disable testing-library/no-container, testing-library/no-node-access */
-import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { useEffect, type ReactNode } from 'react';
 import { beforeEach, describe, expect, test, vi } from 'vitest';
 import {
@@ -83,10 +83,7 @@ function mockElementRect(
 }
 
 async function openModelSettings() {
-  await act(async () => {
-    fireEvent.click(await screen.findByRole('button', { name: '模型' }));
-    await Promise.resolve();
-  });
+  fireEvent.click(await screen.findByRole('button', { name: '模型' }));
   expect(
     await screen.findByRole('heading', { name: '模型设置' })
   ).toBeInTheDocument();
@@ -97,11 +94,8 @@ async function openModelDropdown() {
     name: '选择供应商和模型'
   });
 
-  await act(async () => {
-    fireEvent.mouseDown(combobox.closest('.ant-select-selector') ?? combobox);
-    fireEvent.keyDown(combobox, { key: 'ArrowDown' });
-    await Promise.resolve();
-  });
+  fireEvent.mouseDown(combobox.closest('.ant-select-selector') ?? combobox);
+  fireEvent.keyDown(combobox, { key: 'ArrowDown' });
 }
 
 async function clickModelOption(label: string) {
@@ -116,10 +110,7 @@ async function clickModelOption(label: string) {
     return content.trim() === label;
   });
 
-  await act(async () => {
-    fireEvent.click(option.closest('button') as HTMLButtonElement);
-    await Promise.resolve();
-  });
+  fireEvent.click(option.closest('button') as HTMLButtonElement);
 }
 
 describe('LlmModelField', () => {
@@ -324,7 +315,7 @@ describe('LlmModelField', () => {
     });
   });
 
-  test('resizes the model settings panel width while keeping the 320px minimum', async () => {
+  test('resizes the model settings panel width from both sides while keeping the 320px minimum', async () => {
     const { container } = renderWithProviders(
       <div className="agent-flow-editor__body">
         <AgentFlowEditorStoreProvider initialState={createInitialState()}>
@@ -356,11 +347,14 @@ describe('LlmModelField', () => {
     fireEvent.click(trigger);
 
     const dialog = await screen.findByRole('dialog', { name: '模型设置' });
-    const resizeHandle = screen.getByTestId(
+    const leftResizeHandle = screen.getByTestId(
+      'agent-flow-model-settings-resize-handle-left'
+    );
+    const rightResizeHandle = screen.getByTestId(
       'agent-flow-model-settings-resize-handle'
     );
 
-    fireEvent.mouseDown(resizeHandle, {
+    fireEvent.mouseDown(rightResizeHandle, {
       clientX: 320,
       clientY: 180
     });
@@ -376,7 +370,7 @@ describe('LlmModelField', () => {
       });
     });
 
-    fireEvent.mouseDown(resizeHandle, {
+    fireEvent.mouseDown(rightResizeHandle, {
       clientX: 460,
       clientY: 180
     });
@@ -388,6 +382,40 @@ describe('LlmModelField', () => {
 
     await waitFor(() => {
       expect(dialog).toHaveStyle({
+        width: '320px'
+      });
+    });
+
+    fireEvent.mouseDown(leftResizeHandle, {
+      clientX: 636,
+      clientY: 180
+    });
+    fireEvent.mouseMove(window, {
+      clientX: 496,
+      clientY: 180
+    });
+    fireEvent.mouseUp(window);
+
+    await waitFor(() => {
+      expect(dialog).toHaveStyle({
+        left: '496px',
+        width: '460px'
+      });
+    });
+
+    fireEvent.mouseDown(leftResizeHandle, {
+      clientX: 496,
+      clientY: 180
+    });
+    fireEvent.mouseMove(window, {
+      clientX: 760,
+      clientY: 180
+    });
+    fireEvent.mouseUp(window);
+
+    await waitFor(() => {
+      expect(dialog).toHaveStyle({
+        left: '636px',
         width: '320px'
       });
     });
