@@ -803,6 +803,7 @@ export function LlmModelField({ adapter, block }: SchemaFieldRendererProps) {
                                 {provider.icon ? (
                                   <img
                                     className="agent-flow-model-settings__provider-icon-image"
+                                    data-testid="agent-flow-model-settings-provider-icon-image"
                                     src={provider.icon}
                                     alt=""
                                   />

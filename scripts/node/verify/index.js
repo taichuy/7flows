@@ -11,6 +11,7 @@ const {
   runManagedCommandSequence,
 } = require('../testing/warning-capture.js');
 const { loadVerifyRuntimeConfig } = require('../testing/verify-runtime.js');
+const { resolveNodeBinaryFromPath } = require('../testing/node-runtime.js');
 const {
   COVERAGE_ROOT,
   frontendThresholds,
@@ -86,17 +87,19 @@ async function runBackend(_argv = [], deps = {}) {
   });
 }
 
-function buildCiCommands({ repoRoot }) {
+function buildCiCommands({ repoRoot, env = process.env }) {
+  const nodeBinary = resolveNodeBinaryFromPath(env);
+
   return [
     {
       label: 'ci-verify-repo',
-      command: process.execPath,
+      command: nodeBinary,
       args: [resolveScriptsNodeCliEntry(repoRoot, 'verify'), 'repo'],
       cwd: repoRoot,
     },
     {
       label: 'ci-verify-coverage',
-      command: process.execPath,
+      command: nodeBinary,
       args: [resolveScriptsNodeCliEntry(repoRoot, 'verify'), 'coverage', 'all'],
       cwd: repoRoot,
     },
@@ -128,7 +131,7 @@ async function runCi(argv = [], deps = {}) {
     lockMode: 'heavy',
     commandDisplay: 'node scripts/node/verify-ci.js',
     runtimeConfig,
-    commands: buildCiCommands({ repoRoot }),
+    commands: buildCiCommands({ repoRoot, env }),
     spawnSyncImpl: deps.spawnSyncImpl,
     writeStdout: deps.writeStdout,
     writeStderr: deps.writeStderr,
@@ -341,6 +344,31 @@ function ensureCoverageOutputDirs(repoRoot, target) {
   }
 }
 
+function cleanJsonFiles(directoryPath) {
+  if (!fs.existsSync(directoryPath)) {
+    return;
+  }
+
+  for (const entry of fs.readdirSync(directoryPath, { withFileTypes: true })) {
+    if (entry.isFile() && entry.name.endsWith('.json')) {
+      fs.rmSync(path.join(directoryPath, entry.name), { force: true });
+    }
+  }
+}
+
+function cleanCoverageOutputFiles(repoRoot, target) {
+  if (target === 'frontend' || target === 'all') {
+    fs.rmSync(
+      path.join(repoRoot, COVERAGE_ROOT, 'frontend', 'coverage-summary.json'),
+      { force: true }
+    );
+  }
+
+  if (target === 'backend' || target === 'all') {
+    cleanJsonFiles(path.join(repoRoot, COVERAGE_ROOT, 'backend'));
+  }
+}
+
 function readJsonFile(filePath, readFileSyncImpl = fs.readFileSync) {
   return JSON.parse(readFileSyncImpl(filePath, 'utf8'));
 }
@@ -421,6 +449,7 @@ async function runCoverage(argv = [], deps = {}) {
   }
 
   ensureCoverageOutputDirs(repoRoot, options.target);
+  cleanCoverageOutputFiles(repoRoot, options.target);
 
   if (options.target === 'frontend' || options.target === 'all') {
     coverageCommands.push(buildCoverageFrontendCommand({ repoRoot }));
@@ -491,29 +520,31 @@ async function runCoverage(argv = [], deps = {}) {
   });
 }
 
-function buildRepoCommands({ repoRoot }) {
+function buildRepoCommands({ repoRoot, env = process.env }) {
+  const nodeBinary = resolveNodeBinaryFromPath(env);
+
   return [
     {
       label: 'repo-script-tests',
-      command: process.execPath,
+      command: nodeBinary,
       args: [resolveScriptsNodeCliEntry(repoRoot, 'test'), 'scripts'],
       cwd: repoRoot,
     },
     {
       label: 'repo-contract-tests',
-      command: process.execPath,
+      command: nodeBinary,
       args: [resolveScriptsNodeCliEntry(repoRoot, 'test'), 'contracts'],
       cwd: repoRoot,
     },
     {
       label: 'repo-frontend-full',
-      command: process.execPath,
+      command: nodeBinary,
       args: [resolveScriptsNodeCliEntry(repoRoot, 'test'), 'frontend', 'full'],
       cwd: repoRoot,
     },
     {
       label: 'repo-backend-full',
-      command: process.execPath,
+      command: nodeBinary,
       args: [resolveScriptsNodeCliEntry(repoRoot, 'verify'), 'backend'],
       cwd: repoRoot,
     },
@@ -545,7 +576,7 @@ async function runRepo(argv = [], deps = {}) {
     lockMode: 'heavy',
     commandDisplay: 'node scripts/node/verify-repo.js',
     runtimeConfig,
-    commands: buildRepoCommands({ repoRoot }),
+    commands: buildRepoCommands({ repoRoot, env }),
     spawnSyncImpl: deps.spawnSyncImpl,
     writeStdout: deps.writeStdout,
     writeStderr: deps.writeStderr,

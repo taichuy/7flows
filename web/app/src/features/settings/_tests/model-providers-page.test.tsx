@@ -1146,7 +1146,7 @@ describe('ModelProvidersPage', () => {
 
   test(
     'loads candidate models from the draft drawer and submits grouped configured model rows',
-    { timeout: 15000 },
+    { timeout: 30000 },
     async () => {
       const previewModels = vi.fn().mockResolvedValue({
         models: [

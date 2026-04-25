@@ -53,7 +53,7 @@ async function openModelDropdown() {
     name: '选择供应商和模型'
   });
 
-  fireEvent.mouseDown(combobox.closest('.ant-select-selector') ?? combobox);
+  fireEvent.mouseDown(combobox);
   fireEvent.keyDown(combobox, { key: 'ArrowDown' });
 }
 
@@ -71,12 +71,11 @@ describe('LlmModelField provider icons', () => {
     await openModelSettings();
     await openModelDropdown();
 
-    const providerHead = screen
-      .getByText(primaryProviderOption.display_name)
-      .closest('button');
-    const providerIcon = providerHead?.querySelector(
-      '.agent-flow-model-settings__provider-icon-image'
-    );
+    expect(screen.getByText(primaryProviderOption.display_name)).toBeInTheDocument();
+
+    const providerIcon = screen
+      .getAllByTestId('agent-flow-model-settings-provider-icon-image')
+      .find((icon) => icon.getAttribute('src') === primaryProviderOption.icon);
 
     expect(providerIcon).toBeInstanceOf(HTMLImageElement);
     expect(providerIcon).toHaveAttribute('src', primaryProviderOption.icon);

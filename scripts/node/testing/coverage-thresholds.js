@@ -25,7 +25,7 @@ const frontendThresholds = [
 
 const backendThresholds = [
   { key: 'control-plane', packageName: 'control-plane', line: 70 },
-  { key: 'storage-pg', packageName: 'storage-pg', line: 65 },
+  { key: 'storage-postgres', packageName: 'storage-postgres', line: 65 },
   { key: 'api-server', packageName: 'api-server', line: 60 },
 ];
 

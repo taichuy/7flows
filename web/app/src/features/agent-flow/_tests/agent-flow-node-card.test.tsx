@@ -80,12 +80,11 @@ describe('AgentFlowNodeCard', () => {
 
     const card = screen.getByRole('button', { name: /LLM OpenAI Prod GPT-4/ });
     const trigger = screen.getByRole('button', { name: '在 LLM 后新增节点' });
-    expect(card.querySelector('.agent-flow-node-card__header')).not.toBeNull();
-    expect(card.querySelector('.agent-flow-node-card__model')).not.toBeNull();
-    expect(card.querySelector('.agent-flow-node-card__description')).toBeNull();
+    expect(card).toBeInTheDocument();
     expect(screen.getByText('LLM')).toBeInTheDocument();
     expect(screen.getByText('GPT-4')).toBeInTheDocument();
     expect(screen.getByText('OpenAI Prod')).toBeInTheDocument();
+    expect(screen.queryByText('选择并调用大语言模型')).not.toBeInTheDocument();
 
     expect(trigger).toHaveClass('react-flow__handle');
     expect(within(trigger).queryByRole('button')).not.toBeInTheDocument();

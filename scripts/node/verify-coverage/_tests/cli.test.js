@@ -83,16 +83,16 @@ test('buildBackendCommands emits one cargo llvm-cov command per protected packag
       env: { CARGO_BUILD_JOBS: '4', CARGO_INCREMENTAL: '0' },
     },
     {
-      label: 'backend-coverage-storage-pg',
+      label: 'backend-coverage-storage-postgres',
       command: 'cargo',
       args: [
         'llvm-cov',
         '--package',
-        'storage-pg',
+        'storage-postgres',
         '--json',
         '--summary-only',
         '--output-path',
-        '/repo-root/tmp/test-governance/coverage/backend/storage-pg.json',
+        '/repo-root/tmp/test-governance/coverage/backend/storage-postgres.json',
         '--',
         '--test-threads=2',
       ],
@@ -133,7 +133,7 @@ test('buildBackendCleanupCommands emits cargo llvm-cov clean for workspace artif
 test('collectBackendCoverageFailures compares line coverage per package only', () => {
   const summaries = {
     'control-plane': { data: [{ totals: { lines: { percent: 71 } } }] },
-    'storage-pg': { data: [{ totals: { lines: { percent: 68 } } }] },
+    'storage-postgres': { data: [{ totals: { lines: { percent: 68 } } }] },
     'api-server': { data: [{ totals: { lines: { percent: 61 } } }] },
   };
 
@@ -185,7 +185,7 @@ test('main cleans llvm-cov artifacts before and after backend coverage runs', as
     [
       ['llvm-cov', 'clean', '--workspace'],
       ['llvm-cov', '--package', 'control-plane', '--json', '--summary-only', '--output-path', `${repoRoot}/tmp/test-governance/coverage/backend/control-plane.json`, '--', '--test-threads=4'],
-      ['llvm-cov', '--package', 'storage-pg', '--json', '--summary-only', '--output-path', `${repoRoot}/tmp/test-governance/coverage/backend/storage-pg.json`, '--', '--test-threads=4'],
+      ['llvm-cov', '--package', 'storage-postgres', '--json', '--summary-only', '--output-path', `${repoRoot}/tmp/test-governance/coverage/backend/storage-postgres.json`, '--', '--test-threads=4'],
       ['llvm-cov', '--package', 'api-server', '--json', '--summary-only', '--output-path', `${repoRoot}/tmp/test-governance/coverage/backend/api-server.json`, '--', '--test-threads=4'],
       ['llvm-cov', 'clean', '--workspace'],
     ]

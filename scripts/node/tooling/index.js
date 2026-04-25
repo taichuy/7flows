@@ -10,6 +10,7 @@ const {
   getRepoRoot,
   runCommandSequence,
 } = require('../testing/warning-capture.js');
+const { resolveNodeBinaryFromPath } = require('../testing/node-runtime.js');
 
 const TOOLING_COMMANDS = new Set([
   'check-style-boundary',
@@ -27,10 +28,10 @@ function resolveScriptsNodeCliEntry(repoRoot, entryName) {
   return `${resolveScriptsNodeEntry(repoRoot, entryName)}.js`;
 }
 
-function buildRuntimeGateCommand({ argv, repoRoot }) {
+function buildRuntimeGateCommand({ argv, repoRoot, env = process.env }) {
   return {
     label: 'runtime-page-debug',
-    command: process.execPath,
+    command: resolveNodeBinaryFromPath(env),
     args: [resolveScriptsNodeCliEntry(repoRoot, 'tooling'), 'page-debug', ...argv],
     cwd: repoRoot,
   };
@@ -52,7 +53,7 @@ function runRuntimeGate(argv = [], deps = {}) {
     repoRoot,
     env: deps.env || process.env,
     scope: 'runtime-gate',
-    commands: [buildRuntimeGateCommand({ argv, repoRoot })],
+    commands: [buildRuntimeGateCommand({ argv, repoRoot, env: deps.env || process.env })],
     spawnSyncImpl: deps.spawnSyncImpl,
     writeStdout: deps.writeStdout,
     writeStderr: deps.writeStderr,

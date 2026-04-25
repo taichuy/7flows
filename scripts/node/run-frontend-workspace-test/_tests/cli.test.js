@@ -104,6 +104,8 @@ test('main prepends pnpm sibling node binary to PATH before spawning turbo', () 
   fs.mkdirSync(binDir, { recursive: true });
   fs.writeFileSync(path.join(binDir, 'pnpm'), '', 'utf8');
   fs.writeFileSync(path.join(binDir, 'node'), '', 'utf8');
+  fs.chmodSync(path.join(binDir, 'pnpm'), 0o755);
+  fs.chmodSync(path.join(binDir, 'node'), 0o755);
 
   let captured = null;
   const status = main([], {

@@ -16,14 +16,6 @@ pub enum RoleScopeKind {
     Workspace,
 }
 
-impl RoleScopeKind {
-    #[allow(non_upper_case_globals)]
-    pub const App: Self = Self::System;
-
-    #[allow(non_upper_case_globals)]
-    pub const Team: Self = Self::Workspace;
-}
-
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct BoundRole {
     pub code: String,

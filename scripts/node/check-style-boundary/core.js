@@ -2,6 +2,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const { spawn } = require('node:child_process');
 const { createRequire } = require('node:module');
+const { resolveNodeBinaryFromPath } = require('../testing/node-runtime.js');
 
 const MODES = new Set(['component', 'page', 'file', 'all-pages']);
 
@@ -85,7 +86,7 @@ function createProbeUrl(baseUrl, sceneId) {
 async function ensureFrontendHost(repoRoot) {
   await new Promise((resolve, reject) => {
     const child = spawn(
-      process.execPath,
+      resolveNodeBinaryFromPath(process.env),
       [
         path.join(repoRoot, 'scripts', 'node', 'dev-up.js'),
         'ensure',

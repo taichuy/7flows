@@ -7,14 +7,12 @@ import {
   Space,
   Spin,
   Empty,
-  Flex,
-  Divider
+  Flex
 } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import {
   CheckCircleFilled,
   CloseCircleFilled,
-  MinusCircleFilled,
   InfoCircleOutlined,
   EnvironmentOutlined,
   GlobalOutlined,

@@ -539,23 +539,13 @@ describe('SettingsPage', () => {
       expect(window.location.pathname).toBe('/settings/system-runtime');
     });
     expect(
-      await screen.findByRole('heading', { name: '系统运行', level: 4 })
+      await screen.findByRole('heading', { name: '系统运行状态', level: 4 })
     ).toBeInTheDocument();
-    expect(screen.getByText('插件安装根目录')).toBeInTheDocument();
-    expect(
-      screen.getByText('/home/taichu/git/1flowbase/api/plugins')
-    ).toBeInTheDocument();
-    expect(screen.getByText('Host Extension Dropin 目录')).toBeInTheDocument();
-    expect(
-      screen.queryByText(
-        '/home/taichu/git/1flowbase/plugins/host-extension/dropins'
-      )
-    ).not.toBeInTheDocument();
-    expect(
-      screen.getByText(
-        '/home/taichu/git/1flowbase/api/plugins/host-extension/dropins'
-      )
-    ).toBeInTheDocument();
+    expect(screen.getByText('部署概览')).toBeInTheDocument();
+    expect(screen.getByText('同机部署')).toBeInTheDocument();
+    expect(screen.getByText('zh_Hans')).toBeInTheDocument();
+    expect(screen.getByText('API Server')).toBeInTheDocument();
+    expect(screen.getByText('Plugin Runner')).toBeInTheDocument();
     expect(
       systemRuntimeApi.fetchSettingsSystemRuntimeProfile
     ).toHaveBeenCalled();
@@ -570,10 +560,10 @@ describe('SettingsPage', () => {
       expect(window.location.pathname).toBe('/settings/files');
     });
     expect(
-      await screen.findByRole('heading', { name: '文件管理', level: 4 })
+      await screen.findByRole('heading', { name: '文件管理', level: 2 })
     ).toBeInTheDocument();
     expect(
-      screen.getByRole('heading', { name: '文件表', level: 5 })
+      screen.getByRole('tab', { name: '文件表' })
     ).toBeInTheDocument();
   });
 

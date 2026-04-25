@@ -10,6 +10,7 @@ const {
   runManagedCommandSequence,
 } = require('../testing/warning-capture.js');
 const { loadVerifyRuntimeConfig } = require('../testing/verify-runtime.js');
+const { resolveNodeBinaryFromPath } = require('../testing/node-runtime.js');
 
 const FRONTEND_LAYERS = new Set(['fast', 'full']);
 const TEST_COMMANDS = new Set(['backend', 'contracts', 'frontend', 'scripts']);
@@ -125,7 +126,7 @@ function parseFrontendCliArgs(argv) {
   };
 }
 
-function buildFrontendCommands({ layer, repoRoot }) {
+function buildFrontendCommands({ layer, repoRoot, env = process.env }) {
   if (layer === 'fast') {
     return [
       {
@@ -136,6 +137,8 @@ function buildFrontendCommands({ layer, repoRoot }) {
       },
     ];
   }
+
+  const nodeBinary = resolveNodeBinaryFromPath(env);
 
   return [
     {
@@ -158,7 +161,7 @@ function buildFrontendCommands({ layer, repoRoot }) {
     },
     {
       label: 'frontend-style-boundary',
-      command: process.execPath,
+      command: nodeBinary,
       args: [resolveScriptsNodeCliEntry(repoRoot, 'tooling'), 'check-style-boundary', 'all-pages'],
       cwd: repoRoot,
     },
@@ -192,6 +195,7 @@ async function runFrontend(argv = [], deps = {}) {
     commands: buildFrontendCommands({
       layer: options.layer,
       repoRoot,
+      env,
     }),
     spawnSyncImpl: deps.spawnSyncImpl,
     writeStdout: deps.writeStdout,
@@ -250,10 +254,10 @@ function selectTestFiles(files, filters) {
   return sorted.filter((file) => filters.some((filter) => file.includes(filter)));
 }
 
-function buildScriptTestCommand({ repoRoot, files }) {
+function buildScriptTestCommand({ repoRoot, files, env = process.env }) {
   return {
     label: 'scripts-node-tests',
-    command: process.execPath,
+    command: resolveNodeBinaryFromPath(env),
     args: ['--test', ...files],
     cwd: repoRoot,
   };
@@ -289,7 +293,7 @@ function runScripts(argv = [], deps = {}) {
     repoRoot,
     env: deps.env || process.env,
     scope: 'test-scripts',
-    commands: [buildScriptTestCommand({ repoRoot, files: selectedFiles })],
+    commands: [buildScriptTestCommand({ repoRoot, files: selectedFiles, env: deps.env || process.env })],
     spawnSyncImpl: deps.spawnSyncImpl,
     writeStdout: deps.writeStdout,
     writeStderr: deps.writeStderr,

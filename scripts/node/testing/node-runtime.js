@@ -20,6 +20,29 @@ function resolveNodeExecutableName() {
   return process.platform === 'win32' ? 'node.exe' : 'node';
 }
 
+function isExecutableFile(filePath) {
+  try {
+    fs.accessSync(filePath, fs.constants.X_OK);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function resolveExplicitNodeBinary(env = process.env) {
+  const explicitNode = env.ONEFLOWBASE_NODE;
+
+  if (!explicitNode) {
+    return null;
+  }
+
+  if (!isExecutableFile(explicitNode)) {
+    throw new Error(`ONEFLOWBASE_NODE is not executable: ${explicitNode}`);
+  }
+
+  return fs.realpathSync(explicitNode);
+}
+
 function resolvePnpmBinaryFromPath(env = process.env) {
   for (const entry of listPathEntries(env)) {
     for (const pnpmFileName of resolvePnpmExecutableNames()) {
@@ -35,16 +58,45 @@ function resolvePnpmBinaryFromPath(env = process.env) {
   return null;
 }
 
-function resolveNodeBinaryFromPath(env = process.env) {
-  const nodeFileName = resolveNodeExecutableName();
-  const pnpmBinary = resolvePnpmBinaryFromPath(env);
+function resolveNodeBinaryNearPnpm(pnpmBinary) {
+  if (!pnpmBinary) {
+    return null;
+  }
 
-  // 优先复用 pnpm 同目录的真实 Node，避免 PATH 里的 bun-node wrapper 吞掉退出码。
-  if (pnpmBinary) {
-    const candidateNodePath = path.join(path.dirname(pnpmBinary), nodeFileName);
-    if (fs.existsSync(candidateNodePath)) {
-      return fs.realpathSync(candidateNodePath);
+  const nodeFileName = resolveNodeExecutableName();
+  const sameDirNodePath = path.join(path.dirname(pnpmBinary), nodeFileName);
+
+  if (isExecutableFile(sameDirNodePath)) {
+    return fs.realpathSync(sameDirNodePath);
+  }
+
+  let currentDir = path.dirname(pnpmBinary);
+  while (true) {
+    const versionRootNodePath = path.join(currentDir, 'bin', nodeFileName);
+
+    if (isExecutableFile(versionRootNodePath)) {
+      return fs.realpathSync(versionRootNodePath);
     }
+
+    const parentDir = path.dirname(currentDir);
+    if (parentDir === currentDir) {
+      return null;
+    }
+    currentDir = parentDir;
+  }
+}
+
+function resolveNodeBinaryFromPath(env = process.env) {
+  const explicitNode = resolveExplicitNodeBinary(env);
+  if (explicitNode) {
+    return explicitNode;
+  }
+
+  const pnpmBinary = resolvePnpmBinaryFromPath(env);
+  const pnpmNode = resolveNodeBinaryNearPnpm(pnpmBinary);
+
+  if (pnpmNode) {
+    return pnpmNode;
   }
 
   return process.execPath;
