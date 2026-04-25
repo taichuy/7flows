@@ -130,10 +130,54 @@ describe('LlmModelField', () => {
     );
 
     expect(openaiProvider?.parameterForm?.fields[0]?.key).toBe('temperature');
+    expect(openaiProvider?.icon).toBe(
+      'https://cdn.example.com/openai-compatible.svg'
+    );
     expect(openaiProvider?.models[0]).toMatchObject({
       contextWindow: primaryProviderFirstModel.context_window,
       effectiveContextWindow: primaryProviderFirstModel.context_window,
       maxOutputTokens: primaryProviderFirstModel.max_output_tokens
+    });
+  });
+
+  test('renders the configured provider svg in the selected model chip', async () => {
+    const initialState = createInitialState();
+    const llmNode = initialState.draft.document.graph.nodes.find(
+      (node) => node.id === 'node-llm'
+    );
+
+    if (!llmNode) {
+      throw new Error('expected llm node');
+    }
+
+    llmNode.config.model_provider = {
+      provider_code: primaryProviderOption.provider_code,
+      source_instance_id: primaryProviderFirstGroup.source_instance_id,
+      model_id: primaryProviderFirstModel.model_id,
+      protocol: primaryProviderOption.protocol,
+      provider_label: primaryProviderOption.display_name,
+      model_label: primaryProviderFirstModel.display_name,
+      schema_fetched_at: '2026-04-25T10:00:00Z'
+    };
+
+    renderWithProviders(
+      <AgentFlowEditorStoreProvider initialState={initialState}>
+        <NodeConfigTab />
+      </AgentFlowEditorStoreProvider>
+    );
+
+    const trigger = await screen.findByRole('button', { name: '模型' });
+
+    await waitFor(() => {
+      const providerIcon = trigger.querySelector(
+        '.agent-flow-model-chip__provider-image'
+      );
+
+      expect(providerIcon).toBeInstanceOf(HTMLImageElement);
+      expect(providerIcon).toHaveAttribute(
+        'src',
+        'https://cdn.example.com/openai-compatible.svg'
+      );
     });
   });
 

@@ -182,11 +182,15 @@
   justify-content: center;
   width: 20px;
   height: 20px;
-  border-radius: 999px;
-  background: #10a37f;
-  color: #fff;
-  font-size: 11px;
   flex-shrink: 0;
+  overflow: hidden;
+}
+
+.agent-flow-model-chip__provider-image {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  display: block;
 }
 
 .agent-flow-model-chip__content {

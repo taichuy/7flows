@@ -241,11 +241,13 @@ function ContextMarker({
 function ModelChip({
   providerLabel,
   modelLabel,
+  providerIcon,
   metaItems = [],
   placeholder = '选择供应商和模型'
 }: {
   providerLabel?: string | null;
   modelLabel?: string | null;
+  providerIcon?: string | null;
   metaItems?: ReactNode[];
   placeholder?: string;
 }) {
@@ -256,7 +258,15 @@ function ModelChip({
       className={`agent-flow-model-chip${modelLabel ? '' : ' agent-flow-model-chip--empty'}`}
     >
       <span className="agent-flow-model-chip__provider" aria-hidden="true">
-        ◎
+        {providerIcon ? (
+          <img
+            className="agent-flow-model-chip__provider-image"
+            src={providerIcon}
+            alt=""
+          />
+        ) : (
+          '◎'
+        )}
       </span>
       <span className="agent-flow-model-chip__content">
         <span className="agent-flow-model-chip__eyebrow">
@@ -886,6 +896,7 @@ export function LlmModelField({ adapter, block }: SchemaFieldRendererProps) {
         ref={triggerRef}
       >
         <ModelChip
+          providerIcon={selectedModel?.providerIcon || selectedProvider?.icon || null}
           providerLabel={
             modelProvider.provider_label?.trim() ||
             selectedModel?.providerLabel ||

@@ -10,6 +10,7 @@ export interface LlmProviderOption {
   label: string;
   providerCode: string;
   protocol: string;
+  icon?: string | null;
   parameterForm: AgentFlowModelProviderOptions['providers'][number]['parameter_form'];
   modelGroups: LlmModelGroup[];
   models: LlmModelOption[];
@@ -29,6 +30,7 @@ export interface LlmModelOption {
   providerLabel: string;
   providerCode: string;
   protocol: string;
+  providerIcon?: string | null;
   sourceInstanceId: string;
   sourceInstanceLabel: string;
   contextWindow: number | null;
@@ -64,6 +66,7 @@ function mapLlmModelOption(
     providerLabel: provider.display_name,
     providerCode: provider.provider_code,
     protocol: provider.protocol,
+    providerIcon: provider.icon,
     sourceInstanceId: group.source_instance_id,
     sourceInstanceLabel: group.source_instance_display_name,
     contextWindow: model.context_window,
@@ -244,6 +247,7 @@ export function listLlmProviderOptions(
     label: provider.display_name,
     providerCode: provider.provider_code,
     protocol: provider.protocol,
+    icon: provider.icon,
     parameterForm: localizeParameterForm(options, provider),
     modelGroups: provider.model_groups.map((group) => ({
       key: group.source_instance_id,
