@@ -1203,6 +1203,10 @@ async fn model_provider_routes_main_instance_settings_drive_inclusion_and_groupe
         .get("effective_instance_id")
         .is_none());
     assert_eq!(
+        options_payload["data"]["providers"][0]["icon"].as_str(),
+        Some("icon.svg")
+    );
+    assert_eq!(
         options_payload["data"]["providers"][0]["main_instance"]["provider_code"].as_str(),
         Some("fixture_provider")
     );

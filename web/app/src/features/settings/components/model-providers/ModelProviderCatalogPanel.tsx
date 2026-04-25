@@ -133,24 +133,6 @@ export function ModelProviderCatalogPanel({
             render: (_, entry) => (
               <div className="model-provider-panel__catalog-name">
                 <Typography.Text strong>{entry.display_name}</Typography.Text>
-                <Typography.Text
-                  type="secondary"
-                  className="model-provider-panel__catalog-meta"
-                >
-                  实例：{instanceCounts[entry.provider_code] ?? 0} 个
-                </Typography.Text>
-                <Typography.Text
-                  type="secondary"
-                  className="model-provider-panel__catalog-meta"
-                >
-                  主实例：聚合视图
-                </Typography.Text>
-                <Typography.Text
-                  type="secondary"
-                  className="model-provider-panel__catalog-meta"
-                >
-                  已接入：{includedInstanceCounts[entry.provider_code] ?? 0} 个实例
-                </Typography.Text>
               </div>
             )
           },

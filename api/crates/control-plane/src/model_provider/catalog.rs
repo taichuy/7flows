@@ -185,6 +185,7 @@ where
             description_key: Some("provider.description".to_string()),
             protocol,
             display_name: package.provider.display_name.clone(),
+            icon: package.manifest.icon.clone(),
             parameter_form: package.provider.parameter_form.clone(),
             main_instance: ModelProviderMainInstanceSummary {
                 provider_code: provider_code.clone(),
@@ -198,81 +199,6 @@ where
         });
     }
     Ok(ModelProviderOptionsView {
-        providers: options,
-        i18n_catalog,
-    })
-}
 
-fn expose_enabled_models(
-    namespace: &str,
-    models: Vec<ProviderModelDescriptor>,
-    configured_models: &[domain::ModelProviderConfiguredModel],
-    enabled_model_ids: &[String],
-) -> Vec<crate::model_provider::LocalizedProviderModelDescriptor> {
-    let configured_models_by_id = configured_models
-        .iter()
-        .map(|model| (model.model_id.as_str(), model))
-        .collect::<HashMap<_, _>>();
-    let localized_models = models
-        .into_iter()
-        .map(|model| {
-            let model_id = model.model_id.clone();
-            let configured_model = configured_models_by_id.get(model_id.as_str()).copied();
-            (
-                model_id,
-                localized_model_descriptor(
-                    namespace,
-                    apply_context_override(model, configured_model),
-                ),
-            )
-        })
-        .collect::<HashMap<_, _>>();
 
-    enabled_model_ids
-        .iter()
-        .map(|model_id| {
-            let configured_model = configured_models_by_id.get(model_id.as_str()).copied();
-            localized_models
-                .get(model_id)
-                .cloned()
-                .unwrap_or_else(|| fallback_enabled_model_descriptor(model_id, configured_model))
-        })
-        .collect()
-}
-
-fn apply_context_override(
-    mut model: ProviderModelDescriptor,
-    configured_model: Option<&domain::ModelProviderConfiguredModel>,
-) -> ProviderModelDescriptor {
-    if let Some(override_tokens) = configured_model
-        .and_then(|configured_model| configured_model.context_window_override_tokens)
-    {
-        model.context_window = Some(override_tokens);
-    }
-
-    model
-}
-
-fn fallback_enabled_model_descriptor(
-    model_id: &str,
-    configured_model: Option<&domain::ModelProviderConfiguredModel>,
-) -> crate::model_provider::LocalizedProviderModelDescriptor {
-    crate::model_provider::LocalizedProviderModelDescriptor {
-        descriptor: ProviderModelDescriptor {
-            model_id: model_id.to_string(),
-            display_name: model_id.to_string(),
-            source: ProviderModelSource::Dynamic,
-            supports_streaming: false,
-            supports_tool_call: false,
-            supports_multimodal: false,
-            context_window: configured_model
-                .and_then(|configured_model| configured_model.context_window_override_tokens),
-            max_output_tokens: None,
-            provider_metadata: serde_json::json!({}),
-        },
-        namespace: None,
-        label_key: None,
-        description_key: None,
-        display_name_fallback: Some(model_id.to_string()),
-    }
-}
+[Content truncated by AionUi ACP client. Request a smaller line/limit range to continue.]

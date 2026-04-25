@@ -38,6 +38,7 @@
       "description_key": "provider.description",
       "protocol": "openai_responses",
       "display_name": "OpenAI Compatible",
+      "icon": "https://cdn.example.com/openai-compatible.svg",
       "parameter_form": {
         "schema_version": "1.0.0",
         "fields": [
@@ -105,6 +106,7 @@
       "description_key": "provider.description",
       "protocol": "anthropic_messages",
       "display_name": "Anthropic Compatible",
+      "icon": "https://cdn.example.com/anthropic-compatible.svg",
       "parameter_form": null,
       "main_instance": {
         "provider_code": "anthropic_compatible",

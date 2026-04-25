@@ -611,6 +611,7 @@ fn to_option_response(option: ModelProviderOptionEntry) -> ModelProviderOptionRe
         description_key: option.description_key,
         protocol: option.protocol,
         display_name: option.display_name,
+        icon: option.icon,
         parameter_form: option.parameter_form.map(to_plugin_form_schema_response),
         main_instance: ModelProviderMainInstanceSummaryResponse {
             provider_code: option.main_instance.provider_code,
