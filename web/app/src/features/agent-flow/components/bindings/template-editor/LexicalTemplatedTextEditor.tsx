@@ -1,5 +1,5 @@
 import type { LexicalEditor } from 'lexical';
-import type { FocusEvent, FormEvent, MutableRefObject, Ref } from 'react';
+import type { FocusEvent, FormEvent, KeyboardEvent, MutableRefObject, Ref } from 'react';
 import type { FlowSelectorOption } from '../../../lib/selector-options';
 
 import { LexicalComposer } from '@lexical/react/LexicalComposer';
@@ -40,6 +40,16 @@ import {
 } from './template-editor-utils';
 
 const TRIGGER_CHARACTERS = new Set(['/', '{']);
+const TYPEAHEAD_OFFSET = 8;
+const DEFAULT_TYPEAHEAD_POSITION = {
+  left: 0,
+  top: 140
+};
+
+interface TypeaheadPosition {
+  left: number;
+  top: number;
+}
 
 export interface LexicalTemplatedTextEditorHandle {
   focus: () => void;
@@ -102,6 +112,22 @@ function insertSelectorNode(
     removeTrailingTriggerCharacter(TRIGGER_CHARACTERS);
     $insertNodes([$createTemplateVariableNode(selector, label)]);
   });
+}
+
+function getTypeaheadPosition(
+  anchorElement: HTMLElement | null,
+  anchorRect?: DOMRect | null
+): TypeaheadPosition {
+  if (!anchorElement || !anchorRect) {
+    return DEFAULT_TYPEAHEAD_POSITION;
+  }
+
+  const anchorElementRect = anchorElement.getBoundingClientRect();
+
+  return {
+    left: Math.max(anchorRect.left - anchorElementRect.left, 0),
+    top: Math.max(anchorRect.bottom - anchorElementRect.top + TYPEAHEAD_OFFSET, 48)
+  };
 }
 
 function EditorApiBridge({
@@ -176,6 +202,10 @@ export const LexicalTemplatedTextEditor = forwardRef<
   const shellRef = useRef<HTMLDivElement | null>(null);
   const [typeaheadOpen, setTypeaheadOpen] = useState(false);
   const [query, setQuery] = useState('');
+  const [activeIndex, setActiveIndex] = useState(0);
+  const [typeaheadPosition, setTypeaheadPosition] = useState<TypeaheadPosition>(
+    DEFAULT_TYPEAHEAD_POSITION
+  );
 
   const initialConfig = useMemo(
     () => ({
@@ -207,14 +237,29 @@ export const LexicalTemplatedTextEditor = forwardRef<
     );
   }, [options, query]);
 
-  function openTypeahead(nextQuery = '') {
+  useEffect(() => {
+    if (!typeaheadOpen) {
+      return;
+    }
+
+    setActiveIndex(filteredOptions.length > 0 ? 0 : -1);
+  }, [filteredOptions.length, query, typeaheadOpen]);
+
+  function openTypeahead(
+    nextQuery = '',
+    nextPosition: TypeaheadPosition = DEFAULT_TYPEAHEAD_POSITION
+  ) {
     setQuery(nextQuery);
+    setActiveIndex(0);
+    setTypeaheadPosition(nextPosition);
     setTypeaheadOpen(true);
     onTriggerChange?.(true);
   }
 
   function closeTypeahead() {
     setQuery('');
+    setActiveIndex(0);
+    setTypeaheadPosition(DEFAULT_TYPEAHEAD_POSITION);
     setTypeaheadOpen(false);
     onTriggerChange?.(false);
   }
@@ -223,7 +268,15 @@ export const LexicalTemplatedTextEditor = forwardRef<
     const text = event.currentTarget.textContent ?? '';
 
     if (text.length > 0 && TRIGGER_CHARACTERS.has(text[text.length - 1])) {
-      openTypeahead();
+      const domSelection = document.getSelection();
+      const range = domSelection && domSelection.rangeCount > 0
+        ? domSelection.getRangeAt(0)
+        : null;
+      const anchorRect = range && typeof range.getBoundingClientRect === 'function'
+        ? range.getBoundingClientRect()
+        : event.currentTarget.getBoundingClientRect();
+
+      openTypeahead('', getTypeaheadPosition(event.currentTarget, anchorRect));
     }
   }
 
@@ -242,6 +295,62 @@ export const LexicalTemplatedTextEditor = forwardRef<
   function handleOpenVariablePicker() {
     editorRef.current?.focus();
     openTypeahead();
+  }
+
+  function handleTypeaheadKeyDown(
+    event: KeyboardEvent<HTMLDivElement | HTMLInputElement>
+  ) {
+    if (!typeaheadOpen) {
+      return;
+    }
+
+    if (event.key === 'ArrowDown') {
+      event.preventDefault();
+
+      if (filteredOptions.length === 0) {
+        return;
+      }
+
+      setActiveIndex((currentIndex) => {
+        const nextIndex = currentIndex + 1;
+
+        return nextIndex >= filteredOptions.length ? 0 : nextIndex;
+      });
+      return;
+    }
+
+    if (event.key === 'ArrowUp') {
+      event.preventDefault();
+
+      if (filteredOptions.length === 0) {
+        return;
+      }
+
+      setActiveIndex((currentIndex) => {
+        const nextIndex = currentIndex - 1;
+
+        return nextIndex < 0 ? filteredOptions.length - 1 : nextIndex;
+      });
+      return;
+    }
+
+    if (event.key === 'Enter') {
+      const activeOption = filteredOptions[activeIndex];
+
+      if (!activeOption) {
+        return;
+      }
+
+      event.preventDefault();
+      handleSelect(activeOption.value);
+      return;
+    }
+
+    if (event.key === 'Escape') {
+      event.preventDefault();
+      closeTypeahead();
+      editorRef.current?.focus();
+    }
   }
 
   function handleSelect(selector: string[]) {
@@ -277,7 +386,10 @@ export const LexicalTemplatedTextEditor = forwardRef<
           open={typeaheadOpen}
           options={filteredOptions}
           query={query}
+          activeIndex={activeIndex}
+          position={typeaheadPosition}
           onQueryChange={setQuery}
+          onKeyDown={handleTypeaheadKeyDown}
           onSelect={handleSelect}
         />
       </div>

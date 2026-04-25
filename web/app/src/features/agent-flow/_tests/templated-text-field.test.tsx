@@ -136,6 +136,33 @@ function triggerEditorInput(editor: HTMLElement, value: string, data: string) {
     inputType: 'insertText'
   });
 }
+function mockSelectionRect(rect: {
+  left: number;
+  top: number;
+  bottom: number;
+  width?: number;
+  height?: number;
+}) {
+  return vi.spyOn(document, 'getSelection').mockReturnValue({
+    rangeCount: 1,
+    getRangeAt: () => ({
+      getBoundingClientRect: () => ({
+        x: rect.left,
+        y: rect.top,
+        left: rect.left,
+        top: rect.top,
+        right: rect.left + (rect.width ?? 0),
+        bottom: rect.bottom,
+        width: rect.width ?? 0,
+        height: rect.height ?? Math.max(rect.bottom - rect.top, 0),
+        toJSON() {
+          return null;
+        }
+      })
+    })
+  } as unknown as Selection);
+}
+
 
 describe('TemplatedTextField', () => {
   test('renders referenced variables inline inside the editor from stored template text', async () => {
@@ -197,6 +224,74 @@ describe('TemplatedTextField', () => {
     expect(
       screen.queryByRole('option', { name: 'Start / 用户输入' })
     ).not.toBeInTheDocument();
+  });
+  test('supports keyboard navigation and enter-to-insert inside the shared picker', async () => {
+    render(<TemplatedTextHarness />);
+
+    fireEvent.click(screen.getByRole('button', { name: '插入变量' }));
+
+    const listbox = await screen.findByRole('listbox', { name: '变量建议' });
+
+    fireEvent.keyDown(listbox, { key: 'ArrowDown' });
+
+    await waitFor(() => {
+      expect(screen.getByRole('option', { name: 'Answer / 对话输出' })).toHaveAttribute(
+        'aria-selected',
+        'true'
+      );
+    });
+
+    fireEvent.keyDown(listbox, { key: 'Enter' });
+
+    await waitFor(() => {
+      expect(screen.queryByRole('listbox', { name: '变量建议' })).not.toBeInTheDocument();
+    });
+    expect(screen.getByTestId('templated-text-value')).toHaveTextContent(
+      '请基于 {{node-answer.answer}}'
+    );
+  });
+
+  test('positions the picker near the editor caret when opened from typing', async () => {
+    const selectionSpy = mockSelectionRect({
+      left: 168,
+      top: 220,
+      bottom: 244,
+      width: 0,
+      height: 24
+    });
+
+    render(<TemplatedTextHarness />);
+
+    const editor = screen.getByLabelText('User Prompt');
+    const originalGetBoundingClientRect = editor.getBoundingClientRect.bind(editor);
+
+    editor.getBoundingClientRect = () =>
+      ({
+        x: 40,
+        y: 120,
+        left: 40,
+        top: 120,
+        right: 360,
+        bottom: 252,
+        width: 320,
+        height: 132,
+        toJSON() {
+          return null;
+        }
+      }) as DOMRect;
+
+    fireEvent.focus(editor);
+    triggerEditorInput(editor, '请基于 /', '/');
+
+    const listbox = await screen.findByRole('listbox', { name: '变量建议' });
+
+    expect(listbox).toHaveStyle({
+      left: '128px',
+      top: '132px'
+    });
+
+    editor.getBoundingClientRect = originalGetBoundingClientRect;
+    selectionSpy.mockRestore();
   });
 
   test('inserts selected variables from the toolbar and preserves stored template syntax', async () => {

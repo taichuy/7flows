@@ -249,6 +249,11 @@
   background: #f3f6f5;
 }
 
+.agent-flow-templated-text-field__typeahead-option--active {
+  background: #eef4ff;
+  color: #204e9b;
+}
+
 .agent-flow-condition-group__toolbar {
   display: flex;
   flex-wrap: wrap;
