@@ -1,14 +1,9 @@
-import { Button, Dropdown, Typography } from 'antd';
+import { Button, Typography } from 'antd';
 import { useRef } from 'react';
 
 import {
-  decodeSelectorValue,
-  encodeSelectorValue,
   type FlowSelectorOption
 } from '../../lib/selector-options';
-import {
-  createTemplateSelectorToken,
-} from '../../lib/template-binding';
 import {
   LexicalTemplatedTextEditor,
   type LexicalTemplatedTextEditorHandle,
@@ -29,34 +24,17 @@ export function TemplatedTextField({
 }: TemplatedTextFieldProps) {
   const editorRef = useRef<LexicalTemplatedTextEditorHandle | null>(null);
 
-  function insertSelector(selector: string[]) {
-    const token = createTemplateSelectorToken(selector);
-
-    if (!token) {
-      return;
-    }
-
-    editorRef.current?.insertSelector(selector);
-  }
-
   return (
     <div className="agent-flow-templated-text-field">
       <div className="agent-flow-templated-text-field__toolbar">
-        <Dropdown
+        <Button
+          type="text"
+          size="small"
           disabled={options.length === 0}
-          menu={{
-            items: options.map((option) => ({
-              key: encodeSelectorValue(option.value),
-              label: option.displayLabel
-            })),
-            onClick: ({ key }) => insertSelector(decodeSelectorValue(key))
-          }}
-          trigger={['click']}
+          onClick={() => editorRef.current?.openVariablePicker()}
         >
-          <Button type="text" size="small">
-            插入变量
-          </Button>
-        </Dropdown>
+          插入变量
+        </Button>
         <Typography.Text
           type="secondary"
           className="agent-flow-templated-text-field__hint"

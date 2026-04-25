@@ -1,5 +1,5 @@
 import type { LexicalEditor } from 'lexical';
-import type { FormEvent, MutableRefObject, Ref } from 'react';
+import type { FocusEvent, FormEvent, MutableRefObject, Ref } from 'react';
 import type { FlowSelectorOption } from '../../../lib/selector-options';
 
 import { LexicalComposer } from '@lexical/react/LexicalComposer';
@@ -44,6 +44,7 @@ const TRIGGER_CHARACTERS = new Set(['/', '{']);
 export interface LexicalTemplatedTextEditorHandle {
   focus: () => void;
   insertSelector: (selector: string[]) => void;
+  openVariablePicker: () => void;
 }
 
 interface LexicalTemplatedTextEditorProps {
@@ -59,6 +60,7 @@ interface EditorApiBridgeProps {
   apiRef: MutableRefObject<LexicalTemplatedTextEditorHandle | null>;
   options: FlowSelectorOption[];
   forwardedRef: Ref<LexicalTemplatedTextEditorHandle>;
+  onOpenVariablePicker: () => void;
 }
 
 function ControlledValuePlugin({
@@ -84,11 +86,30 @@ function ControlledValuePlugin({
   return null;
 }
 
+function insertSelectorNode(
+  editor: LexicalEditor,
+  selector: string[],
+  options: FlowSelectorOption[]
+) {
+  const label = getTemplateSelectorLabel(selector, options);
+
+  editor.focus();
+  editor.update(() => {
+    if (!$isRangeSelection($getSelection())) {
+      $getRoot().selectEnd();
+    }
+
+    removeTrailingTriggerCharacter(TRIGGER_CHARACTERS);
+    $insertNodes([$createTemplateVariableNode(selector, label)]);
+  });
+}
+
 function EditorApiBridge({
   editorRef,
   apiRef,
   options,
-  forwardedRef
+  forwardedRef,
+  onOpenVariablePicker
 }: EditorApiBridgeProps) {
   const [editor] = useLexicalComposerContext();
 
@@ -107,20 +128,13 @@ function EditorApiBridge({
         editor.focus();
       },
       insertSelector(selector: string[]) {
-        const label = getTemplateSelectorLabel(selector, options);
-
-        editor.focus();
-        editor.update(() => {
-          if (!$isRangeSelection($getSelection())) {
-            $getRoot().selectEnd();
-          }
-
-          removeTrailingTriggerCharacter(TRIGGER_CHARACTERS);
-          $insertNodes([$createTemplateVariableNode(selector, label)]);
-        });
+        insertSelectorNode(editor, selector, options);
+      },
+      openVariablePicker() {
+        onOpenVariablePicker();
       }
     }),
-    [editor, options]
+    [editor, onOpenVariablePicker, options]
   );
 
   useEffect(() => {
@@ -129,24 +143,17 @@ function EditorApiBridge({
         editor.focus();
       },
       insertSelector(selector: string[]) {
-        const label = getTemplateSelectorLabel(selector, options);
-
-        editor.focus();
-        editor.update(() => {
-          if (!$isRangeSelection($getSelection())) {
-            $getRoot().selectEnd();
-          }
-
-          removeTrailingTriggerCharacter(TRIGGER_CHARACTERS);
-          $insertNodes([$createTemplateVariableNode(selector, label)]);
-        });
+        insertSelectorNode(editor, selector, options);
+      },
+      openVariablePicker() {
+        onOpenVariablePicker();
       }
     };
 
     return () => {
       apiRef.current = null;
     };
-  }, [apiRef, editor, options]);
+  }, [apiRef, editor, onOpenVariablePicker, options]);
 
   return null;
 }
@@ -166,7 +173,9 @@ export const LexicalTemplatedTextEditor = forwardRef<
 ) {
   const editorRef = useRef<LexicalEditor | null>(null);
   const apiRef = useRef<LexicalTemplatedTextEditorHandle | null>(null);
+  const shellRef = useRef<HTMLDivElement | null>(null);
   const [typeaheadOpen, setTypeaheadOpen] = useState(false);
+  const [query, setQuery] = useState('');
 
   const initialConfig = useMemo(
     () => ({
@@ -180,12 +189,32 @@ export const LexicalTemplatedTextEditor = forwardRef<
     []
   );
 
-  function openTypeahead() {
+  const filteredOptions = useMemo(() => {
+    const normalizedQuery = query.trim().toLowerCase();
+
+    if (!normalizedQuery) {
+      return options;
+    }
+
+    return options.filter((option) =>
+      [
+        option.displayLabel,
+        option.nodeLabel,
+        option.outputLabel,
+        option.outputKey,
+        option.value.join('.')
+      ].some((candidate) => candidate.toLowerCase().includes(normalizedQuery))
+    );
+  }, [options, query]);
+
+  function openTypeahead(nextQuery = '') {
+    setQuery(nextQuery);
     setTypeaheadOpen(true);
     onTriggerChange?.(true);
   }
 
   function closeTypeahead() {
+    setQuery('');
     setTypeaheadOpen(false);
     onTriggerChange?.(false);
   }
@@ -198,6 +227,23 @@ export const LexicalTemplatedTextEditor = forwardRef<
     }
   }
 
+  function handleBlur(event: FocusEvent<HTMLDivElement>) {
+    const nextFocusedNode = event.relatedTarget;
+
+    if (nextFocusedNode instanceof Node && shellRef.current?.contains(nextFocusedNode)) {
+      return;
+    }
+
+    window.setTimeout(() => {
+      closeTypeahead();
+    }, 120);
+  }
+
+  function handleOpenVariablePicker() {
+    editorRef.current?.focus();
+    openTypeahead();
+  }
+
   function handleSelect(selector: string[]) {
     apiRef.current?.insertSelector(selector);
     closeTypeahead();
@@ -205,7 +251,11 @@ export const LexicalTemplatedTextEditor = forwardRef<
 
   return (
     <LexicalComposer initialConfig={initialConfig}>
-      <div className="agent-flow-templated-text-field__editor-shell">
+      <div
+        ref={shellRef}
+        className="agent-flow-templated-text-field__editor-shell"
+        onBlurCapture={handleBlur}
+      >
         <RichTextPlugin
           contentEditable={
             <ContentEditable
@@ -214,11 +264,6 @@ export const LexicalTemplatedTextEditor = forwardRef<
               aria-multiline="true"
               className="agent-flow-templated-text-field__editor"
               onInputCapture={handleInput}
-              onBlur={() => {
-                window.setTimeout(() => {
-                  closeTypeahead();
-                }, 120);
-              }}
             />
           }
           placeholder={
@@ -230,7 +275,9 @@ export const LexicalTemplatedTextEditor = forwardRef<
         />
         <TemplateVariableTypeaheadPlugin
           open={typeaheadOpen}
-          options={options}
+          options={filteredOptions}
+          query={query}
+          onQueryChange={setQuery}
           onSelect={handleSelect}
         />
       </div>
@@ -241,6 +288,7 @@ export const LexicalTemplatedTextEditor = forwardRef<
         apiRef={apiRef}
         options={options}
         forwardedRef={ref}
+        onOpenVariablePicker={handleOpenVariablePicker}
       />
       <OnChangePlugin
         onChange={(editorState) => {

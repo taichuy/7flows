@@ -210,6 +210,27 @@
   box-shadow: 0 10px 26px rgba(15, 23, 42, 0.12);
 }
 
+.agent-flow-templated-text-field__typeahead-search {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  padding: 4px;
+  background: #fff;
+}
+
+.agent-flow-templated-text-field__typeahead-searchbox {
+  width: 100%;
+  padding: 8px 10px;
+  border: 1px solid #d9e3dc;
+  border-radius: 10px;
+  outline: none;
+}
+
+.agent-flow-templated-text-field__typeahead-searchbox:focus {
+  border-color: #4b8bff;
+  box-shadow: 0 0 0 2px rgba(75, 139, 255, 0.12);
+}
+
 .agent-flow-templated-text-field__typeahead-empty {
   padding: 12px 4px;
 }

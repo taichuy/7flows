@@ -97,6 +97,15 @@ const startQueryOption: FlowSelectorOption = {
   displayLabel: 'Start / 用户输入'
 };
 
+const answerOption: FlowSelectorOption = {
+  nodeId: 'node-answer',
+  nodeLabel: 'Answer',
+  outputKey: 'answer',
+  outputLabel: '对话输出',
+  value: ['node-answer', 'answer'],
+  displayLabel: 'Answer / 对话输出'
+};
+
 function TemplatedTextHarness() {
   const [value, setValue] = useState('请基于 ');
 
@@ -104,7 +113,7 @@ function TemplatedTextHarness() {
     <>
       <TemplatedTextField
         ariaLabel="User Prompt"
-        options={[startQueryOption]}
+        options={[startQueryOption, answerOption]}
         value={value}
         onChange={setValue}
       />
@@ -162,6 +171,34 @@ describe('TemplatedTextField', () => {
     ).toBeInTheDocument();
   });
 
+  test('opens the same variable picker from the toolbar button', async () => {
+    render(<TemplatedTextHarness />);
+
+    fireEvent.click(screen.getByRole('button', { name: '插入变量' }));
+
+    expect(await screen.findByRole('listbox', { name: '变量建议' })).toBeInTheDocument();
+    expect(screen.getByRole('option', { name: 'Start / 用户输入' })).toBeInTheDocument();
+  });
+
+  test('filters variable suggestions inside the shared picker', async () => {
+    render(<TemplatedTextHarness />);
+
+    fireEvent.click(screen.getByRole('button', { name: '插入变量' }));
+
+    const searchbox = await screen.findByRole('searchbox', { name: '搜索变量' });
+
+    fireEvent.change(searchbox, {
+      target: { value: 'answer' }
+    });
+
+    await waitFor(() => {
+      expect(screen.getByRole('option', { name: 'Answer / 对话输出' })).toBeInTheDocument();
+    });
+    expect(
+      screen.queryByRole('option', { name: 'Start / 用户输入' })
+    ).not.toBeInTheDocument();
+  });
+
   test('inserts selected variables from the toolbar and preserves stored template syntax', async () => {
     render(<TemplatedTextHarness />);
 
@@ -169,7 +206,7 @@ describe('TemplatedTextField', () => {
     fireEvent.focus(editor);
 
     fireEvent.click(screen.getByRole('button', { name: '插入变量' }));
-    fireEvent.click(await screen.findByRole('menuitem', { name: 'Start / 用户输入' }));
+    fireEvent.click(await screen.findByRole('option', { name: 'Start / 用户输入' }));
     await act(async () => {
       await new Promise((resolve) => {
         window.setTimeout(resolve, 0);
@@ -177,7 +214,7 @@ describe('TemplatedTextField', () => {
     });
     await waitFor(() => {
       expect(
-        screen.queryByRole('menuitem', { name: 'Start / 用户输入' })
+        screen.queryByRole('option', { name: 'Start / 用户输入' })
       ).not.toBeInTheDocument();
     });
 
