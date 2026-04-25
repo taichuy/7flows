@@ -129,8 +129,6 @@
   padding: 5px 10px;
   margin: 6px 0 10px;
   border-radius: 8px;
-  border: 1px solid var(--node-accent-border, #d7e0d4);
-  background: var(--node-accent-bg, #f4f8f4);
   color: #213e2c;
 }
 
@@ -142,10 +140,6 @@
   height: 20px;
   flex-shrink: 0;
   border-radius: 999px;
-  background: var(--node-accent, #10a37f);
-  color: #fff;
-  font-size: 11px;
-  line-height: 1;
 }
 
 .agent-flow-node-card__model-provider-image {
