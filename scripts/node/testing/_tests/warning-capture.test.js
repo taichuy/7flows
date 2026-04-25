@@ -106,16 +106,19 @@ test('runCommandSequence does not create a warning log for stdout-only success o
 });
 
 test('runCommandSequence injects the pnpm-adjacent real node env for pnpm commands', () => {
+  const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'oneflowbase-pnpm-node-env-'));
+  const binDir = path.join(tempDir, 'bin');
   const calls = [];
+
+  fs.mkdirSync(binDir, { recursive: true });
+  fs.writeFileSync(path.join(binDir, 'pnpm'), '', 'utf8');
+  fs.writeFileSync(path.join(binDir, 'node'), '', 'utf8');
 
   const status = runCommandSequence({
     repoRoot: '/repo-root',
     scope: 'pnpm-node-env',
     env: {
-      PATH: [
-        '/tmp/bun-node-wrapper',
-        '/home/taichu/.nvm/versions/node/v22.12.0/bin',
-      ].join(path.delimiter),
+      PATH: ['/tmp/bun-node-wrapper', binDir].join(path.delimiter),
     },
     commands: [
       {
@@ -135,14 +138,14 @@ test('runCommandSequence injects the pnpm-adjacent real node env for pnpm comman
   assert.equal(status, 0);
   assert.equal(calls.length, 1);
   assert.equal(calls[0].command, 'pnpm');
-  assert.equal(calls[0].options.env.NODE, '/home/taichu/.nvm/versions/node/v22.12.0/bin/node');
+  assert.equal(calls[0].options.env.NODE, path.join(binDir, 'node'));
   assert.equal(
     calls[0].options.env.npm_node_execpath,
-    '/home/taichu/.nvm/versions/node/v22.12.0/bin/node'
+    path.join(binDir, 'node')
   );
   assert.match(
     calls[0].options.env.PATH,
-    /^\/home\/taichu\/\.nvm\/versions\/node\/v22\.12\.0\/bin/
+    new RegExp(`^${binDir.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`)
   );
 });
 
@@ -157,7 +160,7 @@ test('runCommandSequence resets the warning log before a new run', () => {
       {
         label: 'first-run',
         command: process.execPath,
-        args: ['-e', 'process.stderr.write("warning: first run\\n")'],
+        args: ['-e', 'require("node:fs").writeSync(2, "warning: first run\\n")'],
       },
     ],
     spawnSyncImpl: spawnSync,
@@ -176,7 +179,7 @@ test('runCommandSequence resets the warning log before a new run', () => {
       {
         label: 'second-run',
         command: process.execPath,
-        args: ['-e', 'process.stderr.write("warning: second run\\n")'],
+        args: ['-e', 'require("node:fs").writeSync(2, "warning: second run\\n")'],
       },
     ],
     spawnSyncImpl: spawnSync,
@@ -201,7 +204,7 @@ test('runCommandSequence removes stale warning logs before a clean run', () => {
       {
         label: 'warning-run',
         command: process.execPath,
-        args: ['-e', 'process.stderr.write("warning: stale artifact\\n")'],
+        args: ['-e', 'require("node:fs").writeSync(2, "warning: stale artifact\\n")'],
       },
     ],
     spawnSyncImpl: spawnSync,
