@@ -1,4 +1,21 @@
-import { BookOutlined, HomeOutlined, PlusOutlined } from '@ant-design/icons';
+import {
+  ApiOutlined,
+  BlockOutlined,
+  BookOutlined,
+  EditOutlined,
+  FileTextOutlined,
+  HomeOutlined,
+  PlaySquareOutlined,
+  PlusOutlined,
+  QuestionCircleOutlined,
+  ReloadOutlined,
+  SearchOutlined,
+  SwapOutlined,
+  SyncOutlined,
+  ThunderboltOutlined,
+  ToolOutlined,
+  CloudOutlined
+} from '@ant-design/icons';
 import { Button, Card, Empty, Select, Space, Switch, Typography } from 'antd';
 
 import type {
@@ -24,6 +41,22 @@ function getNode(adapter: SchemaViewRendererProps['adapter']) {
     | null
     | undefined;
 }
+
+/** 节点类型 → 图标映射 */
+const NODE_TYPE_ICONS: Record<string, React.ReactNode> = {
+  start: <PlaySquareOutlined />,
+  llm: <ThunderboltOutlined />,
+  template_transform: <FileTextOutlined />,
+  knowledge_retrieval: <SearchOutlined />,
+  question_classifier: <QuestionCircleOutlined />,
+  if_else: <SwapOutlined />,
+  http_request: <ApiOutlined />,
+  tool: <ToolOutlined />,
+  variable_assigner: <EditOutlined />,
+  iteration: <SyncOutlined />,
+  loop: <ReloadOutlined />,
+  plugin_node: <BlockOutlined />
+};
 
 function renderSummaryView({ adapter, block }: SchemaViewRendererProps) {
   const node = getNode(adapter);
@@ -66,9 +99,15 @@ function renderCardEyebrowView({ adapter }: SchemaViewRendererProps) {
     return null;
   }
 
+  const typeIcon = NODE_TYPE_ICONS[node.type];
+  const displayLabel = node.alias === typeLabel ? 'Node' : typeLabel;
+
   return (
     <div className="agent-flow-node-card__eyebrow">
-      <span>{node.alias === typeLabel ? 'Node' : typeLabel}</span>
+      <span className="agent-flow-node-card__eyebrow-left">
+        {typeIcon ? <span className="agent-flow-node-card__type-icon">{typeIcon}</span> : null}
+        <span className="agent-flow-node-card__type-label">{displayLabel}</span>
+      </span>
       {issueCount > 0 ? <span className="agent-flow-node-card__badge">{issueCount}</span> : null}
     </div>
   );
@@ -92,9 +131,9 @@ function renderCardModelView({ adapter }: SchemaViewRendererProps) {
   const model = modelProvider.model_id.trim();
 
   return (
-    <div className="agent-flow-node-card__model">
+    <div className="agent-flow-node-card__model agent-flow-node-card__model--llm">
       <span className="agent-flow-node-card__model-provider" aria-hidden="true">
-        ◎
+        <CloudOutlined />
       </span>
       <span className="agent-flow-node-card__model-content">
         <span className="agent-flow-node-card__model-provider-label">

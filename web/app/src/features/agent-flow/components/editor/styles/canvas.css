@@ -19,59 +19,168 @@
   display: none;
 }
 
+/* ===== 节点类型主题色 ===== */
+.agent-flow-node-card--type-start {
+  --node-accent: #1677ff;
+  --node-accent-bg: #e6f4ff;
+  --node-accent-border: #91caff;
+  --node-accent-text: #1677ff;
+}
+.agent-flow-node-card--type-llm {
+  --node-accent: #722ed1;
+  --node-accent-bg: #f9f0ff;
+  --node-accent-border: #d3adf7;
+  --node-accent-text: #722ed1;
+}
+.agent-flow-node-card--type-template_transform {
+  --node-accent: #fa8c16;
+  --node-accent-bg: #fff7e6;
+  --node-accent-border: #ffd591;
+  --node-accent-text: #fa8c16;
+}
+.agent-flow-node-card--type-knowledge_retrieval {
+  --node-accent: #13c2c2;
+  --node-accent-bg: #e6fffb;
+  --node-accent-border: #87e8de;
+  --node-accent-text: #13c2c2;
+}
+.agent-flow-node-card--type-question_classifier {
+  --node-accent: #eb2f96;
+  --node-accent-bg: #fff0f6;
+  --node-accent-border: #ffadd2;
+  --node-accent-text: #eb2f96;
+}
+.agent-flow-node-card--type-if_else {
+  --node-accent: #faad14;
+  --node-accent-bg: #fffbe6;
+  --node-accent-border: #ffe58f;
+  --node-accent-text: #d48806;
+}
+.agent-flow-node-card--type-http_request {
+  --node-accent: #52c41a;
+  --node-accent-bg: #f6ffed;
+  --node-accent-border: #b7eb8f;
+  --node-accent-text: #52c41a;
+}
+.agent-flow-node-card--type-tool {
+  --node-accent: #2f54eb;
+  --node-accent-bg: #f0f5ff;
+  --node-accent-border: #adc6ff;
+  --node-accent-text: #2f54eb;
+}
+.agent-flow-node-card--type-variable_assigner {
+  --node-accent: #fa541c;
+  --node-accent-bg: #fff2e8;
+  --node-accent-border: #ffbb96;
+  --node-accent-text: #fa541c;
+}
+.agent-flow-node-card--type-iteration,
+.agent-flow-node-card--type-loop {
+  --node-accent: #13a8a8;
+  --node-accent-bg: #e6fffb;
+  --node-accent-border: #87e8de;
+  --node-accent-text: #13a8a8;
+}
+.agent-flow-node-card--type-plugin_node {
+  --node-accent: #8c8c8c;
+  --node-accent-bg: #fafafa;
+  --node-accent-border: #d9d9d9;
+  --node-accent-text: #8c8c8c;
+}
+
+/* ===== 节点卡片容器 ===== */
 .agent-flow-node-card {
   min-width: 200px;
   padding: 16px;
-  border: 1px solid #d7e0d4;
-  border-left: 4px solid #84a58f;
-  border-radius: 16px;
+  border: 1px solid var(--node-accent-border, #d7e0d4);
+  border-left: 3px solid var(--node-accent, #84a58f);
+  border-radius: 14px;
   background: rgba(255, 255, 255, 0.98);
-  box-shadow: 0 4px 16px rgba(33, 62, 44, 0.05);
+  box-shadow:
+    0 1px 3px rgba(0, 0, 0, 0.04),
+    0 4px 12px rgba(33, 62, 44, 0.04);
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition:
+    transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1),
+    box-shadow 0.25s ease,
+    border-color 0.2s ease;
 }
 
 .agent-flow-node-card:hover {
   transform: translateY(-2px);
-  box-shadow: 0 8px 24px rgba(33, 62, 44, 0.1);
-  border-color: #a5c2b0;
+  box-shadow:
+    0 4px 12px rgba(0, 0, 0, 0.06),
+    0 8px 24px rgba(33, 62, 44, 0.08);
+  border-color: var(--node-accent, #84a58f);
 }
 
 .agent-flow-node-card--selected {
-  border-left-color: #497a5d;
-  border-color: #497a5d;
-  box-shadow: 0 8px 28px rgba(50, 89, 64, 0.15);
+  border-left-color: var(--node-accent, #497a5d);
+  border-color: var(--node-accent, #497a5d);
+  background: color-mix(in srgb, var(--node-accent-bg, #f3f8f3) 50%, #fff);
+  box-shadow:
+    0 2px 8px rgba(0, 0, 0, 0.06),
+    0 8px 28px color-mix(in srgb, var(--node-accent, #497a5d) 20%, transparent);
 }
 
+/* ===== Eyebrow (类型行) ===== */
 .agent-flow-node-card__eyebrow {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  margin-bottom: 8px;
-  color: #55715f;
-  font-size: 12px;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
+  margin-bottom: 10px;
 }
 
+.agent-flow-node-card__eyebrow-left {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.agent-flow-node-card__type-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+  color: var(--node-accent-text, #55715f);
+  font-size: 14px;
+  opacity: 0.85;
+}
+
+.agent-flow-node-card__type-label {
+  color: var(--node-accent-text, #55715f);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  line-height: 1;
+}
+
+/* ===== Title ===== */
 .agent-flow-node-card__title {
-  font-size: 18px;
+  font-size: 17px;
   font-weight: 600;
   color: #1f3326;
-  margin-bottom: 4px;
+  margin-bottom: 6px;
+  line-height: 1.3;
 }
 
+/* ===== Model Badge ===== */
 .agent-flow-node-card__model {
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  min-height: 36px;
+  min-height: 34px;
   width: 100%;
-  padding: 0 12px;
-  margin: 4px 0 8px;
-  border-radius: 10px;
-  background: linear-gradient(180deg, #f3f6f2, #edf1ee);
+  padding: 5px 10px;
+  margin: 6px 0 10px;
+  border-radius: 8px;
+  border: 1px solid var(--node-accent-border, #d7e0d4);
+  background: var(--node-accent-bg, #f4f8f4);
   color: #213e2c;
 }
 
@@ -79,19 +188,21 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 18px;
-  height: 18px;
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
   border-radius: 999px;
-  background: #10a37f;
+  background: var(--node-accent, #10a37f);
   color: #fff;
-  font-size: 10px;
+  font-size: 11px;
+  line-height: 1;
 }
 
 .agent-flow-node-card__model-content {
   display: flex;
   flex-direction: column;
   min-width: 0;
-  gap: 2px;
+  gap: 1px;
   flex: 1;
 }
 
@@ -102,6 +213,7 @@
   white-space: nowrap;
   color: #60756a;
   font-size: 11px;
+  line-height: 1.3;
 }
 
 .agent-flow-node-card__model-label {
@@ -111,6 +223,7 @@
   white-space: nowrap;
   font-size: 13px;
   font-weight: 500;
+  line-height: 1.4;
 }
 
 .agent-flow-node-card__model-tag {
@@ -120,12 +233,17 @@
   border-radius: 999px;
   color: #738196;
   font-size: 11px;
+  flex-shrink: 0;
 }
 
+/* ===== Description ===== */
 .agent-flow-node-card__description {
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.02);
   color: #60756a;
-  font-size: 13px;
-  line-height: 1.5;
+  font-size: 12.5px;
+  line-height: 1.55;
 }
 
 .agent-flow-model-field__trigger,
