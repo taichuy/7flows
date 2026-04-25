@@ -744,7 +744,7 @@ describe('ModelProvidersPage', () => {
     expect(
       await screen.findByRole(
         'heading',
-        { name: '模型供应商', level: 4 },
+        { name: '模型供应商', level: 3 },
         { timeout: 10000 }
       )
     ).toBeInTheDocument();

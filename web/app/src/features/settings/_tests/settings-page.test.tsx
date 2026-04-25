@@ -430,7 +430,7 @@ describe('SettingsPage', () => {
       'section-page-layout--wide'
     );
     expect(
-      screen.getByRole('heading', { name: '用户管理', level: 4 })
+      screen.getByRole('heading', { name: '用户管理', level: 3 })
     ).toBeInTheDocument();
     expect(
       screen.queryByRole('button', { name: '新建用户' })
@@ -507,7 +507,7 @@ describe('SettingsPage', () => {
       await screen.findByRole('heading', { name: '设置', level: 4 })
     ).toBeInTheDocument();
     expect(
-      screen.getByRole('heading', { name: '用户管理', level: 4 })
+      screen.getByRole('heading', { name: '用户管理', level: 3 })
     ).toBeInTheDocument();
   });
 
@@ -523,7 +523,7 @@ describe('SettingsPage', () => {
       expect(window.location.pathname).toBe('/settings/model-providers');
     });
     expect(
-      await screen.findByRole('heading', { name: '模型供应商', level: 4 })
+      await screen.findByRole('heading', { name: '模型供应商', level: 3 })
     ).toBeInTheDocument();
   });
 
@@ -539,7 +539,7 @@ describe('SettingsPage', () => {
       expect(window.location.pathname).toBe('/settings/system-runtime');
     });
     expect(
-      await screen.findByRole('heading', { name: '系统运行状态', level: 4 })
+      await screen.findByRole('heading', { name: '系统运行', level: 3 })
     ).toBeInTheDocument();
     expect(screen.getByText('部署概览')).toBeInTheDocument();
     expect(screen.getByText('同机部署')).toBeInTheDocument();
@@ -560,7 +560,7 @@ describe('SettingsPage', () => {
       expect(window.location.pathname).toBe('/settings/files');
     });
     expect(
-      await screen.findByRole('heading', { name: '文件管理', level: 2 })
+      await screen.findByRole('heading', { name: '文件管理', level: 3 })
     ).toBeInTheDocument();
     expect(
       screen.getByRole('tab', { name: '文件表' })
