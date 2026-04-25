@@ -6,6 +6,7 @@ import {
   Modal,
   Space,
   Table,
+  Tabs,
   Tag,
   Tooltip,
   message
@@ -151,7 +152,9 @@ export function FileManagementPanel({
           message.success('存储配置已删除');
           await refetchStorages();
         } catch (error) {
-          message.error(error instanceof Error ? error.message : '删除失败，请重试');
+          message.error(
+            error instanceof Error ? error.message : '删除失败，请重试'
+          );
         }
       }
     });
@@ -170,7 +173,9 @@ export function FileManagementPanel({
           message.success('文件表已删除');
           await refetchTables();
         } catch (error) {
-          message.error(error instanceof Error ? error.message : '删除失败，请重试');
+          message.error(
+            error instanceof Error ? error.message : '删除失败，请重试'
+          );
         }
       }
     });
@@ -209,7 +214,8 @@ export function FileManagementPanel({
       dataIndex: 'is_default',
       key: 'is_default',
       width: 90,
-      render: (value: boolean) => (value ? <Tag color="green">是</Tag> : <Tag>否</Tag>)
+      render: (value: boolean) =>
+        value ? <Tag color="green">是</Tag> : <Tag>否</Tag>
     },
     {
       title: '启用',
@@ -306,7 +312,11 @@ export function FileManagementPanel({
           return title;
         }
 
-        return <Tag color="orange">{record.bound_storage_id ? '未命名存储' : '未绑定'}</Tag>;
+        return (
+          <Tag color="orange">
+            {record.bound_storage_id ? '未命名存储' : '未绑定'}
+          </Tag>
+        );
       }
     },
     {
@@ -371,6 +381,103 @@ export function FileManagementPanel({
 
   const showCreateOnlyTable = !canViewTables && canCreateTables;
 
+  const storagePanel = (
+    <div className="fm-tab-panel">
+      <div className="fm-tab-toolbar">
+        <div className="fm-toolbar">
+          <Button
+            type="primary"
+            size="small"
+            icon={<PlusOutlined />}
+            onClick={() =>
+              setStorageDrawer({ open: true, mode: 'create', record: null })
+            }
+          >
+            新增
+          </Button>
+          <Tooltip title="刷新">
+            <Button
+              size="small"
+              icon={<ReloadOutlined />}
+              onClick={() => refetchStorages()}
+            />
+          </Tooltip>
+          <Input.Search
+            allowClear
+            value={storageSearch}
+            placeholder="搜索存储..."
+            size="small"
+            style={{ width: 220 }}
+            onChange={(event) => setStorageSearch(event.target.value)}
+          />
+        </div>
+      </div>
+
+      <Table
+        rowKey="id"
+        size="small"
+        pagination={false}
+        loading={storagesLoading}
+        columns={storageColumns}
+        dataSource={filteredStorages}
+      />
+    </div>
+  );
+
+  const tablePanel = (
+    <div className="fm-tab-panel">
+      <div className="fm-tab-toolbar">
+        <div className="fm-toolbar">
+          {canCreateTables ? (
+            <Button
+              type="primary"
+              size="small"
+              icon={<PlusOutlined />}
+              onClick={() =>
+                setTableDrawer({ open: true, mode: 'create', record: null })
+              }
+            >
+              新增
+            </Button>
+          ) : null}
+          <Tooltip title="刷新">
+            <Button
+              size="small"
+              icon={<ReloadOutlined />}
+              onClick={() => refetchTables()}
+            />
+          </Tooltip>
+          <Input.Search
+            allowClear
+            value={tableSearch}
+            placeholder="搜索文件表..."
+            size="small"
+            style={{ width: 220 }}
+            onChange={(event) => setTableSearch(event.target.value)}
+          />
+        </div>
+      </div>
+
+      <Table
+        rowKey="id"
+        size="small"
+        pagination={false}
+        loading={tablesLoading}
+        columns={tableColumns}
+        dataSource={filteredTables}
+      />
+    </div>
+  );
+
+  const managementTabs = [
+    ...(isRoot
+      ? [{ key: 'storages', label: '存储配置', children: storagePanel }]
+      : []),
+    ...(canViewTables
+      ? [{ key: 'tables', label: '文件表', children: tablePanel }]
+      : [])
+  ];
+
   return (
     <div className="file-management-panel">
       <div className="file-management-header">
@@ -380,93 +487,9 @@ export function FileManagementPanel({
         </p>
       </div>
 
-      {isRoot ? (
-        <section className="fm-section">
-          <div className="fm-section-header">
-            <h3>存储配置</h3>
-            <div className="fm-toolbar">
-              <Button
-                type="primary"
-                size="small"
-                icon={<PlusOutlined />}
-                onClick={() =>
-                  setStorageDrawer({ open: true, mode: 'create', record: null })
-                }
-              >
-                新增
-              </Button>
-              <Tooltip title="刷新">
-                <Button
-                  size="small"
-                  icon={<ReloadOutlined />}
-                  onClick={() => refetchStorages()}
-                />
-              </Tooltip>
-              <Input.Search
-                allowClear
-                value={storageSearch}
-                placeholder="搜索存储..."
-                size="small"
-                style={{ width: 220 }}
-                onChange={(event) => setStorageSearch(event.target.value)}
-              />
-            </div>
-          </div>
-
-          <Table
-            rowKey="id"
-            size="small"
-            pagination={false}
-            loading={storagesLoading}
-            columns={storageColumns}
-            dataSource={filteredStorages}
-          />
-        </section>
-      ) : null}
-
-      {canViewTables ? (
-        <section className="fm-section">
-          <div className="fm-section-header">
-            <h3>文件表</h3>
-            <div className="fm-toolbar">
-              {canCreateTables ? (
-                <Button
-                  type="primary"
-                  size="small"
-                  icon={<PlusOutlined />}
-                  onClick={() =>
-                    setTableDrawer({ open: true, mode: 'create', record: null })
-                  }
-                >
-                  新增
-                </Button>
-              ) : null}
-              <Tooltip title="刷新">
-                <Button
-                  size="small"
-                  icon={<ReloadOutlined />}
-                  onClick={() => refetchTables()}
-                />
-              </Tooltip>
-              <Input.Search
-                allowClear
-                value={tableSearch}
-                placeholder="搜索文件表..."
-                size="small"
-                style={{ width: 220 }}
-                onChange={(event) => setTableSearch(event.target.value)}
-              />
-            </div>
-          </div>
-
-          <Table
-            rowKey="id"
-            size="small"
-            pagination={false}
-            loading={tablesLoading}
-            columns={tableColumns}
-            dataSource={filteredTables}
-          />
+      {managementTabs.length > 0 ? (
+        <section className="fm-section fm-tabs-section">
+          <Tabs items={managementTabs} />
         </section>
       ) : null}
 
@@ -497,7 +520,9 @@ export function FileManagementPanel({
         open={storageDrawer.open}
         mode={storageDrawer.mode ?? 'create'}
         record={storageDrawer.record}
-        onClose={() => setStorageDrawer({ open: false, mode: null, record: null })}
+        onClose={() =>
+          setStorageDrawer({ open: false, mode: null, record: null })
+        }
         onSuccess={() => {
           refetchStorages();
         }}
@@ -508,7 +533,9 @@ export function FileManagementPanel({
         mode={tableDrawer.mode ?? 'create'}
         record={tableDrawer.record}
         storages={storages}
-        onClose={() => setTableDrawer({ open: false, mode: null, record: null })}
+        onClose={() =>
+          setTableDrawer({ open: false, mode: null, record: null })
+        }
         onSuccess={() => {
           refetchTables();
         }}

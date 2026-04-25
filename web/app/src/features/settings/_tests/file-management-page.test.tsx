@@ -250,13 +250,13 @@ describe('File management settings page', () => {
     expect(
       await screen.findByRole('heading', { name: '文件管理', level: 2 })
     ).toBeInTheDocument();
-    expect(screen.getByRole('heading', { name: '存储配置', level: 3 })).toBeInTheDocument();
-    expect(screen.getByRole('heading', { name: '文件表', level: 3 })).toBeInTheDocument();
-    expect(screen.getAllByRole('button', { name: /新增/ })).toHaveLength(2);
-    expect(screen.getAllByPlaceholderText(/搜索/)).toHaveLength(2);
+    expect(screen.getByRole('tab', { name: '存储配置' })).toBeInTheDocument();
+    expect(screen.getByRole('tab', { name: '文件表' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /新增/ })).toBeInTheDocument();
+    expect(screen.getByPlaceholderText('搜索存储...')).toBeInTheDocument();
   });
 
-  test('workspace mode hides storage management and keeps file table section', async () => {
+  test('workspace mode only shows file table tab when table view is allowed', async () => {
     authenticateWithPermissions(['route_page.view.all', 'file_table.view.own']);
 
     renderApp('/settings/files');
@@ -265,14 +265,19 @@ describe('File management settings page', () => {
       await screen.findByRole('heading', { name: '文件管理', level: 2 })
     ).toBeInTheDocument();
     expect(
-      screen.queryByRole('heading', { name: '存储配置', level: 3 })
+      screen.queryByRole('tab', { name: '存储配置' })
     ).not.toBeInTheDocument();
-    expect(screen.getByRole('heading', { name: '文件表', level: 3 })).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: /新增/ })).not.toBeInTheDocument();
+    expect(screen.getByRole('tab', { name: '文件表' })).toBeInTheDocument();
+    expect(
+      screen.queryByRole('button', { name: /新增/ })
+    ).not.toBeInTheDocument();
   });
 
-  test('create-only workspace mode keeps the create drawer entry visible', async () => {
-    authenticateWithPermissions(['route_page.view.all', 'file_table.create.all']);
+  test('create-only workspace mode hides file table tab and keeps create entry visible', async () => {
+    authenticateWithPermissions([
+      'route_page.view.all',
+      'file_table.create.all'
+    ]);
     fileManagementApi.fetchSettingsFileTables.mockClear();
 
     renderApp('/settings/files');
@@ -280,6 +285,9 @@ describe('File management settings page', () => {
     expect(
       await screen.findByRole('heading', { name: '文件管理', level: 2 })
     ).toBeInTheDocument();
+    expect(
+      screen.queryByRole('tab', { name: '文件表' })
+    ).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: /新增/ })).toBeInTheDocument();
     expect(fileManagementApi.fetchSettingsFileTables).not.toHaveBeenCalled();
     expect(
@@ -292,7 +300,9 @@ describe('File management settings page', () => {
 
     renderApp('/settings/files');
 
-    fireEvent.click((await screen.findAllByRole('button', { name: /新增/ }))[0]);
+    fireEvent.click(
+      (await screen.findAllByRole('button', { name: /新增/ }))[0]
+    );
     expect(await screen.findByText('新增存储配置')).toBeInTheDocument();
 
     fireEvent.click(document.body);
@@ -306,7 +316,10 @@ describe('File management settings page', () => {
 
     renderApp('/settings/files');
 
-    fireEvent.click((await screen.findAllByRole('button', { name: /新增/ }))[1]);
+    fireEvent.click(await screen.findByRole('tab', { name: '文件表' }));
+    fireEvent.click(
+      (await screen.findAllByRole('button', { name: /新增/ }))[0]
+    );
     expect(await screen.findByText('新增文件表')).toBeInTheDocument();
   });
 });

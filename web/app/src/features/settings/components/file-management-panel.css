@@ -49,6 +49,21 @@
   gap: 8px;
 }
 
+.fm-tabs-section {
+  padding-top: 12px;
+}
+
+.fm-tab-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.fm-tab-toolbar {
+  display: flex;
+  justify-content: flex-end;
+}
+
 .fm-create-only-info {
   margin: 24px 0 8px;
   padding: 16px;
