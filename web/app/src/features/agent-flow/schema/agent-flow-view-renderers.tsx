@@ -1,3 +1,6 @@
+import type { ReactNode } from 'react';
+
+import { useQuery } from '@tanstack/react-query';
 import {
   ApiOutlined,
   BlockOutlined,
@@ -13,8 +16,7 @@ import {
   SwapOutlined,
   SyncOutlined,
   ThunderboltOutlined,
-  ToolOutlined,
-  CloudOutlined
+  ToolOutlined
 } from '@ant-design/icons';
 import { Button, Card, Empty, Select, Space, Switch, Typography } from 'antd';
 
@@ -27,6 +29,10 @@ import { NodeRunMetadataCard } from '../components/detail/last-run/NodeRunMetada
 import { NodeRunSummaryCard } from '../components/detail/last-run/NodeRunSummaryCard';
 import type { NodeLastRun } from '../api/runtime';
 import { getLlmModelProvider } from '../lib/llm-node-config';
+import {
+  fetchModelProviderOptions,
+  modelProviderOptionsQueryKey
+} from '../api/model-provider-options';
 
 function getNode(adapter: SchemaViewRendererProps['adapter']) {
   return adapter.getDerived('node') as
@@ -126,14 +132,35 @@ function renderCardModelView({ adapter }: SchemaViewRendererProps) {
     return null;
   }
 
+  return <LlmCardModelBadge node={node} />;
+}
+
+/** LLM 节点卡片模型徽章 —— 从缓存查询获取供应商图标 */
+function LlmCardModelBadge({ node }: { node: NonNullable<ReturnType<typeof getNode>> }) {
   const modelProvider = getLlmModelProvider(node.config);
   const providerCode = modelProvider.provider_code.trim();
   const model = modelProvider.model_id.trim();
 
+  const { data: providerOptions } = useQuery({
+    queryKey: modelProviderOptionsQueryKey,
+    queryFn: fetchModelProviderOptions,
+    staleTime: 60_000
+  });
+
+  const providerIcon = providerOptions?.providers?.find(
+    (p) => p.provider_code === providerCode
+  )?.icon || null;
+
   return (
     <div className="agent-flow-node-card__model agent-flow-node-card__model--llm">
       <span className="agent-flow-node-card__model-provider" aria-hidden="true">
-        <CloudOutlined />
+        {providerIcon ? (
+          <img
+            className="agent-flow-node-card__model-provider-image"
+            src={providerIcon}
+            alt=""
+          />
+        ) : null}
       </span>
       <span className="agent-flow-node-card__model-content">
         <span className="agent-flow-node-card__model-provider-label">

@@ -19,73 +19,23 @@
   display: none;
 }
 
-/* ===== 节点类型主题色 ===== */
-.agent-flow-node-card--type-start {
+/* ===== 节点类型主题色（统一蓝色） ===== */
+.agent-flow-node-card--type-start,
+.agent-flow-node-card--type-llm,
+.agent-flow-node-card--type-template_transform,
+.agent-flow-node-card--type-knowledge_retrieval,
+.agent-flow-node-card--type-question_classifier,
+.agent-flow-node-card--type-if_else,
+.agent-flow-node-card--type-http_request,
+.agent-flow-node-card--type-tool,
+.agent-flow-node-card--type-variable_assigner,
+.agent-flow-node-card--type-iteration,
+.agent-flow-node-card--type-loop,
+.agent-flow-node-card--type-plugin_node {
   --node-accent: #1677ff;
   --node-accent-bg: #e6f4ff;
   --node-accent-border: #91caff;
   --node-accent-text: #1677ff;
-}
-.agent-flow-node-card--type-llm {
-  --node-accent: #722ed1;
-  --node-accent-bg: #f9f0ff;
-  --node-accent-border: #d3adf7;
-  --node-accent-text: #722ed1;
-}
-.agent-flow-node-card--type-template_transform {
-  --node-accent: #fa8c16;
-  --node-accent-bg: #fff7e6;
-  --node-accent-border: #ffd591;
-  --node-accent-text: #fa8c16;
-}
-.agent-flow-node-card--type-knowledge_retrieval {
-  --node-accent: #13c2c2;
-  --node-accent-bg: #e6fffb;
-  --node-accent-border: #87e8de;
-  --node-accent-text: #13c2c2;
-}
-.agent-flow-node-card--type-question_classifier {
-  --node-accent: #eb2f96;
-  --node-accent-bg: #fff0f6;
-  --node-accent-border: #ffadd2;
-  --node-accent-text: #eb2f96;
-}
-.agent-flow-node-card--type-if_else {
-  --node-accent: #faad14;
-  --node-accent-bg: #fffbe6;
-  --node-accent-border: #ffe58f;
-  --node-accent-text: #d48806;
-}
-.agent-flow-node-card--type-http_request {
-  --node-accent: #52c41a;
-  --node-accent-bg: #f6ffed;
-  --node-accent-border: #b7eb8f;
-  --node-accent-text: #52c41a;
-}
-.agent-flow-node-card--type-tool {
-  --node-accent: #2f54eb;
-  --node-accent-bg: #f0f5ff;
-  --node-accent-border: #adc6ff;
-  --node-accent-text: #2f54eb;
-}
-.agent-flow-node-card--type-variable_assigner {
-  --node-accent: #fa541c;
-  --node-accent-bg: #fff2e8;
-  --node-accent-border: #ffbb96;
-  --node-accent-text: #fa541c;
-}
-.agent-flow-node-card--type-iteration,
-.agent-flow-node-card--type-loop {
-  --node-accent: #13a8a8;
-  --node-accent-bg: #e6fffb;
-  --node-accent-border: #87e8de;
-  --node-accent-text: #13a8a8;
-}
-.agent-flow-node-card--type-plugin_node {
-  --node-accent: #8c8c8c;
-  --node-accent-bg: #fafafa;
-  --node-accent-border: #d9d9d9;
-  --node-accent-text: #8c8c8c;
 }
 
 /* ===== 节点卡片容器 ===== */
@@ -196,6 +146,13 @@
   color: #fff;
   font-size: 11px;
   line-height: 1;
+}
+
+.agent-flow-node-card__model-provider-image {
+  width: 100%;
+  height: 100%;
+  border-radius: 999px;
+  object-fit: contain;
 }
 
 .agent-flow-node-card__model-content {
