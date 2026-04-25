@@ -473,11 +473,60 @@
   background: #ffffff;
 }
 
-.agent-flow-start-input-fields__item-grid {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) 132px 82px;
-  gap: 8px;
+.agent-flow-start-input-fields__item-main {
+  display: flex;
   align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-width: 0;
+}
+
+.agent-flow-start-input-fields__item-copy,
+.agent-flow-start-input-fields__form,
+.agent-flow-start-input-fields__form-row {
+  display: flex;
+  flex-direction: column;
+}
+
+.agent-flow-start-input-fields__item-copy {
+  gap: 2px;
+  min-width: 0;
+}
+
+.agent-flow-start-input-fields__item-key {
+  color: #7b8982;
+  font-family:
+    'SFMono-Regular', Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New',
+    monospace;
+  font-size: 12px;
+}
+
+.agent-flow-start-input-fields__panel {
+  z-index: 25;
+}
+
+.agent-flow-start-input-fields__form {
+  gap: 12px;
+}
+
+.agent-flow-start-input-fields__form-row {
+  gap: 6px;
+  color: #55645d;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.agent-flow-start-input-fields__form-row .ant-select {
+  width: 100%;
+}
+
+.agent-flow-start-input-fields__panel-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 10px 14px 12px;
+  border-top: 1px solid #edf1f5;
+  background: #ffffff;
 }
 
 .agent-flow-start-input-fields__system-title {
@@ -510,8 +559,9 @@
 }
 
 @media (max-width: 640px) {
-  .agent-flow-start-input-fields__item-grid {
-    grid-template-columns: 1fr;
+  .agent-flow-start-input-fields__item-main {
+    align-items: flex-start;
+    flex-direction: column;
   }
 
   .agent-flow-node-detail__policy-select-shell--compact {

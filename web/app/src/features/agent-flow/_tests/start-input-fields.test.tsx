@@ -78,16 +78,20 @@ describe('start input fields', () => {
     expect(screen.getByText('userinput.files')).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: '新增输入字段' }));
-    fireEvent.change(screen.getByLabelText('输入字段变量名 1'), {
+
+    expect(
+      await screen.findByRole('dialog', { name: '输入字段设置' })
+    ).toBeInTheDocument();
+
+    fireEvent.change(screen.getByLabelText('输入字段变量名'), {
       target: { value: 'customer_name' }
     });
-    fireEvent.change(screen.getByLabelText('输入字段显示名 1'), {
+    fireEvent.change(screen.getByLabelText('输入字段显示名'), {
       target: { value: '客户姓名' }
     });
-    fireEvent.mouseDown(
-      screen.getByRole('combobox', { name: '输入字段类型 1' })
-    );
+    fireEvent.mouseDown(screen.getByRole('combobox', { name: '输入字段类型' }));
     fireEvent.click(await screen.findByTitle('文件列表'));
+    fireEvent.click(screen.getByRole('button', { name: '保存输入字段' }));
 
     const startNode = latestDocument.graph.nodes.find(
       (node) => node.id === 'node-start'
