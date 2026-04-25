@@ -1,4 +1,4 @@
-import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import {
   cloneElement,
   isValidElement,
@@ -86,37 +86,87 @@ vi.mock('antd', async () => {
 });
 
 import { TemplatedTextField } from '../components/bindings/TemplatedTextField';
+import type { FlowSelectorOption } from '../lib/selector-options';
+
+const startQueryOption: FlowSelectorOption = {
+  nodeId: 'node-start',
+  nodeLabel: 'Start',
+  outputKey: 'query',
+  outputLabel: '用户输入',
+  value: ['node-start', 'query'],
+  displayLabel: 'Start / 用户输入'
+};
 
 function TemplatedTextHarness() {
   const [value, setValue] = useState('请基于 ');
 
   return (
-    <TemplatedTextField
-      ariaLabel="User Prompt"
-      options={[
-        {
-          nodeId: 'node-start',
-          nodeLabel: 'Start',
-          outputKey: 'query',
-          outputLabel: '用户输入',
-          value: ['node-start', 'query'],
-          displayLabel: 'Start / 用户输入'
-        }
-      ]}
-      value={value}
-      onChange={setValue}
-    />
+    <>
+      <TemplatedTextField
+        ariaLabel="User Prompt"
+        options={[startQueryOption]}
+        value={value}
+        onChange={setValue}
+      />
+      <div data-testid="templated-text-value">{value}</div>
+    </>
   );
 }
 
+function triggerEditorInput(editor: HTMLElement, value: string, data: string) {
+  if (editor instanceof HTMLTextAreaElement) {
+    fireEvent.change(editor, {
+      target: { value }
+    });
+    return;
+  }
+
+  editor.textContent = value;
+  fireEvent.input(editor, {
+    data,
+    inputType: 'insertText'
+  });
+}
+
 describe('TemplatedTextField', () => {
-  test('inserts selected variables into the textarea and shows the referenced outputs', async () => {
+  test('renders referenced variables inline inside the editor from stored template text', async () => {
+    render(
+      <TemplatedTextField
+        ariaLabel="User Prompt"
+        options={[startQueryOption]}
+        value="请基于 {{node-start.query}} 总结"
+        onChange={vi.fn()}
+      />
+    );
+
+    await waitFor(() => {
+      expect(screen.getAllByText('Start / 用户输入').length).toBeGreaterThan(0);
+    });
+    expect(screen.getAllByTestId('templated-text-inline-chip').length).toBeGreaterThan(0);
+    expect(
+      screen.queryByDisplayValue('请基于 {{node-start.query}} 总结')
+    ).not.toBeInTheDocument();
+    expect(screen.queryByTestId('templated-text-references')).not.toBeInTheDocument();
+  });
+
+  test('opens variable suggestions when typing trigger characters in the editor', async () => {
     render(<TemplatedTextHarness />);
 
-    const textarea = screen.getByLabelText('User Prompt') as HTMLTextAreaElement;
+    const editor = screen.getByLabelText('User Prompt');
 
-    textarea.focus();
-    textarea.setSelectionRange(textarea.value.length, textarea.value.length);
+    fireEvent.focus(editor);
+    triggerEditorInput(editor, '{', '{');
+
+    expect(
+      await screen.findByRole('option', { name: 'Start / 用户输入' })
+    ).toBeInTheDocument();
+  });
+
+  test('inserts selected variables from the toolbar and preserves stored template syntax', async () => {
+    render(<TemplatedTextHarness />);
+
+    const editor = screen.getByLabelText('User Prompt');
+    fireEvent.focus(editor);
 
     fireEvent.click(screen.getByRole('button', { name: '插入变量' }));
     fireEvent.click(await screen.findByRole('menuitem', { name: 'Start / 用户输入' }));
@@ -131,12 +181,28 @@ describe('TemplatedTextField', () => {
       ).not.toBeInTheDocument();
     });
 
-    expect(textarea).toHaveValue('请基于 {{node-start.query}}');
-    expect(screen.getByText('已引用变量')).toBeInTheDocument();
-    expect(
-      within(screen.getByTestId('templated-text-references')).getByText(
-        'Start / 用户输入'
-      )
-    ).toBeInTheDocument();
+    expect(screen.getAllByText('Start / 用户输入').length).toBeGreaterThan(0);
+    expect(screen.getByTestId('templated-text-value')).toHaveTextContent(
+      '请基于 {{node-start.query}}'
+    );
+  });
+
+  test('inserts selected variables and preserves stored template syntax', async () => {
+    render(<TemplatedTextHarness />);
+
+    const editor = screen.getByLabelText('User Prompt');
+
+    fireEvent.focus(editor);
+    triggerEditorInput(editor, '请基于 /', '/');
+    fireEvent.click(await screen.findByRole('option', { name: 'Start / 用户输入' }));
+
+    await waitFor(() => {
+      expect(screen.getByText('Start / 用户输入')).toBeInTheDocument();
+    });
+
+    expect(editor).toHaveTextContent('请基于 Start / 用户输入');
+    expect(screen.getByTestId('templated-text-value')).toHaveTextContent(
+      '请基于 {{node-start.query}}'
+    );
   });
 });

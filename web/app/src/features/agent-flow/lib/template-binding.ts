@@ -1,6 +1,6 @@
 import type { FlowSelectorOption } from './selector-options';
 
-const TEMPLATE_SELECTOR_REGEX = /{{\s*([A-Za-z0-9_-]+)\.([A-Za-z0-9_-]+)\s*}}/g;
+export const TEMPLATE_SELECTOR_REGEX = /{{\s*([A-Za-z0-9_-]+)\.([A-Za-z0-9_-]+)\s*}}/g;
 
 function isSameSelector(left: string[], right: string[]) {
   return (
@@ -60,4 +60,16 @@ export function remapTemplateSelectorTokens(
     (_match, nodeId: string, outputKey: string) =>
       createTemplateSelectorToken([idMap.get(nodeId) ?? nodeId, outputKey])
   );
+}
+
+export function getTemplateSelectorTokenMatch(value: string) {
+  TEMPLATE_SELECTOR_REGEX.lastIndex = 0;
+
+  return TEMPLATE_SELECTOR_REGEX.exec(value);
+}
+
+export function isTemplateSelectorToken(value: string) {
+  const match = getTemplateSelectorTokenMatch(value);
+
+  return match !== null && match[0] === value;
 }

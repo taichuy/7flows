@@ -197,7 +197,8 @@ describe('NodeInspector', () => {
     expect(screen.getByLabelText('失败重试')).toBeInTheDocument();
     expect(screen.getByRole('combobox', { name: '异常处理' })).toBeInTheDocument();
     expect(screen.getByLabelText('System Prompt')).toBeInTheDocument();
-    expect(screen.getByLabelText('User Prompt').tagName).toBe('TEXTAREA');
+    expect(screen.getByLabelText('User Prompt').tagName).toBe('DIV');
+    expect(screen.getByLabelText('User Prompt')).toHaveAttribute('contenteditable', 'true');
     },
     10000
   );
