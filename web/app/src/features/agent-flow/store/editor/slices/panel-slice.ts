@@ -2,6 +2,9 @@ export interface PanelSlice {
   issuesOpen: boolean;
   historyOpen: boolean;
   publishConfigOpen: boolean;
+  debugConsoleOpen: boolean;
+  debugConsoleWidth: number;
+  debugConsoleActiveTab: 'conversation' | 'trace' | 'variables';
   nodeDetailTab: 'config' | 'lastRun';
   nodeDetailWidth: number;
   nodePickerState: {

@@ -4,6 +4,8 @@ import type {
   FlowNodeDocument
 } from '@1flowbase/flow-schema';
 import {
+  cancelConsoleFlowRun,
+  getConsoleApplicationRunDetail,
   startConsoleFlowDebugRun,
   getConsoleNodeLastRun,
   startConsoleNodeDebugPreview,
@@ -15,6 +17,62 @@ import { getApplicationsApiBaseUrl } from '../../applications/api/applications';
 
 export type NodeLastRun = ConsoleNodeLastRun;
 export type FlowDebugRunDetail = ConsoleApplicationRunDetail;
+export type AgentFlowDebugMessageStatus =
+  | 'running'
+  | 'completed'
+  | 'waiting_callback'
+  | 'waiting_human'
+  | 'cancelled'
+  | 'failed';
+
+export interface AgentFlowTraceItem {
+  nodeId: string;
+  nodeAlias: string;
+  nodeType: string;
+  status: string;
+  startedAt: string;
+  finishedAt: string | null;
+  durationMs: number | null;
+  inputPayload: Record<string, unknown>;
+  outputPayload: Record<string, unknown>;
+  errorPayload: Record<string, unknown> | null;
+  metricsPayload: Record<string, unknown>;
+}
+
+export interface AgentFlowVariableItem {
+  key: string;
+  label: string;
+  value: unknown;
+}
+
+export interface AgentFlowVariableGroup {
+  title: string;
+  items: AgentFlowVariableItem[];
+}
+
+export interface AgentFlowDebugMessage {
+  id: string;
+  role: 'user' | 'assistant';
+  content: string;
+  status: AgentFlowDebugMessageStatus;
+  runId: string | null;
+  rawOutput: Record<string, unknown> | null;
+  traceSummary: AgentFlowTraceItem[];
+}
+
+export interface AgentFlowRunContextField {
+  nodeId: string;
+  key: string;
+  title: string;
+  valueType: FlowNodeDocument['outputs'][number]['valueType'];
+  value: unknown;
+}
+
+export interface AgentFlowRunContext {
+  environmentLabel: 'draft';
+  remembered: boolean;
+  fields: AgentFlowRunContextField[];
+}
 
 export const nodeLastRunQueryKey = (applicationId: string, nodeId: string) =>
   ['applications', applicationId, 'runtime', 'nodes', nodeId, 'last-run'] as const;
@@ -42,12 +100,18 @@ export function startNodeDebugPreview(
   );
 }
 
-export function buildFlowDebugRunInput(document: FlowAuthoringDocument) {
+export function buildFlowDebugRunInput(
+  document: FlowAuthoringDocument,
+  inputValues?: Record<string, unknown>
+) {
   const startNode = document.graph.nodes.find((node) => node.type === 'start');
   const startPayload: Record<string, unknown> = {};
 
   for (const output of startNode?.outputs ?? []) {
-    startPayload[output.key] = buildPreviewValue(startNode, output.key);
+    startPayload[output.key] =
+      inputValues && Object.prototype.hasOwnProperty.call(inputValues, output.key)
+        ? inputValues[output.key]
+        : buildPreviewValue(startNode, output.key);
   }
 
   return {
@@ -65,6 +129,27 @@ export function startFlowDebugRun(
   return startConsoleFlowDebugRun(
     applicationId,
     input,
+    csrfToken,
+    getApplicationsApiBaseUrl()
+  );
+}
+
+export function fetchApplicationRunDetail(applicationId: string, runId: string) {
+  return getConsoleApplicationRunDetail(
+    applicationId,
+    runId,
+    getApplicationsApiBaseUrl()
+  );
+}
+
+export function cancelFlowDebugRun(
+  applicationId: string,
+  runId: string,
+  csrfToken: string
+) {
+  return cancelConsoleFlowRun(
+    applicationId,
+    runId,
     csrfToken,
     getApplicationsApiBaseUrl()
   );

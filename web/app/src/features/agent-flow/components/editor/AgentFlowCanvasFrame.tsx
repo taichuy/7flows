@@ -18,11 +18,10 @@ import { useContainerNavigation } from '../../hooks/interactions/use-container-n
 import { useDraftSync } from '../../hooks/interactions/use-draft-sync';
 import { useEditorShortcuts } from '../../hooks/interactions/use-editor-shortcuts';
 import { useNodeDetailActions } from '../../hooks/interactions/use-node-detail-actions';
+import { useAgentFlowDebugSession } from '../../hooks/runtime/useAgentFlowDebugSession';
 import {
-  buildFlowDebugRunInput,
   buildNodeDebugPreviewInput,
   nodeLastRunQueryKey,
-  startFlowDebugRun,
   startNodeDebugPreview
 } from '../../api/runtime';
 import {
@@ -37,19 +36,27 @@ import {
 } from '../../lib/detail-panel-width';
 import { validateDocument } from '../../lib/validate-document';
 import { buildNodePickerOptions } from '../../lib/plugin-node-definitions';
+import { getContainerPathForNode } from '../../lib/document/transforms/container';
 import { useAuthStore } from '../../../../state/auth-store';
 import { useAgentFlowEditorStore } from '../../store/editor/provider';
 import {
   selectAutosaveStatus,
+  selectDebugConsoleOpen,
+  selectDebugConsoleWidth,
   selectLastSavedDocument,
   selectVersions,
   selectWorkingDocument
 } from '../../store/editor/selectors';
+import { AgentFlowDebugConsole } from '../debug-console/AgentFlowDebugConsole';
 import { NodeDetailPanel } from '../detail/NodeDetailPanel';
 import { VersionHistoryDrawer } from '../history/VersionHistoryDrawer';
 import { IssuesDrawer } from '../issues/IssuesDrawer';
 import { AgentFlowCanvas } from './AgentFlowCanvas';
 import { AgentFlowOverlay } from './AgentFlowOverlay';
+
+const DEBUG_CONSOLE_DEFAULT_WIDTH = 420;
+const DEBUG_CONSOLE_MIN_WIDTH = 320;
+const DEBUG_CONSOLE_GAP = 12;
 
 interface AgentFlowCanvasFrameProps {
   applicationId: string;
@@ -76,8 +83,14 @@ export function AgentFlowCanvasFrame({
   const lastSavedDocument = useAgentFlowEditorStore(selectLastSavedDocument);
   const autosaveStatus = useAgentFlowEditorStore(selectAutosaveStatus);
   const versions = useAgentFlowEditorStore(selectVersions);
+  const draftMeta = useAgentFlowEditorStore((state) => state.draftMeta);
   const autosaveIntervalMs = useAgentFlowEditorStore(
     (state) => state.autosaveIntervalMs
+  );
+  const debugConsoleOpen = useAgentFlowEditorStore(selectDebugConsoleOpen);
+  const debugConsoleWidth = useAgentFlowEditorStore(selectDebugConsoleWidth);
+  const debugConsoleActiveTab = useAgentFlowEditorStore(
+    (state) => state.debugConsoleActiveTab
   );
   const selectedNodeId = useAgentFlowEditorStore((state) => state.selectedNodeId);
   const activeContainerPath = useAgentFlowEditorStore(
@@ -90,6 +103,9 @@ export function AgentFlowCanvasFrame({
   );
   const nodeDetailWidth = useAgentFlowEditorStore((state) => state.nodeDetailWidth);
   const setPanelState = useAgentFlowEditorStore((state) => state.setPanelState);
+  const setInteractionState = useAgentFlowEditorStore(
+    (state) => state.setInteractionState
+  );
   const documentRef = useRef(workingDocument);
   const lastSavedDocumentRef = useRef(lastSavedDocument);
   const viewportSnapshotRef = useRef(workingDocument.editor.viewport);
@@ -97,8 +113,10 @@ export function AgentFlowCanvasFrame({
     useRef<(() => FlowAuthoringDocument['editor']['viewport']) | null>(null);
   const bodyRef = useRef<HTMLDivElement | null>(null);
   const stopNodeDetailResizeRef = useRef<(() => void) | null>(null);
+  const stopDebugConsoleResizeRef = useRef<(() => void) | null>(null);
   const [bodyWidth, setBodyWidth] = useState(0);
   const [isResizingNodeDetail, setIsResizingNodeDetail] = useState(false);
+  const [isResizingDebugConsole, setIsResizingDebugConsole] = useState(false);
   const modelProviderOptionsQuery = useQuery({
     queryKey: modelProviderOptionsQueryKey,
     queryFn: fetchModelProviderOptions
@@ -110,6 +128,11 @@ export function AgentFlowCanvasFrame({
     restoreVersionOverride,
     getCurrentDocument: () => getDocumentWithLatestViewport(documentRef.current),
     getLastSavedDocument: () => lastSavedDocumentRef.current
+  });
+  const debugSession = useAgentFlowDebugSession({
+    applicationId,
+    draftId: draftMeta.draftId,
+    document: workingDocument
   });
   const issues = useMemo(
     () =>
@@ -137,24 +160,6 @@ export function AgentFlowCanvasFrame({
     onSuccess: async (lastRun, nodeId) => {
       queryClient.setQueryData(nodeLastRunQueryKey(applicationId, nodeId), lastRun);
       setPanelState({ nodeDetailTab: 'lastRun' });
-      await queryClient.invalidateQueries({
-        queryKey: ['applications', applicationId, 'runtime']
-      });
-    }
-  });
-  const flowDebugRunMutation = useMutation({
-    mutationFn: async () => {
-      if (!csrfToken) {
-        throw new Error('missing csrf token');
-      }
-
-      return startFlowDebugRun(
-        applicationId,
-        buildFlowDebugRunInput(documentRef.current),
-        csrfToken
-      );
-    },
-    onSuccess: async () => {
       await queryClient.invalidateQueries({
         queryKey: ['applications', applicationId, 'runtime']
       });
@@ -216,6 +221,7 @@ export function AgentFlowCanvasFrame({
   useEffect(() => {
     return () => {
       stopNodeDetailResizeRef.current?.();
+      stopDebugConsoleResizeRef.current?.();
     };
   }, []);
 
@@ -227,13 +233,37 @@ export function AgentFlowCanvasFrame({
     stopNodeDetailResizeRef.current?.();
   }, [selectedNodeId]);
 
+  useEffect(() => {
+    if (debugConsoleOpen) {
+      return;
+    }
+
+    stopDebugConsoleResizeRef.current?.();
+  }, [debugConsoleOpen]);
+
+  useEffect(() => {
+    debugSession.syncSelectedNode(selectedNodeId);
+  }, [selectedNodeId]);
+
   useEditorShortcuts();
 
   const canvasFrameWidth =
     bodyWidth || NODE_DETAIL_DEFAULT_WIDTH + NODE_DETAIL_MIN_CANVAS_WIDTH;
+  const maxDebugConsoleWidth = Math.max(
+    canvasFrameWidth -
+      (selectedNodeId ? nodeDetailWidth : 0) -
+      NODE_DETAIL_MIN_CANVAS_WIDTH,
+    DEBUG_CONSOLE_MIN_WIDTH
+  );
+  const boundedDebugConsoleWidth = Math.min(
+    Math.max(debugConsoleWidth, DEBUG_CONSOLE_MIN_WIDTH),
+    maxDebugConsoleWidth
+  );
+  const detailContainerWidth =
+    canvasFrameWidth - (debugConsoleOpen ? boundedDebugConsoleWidth : 0);
   const boundedNodeDetailWidth = clampNodeDetailWidth(
     nodeDetailWidth,
-    canvasFrameWidth
+    detailContainerWidth
   );
   const nodeDetailLayout = getNodeDetailLayout(boundedNodeDetailWidth);
 
@@ -244,7 +274,7 @@ export function AgentFlowCanvasFrame({
 
     const startX = event.clientX;
     const startWidth = boundedNodeDetailWidth;
-    const containerWidth = canvasFrameWidth;
+    const containerWidth = detailContainerWidth;
     const previousCursor = document.body.style.cursor;
     const previousUserSelect = document.body.style.userSelect;
 
@@ -272,6 +302,50 @@ export function AgentFlowCanvasFrame({
     };
 
     stopNodeDetailResizeRef.current = cleanup;
+    window.addEventListener('mousemove', handleMouseMove);
+    window.addEventListener('mouseup', cleanup);
+  }
+
+  function handleDebugConsoleResizeStart(
+    event: ReactMouseEvent<HTMLDivElement>
+  ) {
+    event.preventDefault();
+
+    const startX = event.clientX;
+    const startWidth = boundedDebugConsoleWidth;
+    const containerWidth = canvasFrameWidth;
+    const previousCursor = document.body.style.cursor;
+    const previousUserSelect = document.body.style.userSelect;
+
+    stopDebugConsoleResizeRef.current?.();
+    setIsResizingDebugConsole(true);
+    document.body.style.cursor = 'col-resize';
+    document.body.style.userSelect = 'none';
+
+    const cleanup = () => {
+      window.removeEventListener('mousemove', handleMouseMove);
+      window.removeEventListener('mouseup', cleanup);
+      document.body.style.cursor = previousCursor;
+      document.body.style.userSelect = previousUserSelect;
+      setIsResizingDebugConsole(false);
+      stopDebugConsoleResizeRef.current = null;
+    };
+
+    const handleMouseMove = (moveEvent: MouseEvent) => {
+      const nextWidth = Math.min(
+        Math.max(startWidth - (moveEvent.clientX - startX), DEBUG_CONSOLE_MIN_WIDTH),
+        Math.max(
+          containerWidth -
+            (selectedNodeId ? boundedNodeDetailWidth : 0) -
+            NODE_DETAIL_MIN_CANVAS_WIDTH,
+          DEBUG_CONSOLE_MIN_WIDTH
+        )
+      );
+
+      setPanelState({ debugConsoleWidth: nextWidth });
+    };
+
+    stopDebugConsoleResizeRef.current = cleanup;
     window.addEventListener('mousemove', handleMouseMove);
     window.addEventListener('mouseup', cleanup);
   }
@@ -305,6 +379,23 @@ export function AgentFlowCanvasFrame({
     nodePreviewMutation.mutate(selectedNodeId);
   }
 
+  function handleLocateTraceNode(nodeId: string | null) {
+    debugSession.selectTraceNode(nodeId);
+
+    if (!nodeId) {
+      return;
+    }
+
+    setInteractionState({
+      activeContainerPath: getContainerPathForNode(documentRef.current, nodeId),
+      pendingLocateNodeId: nodeId
+    });
+    setPanelState({
+      debugConsoleActiveTab: 'trace',
+      debugConsoleOpen: true
+    });
+  }
+
   return (
     <section
       aria-label={`${applicationName} editor`}
@@ -320,8 +411,13 @@ export function AgentFlowCanvasFrame({
         }}
         saveDisabled={autosaveStatus === 'saving'}
         saveLoading={autosaveStatus === 'saving'}
-        onStartDebugRun={() => flowDebugRunMutation.mutate()}
-        debugRunLoading={flowDebugRunMutation.isPending}
+        onOpenDebugConsole={() =>
+          setPanelState({
+            debugConsoleOpen: true,
+            debugConsoleActiveTab: 'conversation',
+            debugConsoleWidth: debugConsoleWidth || DEBUG_CONSOLE_DEFAULT_WIDTH
+          })
+        }
         onOpenIssues={() => setPanelState({ issuesOpen: true })}
         onOpenHistory={() => setPanelState({ historyOpen: true })}
         onOpenPublish={() => undefined}
@@ -360,7 +456,12 @@ export function AgentFlowCanvasFrame({
             data-layout={nodeDetailLayout}
             data-testid="agent-flow-editor-detail-dock"
             data-resizing={isResizingNodeDetail ? 'true' : 'false'}
-            style={{ width: `${boundedNodeDetailWidth}px` }}
+            style={{
+              right: debugConsoleOpen
+                ? `${boundedDebugConsoleWidth + DEBUG_CONSOLE_GAP + 16}px`
+                : undefined,
+              width: `${boundedNodeDetailWidth}px`
+            }}
           >
             <div
               aria-label="调整节点详情宽度"
@@ -374,6 +475,45 @@ export function AgentFlowCanvasFrame({
               onClose={detailActions.closeDetail}
               onRunNode={selectedNodeId ? handleRunSelectedNode : undefined}
               runLoading={nodePreviewMutation.isPending}
+            />
+          </div>
+        ) : null}
+        {debugConsoleOpen ? (
+          <div
+            className="agent-flow-editor__debug-console-dock"
+            data-testid="agent-flow-editor-debug-console-dock"
+            data-resizing={isResizingDebugConsole ? 'true' : 'false'}
+            style={{ width: `${boundedDebugConsoleWidth}px` }}
+          >
+            <div
+              aria-label="调整调试控制台宽度"
+              aria-orientation="vertical"
+              className="agent-flow-editor__debug-console-resize-handle"
+              onMouseDown={handleDebugConsoleResizeStart}
+              role="separator"
+            />
+            <AgentFlowDebugConsole
+              activeNodeFilter={debugSession.activeNodeFilter}
+              activeTab={debugConsoleActiveTab}
+              messages={debugSession.messages}
+              runContext={debugSession.runContext}
+              status={debugSession.status}
+              traceItems={debugSession.traceItems}
+              variableGroups={debugSession.variableGroups}
+              onChangeRunContextValue={debugSession.setRunContextValue}
+              onChangeTab={(key) => setPanelState({ debugConsoleActiveTab: key })}
+              onClearSession={debugSession.clearSession}
+              onClose={() => setPanelState({ debugConsoleOpen: false })}
+              onLocateTraceNode={handleLocateTraceNode}
+              onRerunLast={() => {
+                void debugSession.rerunLast();
+              }}
+              onStopRun={() => {
+                void debugSession.stopRun();
+              }}
+              onSubmitPrompt={() => {
+                void debugSession.submitPrompt();
+              }}
             />
           </div>
         ) : null}

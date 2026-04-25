@@ -143,7 +143,24 @@
       "web/app/src/style-boundary/registry.tsx",
       "web/app/src/app/router.tsx",
       "web/packages/api-client/src/console-model-providers.ts",
-      "web/packages/flow-schema/src/index.ts"
+      "web/packages/flow-schema/src/index.ts",
+      "web/app/src/features/agent-flow/components/editor/styles/shell.css",
+      "web/app/src/features/agent-flow/api/runtime.ts",
+      "web/app/src/features/agent-flow/hooks/runtime/useAgentFlowDebugSession.ts",
+      "web/app/src/features/agent-flow/components/debug-console/AgentFlowDebugConsole.tsx",
+      "web/app/src/features/agent-flow/components/debug-console/DebugConsoleHeader.tsx",
+      "web/app/src/features/agent-flow/components/debug-console/DebugConsoleTabs.tsx",
+      "web/app/src/features/agent-flow/components/debug-console/RunContextPanel.tsx",
+      "web/app/src/features/agent-flow/components/debug-console/conversation/DebugConversationPane.tsx",
+      "web/app/src/features/agent-flow/components/debug-console/conversation/DebugComposer.tsx",
+      "web/app/src/features/agent-flow/components/debug-console/conversation/DebugAssistantMessage.tsx",
+      "web/app/src/features/agent-flow/components/debug-console/conversation/DebugTraceSummary.tsx",
+      "web/app/src/features/agent-flow/components/debug-console/trace/DebugTracePane.tsx",
+      "web/app/src/features/agent-flow/components/debug-console/variables/DebugVariablesPane.tsx",
+      "web/app/src/features/agent-flow/lib/debug-console/run-detail-mapper.ts",
+      "web/app/src/features/agent-flow/lib/debug-console/trace-filters.ts",
+      "web/app/src/features/agent-flow/lib/debug-console/variable-groups.ts",
+      "web/packages/api-client/src/console-application-runtime.ts"
     ],
     "boundaryNodes": [
       {

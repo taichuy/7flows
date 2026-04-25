@@ -65,6 +65,17 @@
   overflow: hidden;
 }
 
+.agent-flow-editor__debug-console-dock {
+  position: absolute;
+  top: var(--agent-flow-secondary-top);
+  right: 16px;
+  z-index: 11;
+  display: flex;
+  height: min(85vh, calc(100% - var(--agent-flow-secondary-top) - 24px));
+  min-height: 0;
+  overflow: hidden;
+}
+
 .agent-flow-editor__detail-resize-handle {
   position: relative;
   flex: 0 0 12px;
@@ -93,6 +104,265 @@
   background: rgba(66, 121, 93, 0.38);
 }
 
+.agent-flow-editor__debug-console-resize-handle {
+  position: relative;
+  flex: 0 0 12px;
+  width: 12px;
+  cursor: col-resize;
+  touch-action: none;
+}
+
+.agent-flow-editor__debug-console-resize-handle::before {
+  content: '';
+  position: absolute;
+  top: 16px;
+  bottom: 16px;
+  left: 50%;
+  width: 2px;
+  border-radius: 999px;
+  background: rgba(96, 117, 106, 0.18);
+  transform: translateX(-50%);
+  transition: background-color 120ms ease;
+}
+
+.agent-flow-editor__debug-console-resize-handle:hover::before,
+.agent-flow-editor__debug-console-resize-handle:active::before,
+.agent-flow-editor__debug-console-dock[data-resizing='true']
+  .agent-flow-editor__debug-console-resize-handle::before {
+  background: rgba(66, 121, 93, 0.38);
+}
+
+.agent-flow-editor__debug-console {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  background: rgba(255, 255, 255, 0.98);
+  border: 1px solid rgba(18, 52, 34, 0.08);
+  border-radius: 16px;
+  box-shadow: 0 12px 32px rgba(15, 23, 42, 0.08);
+}
+
+.agent-flow-editor__debug-console-body {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  padding: 16px;
+  gap: 16px;
+}
+
+.agent-flow-editor__debug-console-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.agent-flow-editor__debug-console-tabs,
+.agent-flow-editor__debug-console-tabs .ant-tabs-content-holder,
+.agent-flow-editor__debug-console-tabs .ant-tabs-content,
+.agent-flow-editor__debug-console-tabs .ant-tabs-tabpane-active {
+  min-height: 0;
+  height: 100%;
+}
+
+.agent-flow-editor__debug-console-tabs {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+}
+
+.agent-flow-editor__debug-console-pane {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  gap: 12px;
+}
+
+.agent-flow-editor__debug-console-section {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid rgba(18, 52, 34, 0.08);
+}
+
+.agent-flow-editor__debug-console-section-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.agent-flow-editor__debug-console-field-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 12px;
+}
+
+.agent-flow-editor__debug-console-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.agent-flow-editor__debug-conversation-pane {
+  height: 100%;
+}
+
+.agent-flow-editor__debug-messages {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
+  gap: 12px;
+  overflow: auto;
+  padding-right: 4px;
+}
+
+.agent-flow-editor__debug-message {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid rgba(18, 52, 34, 0.08);
+  border-radius: 8px;
+  background: rgba(252, 253, 252, 0.98);
+}
+
+.agent-flow-editor__debug-message--user {
+  background: rgba(240, 247, 242, 0.96);
+}
+
+.agent-flow-editor__debug-message-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.agent-flow-editor__debug-message-content.ant-typography {
+  margin: 0;
+  white-space: pre-wrap;
+}
+
+.agent-flow-editor__debug-composer {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+  align-items: end;
+}
+
+.agent-flow-editor__debug-composer-submit {
+  min-width: 40px;
+}
+
+.agent-flow-editor__debug-trace-summary {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px;
+  border-radius: 8px;
+  background: rgba(244, 247, 245, 0.9);
+}
+
+.agent-flow-editor__debug-trace-summary-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.agent-flow-editor__debug-trace-summary-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  width: 100%;
+  padding: 0;
+  border: none;
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+}
+
+.agent-flow-editor__debug-raw-output {
+  margin: 0;
+  padding: 12px;
+  overflow: auto;
+  border-radius: 8px;
+  background: #101826;
+  color: #eff6ff;
+  font-size: 12px;
+}
+
+.agent-flow-editor__debug-trace-pane,
+.agent-flow-editor__debug-variables-pane {
+  height: 100%;
+}
+
+.agent-flow-editor__debug-trace-filter {
+  display: flex;
+  justify-content: flex-start;
+}
+
+.agent-flow-editor__debug-trace-list {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
+  gap: 8px;
+  overflow: auto;
+  padding-right: 4px;
+}
+
+.agent-flow-editor__debug-trace-item {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px;
+  border: 1px solid rgba(18, 52, 34, 0.08);
+  border-radius: 8px;
+  background: rgba(252, 253, 252, 0.98);
+  text-align: left;
+  cursor: pointer;
+}
+
+.agent-flow-editor__debug-trace-item-main {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.agent-flow-editor__debug-variable-group {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.agent-flow-editor__debug-variable-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.agent-flow-editor__debug-variable-item {
+  display: grid;
+  grid-template-columns: minmax(0, 180px) minmax(0, 1fr);
+  gap: 12px;
+  align-items: start;
+  padding: 10px 12px;
+  border: 1px solid rgba(18, 52, 34, 0.08);
+  border-radius: 8px;
+  background: rgba(252, 253, 252, 0.98);
+}
+
+.agent-flow-editor__debug-variable-item pre {
+  margin: 0;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
 .agent-flow-editor__breadcrumb {
   position: absolute;
   top: var(--agent-flow-secondary-top);
@@ -115,5 +385,9 @@
 
   .agent-flow-editor__body {
     display: flex;
+  }
+
+  .agent-flow-editor__debug-variable-item {
+    grid-template-columns: 1fr;
   }
 }

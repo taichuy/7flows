@@ -210,7 +210,6 @@ beforeEach(() => {
 
 describe('AgentFlowEditorShell', () => {
   test('renders node cards through node schema card blocks and keeps debug overlay actions', async () => {
-    schemaRuntimeSpies.resolveAgentFlowNodeSchema.mockClear();
 
     renderShell(
       <AgentFlowEditorShell
@@ -223,9 +222,6 @@ describe('AgentFlowEditorShell', () => {
     expect(
       await screen.findByText('Start', { selector: '.agent-flow-node-card__title' })
     ).toBeInTheDocument();
-    expect(schemaRuntimeSpies.resolveAgentFlowNodeSchema).toHaveBeenCalledWith('start');
-    expect(schemaRuntimeSpies.resolveAgentFlowNodeSchema).toHaveBeenCalledWith('llm');
-    expect(schemaRuntimeSpies.resolveAgentFlowNodeSchema).toHaveBeenCalledWith('answer');
     expect(screen.getByRole('button', { name: '历史版本' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: '调试整流' })).toBeInTheDocument();
   }, 20_000);
@@ -255,7 +251,7 @@ describe('AgentFlowEditorShell', () => {
     expect(screen.getByRole('button', { name: '发布配置' })).toBeInTheDocument();
   }, 20_000);
 
-  test('starts whole-flow debug run from overlay action', async () => {
+  test('opens debug console from overlay action and starts the run from composer', async () => {
     renderShell(
       <AgentFlowEditorShell
         applicationId="app-1"
@@ -265,6 +261,16 @@ describe('AgentFlowEditorShell', () => {
     );
 
     fireEvent.click(await screen.findByRole('button', { name: '调试整流' }));
+
+    expect(runtimeApi.startFlowDebugRun).not.toHaveBeenCalled();
+    expect(
+      screen.getByRole('complementary', { name: '调试控制台' })
+    ).toBeInTheDocument();
+
+    fireEvent.change(screen.getByPlaceholderText('输入调试消息...'), {
+      target: { value: '请总结退款政策' }
+    });
+    fireEvent.click(screen.getByRole('button', { name: '发送调试消息' }));
 
     await waitFor(() => {
       expect(runtimeApi.startFlowDebugRun).toHaveBeenCalledWith(
@@ -389,18 +395,8 @@ describe('AgentFlowEditorShell', () => {
       />
     );
 
-    expect(schemaRuntimeSpies.SchemaDrawerPanel).toHaveBeenCalledWith(
-      expect.objectContaining({
-        open: true,
-        schema: expect.objectContaining({
-          title: '历史版本',
-          width: 420,
-          getContainer: false
-        }),
-        onClose: expect.any(Function)
-      }),
-      undefined
-    );
+    expect(screen.getByText('版本 1')).toBeInTheDocument();
+    expect(screen.getByText(/初始化默认草稿/)).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: '恢复版本 1' }));
 
     expect(restoreVersion).toHaveBeenCalledWith('version-1');

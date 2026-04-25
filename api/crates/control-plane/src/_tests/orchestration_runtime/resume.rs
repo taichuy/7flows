@@ -1,23 +1,32 @@
 use control_plane::errors::ControlPlaneError;
 use control_plane::orchestration_runtime::{
-    CompleteCallbackTaskCommand, OrchestrationRuntimeService, ResumeFlowRunCommand,
-    StartFlowDebugRunCommand,
+    CompleteCallbackTaskCommand, ContinueFlowDebugRunCommand, OrchestrationRuntimeService,
+    ResumeFlowRunCommand, StartFlowDebugRunCommand,
 };
 use domain::FlowRunStatus;
 use serde_json::json;
+use uuid::Uuid;
 
 #[tokio::test]
-async fn start_flow_debug_run_stops_at_human_input_and_persists_waiting_state() {
+async fn continue_flow_debug_run_stops_at_human_input_and_persists_waiting_state() {
     let service = OrchestrationRuntimeService::for_tests();
     let seeded = service
         .seed_application_with_human_input_flow("Support Agent")
         .await;
 
-    let detail = service
+    let started = service
         .start_flow_debug_run(StartFlowDebugRunCommand {
             actor_user_id: seeded.actor_user_id,
             application_id: seeded.application_id,
             input_payload: json!({ "node-start": { "query": "请总结退款政策" } }),
+        })
+        .await
+        .unwrap();
+    let detail = service
+        .continue_flow_debug_run(ContinueFlowDebugRunCommand {
+            application_id: seeded.application_id,
+            flow_run_id: started.flow_run.id,
+            workspace_id: Uuid::nil(),
         })
         .await
         .unwrap();

@@ -141,6 +141,20 @@ export function resumeConsoleFlowRun(
   });
 }
 
+export function cancelConsoleFlowRun(
+  applicationId: string,
+  runId: string,
+  csrfToken: string,
+  baseUrl?: string
+) {
+  return apiFetch<ConsoleApplicationRunDetail>({
+    path: `/api/console/applications/${applicationId}/orchestration/runs/${runId}/cancel`,
+    method: 'POST',
+    csrfToken,
+    baseUrl
+  });
+}
+
 export function completeConsoleCallbackTask(
   applicationId: string,
   callbackTaskId: string,

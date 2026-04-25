@@ -14,7 +14,7 @@ use crate::{
     flow::FlowService,
     plugin_lifecycle::reconcile_installation_snapshot,
     ports::{
-        ApplicationRepository, CompleteCallbackTaskInput, CreateFlowRunInput, FlowRepository,
+        ApplicationRepository, CompleteCallbackTaskInput, FlowRepository,
         ModelProviderRepository, NodeContributionRepository, OrchestrationRuntimeRepository,
         PluginRepository, ProviderRuntimePort,
     },
@@ -23,6 +23,7 @@ use crate::{
 
 mod compile_context;
 mod inputs;
+mod live_debug_run;
 mod persistence;
 
 use self::{
@@ -49,6 +50,18 @@ pub struct StartFlowDebugRunCommand {
     pub actor_user_id: Uuid,
     pub application_id: Uuid,
     pub input_payload: serde_json::Value,
+}
+
+pub struct ContinueFlowDebugRunCommand {
+    pub application_id: Uuid,
+    pub flow_run_id: Uuid,
+    pub workspace_id: Uuid,
+}
+
+pub struct CancelFlowRunCommand {
+    pub actor_user_id: Uuid,
+    pub application_id: Uuid,
+    pub flow_run_id: Uuid,
 }
 
 pub struct ResumeFlowRunCommand {
@@ -228,70 +241,21 @@ where
         &self,
         command: StartFlowDebugRunCommand,
     ) -> Result<domain::ApplicationRunDetail> {
-        let actor = self
-            .repository
-            .load_actor_context_for_user(command.actor_user_id)
-            .await?;
-        let editor_state = FlowService::new(self.repository.clone())
-            .get_or_create_editor_state(command.actor_user_id, command.application_id)
-            .await?;
-        let application = self
-            .repository
-            .get_application(actor.current_workspace_id, command.application_id)
-            .await?
-            .ok_or(ControlPlaneError::NotFound("application"))?;
-        let compile_context = self.build_compile_context(application.workspace_id).await?;
-        let compiled_plan = orchestration_runtime::compiler::FlowCompiler::compile(
-            editor_state.flow.id,
-            &editor_state.draft.id.to_string(),
-            &editor_state.draft.document,
-            &compile_context,
-        )?;
-        ensure_compiled_plan_runnable(&compiled_plan)?;
-        let invoker = self.runtime_invoker(application.workspace_id);
-        let outcome = orchestration_runtime::execution_engine::start_flow_debug_run(
-            &compiled_plan,
-            &command.input_payload,
-            &invoker,
-        )
-        .await?;
-        let compiled_record = self
-            .repository
-            .upsert_compiled_plan(&build_compiled_plan_input(
-                command.actor_user_id,
-                &editor_state,
-                &compiled_plan,
-            )?)
-            .await?;
-        let flow_run = self
-            .repository
-            .create_flow_run(&CreateFlowRunInput {
-                actor_user_id: command.actor_user_id,
-                application_id: command.application_id,
-                flow_id: editor_state.flow.id,
-                flow_draft_id: editor_state.draft.id,
-                compiled_plan_id: compiled_record.id,
-                run_mode: domain::FlowRunMode::DebugFlowRun,
-                target_node_id: None,
-                status: domain::FlowRunStatus::Running,
-                input_payload: command.input_payload.clone(),
-                started_at: OffsetDateTime::now_utc(),
-            })
-            .await?;
+        live_debug_run::start_flow_debug_run(self, command).await
+    }
 
-        self.persist_flow_debug_outcome(PersistFlowDebugOutcomeInput {
-            application_id: command.application_id,
-            flow_run: &flow_run,
-            outcome: &outcome,
-            trigger_event_type: "flow_run_started",
-            trigger_event_payload: json!({
-                "run_mode": domain::FlowRunMode::DebugFlowRun.as_str(),
-                "input_payload": command.input_payload,
-            }),
-            base_started_at: OffsetDateTime::now_utc(),
-            waiting_node_resume: None,
-        })
-        .await
+    pub async fn continue_flow_debug_run(
+        &self,
+        command: ContinueFlowDebugRunCommand,
+    ) -> Result<domain::ApplicationRunDetail> {
+        live_debug_run::continue_flow_debug_run(self, command).await
+    }
+
+    pub async fn cancel_flow_run(
+        &self,
+        command: CancelFlowRunCommand,
+    ) -> Result<domain::ApplicationRunDetail> {
+        live_debug_run::cancel_flow_run(self, command).await
     }
 
     pub async fn resume_flow_run(

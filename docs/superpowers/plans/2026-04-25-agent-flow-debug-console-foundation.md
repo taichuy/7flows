@@ -49,7 +49,7 @@
 - Modify: `web/app/src/features/agent-flow/components/editor/styles/shell.css`
 - Create: `web/app/src/features/agent-flow/_tests/debug-console/debug-console-shell.test.tsx`
 
-- [ ] **Step 1: 先写壳层失败测试**
+- [x] **Step 1: 先写壳层失败测试**
 
 测试覆盖以下行为：
 
@@ -64,7 +64,7 @@ test('opens a docked debug console from overlay and keeps inspector separate', a
 });
 ```
 
-- [ ] **Step 2: 扩展 panel slice**
+- [x] **Step 2: 扩展 panel slice**
 
 新增以下壳层状态：
 
@@ -76,7 +76,7 @@ debugConsoleActiveTab: 'conversation' | 'trace' | 'variables';
 
 并在 `replaceFromServerState` 时保留宽度、重置打开态。
 
-- [ ] **Step 3: 在 CanvasFrame 中接入三栏布局**
+- [x] **Step 3: 在 CanvasFrame 中接入三栏布局**
 
 要求：
 
@@ -85,7 +85,7 @@ debugConsoleActiveTab: 'conversation' | 'trace' | 'variables';
 3. `Debug Console` 固定在最右侧
 4. 当 `debugConsoleOpen = true` 时，`AgentFlowOverlay` 的“调试整流”按钮只负责打开面板，不直接发起运行
 
-- [ ] **Step 4: 补最小样式**
+- [x] **Step 4: 补最小样式**
 
 样式最少要落以下类：
 
@@ -96,7 +96,7 @@ debugConsoleActiveTab: 'conversation' | 'trace' | 'variables';
 .agent-flow-editor__debug-console-tabs
 ```
 
-- [ ] **Step 5: 跑目标壳层测试**
+- [x] **Step 5: 跑目标壳层测试**
 
 Run:
 
@@ -116,7 +116,7 @@ Expected: PASS
 - Modify: `web/app/src/features/agent-flow/api/runtime.ts`
 - Create: `web/app/src/features/agent-flow/_tests/debug-console/use-agent-flow-debug-session.test.tsx`
 
-- [ ] **Step 1: 先写 hook 失败测试**
+- [x] **Step 1: 先写 hook 失败测试**
 
 至少覆盖三类映射：
 
@@ -126,7 +126,7 @@ test('maps waiting_human runs to pending assistant state without fake output', a
 test('reuses last run context from local draft storage', async () => {})
 ```
 
-- [ ] **Step 2: 给 agent-flow feature 增补 detail mapper**
+- [x] **Step 2: 给 agent-flow feature 增补 detail mapper**
 
 在 `api/runtime.ts` 新增前端专用 helper：
 
@@ -145,7 +145,7 @@ mapRunDetailToVariableGroups(detail)
 buildRunContextFromDocument(document, rememberedInputs)
 ```
 
-- [ ] **Step 3: 实现 `useAgentFlowDebugSession`**
+- [x] **Step 3: 实现 `useAgentFlowDebugSession`**
 
 hook 至少暴露：
 
@@ -173,7 +173,7 @@ hook 至少暴露：
 3. 成功后保存本次 `Run Context` 到本地存储，key 包含 `applicationId + draftId`
 4. 完成后 invalidation `['applications', applicationId, 'runtime']`
 
-- [ ] **Step 4: 跑 hook 目标测试**
+- [x] **Step 4: 跑 hook 目标测试**
 
 Run:
 
@@ -198,7 +198,7 @@ Expected: PASS
 - Create: `web/app/src/features/agent-flow/components/debug-console/variables/DebugVariablesPane.tsx`
 - Modify: `web/app/src/features/agent-flow/components/editor/AgentFlowCanvasFrame.tsx`
 
-- [ ] **Step 1: 实现 Run Context 面板**
+- [x] **Step 1: 实现 Run Context 面板**
 
 要求：
 
@@ -206,7 +206,7 @@ Expected: PASS
 2. 顶部展示 `draft` 环境标识
 3. 显示“复用上次输入”状态
 
-- [ ] **Step 2: 实现 Conversation 视图**
+- [x] **Step 2: 实现 Conversation 视图**
 
 要求：
 
@@ -219,7 +219,7 @@ Expected: PASS
    - `查看 Trace`
    - `查看 Raw Output`
 
-- [ ] **Step 3: 实现 Trace 与 Variables 视图**
+- [x] **Step 3: 实现 Trace 与 Variables 视图**
 
 `Trace` 至少展示：
 
@@ -241,7 +241,7 @@ durationMs;
 'Environment'
 ```
 
-- [ ] **Step 4: 把 console 真正挂进 CanvasFrame**
+- [x] **Step 4: 把 console 真正挂进 CanvasFrame**
 
 接入顺序：
 
@@ -249,7 +249,7 @@ durationMs;
 2. 把 `selectedNodeId` 同步给 session，用于 trace 过滤
 3. 把 `pendingLocateNodeId` 回写动作传给 console
 
-- [ ] **Step 5: 跑编辑器回归**
+- [x] **Step 5: 跑编辑器回归**
 
 Run:
 
@@ -270,7 +270,7 @@ Expected:
 - Modify: `web/app/src/features/agent-flow/components/editor/AgentFlowCanvas.tsx`
 - Modify: `web/app/src/features/agent-flow/_tests/node-last-run-runtime.test.tsx`
 
-- [ ] **Step 1: 先写 trace 联动失败测试**
+- [x] **Step 1: 先写 trace 联动失败测试**
 
 至少覆盖：
 
@@ -279,7 +279,7 @@ test('locates canvas node when clicking a trace row', async () => {})
 test('filters trace rows when a node is selected on canvas', async () => {})
 ```
 
-- [ ] **Step 2: 复用现有 locate 能力**
+- [x] **Step 2: 复用现有 locate 能力**
 
 实现要求：
 
@@ -287,7 +287,7 @@ test('filters trace rows when a node is selected on canvas', async () => {})
 2. 不新增第二套画布定位协议
 3. 如果点击的 trace 节点不是当前选中节点，不强制打开 Inspector
 
-- [ ] **Step 3: 确认 whole-flow run 后刷新 `Node Last Run`**
+- [x] **Step 3: 确认 whole-flow run 后刷新 `Node Last Run`**
 
 在 `useAgentFlowDebugSession` 完成运行后继续：
 
@@ -299,7 +299,7 @@ await queryClient.invalidateQueries({
 
 并补回归断言，确保整流运行后节点 `Last Run` 能拿到新数据。
 
-- [ ] **Step 4: 跑受影响测试组合**
+- [x] **Step 4: 跑受影响测试组合**
 
 Run:
 
@@ -312,7 +312,7 @@ pnpm --dir web/app test -- \
 
 Expected: PASS
 
-- [ ] **Step 5: 提交第一阶段代码**
+- [x] **Step 5: 提交第一阶段代码**
 
 ```bash
 git add \

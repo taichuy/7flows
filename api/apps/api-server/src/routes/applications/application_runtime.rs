@@ -10,14 +10,16 @@ use control_plane::{
     application::ApplicationService,
     errors::ControlPlaneError,
     orchestration_runtime::{
-        CompleteCallbackTaskCommand, OrchestrationRuntimeService, ResumeFlowRunCommand,
-        StartFlowDebugRunCommand, StartNodeDebugPreviewCommand,
+        CancelFlowRunCommand, CompleteCallbackTaskCommand, ContinueFlowDebugRunCommand,
+        OrchestrationRuntimeService, ResumeFlowRunCommand, StartFlowDebugRunCommand,
+        StartNodeDebugPreviewCommand,
     },
     ports::OrchestrationRuntimeRepository,
 };
 use serde::{Deserialize, Serialize};
 use storage_durable::MainDurableStore;
 use time::format_description::well_known::Rfc3339;
+use tracing::error;
 use utoipa::ToSchema;
 use uuid::Uuid;
 
@@ -159,6 +161,10 @@ pub fn router() -> Router<Arc<ApiState>> {
         .route(
             "/applications/:id/orchestration/runs/:run_id/resume",
             post(resume_flow_run),
+        )
+        .route(
+            "/applications/:id/orchestration/runs/:run_id/cancel",
+            post(cancel_flow_run),
         )
         .route(
             "/applications/:id/orchestration/callback-tasks/:callback_task_id/complete",
@@ -356,22 +362,87 @@ pub async fn start_flow_debug_run(
     let context = require_session(&state, &headers).await?;
     require_csrf(&headers, &context.session)?;
 
-    let detail = OrchestrationRuntimeService::new(
+    let runtime_service = OrchestrationRuntimeService::new(
         state.store.clone(),
         ApiProviderRuntime::new(state.provider_runtime.clone()),
         state.provider_secret_master_key.clone(),
-    )
-    .start_flow_debug_run(StartFlowDebugRunCommand {
-        actor_user_id: context.user.id,
-        application_id: id,
-        input_payload: body.input_payload,
-    })
-    .await?;
+    );
+    let detail = runtime_service
+        .start_flow_debug_run(StartFlowDebugRunCommand {
+            actor_user_id: context.user.id,
+            application_id: id,
+            input_payload: body.input_payload,
+        })
+        .await?;
+    let flow_run_id = detail.flow_run.id;
+    let workspace_id = context.actor.current_workspace_id;
+    let background_state = state.clone();
+
+    tokio::spawn(async move {
+        let background_service = OrchestrationRuntimeService::new(
+            background_state.store.clone(),
+            ApiProviderRuntime::new(background_state.provider_runtime.clone()),
+            background_state.provider_secret_master_key.clone(),
+        );
+        if let Err(error) = background_service
+            .continue_flow_debug_run(ContinueFlowDebugRunCommand {
+                application_id: id,
+                flow_run_id,
+                workspace_id,
+            })
+            .await
+        {
+            error!(
+                application_id = %id,
+                flow_run_id = %flow_run_id,
+                error = %error,
+                "failed to continue flow debug run"
+            );
+        }
+    });
 
     Ok((
         StatusCode::CREATED,
         Json(ApiSuccess::new(to_application_run_detail_response(detail))),
     ))
+}
+
+#[utoipa::path(
+    post,
+    path = "/api/console/applications/{id}/orchestration/runs/{run_id}/cancel",
+    params(
+        ("id" = String, Path, description = "Application id"),
+        ("run_id" = String, Path, description = "Flow run id")
+    ),
+    responses(
+        (status = 200, body = ApplicationRunDetailResponse),
+        (status = 400, body = crate::error_response::ErrorBody),
+        (status = 401, body = crate::error_response::ErrorBody),
+        (status = 403, body = crate::error_response::ErrorBody),
+        (status = 404, body = crate::error_response::ErrorBody)
+    )
+)]
+pub async fn cancel_flow_run(
+    State(state): State<Arc<ApiState>>,
+    headers: HeaderMap,
+    Path((id, run_id)): Path<(Uuid, Uuid)>,
+) -> Result<Json<ApiSuccess<ApplicationRunDetailResponse>>, ApiError> {
+    let context = require_session(&state, &headers).await?;
+    require_csrf(&headers, &context.session)?;
+
+    let detail = OrchestrationRuntimeService::new(
+        state.store.clone(),
+        ApiProviderRuntime::new(state.provider_runtime.clone()),
+        state.provider_secret_master_key.clone(),
+    )
+    .cancel_flow_run(CancelFlowRunCommand {
+        actor_user_id: context.user.id,
+        application_id: id,
+        flow_run_id: run_id,
+    })
+    .await?;
+
+    Ok(Json(ApiSuccess::new(to_application_run_detail_response(detail))))
 }
 
 #[utoipa::path(

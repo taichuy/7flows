@@ -10,6 +10,8 @@ import type { SelectionSlice } from './slices/selection-slice';
 import type { SyncSlice } from './slices/sync-slice';
 import type { ViewportSlice } from './slices/viewport-slice';
 
+const DEBUG_CONSOLE_DEFAULT_WIDTH = 420;
+
 function getDefaultSelectedNodeId(
   state: ConsoleApplicationOrchestrationState
 ) {
@@ -56,6 +58,9 @@ export interface AgentFlowEditorState
         | 'issuesOpen'
         | 'historyOpen'
         | 'publishConfigOpen'
+        | 'debugConsoleOpen'
+        | 'debugConsoleWidth'
+        | 'debugConsoleActiveTab'
         | 'nodeDetailTab'
         | 'nodeDetailWidth'
         | 'nodePickerState'
@@ -100,6 +105,9 @@ export function createAgentFlowEditorStore(
     issuesOpen: false,
     historyOpen: false,
     publishConfigOpen: false,
+    debugConsoleOpen: false,
+    debugConsoleWidth: DEBUG_CONSOLE_DEFAULT_WIDTH,
+    debugConsoleActiveTab: 'conversation',
     nodeDetailTab: 'config',
     nodeDetailWidth: NODE_DETAIL_DEFAULT_WIDTH,
     nodePickerState: {
@@ -152,6 +160,12 @@ export function createAgentFlowEditorStore(
         historyOpen: payload.historyOpen ?? current.historyOpen,
         publishConfigOpen:
           payload.publishConfigOpen ?? current.publishConfigOpen,
+        debugConsoleOpen:
+          payload.debugConsoleOpen ?? current.debugConsoleOpen,
+        debugConsoleWidth:
+          payload.debugConsoleWidth ?? current.debugConsoleWidth,
+        debugConsoleActiveTab:
+          payload.debugConsoleActiveTab ?? current.debugConsoleActiveTab,
         nodeDetailTab: payload.nodeDetailTab ?? current.nodeDetailTab,
         nodeDetailWidth: payload.nodeDetailWidth ?? current.nodeDetailWidth,
         nodePickerState: payload.nodePickerState
@@ -226,6 +240,9 @@ export function createAgentFlowEditorStore(
         issuesOpen: false,
         historyOpen: false,
         publishConfigOpen: false,
+        debugConsoleOpen: false,
+        debugConsoleWidth: current.debugConsoleWidth,
+        debugConsoleActiveTab: 'conversation',
         nodeDetailTab: 'config',
         nodeDetailWidth: current.nodeDetailWidth,
         nodePickerState: {

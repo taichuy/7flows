@@ -51,7 +51,7 @@ pub trait CapabilityInvoker: Send + Sync {
 }
 
 #[derive(Debug, Clone, PartialEq)]
-pub(crate) struct LlmNodeExecution {
+pub struct LlmNodeExecution {
     pub output_payload: Value,
     pub error_payload: Option<Value>,
     pub metrics_payload: Value,
@@ -59,7 +59,7 @@ pub(crate) struct LlmNodeExecution {
 }
 
 #[derive(Debug, Clone, PartialEq)]
-pub(crate) struct CapabilityNodeExecution {
+pub struct CapabilityNodeExecution {
     pub output_payload: Value,
     pub error_payload: Option<Value>,
     pub metrics_payload: Value,
@@ -303,7 +303,7 @@ where
     })
 }
 
-pub(crate) async fn execute_llm_node<I>(
+pub async fn execute_llm_node<I>(
     node: &CompiledNode,
     resolved_inputs: &Map<String, Value>,
     rendered_templates: &Map<String, Value>,
@@ -384,7 +384,7 @@ where
     })
 }
 
-pub(crate) async fn execute_capability_plugin_node<I>(
+pub async fn execute_capability_plugin_node<I>(
     node: &CompiledNode,
     resolved_inputs: &Map<String, Value>,
     _rendered_templates: &Map<String, Value>,

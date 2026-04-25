@@ -355,7 +355,7 @@ impl OrchestrationRuntimeService<InMemoryOrchestrationRuntimeRepository, InMemor
 
     pub async fn seed_waiting_human_run(&self, name: &str) -> SeededWaitingHumanRun {
         let seeded = self.seed_application_with_human_input_flow(name).await;
-        let detail = self
+        let started = self
             .start_flow_debug_run(StartFlowDebugRunCommand {
                 actor_user_id: seeded.actor_user_id,
                 application_id: seeded.application_id,
@@ -365,6 +365,14 @@ impl OrchestrationRuntimeService<InMemoryOrchestrationRuntimeRepository, InMemor
             })
             .await
             .expect("seed waiting human run should succeed");
+        let detail = self
+            .continue_flow_debug_run(ContinueFlowDebugRunCommand {
+                application_id: seeded.application_id,
+                flow_run_id: started.flow_run.id,
+                workspace_id: Uuid::nil(),
+            })
+            .await
+            .expect("continue waiting human run should succeed");
 
         SeededWaitingHumanRun {
             actor_user_id: seeded.actor_user_id,
@@ -378,7 +386,7 @@ impl OrchestrationRuntimeService<InMemoryOrchestrationRuntimeRepository, InMemor
         let seeded = self
             .seed_application_with_document(name, build_callback_flow_document)
             .await;
-        let detail = self
+        let started = self
             .start_flow_debug_run(StartFlowDebugRunCommand {
                 actor_user_id: seeded.actor_user_id,
                 application_id: seeded.application_id,
@@ -388,6 +396,14 @@ impl OrchestrationRuntimeService<InMemoryOrchestrationRuntimeRepository, InMemor
             })
             .await
             .expect("seed waiting callback run should succeed");
+        let detail = self
+            .continue_flow_debug_run(ContinueFlowDebugRunCommand {
+                application_id: seeded.application_id,
+                flow_run_id: started.flow_run.id,
+                workspace_id: Uuid::nil(),
+            })
+            .await
+            .expect("continue waiting callback run should succeed");
 
         SeededWaitingCallbackRun {
             actor_user_id: seeded.actor_user_id,

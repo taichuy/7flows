@@ -8,6 +8,8 @@
 
 **Tech Stack:** Rust (`domain`, `control-plane`, `storage-durable/postgres`, `api-server`), React 19, TypeScript, TanStack Query, Vitest, cargo test
 
+> 2026-04-25 实施备注：`FlowRunStatus::Cancelled` 与对应状态流转规则在代码中已存在，因此本阶段未新增 domain 状态字段，也未新增 PostgreSQL migration；最终实现直接复用既有 `flow_runs.status` 与 `finished_at`。
+
 ---
 
 ## File Structure
@@ -38,7 +40,7 @@
 - Modify: `api/crates/control-plane/src/orchestration_runtime.rs`
 - Create: `api/crates/control-plane/src/_tests/orchestration_runtime/cancel.rs`
 
-- [ ] **Step 1: 先写后端取消失败测试**
+- [x] **Step 1: 先写后端取消失败测试**
 
 至少覆盖：
 
@@ -50,7 +52,7 @@ async fn cancel_flow_run_marks_running_debug_run_as_cancelled() {}
 async fn cancel_flow_run_rejects_terminal_status() {}
 ```
 
-- [ ] **Step 2: 在 domain 中锁定状态规则**
+- [x] **Step 2: 在 domain 中锁定状态规则**
 
 新增或确认以下语义：
 
@@ -59,7 +61,7 @@ async fn cancel_flow_run_rejects_terminal_status() {}
 3. `waiting_human / waiting_callback -> cancelled` 允许
 4. `succeeded / failed / cancelled` 终态不可再次取消
 
-- [ ] **Step 3: 在 control-plane 增加 cancel command**
+- [x] **Step 3: 在 control-plane 增加 cancel command**
 
 新增服务接口：
 
@@ -72,7 +74,7 @@ pub async fn cancel_flow_run(
 
 返回值仍统一是最新 `ApplicationRunDetail`。
 
-- [ ] **Step 4: 跑 control-plane 测试**
+- [x] **Step 4: 跑 control-plane 测试**
 
 Run:
 
@@ -91,7 +93,7 @@ Expected: PASS
 - Create: `api/crates/storage-durable/postgres/migrations/20260425130000_add_flow_run_cancel_fields.sql`
 - Modify: `api/apps/api-server/src/_tests/application/application_runtime_routes.rs`
 
-- [ ] **Step 1: 先写 API route 失败测试**
+- [x] **Step 1: 先写 API route 失败测试**
 
 断言：
 
@@ -99,7 +101,7 @@ Expected: PASS
 2. 返回体里的 `flow_run.status = running`
 3. 前端可以直接拿到 `run_id`
 
-- [ ] **Step 2: 把 start_flow_debug_run 改成“先落 run，再后台推进”**
+- [x] **Step 2: 把 start_flow_debug_run 改成“先落 run，再后台推进”**
 
 实现要求：
 
@@ -107,7 +109,7 @@ Expected: PASS
 2. 执行器在后台继续更新 `node_runs / events / checkpoints`
 3. 每个节点完成后都持久化 detail
 
-- [ ] **Step 3: 给执行器增加取消检查**
+- [x] **Step 3: 给执行器增加取消检查**
 
 要求：
 
@@ -115,7 +117,7 @@ Expected: PASS
 2. 若已被标记为 `cancelled`，立即停止后续执行
 3. 为终止过程写入 cancel event
 
-- [ ] **Step 4: 跑 route 与 service 回归**
+- [x] **Step 4: 跑 route 与 service 回归**
 
 Run:
 
@@ -135,7 +137,7 @@ Expected: PASS
 - Modify: `web/packages/api-client/src/index.ts`
 - Modify: `web/app/src/features/agent-flow/api/runtime.ts`
 
-- [ ] **Step 1: 新增 API route**
+- [x] **Step 1: 新增 API route**
 
 接口建议：
 
@@ -145,7 +147,7 @@ POST /api/console/applications/{id}/orchestration/runs/{run_id}/cancel
 
 返回最新 `ApplicationRunDetail`。
 
-- [ ] **Step 2: 补 api-client 合同**
+- [x] **Step 2: 补 api-client 合同**
 
 新增：
 
@@ -158,7 +160,7 @@ export function cancelConsoleFlowRun(
 )
 ```
 
-- [ ] **Step 3: 在 agent-flow feature 包装 cancel helper**
+- [x] **Step 3: 在 agent-flow feature 包装 cancel helper**
 
 ```ts
 export function cancelFlowDebugRun(
@@ -168,7 +170,7 @@ export function cancelFlowDebugRun(
 )
 ```
 
-- [ ] **Step 4: 跑前后端合同测试**
+- [x] **Step 4: 跑前后端合同测试**
 
 Run:
 
@@ -187,7 +189,7 @@ Expected: PASS
 - Modify: `web/app/src/features/agent-flow/components/debug-console/conversation/DebugAssistantMessage.tsx`
 - Create: `web/app/src/features/agent-flow/_tests/debug-console/debug-console-live-runtime.test.tsx`
 
-- [ ] **Step 1: 先写 live runtime 前端失败测试**
+- [x] **Step 1: 先写 live runtime 前端失败测试**
 
 至少覆盖：
 
@@ -196,7 +198,7 @@ test('polls run detail after start until terminal status', async () => {})
 test('sends cancel request when clicking stop and updates session to cancelled', async () => {})
 ```
 
-- [ ] **Step 2: 在 session hook 中接入轮询**
+- [x] **Step 2: 在 session hook 中接入轮询**
 
 要求：
 
@@ -204,7 +206,7 @@ test('sends cancel request when clicking stop and updates session to cancelled',
 2. 使用 `fetchApplicationRunDetail` 轮询最新 detail
 3. 终态后停止轮询
 
-- [ ] **Step 3: 在 Header 接入真实 stop**
+- [x] **Step 3: 在 Header 接入真实 stop**
 
 行为固定：
 
@@ -212,14 +214,14 @@ test('sends cancel request when clicking stop and updates session to cancelled',
 2. 点击后调用 cancel API
 3. 成功后更新会话为 `cancelled`
 
-- [ ] **Step 4: 在消息和 trace 中表现 cancelled**
+- [x] **Step 4: 在消息和 trace 中表现 cancelled**
 
 至少补这两处：
 
 1. `assistant` 消息状态条显示 `已停止`
 2. `Trace` 顶部显示 `cancelled`
 
-- [ ] **Step 5: 跑 live runtime 前端测试**
+- [x] **Step 5: 跑 live runtime 前端测试**
 
 Run:
 
@@ -229,7 +231,7 @@ pnpm --dir web/app test -- src/features/agent-flow/_tests/debug-console/debug-co
 
 Expected: PASS
 
-- [ ] **Step 6: 提交第二阶段代码**
+- [x] **Step 6: 提交第二阶段代码**
 
 ```bash
 git add \
