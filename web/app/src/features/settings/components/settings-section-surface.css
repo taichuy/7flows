@@ -1,0 +1,122 @@
+.settings-section-surface {
+  display: grid;
+  gap: 24px;
+  min-width: 0;
+  animation: settings-section-surface-fade-in 0.3s ease-out;
+}
+
+@keyframes settings-section-surface-fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.settings-section-surface__hero {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 24px;
+  padding: 24px 28px;
+  background:
+    radial-gradient(
+      circle at top left,
+      rgba(0, 217, 146, 0.12),
+      transparent 50%
+    ),
+    linear-gradient(135deg, rgba(248, 252, 250, 0.8), rgba(238, 244, 240, 0.6));
+  border: 1px solid var(--border-subtle);
+  border-radius: 20px;
+  position: relative;
+  overflow: hidden;
+}
+
+.settings-section-surface__hero::before {
+  content: '';
+  position: absolute;
+  inset: 0 0 auto;
+  height: 3px;
+  background: linear-gradient(
+    90deg,
+    var(--brand-primary),
+    rgba(0, 217, 146, 0.3)
+  );
+}
+
+.settings-section-surface__hero-copy {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+}
+
+.settings-section-surface__title.ant-typography {
+  margin: 0;
+  font-size: 24px;
+  font-weight: 600;
+  background: linear-gradient(
+    135deg,
+    var(--text-primary) 0%,
+    var(--text-secondary) 100%
+  );
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.settings-section-surface__description.ant-typography {
+  margin: 0;
+  max-width: 72ch;
+  color: var(--text-secondary);
+  line-height: 1.6;
+}
+
+.settings-section-surface__hero-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  position: relative;
+  z-index: 1;
+}
+
+.settings-section-surface__toolbar,
+.settings-section-surface__status {
+  min-width: 0;
+}
+
+.settings-section-surface__toolbar {
+  padding: 20px 24px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: 18px;
+  box-shadow:
+    0 1px 3px rgba(13, 23, 18, 0.08),
+    0 4px 12px rgba(13, 23, 18, 0.04);
+}
+
+.settings-section-surface__body {
+  display: grid;
+  gap: 24px;
+  min-width: 0;
+}
+
+.settings-section-surface__body > * {
+  min-width: 0;
+}
+
+@media (max-width: 991px) {
+  .settings-section-surface__hero {
+    padding: 20px;
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .settings-section-surface__toolbar {
+    padding: 16px;
+  }
+}

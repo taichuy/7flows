@@ -33,6 +33,7 @@ import {
   type SettingsMember
 } from '../api/members';
 import { fetchSettingsRoles, settingsRolesQueryKey } from '../api/roles';
+import { SettingsSectionSurface } from './SettingsSectionSurface';
 
 const TEMP_PASSWORD = 'Temp@123456';
 
@@ -48,7 +49,9 @@ export function MemberManagementPanel({
 
   const [createForm] = Form.useForm();
   const [createModalOpen, setCreateModalOpen] = useState(false);
-  const [roleEditMember, setRoleEditMember] = useState<SettingsMember | null>(null);
+  const [roleEditMember, setRoleEditMember] = useState<SettingsMember | null>(
+    null
+  );
   const [editingRoleCodes, setEditingRoleCodes] = useState<string[]>([]);
 
   const membersQuery = useQuery({
@@ -178,7 +181,10 @@ export function MemberManagementPanel({
         key: 'user',
         render: (_: unknown, member: SettingsMember) => (
           <Space>
-            <Avatar size="small" style={{ backgroundColor: '#00d084', flexShrink: 0 }}>
+            <Avatar
+              size="small"
+              style={{ backgroundColor: '#00d084', flexShrink: 0 }}
+            >
               {(member.name ?? member.account).charAt(0).toUpperCase()}
             </Avatar>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
@@ -200,7 +206,9 @@ export function MemberManagementPanel({
         key: 'contact',
         render: (_: unknown, member: SettingsMember) => (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-            <Typography.Text style={{ fontSize: 13 }}>{member.email}</Typography.Text>
+            <Typography.Text style={{ fontSize: 13 }}>
+              {member.email}
+            </Typography.Text>
             {member.phone ? (
               <Typography.Text type="secondary" style={{ fontSize: 12 }}>
                 {member.phone}
@@ -236,7 +244,9 @@ export function MemberManagementPanel({
                 icon={<EditOutlined />}
                 style={{ padding: '0 4px', fontSize: 12 }}
                 disabled={isRootMember}
-                onClick={isRootMember ? undefined : () => handleOpenRoleEdit(member)}
+                onClick={
+                  isRootMember ? undefined : () => handleOpenRoleEdit(member)
+                }
               >
                 编辑
               </Button>
@@ -263,7 +273,12 @@ export function MemberManagementPanel({
                   <Space size={4}>
                     {member.status === 'active' ? (
                       isRootMember ? (
-                        <Button size="small" danger icon={<StopOutlined />} disabled>
+                        <Button
+                          size="small"
+                          danger
+                          icon={<StopOutlined />}
+                          disabled
+                        >
                           停用
                         </Button>
                       ) : (
@@ -294,7 +309,9 @@ export function MemberManagementPanel({
                       <Popconfirm
                         title="重置密码"
                         description={`将 ${member.name} 的密码重置为默认临时密码，用户登录后需立即修改。`}
-                        onConfirm={() => resetPasswordMutation.mutate(member.id)}
+                        onConfirm={() =>
+                          resetPasswordMutation.mutate(member.id)
+                        }
                         okText="确认重置"
                         cancelText="取消"
                       >
@@ -324,23 +341,11 @@ export function MemberManagementPanel({
   );
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
-      <div
-        style={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center'
-        }}
-      >
-        <div>
-          <Typography.Title level={4} style={{ margin: 0 }}>
-            用户管理
-          </Typography.Title>
-          <Typography.Text type="secondary" style={{ fontSize: 13 }}>
-            管理工作台成员账号、角色与登录状态
-          </Typography.Text>
-        </div>
-        {canManageMembers ? (
+    <SettingsSectionSurface
+      title="用户管理"
+      description="管理工作台成员账号、角色与登录状态。"
+      headerActions={
+        canManageMembers ? (
           <Button
             type="primary"
             icon={<UserAddOutlined />}
@@ -348,146 +353,152 @@ export function MemberManagementPanel({
           >
             新建用户
           </Button>
-        ) : null}
-      </div>
+        ) : null
+      }
+    >
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+        <Table<SettingsMember>
+          rowKey="id"
+          loading={membersQuery.isLoading}
+          dataSource={membersQuery.data ?? []}
+          pagination={false}
+          columns={columns}
+          size="middle"
+        />
 
-      <Table<SettingsMember>
-        rowKey="id"
-        loading={membersQuery.isLoading}
-        dataSource={membersQuery.data ?? []}
-        pagination={false}
-        columns={columns}
-        size="middle"
-      />
+        <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+          重置密码会将目标账号密码重置为默认临时密码，并要求用户登录后立即修改。
+        </Typography.Text>
 
-      <Typography.Text type="secondary" style={{ fontSize: 12 }}>
-        重置密码会将目标账号密码重置为默认临时密码，并要求用户登录后立即修改。
-      </Typography.Text>
-
-      {/* Create Member Modal */}
-      <Modal
-        title="新建用户"
-        open={createModalOpen}
-        onCancel={() => {
-          setCreateModalOpen(false);
-          createForm.resetFields();
-        }}
-        onOk={() => createForm.submit()}
-        confirmLoading={createMutation.isPending}
-        okText="创建"
-        cancelText="取消"
-        width={600}
-        destroyOnHidden
-      >
-        <Form
-          form={createForm}
-          layout="vertical"
-          onFinish={handleCreateSubmit}
-          style={{ marginTop: 16 }}
+        {/* Create Member Modal */}
+        <Modal
+          title="新建用户"
+          open={createModalOpen}
+          onCancel={() => {
+            setCreateModalOpen(false);
+            createForm.resetFields();
+          }}
+          onOk={() => createForm.submit()}
+          confirmLoading={createMutation.isPending}
+          okText="创建"
+          cancelText="取消"
+          width={600}
+          destroyOnHidden
         >
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 16px' }}>
-            <Form.Item
-              label="账号"
-              name="account"
-              rules={[{ required: true, message: '请输入账号' }]}
+          <Form
+            form={createForm}
+            layout="vertical"
+            onFinish={handleCreateSubmit}
+            style={{ marginTop: 16 }}
+          >
+            <div
+              style={{
+                display: 'grid',
+                gridTemplateColumns: '1fr 1fr',
+                gap: '0 16px'
+              }}
             >
-              <Input />
+              <Form.Item
+                label="账号"
+                name="account"
+                rules={[{ required: true, message: '请输入账号' }]}
+              >
+                <Input />
+              </Form.Item>
+              <Form.Item
+                label="姓名"
+                name="name"
+                rules={[{ required: true, message: '请输入姓名' }]}
+              >
+                <Input />
+              </Form.Item>
+              <Form.Item
+                label="邮箱"
+                name="email"
+                rules={[
+                  { required: true, message: '请输入邮箱' },
+                  { type: 'email', message: '请输入有效邮箱' }
+                ]}
+              >
+                <Input />
+              </Form.Item>
+              <Form.Item label="手机号" name="phone">
+                <Input />
+              </Form.Item>
+              <Form.Item
+                label="昵称"
+                name="nickname"
+                rules={[{ required: true, message: '请输入昵称' }]}
+              >
+                <Input />
+              </Form.Item>
+              <Form.Item
+                label="初始密码"
+                name="password"
+                initialValue={TEMP_PASSWORD}
+                rules={[{ required: true, message: '请输入初始密码' }]}
+              >
+                <Input.Password />
+              </Form.Item>
+            </div>
+            <Form.Item label="个人介绍" name="introduction">
+              <Input.TextArea rows={2} />
             </Form.Item>
-            <Form.Item
-              label="姓名"
-              name="name"
-              rules={[{ required: true, message: '请输入姓名' }]}
-            >
-              <Input />
-            </Form.Item>
-            <Form.Item
-              label="邮箱"
-              name="email"
-              rules={[
-                { required: true, message: '请输入邮箱' },
-                { type: 'email', message: '请输入有效邮箱' }
-              ]}
-            >
-              <Input />
-            </Form.Item>
-            <Form.Item label="手机号" name="phone">
-              <Input />
-            </Form.Item>
-            <Form.Item
-              label="昵称"
-              name="nickname"
-              rules={[{ required: true, message: '请输入昵称' }]}
-            >
-              <Input />
-            </Form.Item>
-            <Form.Item
-              label="初始密码"
-              name="password"
-              initialValue={TEMP_PASSWORD}
-              rules={[{ required: true, message: '请输入初始密码' }]}
-            >
-              <Input.Password />
-            </Form.Item>
-          </div>
-          <Form.Item label="个人介绍" name="introduction">
-            <Input.TextArea rows={2} />
-          </Form.Item>
-          <div style={{ display: 'flex', gap: 24 }}>
-            <Form.Item
-              label="邮箱登录"
-              name="email_login_enabled"
-              valuePropName="checked"
-              initialValue
-            >
-              <Switch />
-            </Form.Item>
-            <Form.Item
-              label="手机登录"
-              name="phone_login_enabled"
-              valuePropName="checked"
-              initialValue={false}
-            >
-              <Switch />
-            </Form.Item>
-          </div>
-        </Form>
-      </Modal>
+            <div style={{ display: 'flex', gap: 24 }}>
+              <Form.Item
+                label="邮箱登录"
+                name="email_login_enabled"
+                valuePropName="checked"
+                initialValue
+              >
+                <Switch />
+              </Form.Item>
+              <Form.Item
+                label="手机登录"
+                name="phone_login_enabled"
+                valuePropName="checked"
+                initialValue={false}
+              >
+                <Switch />
+              </Form.Item>
+            </div>
+          </Form>
+        </Modal>
 
-      {/* Role Edit Modal */}
-      <Modal
-        title={
-          roleEditMember
-            ? `编辑角色 — ${roleEditMember.name}`
-            : '编辑角色'
-        }
-        open={Boolean(roleEditMember)}
-        onCancel={() => setRoleEditMember(null)}
-        onOk={handleRoleEditOk}
-        confirmLoading={replaceRolesMutation.isPending}
-        okText="保存"
-        cancelText="取消"
-        width={480}
-        destroyOnHidden
-      >
-        {roleEditMember ? (
-          <div style={{ marginTop: 16 }}>
-            <Typography.Text
-              type="secondary"
-              style={{ display: 'block', marginBottom: 12, fontSize: 13 }}
-            >
-              为用户 {roleEditMember.name}（{roleEditMember.account}）分配角色
-            </Typography.Text>
-            <Select
-              mode="multiple"
-              style={{ width: '100%' }}
-              value={editingRoleCodes}
-              onChange={setEditingRoleCodes}
-              options={roleOptions}
-              placeholder="选择角色"
-            />
-          </div>
-        ) : null}
-      </Modal>
-    </div>
+        {/* Role Edit Modal */}
+        <Modal
+          title={
+            roleEditMember ? `编辑角色 — ${roleEditMember.name}` : '编辑角色'
+          }
+          open={Boolean(roleEditMember)}
+          onCancel={() => setRoleEditMember(null)}
+          onOk={handleRoleEditOk}
+          confirmLoading={replaceRolesMutation.isPending}
+          okText="保存"
+          cancelText="取消"
+          width={480}
+          destroyOnHidden
+        >
+          {roleEditMember ? (
+            <div style={{ marginTop: 16 }}>
+              <Typography.Text
+                type="secondary"
+                style={{ display: 'block', marginBottom: 12, fontSize: 13 }}
+              >
+                为用户 {roleEditMember.name}（{roleEditMember.account}）分配角色
+              </Typography.Text>
+              <Select
+                mode="multiple"
+                style={{ width: '100%' }}
+                value={editingRoleCodes}
+                onChange={setEditingRoleCodes}
+                options={roleOptions}
+                placeholder="选择角色"
+              />
+            </div>
+          ) : null}
+        </Modal>
+      </div>
+    </SettingsSectionSurface>
   );
 }

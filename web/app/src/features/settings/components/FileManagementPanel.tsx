@@ -34,6 +34,7 @@ import {
 } from '../api/file-management';
 import { FileStorageDrawer } from './FileStorageDrawer';
 import { FileTableDrawer } from './FileTableDrawer';
+import { SettingsSectionSurface } from './SettingsSectionSurface';
 import './file-management-panel.css';
 
 interface FileManagementPanelProps {
@@ -479,68 +480,66 @@ export function FileManagementPanel({
   ];
 
   return (
-    <div className="file-management-panel">
-      <div className="file-management-header">
-        <h2>文件管理</h2>
-        <p className="file-management-desc">
-          管理系统中的文件存储与文件表配置。
-        </p>
-      </div>
+    <SettingsSectionSurface
+      title="文件管理"
+      description="管理系统中的文件存储与文件表配置。"
+    >
+      <div className="file-management-panel">
+        {managementTabs.length > 0 ? (
+          <section className="fm-section fm-tabs-section">
+            <Tabs items={managementTabs} />
+          </section>
+        ) : null}
 
-      {managementTabs.length > 0 ? (
-        <section className="fm-section fm-tabs-section">
-          <Tabs items={managementTabs} />
-        </section>
-      ) : null}
-
-      {showCreateOnlyTable ? (
-        <section className="fm-section">
-          <div className="fm-section-header">
-            <h3>文件表</h3>
-            <div className="fm-toolbar">
-              <Button
-                type="primary"
-                size="small"
-                icon={<PlusOutlined />}
-                onClick={() =>
-                  setTableDrawer({ open: true, mode: 'create', record: null })
-                }
-              >
-                新增
-              </Button>
+        {showCreateOnlyTable ? (
+          <section className="fm-section">
+            <div className="fm-section-header">
+              <h3>文件表</h3>
+              <div className="fm-toolbar">
+                <Button
+                  type="primary"
+                  size="small"
+                  icon={<PlusOutlined />}
+                  onClick={() =>
+                    setTableDrawer({ open: true, mode: 'create', record: null })
+                  }
+                >
+                  新增
+                </Button>
+              </div>
             </div>
-          </div>
-          <p className="fm-create-only-info">
-            暂无权限查看文件表列表，您可以创建一个新文件表。
-          </p>
-        </section>
-      ) : null}
+            <p className="fm-create-only-info">
+              暂无权限查看文件表列表，您可以创建一个新文件表。
+            </p>
+          </section>
+        ) : null}
 
-      <FileStorageDrawer
-        open={storageDrawer.open}
-        mode={storageDrawer.mode ?? 'create'}
-        record={storageDrawer.record}
-        onClose={() =>
-          setStorageDrawer({ open: false, mode: null, record: null })
-        }
-        onSuccess={() => {
-          refetchStorages();
-        }}
-      />
+        <FileStorageDrawer
+          open={storageDrawer.open}
+          mode={storageDrawer.mode ?? 'create'}
+          record={storageDrawer.record}
+          onClose={() =>
+            setStorageDrawer({ open: false, mode: null, record: null })
+          }
+          onSuccess={() => {
+            refetchStorages();
+          }}
+        />
 
-      <FileTableDrawer
-        open={tableDrawer.open}
-        mode={tableDrawer.mode ?? 'create'}
-        record={tableDrawer.record}
-        storages={storages}
-        onClose={() =>
-          setTableDrawer({ open: false, mode: null, record: null })
-        }
-        onSuccess={() => {
-          refetchTables();
-        }}
-        onUpdateBinding={handleUpdateBinding}
-      />
-    </div>
+        <FileTableDrawer
+          open={tableDrawer.open}
+          mode={tableDrawer.mode ?? 'create'}
+          record={tableDrawer.record}
+          storages={storages}
+          onClose={() =>
+            setTableDrawer({ open: false, mode: null, record: null })
+          }
+          onSuccess={() => {
+            refetchTables();
+          }}
+          onUpdateBinding={handleUpdateBinding}
+        />
+      </div>
+    </SettingsSectionSurface>
   );
 }

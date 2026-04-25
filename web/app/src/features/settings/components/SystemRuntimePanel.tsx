@@ -28,19 +28,36 @@ import {
   settingsSystemRuntimeQueryKey
 } from '../api/system-runtime';
 import type { SettingsSystemRuntimeProfile } from '../api/system-runtime';
+import { SettingsSectionSurface } from './SettingsSectionSurface';
 
 /* ── helpers ────────────────────────────────────── */
 
 function getRelationshipLabel(relationship: string) {
   switch (relationship) {
     case 'same_host':
-      return { color: '#00d992' as const, label: '同机部署', icon: CloudServerOutlined };
+      return {
+        color: '#00d992' as const,
+        label: '同机部署',
+        icon: CloudServerOutlined
+      };
     case 'split_host':
-      return { color: '#1677ff' as const, label: '分机部署', icon: ClusterOutlined };
+      return {
+        color: '#1677ff' as const,
+        label: '分机部署',
+        icon: ClusterOutlined
+      };
     case 'runner_unreachable':
-      return { color: '#ff4d4f' as const, label: 'Runner 不可达', icon: ExclamationCircleOutlined };
+      return {
+        color: '#ff4d4f' as const,
+        label: 'Runner 不可达',
+        icon: ExclamationCircleOutlined
+      };
     default:
-      return { color: '#86909c' as const, label: relationship, icon: InfoCircleOutlined };
+      return {
+        color: '#86909c' as const,
+        label: relationship,
+        icon: InfoCircleOutlined
+      };
   }
 }
 
@@ -75,9 +92,8 @@ function buildHostRows(profile: SettingsSystemRuntimeProfile): HostTableRow[] {
     cpu: `${h.cpu.logical_count} 核`,
     memoryTotal: formatMemory(h.memory.total_gb),
     memoryAvail: formatMemory(h.memory.available_gb),
-    memoryUsage: h.memory.total_gb > 0
-      ? 1 - h.memory.available_gb / h.memory.total_gb
-      : 0,
+    memoryUsage:
+      h.memory.total_gb > 0 ? 1 - h.memory.available_gb / h.memory.total_gb : 0,
     services: h.services
   }));
 }
@@ -122,12 +138,25 @@ const hostColumns: ColumnsType<HostTableRow> = [
             可用 {record.memoryAvail}
           </Typography.Text>
         </Flex>
-        <div style={{ width: 60, height: 4, background: '#f0f0f0', borderRadius: 2, overflow: 'hidden' }}>
+        <div
+          style={{
+            width: 60,
+            height: 4,
+            background: '#f0f0f0',
+            borderRadius: 2,
+            overflow: 'hidden'
+          }}
+        >
           <div
             style={{
               width: `${Math.round(record.memoryUsage * 100)}%`,
               height: '100%',
-              background: record.memoryUsage > 0.85 ? '#ff4d4f' : record.memoryUsage > 0.65 ? '#faad14' : '#00d992',
+              background:
+                record.memoryUsage > 0.85
+                  ? '#ff4d4f'
+                  : record.memoryUsage > 0.65
+                    ? '#faad14'
+                    : '#00d992',
               borderRadius: 2,
               transition: 'width 0.3s'
             }}
@@ -143,10 +172,14 @@ const hostColumns: ColumnsType<HostTableRow> = [
     render: (_: unknown, record: HostTableRow) => (
       <Space size={4} wrap>
         {record.services.map((s) => (
-          <Tag key={s} color="default" style={{ fontSize: 11 }}>{s}</Tag>
+          <Tag key={s} color="default" style={{ fontSize: 11 }}>
+            {s}
+          </Tag>
         ))}
         {record.services.length === 0 && (
-          <Typography.Text type="secondary" style={{ fontSize: 12 }}>—</Typography.Text>
+          <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+            —
+          </Typography.Text>
         )}
       </Space>
     )
@@ -162,35 +195,27 @@ export function SystemRuntimePanel() {
   });
 
   const profile = runtimeQuery.data;
-  const relationshipMeta = profile ? getRelationshipLabel(profile.topology.relationship) : null;
+  const relationshipMeta = profile
+    ? getRelationshipLabel(profile.topology.relationship)
+    : null;
+  const sectionDescription =
+    '查看 API Server 与 Plugin Runner 的部署关系、运行状态与宿主机信息。';
 
   /* ── loading ── */
   if (runtimeQuery.isLoading) {
     return (
-      <section>
-        <div style={{ marginBottom: 24 }}>
-          <Typography.Title level={4}>系统运行状态</Typography.Title>
-          <Typography.Text type="secondary">
-            查看 API Server 与 Plugin Runner 的部署关系、运行状态与宿主机信息。
-          </Typography.Text>
-        </div>
+      <SettingsSectionSurface title="系统运行" description={sectionDescription}>
         <Flex justify="center" style={{ padding: '64px 0' }}>
           <Spin tip="正在读取系统运行信息…" />
         </Flex>
-      </section>
+      </SettingsSectionSurface>
     );
   }
 
   /* ── error ── */
   if (runtimeQuery.isError) {
     return (
-      <section>
-        <div style={{ marginBottom: 24 }}>
-          <Typography.Title level={4}>系统运行状态</Typography.Title>
-          <Typography.Text type="secondary">
-            查看 API Server 与 Plugin Runner 的部署关系、运行状态与宿主机信息。
-          </Typography.Text>
-        </div>
+      <SettingsSectionSurface title="系统运行" description={sectionDescription}>
         <Alert
           type="error"
           showIcon
@@ -201,53 +226,47 @@ export function SystemRuntimePanel() {
               : '请稍后重试。'
           }
         />
-      </section>
+      </SettingsSectionSurface>
     );
   }
 
   /* ── no data ── */
   if (!profile) {
     return (
-      <section>
-        <div style={{ marginBottom: 24 }}>
-          <Typography.Title level={4}>系统运行状态</Typography.Title>
-          <Typography.Text type="secondary">
-            查看 API Server 与 Plugin Runner 的部署关系、运行状态与宿主机信息。
-          </Typography.Text>
-        </div>
+      <SettingsSectionSurface title="系统运行" description={sectionDescription}>
         <Empty description="暂无运行时数据" />
-      </section>
+      </SettingsSectionSurface>
     );
   }
 
   /* ── services ── */
   const servicesToRender = [
-    { key: 'api_server', label: 'API Server', data: profile.services.api_server },
-    { key: 'plugin_runner', label: 'Plugin Runner', data: profile.services.plugin_runner }
+    {
+      key: 'api_server',
+      label: 'API Server',
+      data: profile.services.api_server
+    },
+    {
+      key: 'plugin_runner',
+      label: 'Plugin Runner',
+      data: profile.services.plugin_runner
+    }
   ];
 
   const hostRows = buildHostRows(profile);
 
   /* ── render ── */
   return (
-    <section>
-      {/* ── page header ── */}
-      <div style={{ marginBottom: 28 }}>
-        <Typography.Title level={4} style={{ margin: 0 }}>
-          系统运行状态
-        </Typography.Title>
-        <Typography.Text type="secondary" style={{ marginTop: 4, display: 'block' }}>
-          查看 API Server 与 Plugin Runner 的部署关系、运行状态与宿主机信息。
-        </Typography.Text>
-      </div>
-
+    <SettingsSectionSurface title="系统运行" description={sectionDescription}>
       {/* ════════════════════════════════════════════════
          部署概览
          ════════════════════════════════════════════════ */}
       <div style={{ marginBottom: 32 }}>
         <Flex align="center" gap={8} style={{ marginBottom: 14 }}>
           <InfoCircleOutlined style={{ color: '#00d992', fontSize: 15 }} />
-          <Typography.Text strong style={{ fontSize: 14 }}>部署概览</Typography.Text>
+          <Typography.Text strong style={{ fontSize: 14 }}>
+            部署概览
+          </Typography.Text>
         </Flex>
 
         <Flex
@@ -263,17 +282,30 @@ export function SystemRuntimePanel() {
           <Flex
             align="flex-start"
             gap={10}
-            style={{ minWidth: 160, paddingRight: 32, borderRight: '1px solid #f0f0f0' }}
+            style={{
+              minWidth: 160,
+              paddingRight: 32,
+              borderRight: '1px solid #f0f0f0'
+            }}
           >
-            <EnvironmentOutlined style={{ color: '#86909c', fontSize: 14, marginTop: 2 }} />
+            <EnvironmentOutlined
+              style={{ color: '#86909c', fontSize: 14, marginTop: 2 }}
+            />
             <div>
-              <Typography.Text type="secondary" style={{ fontSize: 12, display: 'block', marginBottom: 4 }}>
+              <Typography.Text
+                type="secondary"
+                style={{ fontSize: 12, display: 'block', marginBottom: 4 }}
+              >
                 部署关系
               </Typography.Text>
               {relationshipMeta ? (
                 <Space size={6}>
-                  <relationshipMeta.icon style={{ color: relationshipMeta.color, fontSize: 13 }} />
-                  <Typography.Text style={{ fontSize: 13, color: relationshipMeta.color }}>
+                  <relationshipMeta.icon
+                    style={{ color: relationshipMeta.color, fontSize: 13 }}
+                  />
+                  <Typography.Text
+                    style={{ fontSize: 13, color: relationshipMeta.color }}
+                  >
                     {relationshipMeta.label}
                   </Typography.Text>
                 </Space>
@@ -287,11 +319,20 @@ export function SystemRuntimePanel() {
           <Flex
             align="flex-start"
             gap={10}
-            style={{ minWidth: 140, padding: '0 32px', borderRight: '1px solid #f0f0f0' }}
+            style={{
+              minWidth: 140,
+              padding: '0 32px',
+              borderRight: '1px solid #f0f0f0'
+            }}
           >
-            <GlobalOutlined style={{ color: '#86909c', fontSize: 14, marginTop: 2 }} />
+            <GlobalOutlined
+              style={{ color: '#86909c', fontSize: 14, marginTop: 2 }}
+            />
             <div>
-              <Typography.Text type="secondary" style={{ fontSize: 12, display: 'block', marginBottom: 4 }}>
+              <Typography.Text
+                type="secondary"
+                style={{ fontSize: 12, display: 'block', marginBottom: 4 }}
+              >
                 当前语言
               </Typography.Text>
               <Typography.Text style={{ fontSize: 13 }}>
@@ -304,11 +345,20 @@ export function SystemRuntimePanel() {
           <Flex
             align="flex-start"
             gap={10}
-            style={{ minWidth: 120, padding: '0 32px', borderRight: '1px solid #f0f0f0' }}
+            style={{
+              minWidth: 120,
+              padding: '0 32px',
+              borderRight: '1px solid #f0f0f0'
+            }}
           >
-            <GlobalOutlined style={{ color: '#86909c', fontSize: 14, marginTop: 2 }} />
+            <GlobalOutlined
+              style={{ color: '#86909c', fontSize: 14, marginTop: 2 }}
+            />
             <div>
-              <Typography.Text type="secondary" style={{ fontSize: 12, display: 'block', marginBottom: 4 }}>
+              <Typography.Text
+                type="secondary"
+                style={{ fontSize: 12, display: 'block', marginBottom: 4 }}
+              >
                 回退语言
               </Typography.Text>
               <Typography.Text style={{ fontSize: 13 }}>
@@ -323,9 +373,14 @@ export function SystemRuntimePanel() {
             gap={10}
             style={{ minWidth: 180, paddingLeft: 32 }}
           >
-            <GlobalOutlined style={{ color: '#86909c', fontSize: 14, marginTop: 2 }} />
+            <GlobalOutlined
+              style={{ color: '#86909c', fontSize: 14, marginTop: 2 }}
+            />
             <div>
-              <Typography.Text type="secondary" style={{ fontSize: 12, display: 'block', marginBottom: 4 }}>
+              <Typography.Text
+                type="secondary"
+                style={{ fontSize: 12, display: 'block', marginBottom: 4 }}
+              >
                 支持语言
               </Typography.Text>
               <Typography.Text style={{ fontSize: 13 }}>
@@ -342,7 +397,9 @@ export function SystemRuntimePanel() {
       <div style={{ marginBottom: 32 }}>
         <Flex align="center" gap={8} style={{ marginBottom: 14 }}>
           <CloudServerOutlined style={{ color: '#00d992', fontSize: 15 }} />
-          <Typography.Text strong style={{ fontSize: 14 }}>服务状态</Typography.Text>
+          <Typography.Text strong style={{ fontSize: 14 }}>
+            服务状态
+          </Typography.Text>
         </Flex>
 
         <Flex gap={16} wrap="wrap">
@@ -361,13 +418,21 @@ export function SystemRuntimePanel() {
                   background: '#fff'
                 }}
               >
-                <Flex align="center" justify="space-between" style={{ marginBottom: 12 }}>
+                <Flex
+                  align="center"
+                  justify="space-between"
+                  style={{ marginBottom: 12 }}
+                >
                   <Typography.Text strong style={{ fontSize: 14 }}>
                     {svc.label}
                   </Typography.Text>
                   <Space size={6}>
-                    <reachMeta.icon style={{ color: reachMeta.color, fontSize: 13 }} />
-                    <Typography.Text style={{ color: reachMeta.color, fontSize: 12 }}>
+                    <reachMeta.icon
+                      style={{ color: reachMeta.color, fontSize: 13 }}
+                    />
+                    <Typography.Text
+                      style={{ color: reachMeta.color, fontSize: 12 }}
+                    >
                       {reachMeta.label}
                     </Typography.Text>
                   </Space>
@@ -375,7 +440,14 @@ export function SystemRuntimePanel() {
 
                 <Flex gap={24} wrap="wrap">
                   <div>
-                    <Typography.Text type="secondary" style={{ fontSize: 11, display: 'block', marginBottom: 2 }}>
+                    <Typography.Text
+                      type="secondary"
+                      style={{
+                        fontSize: 11,
+                        display: 'block',
+                        marginBottom: 2
+                      }}
+                    >
                       版本
                     </Typography.Text>
                     <Typography.Text style={{ fontSize: 13 }}>
@@ -383,7 +455,14 @@ export function SystemRuntimePanel() {
                     </Typography.Text>
                   </div>
                   <div>
-                    <Typography.Text type="secondary" style={{ fontSize: 11, display: 'block', marginBottom: 2 }}>
+                    <Typography.Text
+                      type="secondary"
+                      style={{
+                        fontSize: 11,
+                        display: 'block',
+                        marginBottom: 2
+                      }}
+                    >
                       状态
                     </Typography.Text>
                     <Typography.Text style={{ fontSize: 13 }}>
@@ -391,7 +470,14 @@ export function SystemRuntimePanel() {
                     </Typography.Text>
                   </div>
                   <div>
-                    <Typography.Text type="secondary" style={{ fontSize: 11, display: 'block', marginBottom: 2 }}>
+                    <Typography.Text
+                      type="secondary"
+                      style={{
+                        fontSize: 11,
+                        display: 'block',
+                        marginBottom: 2
+                      }}
+                    >
                       宿主指纹
                     </Typography.Text>
                     <Typography.Text code style={{ fontSize: 12 }}>
@@ -411,7 +497,9 @@ export function SystemRuntimePanel() {
       <div>
         <Flex align="center" gap={8} style={{ marginBottom: 14 }}>
           <ClusterOutlined style={{ color: '#00d992', fontSize: 15 }} />
-          <Typography.Text strong style={{ fontSize: 14 }}>宿主机</Typography.Text>
+          <Typography.Text strong style={{ fontSize: 14 }}>
+            宿主机
+          </Typography.Text>
           <Tag style={{ marginLeft: 4, fontSize: 11, lineHeight: '20px' }}>
             {hostRows.length}
           </Tag>
@@ -430,6 +518,6 @@ export function SystemRuntimePanel() {
           <Empty description="当前没有可展示的宿主机信息" />
         )}
       </div>
-    </section>
+    </SettingsSectionSurface>
   );
 }
