@@ -1,4 +1,10 @@
-import { fireEvent, render, screen, within } from '@testing-library/react';
+import {
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+  within
+} from '@testing-library/react';
 import { useEffect, type ReactNode } from 'react';
 import { describe, expect, test } from 'vitest';
 
@@ -88,6 +94,9 @@ describe('start input fields', () => {
     expect(
       screen.getByRole('separator', { name: '从右侧调整新增输入字段宽度' })
     ).toBeInTheDocument();
+    expect(
+      screen.getByRole('separator', { name: '向下调整新增输入字段高度' })
+    ).toBeInTheDocument();
     expect(screen.queryByLabelText('输入字段占位提示')).not.toBeInTheDocument();
 
     fireEvent.change(screen.getByLabelText('输入字段变量名'), {
@@ -112,6 +121,39 @@ describe('start input fields', () => {
         valueType: 'array'
       })
     ]);
+  });
+
+  test('opens the start input field panel with an initial height and supports dragging down', async () => {
+    renderWithProviders(
+      <AgentFlowEditorStoreProvider initialState={createInitialState()}>
+        <SelectionSeed nodeId="node-start" />
+        <NodeConfigTab />
+      </AgentFlowEditorStoreProvider>
+    );
+
+    await screen.findAllByText('输入字段');
+    fireEvent.click(screen.getByRole('button', { name: '新增输入字段' }));
+
+    const dialog = await screen.findByRole('dialog', { name: '新增输入字段' });
+    const bottomResizeHandle = screen.getByRole('separator', {
+      name: '向下调整新增输入字段高度'
+    });
+
+    expect(dialog).toHaveStyle({ height: '520px' });
+
+    fireEvent.mouseDown(bottomResizeHandle, {
+      clientX: 420,
+      clientY: 520
+    });
+    fireEvent.mouseMove(window, {
+      clientX: 420,
+      clientY: 600
+    });
+    fireEvent.mouseUp(window);
+
+    await waitFor(() => {
+      expect(dialog).toHaveStyle({ height: '600px' });
+    });
   });
 
   test('configures rich start input field options in the shared floating shell', async () => {

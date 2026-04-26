@@ -1,12 +1,5 @@
 import { DeleteOutlined, PlusOutlined } from '@ant-design/icons';
-import {
-  Button,
-  Input,
-  InputNumber,
-  Select,
-  Switch,
-  Typography
-} from 'antd';
+import { Button, Input, InputNumber, Select, Switch, Typography } from 'antd';
 import type { RefObject } from 'react';
 
 import type {
@@ -40,9 +33,7 @@ function isStringDefaultType(inputType: FlowStartInputType) {
 
 function shouldShowMaxLength(inputType: FlowStartInputType) {
   return (
-    inputType === 'text' ||
-    inputType === 'paragraph' ||
-    inputType === 'url'
+    inputType === 'text' || inputType === 'paragraph' || inputType === 'url'
   );
 }
 
@@ -88,7 +79,9 @@ export function StartInputFieldSettingsPanel({
   }
 
   function removeOption(index: number) {
-    const nextOptions = options.filter((_, optionIndex) => optionIndex !== index);
+    const nextOptions = options.filter(
+      (_, optionIndex) => optionIndex !== index
+    );
 
     onChange({
       options: nextOptions.length > 0 ? nextOptions : [''],
@@ -107,7 +100,7 @@ export function StartInputFieldSettingsPanel({
       className="agent-flow-start-input-fields__panel"
       defaultWidth={420}
       minWidth={360}
-      defaultHeight={520}
+      initialHeight={520}
       gap={16}
       onClose={onClose}
       footer={
@@ -175,7 +168,9 @@ export function StartInputFieldSettingsPanel({
                   <Input
                     aria-label={`输入字段选项 ${index + 1}`}
                     value={option}
-                    onChange={(event) => updateOption(index, event.target.value)}
+                    onChange={(event) =>
+                      updateOption(index, event.target.value)
+                    }
                   />
                   <Button
                     aria-label={`删除下拉选项 ${index + 1}`}

@@ -511,6 +511,79 @@ describe('LlmModelField', () => {
     });
   });
 
+  test('resizes the model settings panel height from the bottom while keeping the minimum height', async () => {
+    const { container } = renderWithProviders(
+      <div className="agent-flow-editor__body">
+        <AgentFlowEditorStoreProvider initialState={createInitialState()}>
+          <NodeConfigTab />
+        </AgentFlowEditorStoreProvider>
+      </div>
+    );
+
+    const editorBody = container.querySelector('.agent-flow-editor__body');
+    const trigger = await screen.findByRole('button', { name: '模型' });
+
+    if (!editorBody) {
+      throw new Error('expected editor body container');
+    }
+
+    mockElementRect(editorBody, {
+      left: 0,
+      top: 0,
+      width: 1200,
+      height: 800
+    });
+    mockElementRect(trigger, {
+      left: 980,
+      top: 160,
+      width: 240,
+      height: 40
+    });
+
+    fireEvent.click(trigger);
+
+    const dialog = await screen.findByRole('dialog', { name: '模型设置' });
+    const bottomResizeHandle = screen.getByRole('separator', {
+      name: '向下调整模型设置高度'
+    });
+
+    expect(dialog).toHaveStyle({
+      height: '400px'
+    });
+
+    fireEvent.mouseDown(bottomResizeHandle, {
+      clientX: 520,
+      clientY: 560
+    });
+    fireEvent.mouseMove(window, {
+      clientX: 520,
+      clientY: 660
+    });
+    fireEvent.mouseUp(window);
+
+    await waitFor(() => {
+      expect(dialog).toHaveStyle({
+        height: '500px'
+      });
+    });
+
+    fireEvent.mouseDown(bottomResizeHandle, {
+      clientX: 520,
+      clientY: 660
+    });
+    fireEvent.mouseMove(window, {
+      clientX: 520,
+      clientY: 260
+    });
+    fireEvent.mouseUp(window);
+
+    await waitFor(() => {
+      expect(dialog).toHaveStyle({
+        height: '240px'
+      });
+    });
+  });
+
   test('supports dragging the model settings panel within the canvas bounds', async () => {
     const { container } = renderWithProviders(
       <div className="agent-flow-editor__body">

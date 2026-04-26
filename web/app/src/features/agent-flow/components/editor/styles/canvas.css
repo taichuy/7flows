@@ -399,6 +399,16 @@
   right: 0;
 }
 
+.agent-flow-model-settings__resize-handle--bottom {
+  top: auto;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  width: auto;
+  height: 8px;
+  cursor: ns-resize;
+}
+
 .agent-flow-model-settings__resize-handle::after {
   position: absolute;
   top: 50%;
@@ -416,6 +426,15 @@
 
 .agent-flow-model-settings__resize-handle--right::after {
   right: 3px;
+}
+
+.agent-flow-model-settings__resize-handle--bottom::after {
+  top: auto;
+  bottom: 3px;
+  left: 50%;
+  width: 48px;
+  height: 2px;
+  transform: translateX(-50%);
 }
 
 .agent-flow-model-settings__resize-handle:hover::after,

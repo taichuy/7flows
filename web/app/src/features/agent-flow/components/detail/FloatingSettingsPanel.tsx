@@ -35,20 +35,23 @@ type FloatingSettingsPanelProps = {
   className?: string;
   defaultWidth?: number;
   minWidth?: number;
-  defaultHeight?: number;
+  initialHeight?: number;
+  minHeight?: number;
   gap?: number;
   margin?: number;
   dragHandleTestId?: string;
   leftResizeHandleTestId?: string;
   rightResizeHandleTestId?: string;
+  bottomResizeHandleTestId?: string;
   onClose: () => void;
 };
 
 const DEFAULT_WIDTH = 320;
 const DEFAULT_MIN_WIDTH = 320;
+const DEFAULT_MIN_HEIGHT = 240;
 const DEFAULT_GAP = 24;
 const DEFAULT_MARGIN = 16;
-const DEFAULT_HEIGHT = 360;
+const FALLBACK_HEIGHT = 360;
 
 function clamp(value: number, min: number, max: number) {
   return Math.min(max, Math.max(min, value));
@@ -74,12 +77,39 @@ function resolveBounds(container: HTMLElement | null): FloatingPanelBounds {
   };
 }
 
-function resolveHeight(bounds: FloatingPanelBounds, defaultHeight: number) {
+function resolveInitialHeight(
+  bounds: FloatingPanelBounds,
+  initialHeight: number | undefined,
+  minHeight: number,
+  margin: number
+) {
+  const fallbackHeight =
+    bounds.height > 0 ? Math.round(bounds.height / 2) : FALLBACK_HEIGHT;
+  const preferredHeight = initialHeight ?? fallbackHeight;
+
+  return clampHeight(
+    preferredHeight,
+    bounds,
+    { left: margin, top: margin },
+    minHeight,
+    margin
+  );
+}
+
+function clampHeight(
+  height: number,
+  bounds: FloatingPanelBounds,
+  position: FloatingPanelPosition,
+  minHeight: number,
+  margin: number
+) {
   if (bounds.height <= 0) {
-    return defaultHeight;
+    return Math.max(height, minHeight);
   }
 
-  return Math.round(bounds.height / 2);
+  const maxHeight = Math.max(minHeight, bounds.height - position.top - margin);
+
+  return clamp(height, minHeight, maxHeight);
 }
 
 function clampPosition(
@@ -168,18 +198,22 @@ export function FloatingSettingsPanel({
   className,
   defaultWidth = DEFAULT_WIDTH,
   minWidth = DEFAULT_MIN_WIDTH,
-  defaultHeight = DEFAULT_HEIGHT,
+  initialHeight,
+  minHeight = DEFAULT_MIN_HEIGHT,
   gap = DEFAULT_GAP,
   margin = DEFAULT_MARGIN,
   dragHandleTestId,
   leftResizeHandleTestId,
   rightResizeHandleTestId,
+  bottomResizeHandleTestId,
   onClose
 }: FloatingSettingsPanelProps) {
   const [panelContainer, setPanelContainer] = useState<HTMLElement | null>(
     null
   );
-  const [panelHeight, setPanelHeight] = useState(defaultHeight);
+  const [panelHeight, setPanelHeight] = useState(
+    initialHeight ?? FALLBACK_HEIGHT
+  );
   const [panelWidth, setPanelWidth] = useState(defaultWidth);
   const [panelPosition, setPanelPosition] = useState<FloatingPanelPosition>({
     left: margin,
@@ -198,7 +232,12 @@ export function FloatingSettingsPanel({
       triggerRef.current?.closest<HTMLElement>('.agent-flow-editor__body') ??
       null;
     const bounds = resolveBounds(nextContainer);
-    const nextHeight = resolveHeight(bounds, defaultHeight);
+    const nextHeight = resolveInitialHeight(
+      bounds,
+      initialHeight,
+      minHeight,
+      margin
+    );
     const nextWidth = clampWidth(
       defaultWidth,
       bounds,
@@ -220,7 +259,16 @@ export function FloatingSettingsPanel({
         margin
       })
     );
-  }, [defaultHeight, defaultWidth, gap, margin, minWidth, open, triggerRef]);
+  }, [
+    defaultWidth,
+    gap,
+    initialHeight,
+    margin,
+    minHeight,
+    minWidth,
+    open,
+    triggerRef
+  ]);
 
   useEffect(() => {
     if (!open) {
@@ -247,7 +295,12 @@ export function FloatingSettingsPanel({
         triggerRef.current?.closest<HTMLElement>('.agent-flow-editor__body') ??
         null;
       const bounds = resolveBounds(nextContainer);
-      const nextHeight = resolveHeight(bounds, defaultHeight);
+      const nextHeight = resolveInitialHeight(
+        bounds,
+        initialHeight,
+        minHeight,
+        margin
+      );
 
       setPanelContainer(nextContainer);
       setPanelHeight(nextHeight);
@@ -267,7 +320,15 @@ export function FloatingSettingsPanel({
 
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
-  }, [defaultHeight, margin, minWidth, open, panelWidth, triggerRef]);
+  }, [
+    initialHeight,
+    margin,
+    minHeight,
+    minWidth,
+    open,
+    panelWidth,
+    triggerRef
+  ]);
 
   useEffect(() => {
     return () => {
@@ -383,6 +444,48 @@ export function FloatingSettingsPanel({
     window.addEventListener('mouseup', cleanup);
   }
 
+  function startBottomResize(event: ReactMouseEvent<HTMLDivElement>) {
+    if (event.button !== 0) {
+      return;
+    }
+
+    event.preventDefault();
+
+    const bounds = resolveBounds(panelContainer);
+    const startY = event.clientY;
+    const startHeight = panelHeight;
+    const previousCursor = document.body.style.cursor;
+    const previousUserSelect = document.body.style.userSelect;
+
+    cleanupDragRef.current?.();
+    document.body.style.cursor = 'ns-resize';
+    document.body.style.userSelect = 'none';
+
+    const handleMouseMove = (moveEvent: MouseEvent) => {
+      setPanelHeight(
+        clampHeight(
+          startHeight + moveEvent.clientY - startY,
+          bounds,
+          panelPosition,
+          minHeight,
+          margin
+        )
+      );
+    };
+
+    const cleanup = () => {
+      window.removeEventListener('mousemove', handleMouseMove);
+      window.removeEventListener('mouseup', cleanup);
+      document.body.style.cursor = previousCursor;
+      document.body.style.userSelect = previousUserSelect;
+      cleanupDragRef.current = null;
+    };
+
+    cleanupDragRef.current = cleanup;
+    window.addEventListener('mousemove', handleMouseMove);
+    window.addEventListener('mouseup', cleanup);
+  }
+
   if (!open) {
     return null;
   }
@@ -446,6 +549,15 @@ export function FloatingSettingsPanel({
         className="agent-flow-model-settings__resize-handle agent-flow-model-settings__resize-handle--right"
         data-testid={rightResizeHandleTestId}
         onMouseDown={(event) => startResize(event, 'right')}
+        role="separator"
+      />
+
+      <div
+        aria-label={`向下调整${title}高度`}
+        aria-orientation="horizontal"
+        className="agent-flow-model-settings__resize-handle agent-flow-model-settings__resize-handle--bottom"
+        data-testid={bottomResizeHandleTestId}
+        onMouseDown={startBottomResize}
         role="separator"
       />
 
