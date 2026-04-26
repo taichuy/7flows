@@ -527,18 +527,92 @@
 }
 
 .agent-flow-start-input-fields__form {
-  gap: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
 }
 
 .agent-flow-start-input-fields__form-row {
+  display: flex;
+  flex-direction: column;
   gap: 6px;
   color: #55645d;
   font-size: 12px;
   font-weight: 600;
 }
 
-.agent-flow-start-input-fields__form-row .ant-select {
+.agent-flow-start-input-fields__form-row .ant-select,
+.agent-flow-start-input-fields__form-row .ant-input-number {
   width: 100%;
+}
+
+.agent-flow-start-input-fields__name-stack {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 6px;
+}
+
+.agent-flow-start-input-fields__label {
+  min-width: 0;
+  overflow: hidden;
+  color: #8ca095;
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.agent-flow-start-input-fields__item-meta {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+}
+
+.agent-flow-start-input-fields__badge {
+  border-radius: 999px;
+  background: #eef6f1;
+  color: #4c7c62;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 18px;
+  padding: 0 6px;
+}
+
+.agent-flow-start-input-fields__option-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.agent-flow-start-input-fields__option-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 28px;
+  gap: 6px;
+}
+
+.agent-flow-start-input-fields__toggles {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.agent-flow-start-input-fields__toggle-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 10px 12px;
+  border: 1px solid #edf1f5;
+  border-radius: 8px;
+  background: #fbfcfd;
+}
+
+.agent-flow-start-input-fields__toggle-row > span {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 2px;
 }
 
 .agent-flow-start-input-fields__panel-footer {

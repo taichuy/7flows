@@ -3,21 +3,16 @@ import {
   HolderOutlined,
   PlusOutlined
 } from '@ant-design/icons';
-import { Button, Empty, Input, Select, Switch, Typography } from 'antd';
+import { Button, Empty, Typography } from 'antd';
 import { useRef, useState } from 'react';
 
-import type {
-  FlowStartInputField,
-  FlowStartInputType
-} from '@1flowbase/flow-schema';
+import type { FlowStartInputField } from '@1flowbase/flow-schema';
 
 import {
-  getStartInputValueType,
   normalizeStartInputField,
-  startInputTypeOptions,
   startSystemVariables
 } from '../../../lib/start-node-variables';
-import { FloatingSettingsPanel } from '../FloatingSettingsPanel';
+import { StartInputFieldSettingsPanel } from './StartInputFieldSettingsPanel';
 
 function normalizeList(value: unknown): FlowStartInputField[] {
   return Array.isArray(value)
@@ -146,89 +141,14 @@ export function StartInputFieldsField({
   }
 
   const floatingPanel = editing ? (
-    <FloatingSettingsPanel
-      open
-      title="输入字段设置"
-      closeLabel="关闭输入字段设置"
+    <StartInputFieldSettingsPanel
+      mode={editing.index === null ? 'create' : 'edit'}
+      field={editing.field}
       triggerRef={triggerRef}
-      className="agent-flow-start-input-fields__panel"
-      defaultWidth={360}
-      minWidth={320}
-      defaultHeight={360}
-      gap={16}
+      onChange={updateDraft}
       onClose={closePanel}
-      footer={
-        <div className="agent-flow-start-input-fields__panel-footer">
-          <Button onClick={closePanel}>取消</Button>
-          <Button aria-label="保存输入字段" type="primary" onClick={saveDraft}>
-            保存
-          </Button>
-        </div>
-      }
-    >
-      <div className="agent-flow-start-input-fields__form">
-        <label className="agent-flow-start-input-fields__form-row">
-          <span>变量名</span>
-          <Input
-            aria-label="输入字段变量名"
-            value={editing.field.key}
-            onChange={(event) => updateDraft({ key: event.target.value })}
-          />
-        </label>
-        <label className="agent-flow-start-input-fields__form-row">
-          <span>显示名</span>
-          <Input
-            aria-label="输入字段显示名"
-            value={editing.field.label}
-            onChange={(event) => updateDraft({ label: event.target.value })}
-          />
-        </label>
-        <label className="agent-flow-start-input-fields__form-row">
-          <span>类型</span>
-          <Select
-            aria-label="输入字段类型"
-            options={startInputTypeOptions}
-            value={editing.field.inputType}
-            onChange={(inputType: FlowStartInputType) =>
-              updateDraft({
-                inputType,
-                valueType: getStartInputValueType(inputType),
-                options:
-                  inputType === 'select' ? editing.field.options : undefined
-              })
-            }
-          />
-        </label>
-        <div className="agent-flow-start-input-fields__form-row">
-          <span>必填</span>
-          <Switch
-            aria-label="必填输入字段"
-            checked={editing.field.required}
-            checkedChildren="必填"
-            unCheckedChildren="可选"
-            onChange={(required) => updateDraft({ required })}
-          />
-        </div>
-        {editing.field.inputType === 'select' ? (
-          <label className="agent-flow-start-input-fields__form-row">
-            <span>选项</span>
-            <Input
-              aria-label="输入字段选项"
-              placeholder="用英文逗号分隔选项"
-              value={(editing.field.options ?? []).join(',')}
-              onChange={(event) =>
-                updateDraft({
-                  options: event.target.value
-                    .split(',')
-                    .map((option) => option.trim())
-                    .filter(Boolean)
-                })
-              }
-            />
-          </label>
-        ) : null}
-      </div>
-    </FloatingSettingsPanel>
+      onSave={saveDraft}
+    />
   ) : null;
 
   return (
@@ -277,20 +197,39 @@ export function StartInputFieldsField({
                   <span className="agent-flow-node-detail__list-item-icon">
                     {'{x}'}
                   </span>
-                  <span className="agent-flow-node-detail__list-item-name">
-                    userinput.{field.key}
+                  <span className="agent-flow-start-input-fields__name-stack">
+                    <span className="agent-flow-node-detail__list-item-name">
+                      userinput.{field.key}
+                    </span>
+                    {field.label && field.label !== field.key ? (
+                      <span className="agent-flow-start-input-fields__label">
+                        {field.label}
+                      </span>
+                    ) : null}
                   </span>
                 </span>
-                <span className="agent-flow-node-detail__list-item-type">
-                  {field.valueType === 'array'
-                    ? 'Array[File]'
-                    : field.valueType === 'string'
-                      ? 'String'
-                      : field.valueType === 'number'
-                        ? 'Number'
-                        : field.valueType === 'boolean'
-                          ? 'Boolean'
-                          : 'JSON'}
+                <span className="agent-flow-start-input-fields__item-meta">
+                  {field.required ? (
+                    <span className="agent-flow-start-input-fields__badge">
+                      必填
+                    </span>
+                  ) : null}
+                  {field.hidden ? (
+                    <span className="agent-flow-start-input-fields__badge">
+                      隐藏
+                    </span>
+                  ) : null}
+                  <span className="agent-flow-node-detail__list-item-type">
+                    {field.valueType === 'array'
+                      ? 'Array[File]'
+                      : field.valueType === 'string'
+                        ? 'String'
+                        : field.valueType === 'number'
+                          ? 'Number'
+                          : field.valueType === 'boolean'
+                            ? 'Boolean'
+                            : 'JSON'}
+                  </span>
                 </span>
               </button>
               <Button

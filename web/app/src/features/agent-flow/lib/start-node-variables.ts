@@ -50,6 +50,51 @@ function normalizeString(value: unknown, fallback: string) {
     : fallback;
 }
 
+function normalizeOptionalString(value: unknown) {
+  return typeof value === 'string' && value.trim().length > 0
+    ? value
+    : undefined;
+}
+
+function normalizeDefaultValue(
+  value: unknown,
+  inputType: FlowStartInputType
+) {
+  switch (inputType) {
+    case 'number':
+      return typeof value === 'number' && Number.isFinite(value)
+        ? value
+        : undefined;
+    case 'checkbox':
+      return typeof value === 'boolean' ? value : undefined;
+    case 'file':
+    case 'file_list':
+      return undefined;
+    case 'text':
+    case 'paragraph':
+    case 'select':
+    case 'url':
+      return typeof value === 'string' && value.length > 0
+        ? value
+        : undefined;
+  }
+}
+
+function normalizeMaxLength(value: unknown) {
+  return typeof value === 'number' && Number.isInteger(value) && value > 0
+    ? value
+    : undefined;
+}
+
+function normalizeOptions(value: unknown) {
+  return Array.isArray(value)
+    ? value
+        .filter((option): option is string => typeof option === 'string')
+        .map((option) => option.trim())
+        .filter(Boolean)
+    : undefined;
+}
+
 export function normalizeStartInputField(
   value: unknown,
   index: number
@@ -69,13 +114,11 @@ export function normalizeStartInputField(
     inputType,
     valueType: getStartInputValueType(inputType),
     required: Boolean(source.required),
-    placeholder:
-      typeof source.placeholder === 'string' ? source.placeholder : undefined,
-    options: Array.isArray(source.options)
-      ? source.options.filter(
-          (option): option is string => typeof option === 'string'
-        )
-      : undefined
+    placeholder: normalizeOptionalString(source.placeholder),
+    defaultValue: normalizeDefaultValue(source.defaultValue, inputType),
+    maxLength: normalizeMaxLength(source.maxLength),
+    hidden: Boolean(source.hidden),
+    options: normalizeOptions(source.options)
   };
 }
 

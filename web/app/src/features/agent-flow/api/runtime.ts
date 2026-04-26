@@ -255,6 +255,15 @@ function buildPreviewValue(
   node: FlowNodeDocument | undefined,
   outputKey: string
 ) {
+  const startInputField =
+    node?.type === 'start'
+      ? getStartInputFields(node).find((field) => field.key === outputKey)
+      : undefined;
+
+  if (startInputField?.defaultValue !== undefined) {
+    return startInputField.defaultValue;
+  }
+
   const output = node
     ? getNodeVariableOutputs(node).find((entry) => entry.key === outputKey)
     : undefined;

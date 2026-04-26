@@ -36,6 +36,9 @@ export interface FlowStartInputField {
   valueType: string;
   required: boolean;
   placeholder?: string;
+  defaultValue?: string | number | boolean;
+  maxLength?: number;
+  hidden?: boolean;
   options?: string[];
 }
 

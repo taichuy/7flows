@@ -160,7 +160,11 @@
       "web/app/src/features/agent-flow/lib/debug-console/run-detail-mapper.ts",
       "web/app/src/features/agent-flow/lib/debug-console/trace-filters.ts",
       "web/app/src/features/agent-flow/lib/debug-console/variable-groups.ts",
-      "web/packages/api-client/src/console-application-runtime.ts"
+      "web/packages/api-client/src/console-application-runtime.ts",
+      "web/app/src/features/agent-flow/components/editor/styles/detail-panel.css",
+      "web/app/src/features/agent-flow/components/detail/fields/StartInputFieldsField.tsx",
+      "web/app/src/features/agent-flow/components/detail/fields/StartInputFieldSettingsPanel.tsx",
+      "web/app/src/features/agent-flow/lib/start-node-variables.ts"
     ],
     "boundaryNodes": [
       {

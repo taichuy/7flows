@@ -80,13 +80,13 @@ describe('start input fields', () => {
     fireEvent.click(screen.getByRole('button', { name: '新增输入字段' }));
 
     expect(
-      await screen.findByRole('dialog', { name: '输入字段设置' })
+      await screen.findByRole('dialog', { name: '新增输入字段' })
     ).toBeInTheDocument();
     expect(
-      screen.getByRole('separator', { name: '从左侧调整输入字段设置宽度' })
+      screen.getByRole('separator', { name: '从左侧调整新增输入字段宽度' })
     ).toBeInTheDocument();
     expect(
-      screen.getByRole('separator', { name: '从右侧调整输入字段设置宽度' })
+      screen.getByRole('separator', { name: '从右侧调整新增输入字段宽度' })
     ).toBeInTheDocument();
 
     fireEvent.change(screen.getByLabelText('输入字段变量名'), {
@@ -109,6 +109,78 @@ describe('start input fields', () => {
         label: '客户姓名',
         inputType: 'file_list',
         valueType: 'array'
+      })
+    ]);
+  });
+
+  test('configures rich start input field options in the shared floating shell', async () => {
+    let latestDocument = createDefaultAgentFlowDocument({ flowId: 'flow-1' });
+
+    renderWithProviders(
+      <AgentFlowEditorStoreProvider initialState={createInitialState()}>
+        <SelectionSeed nodeId="node-start" />
+        <DocumentObserver
+          onChange={(document) => {
+            latestDocument = document;
+          }}
+        />
+        <NodeConfigTab />
+      </AgentFlowEditorStoreProvider>
+    );
+
+    await screen.findAllByText('输入字段');
+    fireEvent.click(screen.getByRole('button', { name: '新增输入字段' }));
+
+    expect(
+      await screen.findByRole('dialog', { name: '新增输入字段' })
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole('separator', { name: '从左侧调整新增输入字段宽度' })
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole('separator', { name: '从右侧调整新增输入字段宽度' })
+    ).toBeInTheDocument();
+
+    fireEvent.change(screen.getByLabelText('输入字段变量名'), {
+      target: { value: 'priority' }
+    });
+    fireEvent.change(screen.getByLabelText('输入字段显示名'), {
+      target: { value: '优先级' }
+    });
+    fireEvent.change(screen.getByLabelText('输入字段占位提示'), {
+      target: { value: '请选择优先级' }
+    });
+    fireEvent.mouseDown(screen.getByRole('combobox', { name: '输入字段类型' }));
+    fireEvent.click(await screen.findByTitle('下拉选项'));
+
+    fireEvent.change(screen.getByLabelText('输入字段选项 1'), {
+      target: { value: '高' }
+    });
+    fireEvent.click(screen.getByRole('button', { name: '新增下拉选项' }));
+    fireEvent.change(screen.getByLabelText('输入字段选项 2'), {
+      target: { value: '低' }
+    });
+    fireEvent.mouseDown(
+      screen.getByRole('combobox', { name: '输入字段默认值' })
+    );
+    fireEvent.click(await screen.findByTitle('低'));
+    fireEvent.click(screen.getByLabelText('隐藏输入字段'));
+    fireEvent.click(screen.getByRole('button', { name: '保存输入字段' }));
+
+    const startNode = latestDocument.graph.nodes.find(
+      (node) => node.id === 'node-start'
+    );
+
+    expect(startNode?.config.input_fields).toEqual([
+      expect.objectContaining({
+        key: 'priority',
+        label: '优先级',
+        inputType: 'select',
+        valueType: 'string',
+        placeholder: '请选择优先级',
+        options: ['高', '低'],
+        defaultValue: '低',
+        hidden: true
       })
     ]);
   });

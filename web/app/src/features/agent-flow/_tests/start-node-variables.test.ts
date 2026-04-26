@@ -4,6 +4,7 @@ import { createDefaultAgentFlowDocument } from '@1flowbase/flow-schema';
 
 import { buildFlowDebugRunInput } from '../api/runtime';
 import { listVisibleSelectorOptions } from '../lib/selector-options';
+import { getStartInputFields } from '../lib/start-node-variables';
 
 describe('start node variables', () => {
   test('exposes custom input fields and readonly system variables to downstream selectors', () => {
@@ -92,5 +93,102 @@ describe('start node variables', () => {
         }
       }
     });
+  });
+
+  test('uses start input field default values for flow debug input', () => {
+    const document = createDefaultAgentFlowDocument({ flowId: 'flow-1' });
+    const startNode = document.graph.nodes.find(
+      (node) => node.id === 'node-start'
+    );
+
+    if (!startNode) {
+      throw new Error('expected start node');
+    }
+
+    startNode.config.input_fields = [
+      {
+        key: 'priority',
+        label: '优先级',
+        inputType: 'select',
+        valueType: 'string',
+        required: false,
+        options: ['高', '低'],
+        defaultValue: '低'
+      },
+      {
+        key: 'confirmed',
+        label: '已确认',
+        inputType: 'checkbox',
+        valueType: 'boolean',
+        required: false,
+        defaultValue: false
+      }
+    ];
+
+    expect(buildFlowDebugRunInput(document)).toEqual({
+      input_payload: {
+        'node-start': {
+          priority: '低',
+          confirmed: false,
+          query: '总结退款政策'
+        }
+      }
+    });
+  });
+
+  test('normalizes rich start input field configuration', () => {
+    const document = createDefaultAgentFlowDocument({ flowId: 'flow-1' });
+    const startNode = document.graph.nodes.find(
+      (node) => node.id === 'node-start'
+    );
+
+    if (!startNode) {
+      throw new Error('expected start node');
+    }
+
+    startNode.config.input_fields = [
+      {
+        key: 'priority',
+        label: '优先级',
+        inputType: 'select',
+        valueType: 'string',
+        required: false,
+        placeholder: '请选择优先级',
+        options: ['高', 1, '低', ''],
+        defaultValue: '低',
+        hidden: true
+      },
+      {
+        key: 'summary',
+        label: '摘要',
+        inputType: 'paragraph',
+        valueType: 'string',
+        required: true,
+        maxLength: 120,
+        defaultValue: '默认摘要'
+      }
+    ];
+
+    expect(getStartInputFields(startNode)).toEqual([
+      expect.objectContaining({
+        key: 'priority',
+        label: '优先级',
+        inputType: 'select',
+        valueType: 'string',
+        placeholder: '请选择优先级',
+        options: ['高', '低'],
+        defaultValue: '低',
+        hidden: true
+      }),
+      expect.objectContaining({
+        key: 'summary',
+        label: '摘要',
+        inputType: 'paragraph',
+        valueType: 'string',
+        required: true,
+        maxLength: 120,
+        defaultValue: '默认摘要'
+      })
+    ]);
   });
 });
