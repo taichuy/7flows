@@ -164,6 +164,19 @@ describe('NodeDetailPanel', () => {
     expect(screen.getByTestId('node-detail-body')).toBeInTheDocument();
   }, NODE_DETAIL_PANEL_TEST_TIMEOUT);
 
+  test('uses the same node type icon in detail header as the canvas card', () => {
+    renderWithProviders(
+      <AgentFlowEditorStoreProvider initialState={createInitialState()}>
+        <NodeDetailPanel onClose={vi.fn()} onRunNode={undefined} />
+      </AgentFlowEditorStoreProvider>
+    );
+
+    const header = screen.getByTestId('node-detail-header');
+
+    expect(within(header).getByRole('img', { name: 'thunderbolt' })).toBeInTheDocument();
+    expect(within(header).queryByRole('img', { name: 'home' })).not.toBeInTheDocument();
+  }, NODE_DETAIL_PANEL_TEST_TIMEOUT);
+
   test('renders alias and description editors inside the header exactly once', () => {
     renderWithProviders(
       <AgentFlowEditorStoreProvider initialState={createInitialState()}>

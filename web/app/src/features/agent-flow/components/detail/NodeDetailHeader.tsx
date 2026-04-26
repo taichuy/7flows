@@ -1,4 +1,4 @@
-import { BookOutlined, CloseOutlined, HomeOutlined } from '@ant-design/icons';
+import { BookOutlined, CloseOutlined } from '@ant-design/icons';
 import { Button, Divider, Space } from 'antd';
 
 import type { CanvasNodeSchema } from '../../../../shared/schema-ui/contracts/canvas-node-schema';
@@ -9,6 +9,7 @@ import { agentFlowRendererRegistry } from '../../schema/agent-flow-renderer-regi
 import { useNodeDetailActions } from '../../hooks/interactions/use-node-detail-actions';
 import { NodeActionMenu } from './NodeActionMenu';
 import { NodeRunButton } from './NodeRunButton';
+import { getAgentFlowNodeTypeIcon } from '../../lib/node-type-icons';
 
 function findHeaderField(
   schema: CanvasNodeSchema,
@@ -36,6 +37,11 @@ export function NodeDetailHeader({
     | { helpHref?: string | null }
     | null
     | undefined;
+  const node = adapter.getDerived('node') as
+    | { type?: string | null }
+    | null
+    | undefined;
+  const nodeTypeIcon = node?.type ? getAgentFlowNodeTypeIcon(node.type) : null;
   const detailActions = useNodeDetailActions();
   const aliasField = findHeaderField(schema, 'alias');
   const descriptionField = findHeaderField(schema, 'description');
@@ -48,7 +54,7 @@ export function NodeDetailHeader({
       <div className="agent-flow-node-detail__header-top">
         <div className="agent-flow-node-detail__title-section">
           <div className="agent-flow-node-detail__icon-wrapper">
-            <HomeOutlined />
+            {nodeTypeIcon}
           </div>
           {aliasField ? (
             <SchemaRenderer

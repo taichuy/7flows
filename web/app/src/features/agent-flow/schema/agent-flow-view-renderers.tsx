@@ -1,23 +1,8 @@
-import type { ReactNode } from 'react';
-
 import { useQuery } from '@tanstack/react-query';
 import {
-  ApiOutlined,
-  BlockOutlined,
   BookOutlined,
-  EditOutlined,
-  FileTextOutlined,
   HomeOutlined,
-  MessageOutlined,
-  PlaySquareOutlined,
-  PlusOutlined,
-  QuestionCircleOutlined,
-  ReloadOutlined,
-  SearchOutlined,
-  SwapOutlined,
-  SyncOutlined,
-  ThunderboltOutlined,
-  ToolOutlined
+  PlusOutlined
 } from '@ant-design/icons';
 import { Button, Card, Empty, Select, Space, Switch, Typography } from 'antd';
 
@@ -30,6 +15,7 @@ import { NodeRunMetadataCard } from '../components/detail/last-run/NodeRunMetada
 import { NodeRunSummaryCard } from '../components/detail/last-run/NodeRunSummaryCard';
 import type { NodeLastRun } from '../api/runtime';
 import { getLlmModelProvider } from '../lib/llm-node-config';
+import { getAgentFlowNodeTypeIcon } from '../lib/node-type-icons';
 import {
   fetchModelProviderOptions,
   modelProviderOptionsQueryKey
@@ -48,23 +34,6 @@ function getNode(adapter: SchemaViewRendererProps['adapter']) {
     | null
     | undefined;
 }
-
-/** 节点类型 → 图标映射 */
-const NODE_TYPE_ICONS: Record<string, ReactNode> = {
-  start: <PlaySquareOutlined />,
-  answer: <MessageOutlined />,
-  llm: <ThunderboltOutlined />,
-  template_transform: <FileTextOutlined />,
-  knowledge_retrieval: <SearchOutlined />,
-  question_classifier: <QuestionCircleOutlined />,
-  if_else: <SwapOutlined />,
-  http_request: <ApiOutlined />,
-  tool: <ToolOutlined />,
-  variable_assigner: <EditOutlined />,
-  iteration: <SyncOutlined />,
-  loop: <ReloadOutlined />,
-  plugin_node: <BlockOutlined />
-};
 
 function renderSummaryView({ adapter, block }: SchemaViewRendererProps) {
   const node = getNode(adapter);
@@ -104,7 +73,7 @@ function renderCardEyebrowView({ adapter }: SchemaViewRendererProps) {
     return null;
   }
 
-  const typeIcon = NODE_TYPE_ICONS[node.type];
+  const typeIcon = getAgentFlowNodeTypeIcon(node.type);
 
   return (
     <div className="agent-flow-node-card__header">
