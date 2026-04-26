@@ -159,7 +159,8 @@ describe('ApplicationListPage', () => {
     renderPage();
 
     expect(await screen.findByText('客服助手', {}, { timeout: 10_000 })).toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: '编辑应用-客服助手' }));
+    fireEvent.mouseDown(screen.getByRole('button', { name: '更多操作-客服助手' }));
+    fireEvent.click(await screen.findByText('编辑信息'));
 
     const dialog = await screen.findByRole('dialog', undefined, { timeout: 10_000 });
     expect(within(dialog).getByText('编辑应用信息')).toBeInTheDocument();
@@ -185,5 +186,18 @@ describe('ApplicationListPage', () => {
       },
       { timeout: 10_000 }
     );
+  }, 15_000);
+
+  test('opens the application from the card link instead of a dedicated button', async () => {
+    renderPage();
+
+    expect(await screen.findByText('客服助手', {}, { timeout: 10_000 })).toBeInTheDocument();
+
+    expect(screen.queryByRole('button', { name: '进入应用' })).not.toBeInTheDocument();
+    expect(screen.getByRole('link', { name: '进入应用-客服助手' })).toHaveAttribute(
+      'href',
+      '/applications/app-1/orchestration'
+    );
+    expect(screen.getByRole('button', { name: '更多操作-客服助手' })).toBeInTheDocument();
   }, 15_000);
 });

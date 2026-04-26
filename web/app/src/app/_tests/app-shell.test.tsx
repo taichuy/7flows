@@ -95,7 +95,12 @@ describe('App shell', () => {
       expect(screen.queryByText('Workspace Bootstrap')).not.toBeInTheDocument();
       expect(screen.queryByRole('link', { name: 'Theme Preview' })).not.toBeInTheDocument();
       expect(await screen.findByText('Support Agent')).toBeInTheDocument();
-      expect(screen.getByRole('button', { name: '进入应用' })).toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: '进入应用' })).not.toBeInTheDocument();
+      expect(screen.getByRole('link', { name: '进入应用-Support Agent' })).toHaveAttribute(
+        'href',
+        '/applications/app-1/orchestration'
+      );
+      expect(screen.getByRole('button', { name: '更多操作-Support Agent' })).toBeInTheDocument();
       expect(screen.queryByText(/api-server/i)).not.toBeInTheDocument();
     },
     15000

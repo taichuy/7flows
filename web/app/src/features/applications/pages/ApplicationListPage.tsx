@@ -1,5 +1,18 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Button, Checkbox, Empty, Flex, Input, Result, Select, Space, Tag, Typography } from 'antd';
+import {
+  Button,
+  Checkbox,
+  Menu,
+  Empty,
+  Flex,
+  Input,
+  Result,
+  Select,
+  Space,
+  Tag,
+  Typography,
+  type MenuProps
+} from 'antd';
 import {
   AppstoreAddOutlined,
   AppstoreOutlined,
@@ -7,6 +20,7 @@ import {
   EditOutlined,
   FileTextOutlined,
   ImportOutlined,
+  MoreOutlined,
   RobotOutlined,
   SearchOutlined,
   TagOutlined
@@ -88,6 +102,7 @@ export function ApplicationListPage() {
   const [myCreated, setMyCreated] = useState(false);
   const [editingApplicationId, setEditingApplicationId] = useState<string | null>(null);
   const [taggingApplicationId, setTaggingApplicationId] = useState<string | null>(null);
+  const [openActionApplicationId, setOpenActionApplicationId] = useState<string | null>(null);
   const [optimisticTags, setOptimisticTags] = useState<ApplicationTagCatalogEntry[]>([]);
 
   const applicationsQuery = useQuery({
@@ -272,11 +287,21 @@ export function ApplicationListPage() {
         {visibleApplications.map((application) => {
           const canEdit = canEditApplication(application);
           const typeLabel = typeLabels.get(application.application_type) ?? application.application_type;
+          const applicationHref = `/applications/${application.id}/orchestration`;
+          const actionItems: MenuProps['items'] = [
+            {
+              key: 'edit',
+              icon: <EditOutlined />,
+              label: '编辑信息',
+              disabled: !canEdit
+            }
+          ];
 
           return (
             <div
               key={application.id}
               style={{
+                position: 'relative',
                 background: '#ffffff',
                 borderRadius: 18,
                 padding: 18,
@@ -287,58 +312,74 @@ export function ApplicationListPage() {
                 boxShadow: '0 12px 32px rgba(15, 23, 42, 0.06)'
               }}
             >
-              <Flex align="flex-start" gap={12} style={{ marginBottom: 16 }}>
-                <div
-                  style={{
-                    width: 44,
-                    height: 44,
-                    borderRadius: 12,
-                    background: '#eef6ff',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    fontSize: 20,
-                    color: '#2563eb'
-                  }}
-                >
-                  {applicationTypeIcon(application.application_type)}
-                </div>
-                <div style={{ flex: 1 }}>
-                  <Typography.Title level={5} style={{ margin: 0, color: '#0f172a' }}>
-                    {application.name}
-                  </Typography.Title>
-                  <Typography.Text type="secondary">
-                    {typeLabel} · 编辑于{' '}
-                    {new Date(application.updated_at).toLocaleString('zh-CN', {
-                      year: 'numeric',
-                      month: '2-digit',
-                      day: '2-digit',
-                      hour: '2-digit',
-                      minute: '2-digit'
-                    })}
-                  </Typography.Text>
-                </div>
-              </Flex>
+              <a
+                href={applicationHref}
+                aria-label={`进入应用-${application.name}`}
+                style={{
+                  position: 'absolute',
+                  inset: 0,
+                  zIndex: 1,
+                  borderRadius: 18
+                }}
+              />
+              <div style={{ position: 'relative', zIndex: 2, pointerEvents: 'none' }}>
+                <Flex align="flex-start" gap={12} style={{ marginBottom: 16 }}>
+                  <div
+                    style={{
+                      width: 44,
+                      height: 44,
+                      borderRadius: 12,
+                      background: '#eef6ff',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      fontSize: 20,
+                      color: '#2563eb'
+                    }}
+                  >
+                    {applicationTypeIcon(application.application_type)}
+                  </div>
+                  <div style={{ flex: 1 }}>
+                    <Typography.Title level={5} style={{ margin: 0, color: '#0f172a' }}>
+                      {application.name}
+                    </Typography.Title>
+                    <Typography.Text type="secondary">
+                      {typeLabel} · 编辑于{' '}
+                      {new Date(application.updated_at).toLocaleString('zh-CN', {
+                        year: 'numeric',
+                        month: '2-digit',
+                        day: '2-digit',
+                        hour: '2-digit',
+                        minute: '2-digit'
+                      })}
+                    </Typography.Text>
+                  </div>
+                </Flex>
 
-              <Typography.Paragraph style={{ color: '#334155', minHeight: 44 }}>
-                {application.description || '当前应用尚未填写简介。'}
-              </Typography.Paragraph>
+                <Typography.Paragraph style={{ color: '#334155', minHeight: 44 }}>
+                  {application.description || '当前应用尚未填写简介。'}
+                </Typography.Paragraph>
 
-              <Flex wrap gap={8} style={{ minHeight: 32, marginBottom: 16 }}>
-                {application.tags.length === 0 ? (
-                  <Tag bordered={false} color="default">
-                    暂无标签
-                  </Tag>
-                ) : (
-                  application.tags.map((tag) => (
-                    <Tag key={tag.id} bordered={false} color="blue">
-                      {tag.name}
+                <Flex wrap gap={8} style={{ minHeight: 32, marginBottom: 16 }}>
+                  {application.tags.length === 0 ? (
+                    <Tag bordered={false} color="default">
+                      暂无标签
                     </Tag>
-                  ))
-                )}
-              </Flex>
+                  ) : (
+                    application.tags.map((tag) => (
+                      <Tag key={tag.id} bordered={false} color="blue">
+                        {tag.name}
+                      </Tag>
+                    ))
+                  )}
+                </Flex>
+              </div>
 
-              <Flex justify="space-between" align="center" style={{ marginTop: 'auto' }}>
+              <Flex
+                justify="space-between"
+                align="center"
+                style={{ position: 'relative', zIndex: 3, marginTop: 'auto' }}
+              >
                 <Space size="small" wrap>
                   <Button
                     size="small"
@@ -349,19 +390,63 @@ export function ApplicationListPage() {
                   >
                     管理标签
                   </Button>
-                  <Button
-                    size="small"
-                    icon={<EditOutlined />}
-                    aria-label={`编辑应用-${application.name}`}
-                    onClick={() => setEditingApplicationId(application.id)}
-                    disabled={!canEdit}
-                  >
-                    编辑应用
-                  </Button>
                 </Space>
-                <a href={`/applications/${application.id}/orchestration`}>
-                  <Button type="primary">进入应用</Button>
-                </a>
+                <div style={{ position: 'relative' }}>
+                  <Button
+                    type="text"
+                    icon={<MoreOutlined />}
+                    aria-label={`更多操作-${application.name}`}
+                    aria-expanded={openActionApplicationId === application.id}
+                    onMouseDown={(event) => {
+                      event.preventDefault();
+                      setOpenActionApplicationId((current) =>
+                        current === application.id ? null : application.id
+                      );
+                    }}
+                    onKeyDown={(event) => {
+                      if (event.key !== 'Enter' && event.key !== ' ') {
+                        return;
+                      }
+                      event.preventDefault();
+                      setOpenActionApplicationId((current) =>
+                        current === application.id ? null : application.id
+                      );
+                    }}
+                    style={{
+                      width: 40,
+                      height: 40,
+                      borderRadius: 8,
+                      background: '#f1f5f9'
+                    }}
+                  />
+                  {openActionApplicationId === application.id ? (
+                    <div
+                      style={{
+                        position: 'absolute',
+                        top: 44,
+                        right: 0,
+                        zIndex: 10,
+                        width: 180,
+                        overflow: 'hidden',
+                        background: '#ffffff',
+                        border: '1px solid #e2e8f0',
+                        borderRadius: 8,
+                        boxShadow: '0 16px 36px rgba(15, 23, 42, 0.12)'
+                      }}
+                    >
+                      <Menu
+                        selectable={false}
+                        items={actionItems}
+                        onClick={({ key }) => {
+                          if (key === 'edit' && canEdit) {
+                            setEditingApplicationId(application.id);
+                          }
+                          setOpenActionApplicationId(null);
+                        }}
+                      />
+                    </div>
+                  ) : null}
+                </div>
               </Flex>
             </div>
           );
