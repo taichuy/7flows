@@ -1,5 +1,5 @@
 import { Button, Typography } from 'antd';
-import { CodeOutlined } from '@ant-design/icons';
+import { ThunderboltTwoTone } from '@ant-design/icons';
 import { useRef } from 'react';
 
 import {
@@ -38,7 +38,7 @@ export function TemplatedTextField({
         <Button
           type="text"
           size="small"
-          icon={<CodeOutlined />}
+          icon={<ThunderboltTwoTone />}
           disabled={options.length === 0}
           aria-label="插入变量"
           onClick={() => editorRef.current?.openVariablePicker()}
