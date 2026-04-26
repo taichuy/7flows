@@ -174,6 +174,12 @@ describe('node last run runtime', () => {
     expect(await screen.findByText('运行摘要')).toBeInTheDocument();
     expect(await screen.findByText('debug_node_preview')).toBeInTheDocument();
     expect(await screen.findByLabelText('输入 JSON')).toHaveTextContent('总结退款政策');
+
+    fireEvent.click(screen.getByRole('button', { name: /查看缓存/ }));
+
+    expect(await screen.findByRole('region', { name: '变量缓存' })).toBeInTheDocument();
+    expect(screen.getByText('node-start.query')).toBeInTheDocument();
+    expect(screen.getByText('总结退款政策')).toBeInTheDocument();
   }, 30_000);
 
   test('asks for referenced variables before running when cache is empty', async () => {

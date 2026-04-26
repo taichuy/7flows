@@ -5,6 +5,7 @@ import type {
   SaveConsoleApplicationDraftInput
 } from '@1flowbase/api-client';
 import type { FlowAuthoringDocument } from '@1flowbase/flow-schema';
+import { CloseOutlined, EyeOutlined } from '@ant-design/icons';
 import { Button, Typography } from 'antd';
 import {
   useEffect,
@@ -49,6 +50,7 @@ import {
   selectWorkingDocument
 } from '../../store/editor/selectors';
 import { AgentFlowDebugConsole } from '../debug-console/AgentFlowDebugConsole';
+import { DebugVariablesPane } from '../debug-console/variables/DebugVariablesPane';
 import { NodeDetailPanel } from '../detail/NodeDetailPanel';
 import { NodePreviewVariablesModal } from '../detail/NodePreviewVariablesModal';
 import { VersionHistoryDrawer } from '../history/VersionHistoryDrawer';
@@ -128,6 +130,7 @@ export function AgentFlowCanvasFrame({
     nodeId: string;
     plan: NodeDebugPreviewPlan;
   } | null>(null);
+  const [variableCacheOpen, setVariableCacheOpen] = useState(false);
   const modelProviderOptionsQuery = useQuery({
     queryKey: modelProviderOptionsQueryKey,
     queryFn: fetchModelProviderOptions
@@ -557,7 +560,40 @@ export function AgentFlowCanvasFrame({
               onRunNode={selectedNodeId ? handleRunSelectedNode : undefined}
               runLoading={nodePreviewMutation.isPending}
             />
+            <Button
+              className="agent-flow-editor__variable-cache-trigger"
+              icon={<EyeOutlined />}
+              size="small"
+              type="primary"
+              onClick={() => setVariableCacheOpen(true)}
+            >
+              查看缓存
+            </Button>
           </div>
+        ) : null}
+        {variableCacheOpen ? (
+          <section
+            aria-label="变量缓存"
+            className="agent-flow-editor__variable-cache-panel"
+          >
+            <header className="agent-flow-editor__variable-cache-header">
+              <div className="agent-flow-editor__variable-cache-title">
+                <Typography.Text strong>变量缓存</Typography.Text>
+                <Typography.Text type="secondary">
+                  当前编排页内存中的试运行变量。
+                </Typography.Text>
+              </div>
+              <Button
+                aria-label="关闭变量缓存"
+                icon={<CloseOutlined />}
+                type="text"
+                onClick={() => setVariableCacheOpen(false)}
+              />
+            </header>
+            <div className="agent-flow-editor__variable-cache-body">
+              <DebugVariablesPane groups={debugSession.variableGroups} />
+            </div>
+          </section>
         ) : null}
         {debugConsoleOpen ? (
           <div
