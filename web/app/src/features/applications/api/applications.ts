@@ -1,6 +1,7 @@
 import {
   createConsoleApplication,
   createConsoleApplicationTag,
+  deleteConsoleApplication,
   getConsoleApplication,
   getConsoleApplicationCatalog,
   getDefaultApiBaseUrl,
@@ -62,6 +63,10 @@ export function updateApplication(
   csrfToken: string
 ) {
   return updateConsoleApplication(applicationId, input, csrfToken, getApplicationsApiBaseUrl());
+}
+
+export function deleteApplication(applicationId: string, csrfToken: string) {
+  return deleteConsoleApplication(applicationId, csrfToken, getApplicationsApiBaseUrl());
 }
 
 export function createApplicationTag(input: CreateApplicationTagInput, csrfToken: string) {

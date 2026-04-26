@@ -9,7 +9,7 @@ use axum::{
 use control_plane::{
     application::{
         ApplicationService, CreateApplicationCommand, CreateApplicationTagCommand,
-        UpdateApplicationCommand,
+        DeleteApplicationCommand, UpdateApplicationCommand,
     },
     errors::ControlPlaneError,
 };
@@ -155,7 +155,9 @@ pub fn router() -> Router<Arc<ApiState>> {
         )
         .route(
             "/applications/:id",
-            get(get_application).patch(patch_application),
+            get(get_application)
+                .patch(patch_application)
+                .delete(delete_application),
         )
 }
 
@@ -467,4 +469,35 @@ pub async fn patch_application(
         .await?;
 
     Ok(Json(ApiSuccess::new(to_application_detail(updated))))
+}
+
+#[utoipa::path(
+    delete,
+    path = "/api/console/applications/{id}",
+    params(
+        ("id" = String, Path, description = "Application id")
+    ),
+    responses(
+        (status = 204),
+        (status = 401, body = crate::error_response::ErrorBody),
+        (status = 403, body = crate::error_response::ErrorBody),
+        (status = 404, body = crate::error_response::ErrorBody)
+    )
+)]
+pub async fn delete_application(
+    State(state): State<Arc<ApiState>>,
+    headers: HeaderMap,
+    Path(id): Path<Uuid>,
+) -> Result<StatusCode, ApiError> {
+    let context = require_session(&state, &headers).await?;
+    require_csrf(&headers, &context.session)?;
+
+    ApplicationService::new(state.store.clone())
+        .delete_application(DeleteApplicationCommand {
+            actor_user_id: context.user.id,
+            application_id: id,
+        })
+        .await?;
+
+    Ok(StatusCode::NO_CONTENT)
 }

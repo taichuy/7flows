@@ -1,6 +1,6 @@
 use control_plane::application::{
     ApplicationService, CreateApplicationCommand, CreateApplicationTagCommand,
-    UpdateApplicationCommand,
+    DeleteApplicationCommand, UpdateApplicationCommand,
 };
 use domain::ApplicationType;
 use uuid::Uuid;
@@ -156,4 +156,72 @@ async fn update_application_replaces_basic_metadata_and_tags() {
     assert_eq!(updated.description, "updated");
     assert_eq!(updated.tags.len(), 1);
     assert_eq!(updated.tags[0].name, "客服");
+}
+
+#[tokio::test]
+async fn delete_application_requires_delete_permission() {
+    let service = ApplicationService::for_tests_with_permissions(vec![
+        "application.view.own",
+        "application.create.all",
+        "application.edit.own",
+    ]);
+    let created = service
+        .create_application(CreateApplicationCommand {
+            actor_user_id: Uuid::nil(),
+            application_type: ApplicationType::AgentFlow,
+            name: "Original".into(),
+            description: "original".into(),
+            icon: None,
+            icon_type: None,
+            icon_background: None,
+        })
+        .await
+        .unwrap();
+
+    let error = service
+        .delete_application(DeleteApplicationCommand {
+            actor_user_id: Uuid::nil(),
+            application_id: created.id,
+        })
+        .await
+        .unwrap_err();
+
+    assert!(error.to_string().contains("permission_denied"));
+}
+
+#[tokio::test]
+async fn delete_application_removes_visible_record_and_writes_audit_log() {
+    let service = ApplicationService::for_tests_with_permissions(vec![
+        "application.view.own",
+        "application.create.all",
+        "application.delete.own",
+    ]);
+    let created = service
+        .create_application(CreateApplicationCommand {
+            actor_user_id: Uuid::nil(),
+            application_type: ApplicationType::AgentFlow,
+            name: "Disposable".into(),
+            description: "delete me".into(),
+            icon: None,
+            icon_type: None,
+            icon_background: None,
+        })
+        .await
+        .unwrap();
+
+    service
+        .delete_application(DeleteApplicationCommand {
+            actor_user_id: Uuid::nil(),
+            application_id: created.id,
+        })
+        .await
+        .unwrap();
+
+    let visible = service.list_applications(Uuid::nil()).await.unwrap();
+    assert!(visible
+        .iter()
+        .all(|application| application.id != created.id));
+    assert!(service
+        .audit_events()
+        .contains(&"application.deleted".to_string()));
 }

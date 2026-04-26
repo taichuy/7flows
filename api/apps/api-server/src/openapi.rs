@@ -11,6 +11,7 @@ use utoipa::OpenApi;
         crate::routes::applications::create_application_tag,
         crate::routes::applications::get_application,
         crate::routes::applications::patch_application,
+        crate::routes::applications::delete_application,
         crate::routes::application_orchestration::get_orchestration,
         crate::routes::application_orchestration::save_draft,
         crate::routes::application_orchestration::restore_version,

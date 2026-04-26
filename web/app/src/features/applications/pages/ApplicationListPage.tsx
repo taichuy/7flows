@@ -6,6 +6,7 @@ import {
   Flex,
   Input,
   Menu,
+  Modal,
   message,
   Result,
   Select,
@@ -37,6 +38,7 @@ import {
   applicationsQueryKey,
   createApplication,
   createApplicationTag,
+  deleteApplication,
   fetchApplicationCatalog,
   fetchApplications,
   type Application,
@@ -103,6 +105,7 @@ export function ApplicationListPage() {
   const csrfToken = useAuthStore((state) => state.csrfToken);
   const queryClient = useQueryClient();
   const [messageApi, messageContextHolder] = message.useMessage();
+  const [modalApi, modalContextHolder] = Modal.useModal();
 
   const [keyword, setKeyword] = useState('');
   const [typeFilter, setTypeFilter] = useState<ApplicationTypeFilter>('all');
@@ -162,6 +165,20 @@ export function ApplicationListPage() {
     }
   });
 
+  const deleteApplicationMutation = useMutation({
+    mutationFn: (application: Application) => deleteApplication(application.id, csrfToken ?? ''),
+    onSuccess: async () => {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: applicationsQueryKey }),
+        queryClient.invalidateQueries({ queryKey: applicationCatalogQueryKey })
+      ]);
+      messageApi.success('已删除应用');
+    },
+    onError: () => {
+      messageApi.error('删除应用失败');
+    }
+  });
+
   const createApplicationTagMutation = useMutation({
     mutationFn: (input: { name: string }) => createApplicationTag(input, csrfToken ?? ''),
     onSuccess: async (createdTag) => {
@@ -176,6 +193,8 @@ export function ApplicationListPage() {
   const canCreate = isRoot || Boolean(me?.permissions.includes('application.create.all'));
   const canEditAny = isRoot || Boolean(me?.permissions.includes('application.edit.all'));
   const canEditOwn = Boolean(me?.permissions.includes('application.edit.own'));
+  const canDeleteAny = isRoot || Boolean(me?.permissions.includes('application.delete.all'));
+  const canDeleteOwn = Boolean(me?.permissions.includes('application.delete.own'));
   const normalizedKeyword = keyword.trim().toLowerCase();
 
   if (applicationsQuery.isPending || applicationCatalogQuery.isPending) {
@@ -214,6 +233,20 @@ export function ApplicationListPage() {
   const canEditApplication = (application: Application) =>
     canEditAny || (canEditOwn && application.created_by === actor?.id);
 
+  const canDeleteApplication = (application: Application) =>
+    canDeleteAny || (canDeleteOwn && application.created_by === actor?.id);
+
+  const confirmDeleteApplication = (application: Application) => {
+    modalApi.confirm({
+      title: '删除应用',
+      content: '删除后将一并删除“' + application.name + '”相关的编排、草稿、运行记录和标签绑定。',
+      okText: '删除',
+      okButtonProps: { danger: true },
+      cancelText: '取消',
+      onOk: () => deleteApplicationMutation.mutateAsync(application)
+    });
+  };
+
   const handleUpdateApplication = async (
     application: Application,
     input: { name: string; description: string; tag_ids: string[] }
@@ -227,6 +260,7 @@ export function ApplicationListPage() {
   return (
     <div style={{ padding: '24px 0', width: '100%', maxWidth: 1240, margin: '0 auto' }}>
       {messageContextHolder}
+      {modalContextHolder}
       <Flex justify="space-between" align="center" wrap="wrap" gap={16} style={{ marginBottom: 24 }}>
         <Space size="small" wrap>
           {typeTabs.map((tab) => (
@@ -318,6 +352,7 @@ export function ApplicationListPage() {
 
         {visibleApplications.map((application) => {
           const canEdit = canEditApplication(application);
+          const canDelete = canDeleteApplication(application);
           const typeLabel = typeLabels.get(application.application_type) ?? application.application_type;
           const applicationHref = `/applications/${application.id}/orchestration`;
           const actionItems: MenuProps['items'] = [
@@ -338,7 +373,7 @@ export function ApplicationListPage() {
               icon: <DeleteOutlined />,
               label: '删除',
               danger: true,
-              disabled: true
+              disabled: !canDelete || deleteApplicationMutation.isPending
             }
           ];
 
@@ -488,6 +523,9 @@ export function ApplicationListPage() {
                           }
                           if (key === 'edit' && canEdit) {
                             setEditingApplicationId(application.id);
+                          }
+                          if (key === 'delete' && canDelete) {
+                            confirmDeleteApplication(application);
                           }
                           setOpenActionApplicationId(null);
                         }}

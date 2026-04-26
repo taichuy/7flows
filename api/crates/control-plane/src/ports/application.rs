@@ -29,6 +29,13 @@ pub struct UpdateApplicationInput {
 }
 
 #[derive(Debug, Clone)]
+pub struct DeleteApplicationInput {
+    pub actor_user_id: Uuid,
+    pub workspace_id: Uuid,
+    pub application_id: Uuid,
+}
+
+#[derive(Debug, Clone)]
 pub struct CreateApplicationTagInput {
     pub actor_user_id: Uuid,
     pub workspace_id: Uuid,
@@ -55,6 +62,7 @@ pub trait ApplicationRepository: Send + Sync {
         &self,
         input: &UpdateApplicationInput,
     ) -> anyhow::Result<domain::ApplicationRecord>;
+    async fn delete_application(&self, input: &DeleteApplicationInput) -> anyhow::Result<()>;
     async fn get_application(
         &self,
         workspace_id: Uuid,

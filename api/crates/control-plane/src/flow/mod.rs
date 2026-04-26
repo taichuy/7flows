@@ -13,7 +13,7 @@ use crate::{
     errors::ControlPlaneError,
     ports::{
         ApplicationRepository, ApplicationVisibility, CreateApplicationInput,
-        CreateApplicationTagInput, FlowRepository, UpdateApplicationInput,
+        CreateApplicationTagInput, DeleteApplicationInput, FlowRepository, UpdateApplicationInput,
     },
 };
 
@@ -174,6 +174,10 @@ impl ApplicationRepository for InMemoryFlowRepository {
         input: &CreateApplicationInput,
     ) -> Result<domain::ApplicationRecord> {
         ApplicationRepository::create_application(&self.applications, input).await
+    }
+
+    async fn delete_application(&self, input: &DeleteApplicationInput) -> Result<()> {
+        ApplicationRepository::delete_application(&self.applications, input).await
     }
 
     async fn get_application(

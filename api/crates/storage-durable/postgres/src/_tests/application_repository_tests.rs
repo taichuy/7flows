@@ -1,4 +1,6 @@
-use control_plane::ports::{ApplicationRepository, ApplicationVisibility, CreateApplicationInput};
+use control_plane::ports::{
+    ApplicationRepository, ApplicationVisibility, CreateApplicationInput, DeleteApplicationInput,
+};
 use sqlx::PgPool;
 use storage_postgres::{connect, run_migrations, PgControlPlaneStore};
 use uuid::Uuid;
@@ -179,4 +181,134 @@ async fn get_application_returns_section_hooks_with_null_runtime_targets() {
     assert_eq!(detail.sections.logs.status, "planned");
     assert_eq!(detail.sections.logs.runs_capability_status, "planned");
     assert_eq!(detail.sections.orchestration.current_draft_id, None);
+}
+
+#[tokio::test]
+async fn delete_application_cascades_flow_runtime_and_tag_bindings() {
+    let pool = connect(&isolated_database_url().await).await.unwrap();
+    run_migrations(&pool).await.unwrap();
+    let store = PgControlPlaneStore::new(pool);
+    let workspace_id = seed_workspace(&store, "Applications Delete").await;
+    let actor_user_id = seed_user(&store, workspace_id, "delete").await;
+    let created = <PgControlPlaneStore as ApplicationRepository>::create_application(
+        &store,
+        &CreateApplicationInput {
+            actor_user_id,
+            workspace_id,
+            application_type: domain::ApplicationType::AgentFlow,
+            name: "Delete App".into(),
+            description: "delete".into(),
+            icon: None,
+            icon_type: None,
+            icon_background: None,
+        },
+    )
+    .await
+    .unwrap();
+
+    let tag_id = Uuid::now_v7();
+    sqlx::query(
+        r#"
+        insert into application_tags (id, workspace_id, name, normalized_name, created_by, updated_by)
+        values ($1, $2, '客服', '客服', $3, $3)
+        "#,
+    )
+    .bind(tag_id)
+    .bind(workspace_id)
+    .bind(actor_user_id)
+    .execute(store.pool())
+    .await
+    .unwrap();
+    sqlx::query(
+        "insert into application_tag_bindings (application_id, tag_id, created_by) values ($1, $2, $3)",
+    )
+    .bind(created.id)
+    .bind(tag_id)
+    .bind(actor_user_id)
+    .execute(store.pool())
+    .await
+    .unwrap();
+
+    let flow_id = Uuid::now_v7();
+    let draft_id = Uuid::now_v7();
+    let plan_id = Uuid::now_v7();
+    let run_id = Uuid::now_v7();
+    sqlx::query(
+        "insert into flows (id, application_id, created_by, updated_by) values ($1, $2, $3, $3)",
+    )
+    .bind(flow_id)
+    .bind(created.id)
+    .bind(actor_user_id)
+    .execute(store.pool())
+    .await
+    .unwrap();
+    sqlx::query(
+        r#"
+        insert into flow_drafts (id, flow_id, schema_version, document, updated_by)
+        values ($1, $2, '1', '{}'::jsonb, $3)
+        "#,
+    )
+    .bind(draft_id)
+    .bind(flow_id)
+    .bind(actor_user_id)
+    .execute(store.pool())
+    .await
+    .unwrap();
+    sqlx::query(
+        r#"
+        insert into flow_compiled_plans (
+            id, flow_id, flow_draft_id, schema_version, document_updated_at, plan, created_by
+        ) values ($1, $2, $3, '1', now(), '{}'::jsonb, $4)
+        "#,
+    )
+    .bind(plan_id)
+    .bind(flow_id)
+    .bind(draft_id)
+    .bind(actor_user_id)
+    .execute(store.pool())
+    .await
+    .unwrap();
+    sqlx::query(
+        r#"
+        insert into flow_runs (
+            id, application_id, flow_id, flow_draft_id, compiled_plan_id, run_mode, status,
+            created_by
+        ) values ($1, $2, $3, $4, $5, 'debug_node_preview', 'succeeded', $6)
+        "#,
+    )
+    .bind(run_id)
+    .bind(created.id)
+    .bind(flow_id)
+    .bind(draft_id)
+    .bind(plan_id)
+    .bind(actor_user_id)
+    .execute(store.pool())
+    .await
+    .unwrap();
+
+    <PgControlPlaneStore as ApplicationRepository>::delete_application(
+        &store,
+        &DeleteApplicationInput {
+            actor_user_id,
+            workspace_id,
+            application_id: created.id,
+        },
+    )
+    .await
+    .unwrap();
+
+    for table in [
+        "applications",
+        "application_tag_bindings",
+        "flows",
+        "flow_drafts",
+        "flow_compiled_plans",
+        "flow_runs",
+    ] {
+        let count: i64 = sqlx::query_scalar(&format!("select count(*)::bigint from {table}"))
+            .fetch_one(store.pool())
+            .await
+            .unwrap();
+        assert_eq!(count, 0, "{table} should be empty after application delete");
+    }
 }

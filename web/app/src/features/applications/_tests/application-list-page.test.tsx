@@ -8,6 +8,7 @@ const applicationsApi = vi.hoisted(() => ({
   fetchApplicationCatalog: vi.fn(),
   createApplication: vi.fn(),
   createApplicationTag: vi.fn(),
+  deleteApplication: vi.fn(),
   updateApplication: vi.fn()
 }));
 
@@ -36,7 +37,12 @@ function authenticate() {
       avatar_url: null,
       introduction: '',
       effective_display_role: 'root',
-      permissions: ['application.create.all', 'application.edit.own', 'application.view.all']
+      permissions: [
+        'application.create.all',
+        'application.delete.own',
+        'application.edit.own',
+        'application.view.all'
+      ]
     }
   });
 }
@@ -92,6 +98,7 @@ describe('ApplicationListPage', () => {
       name: '内部',
       application_count: 0
     });
+    applicationsApi.deleteApplication.mockResolvedValue(undefined);
     applicationsApi.updateApplication.mockResolvedValue(undefined);
   });
 
@@ -201,16 +208,12 @@ describe('ApplicationListPage', () => {
     expect(screen.getByRole('button', { name: '更多操作-客服助手' })).toBeInTheDocument();
   }, 15_000);
 
-  test('copies application metadata from the card action and keeps delete disabled', async () => {
+  test('copies application metadata from the card action', async () => {
     renderPage();
 
     expect(await screen.findByText('客服助手', {}, { timeout: 10_000 })).toBeInTheDocument();
     fireEvent.mouseDown(screen.getByRole('button', { name: '更多操作-客服助手' }));
 
-    expect((await screen.findByText('删除')).closest('.ant-menu-item')).toHaveAttribute(
-      'aria-disabled',
-      'true'
-    );
     fireEvent.click(screen.getByText('复制'));
 
     await waitFor(
@@ -226,6 +229,25 @@ describe('ApplicationListPage', () => {
           },
           'csrf-123'
         );
+      },
+      { timeout: 10_000 }
+    );
+  }, 15_000);
+
+  test('confirms and deletes an application from the card action', async () => {
+    renderPage();
+
+    expect(await screen.findByText('客服助手', {}, { timeout: 10_000 })).toBeInTheDocument();
+    fireEvent.mouseDown(screen.getByRole('button', { name: '更多操作-客服助手' }));
+    fireEvent.click(await screen.findByText('删除'));
+
+    const dialog = await screen.findByRole('dialog', undefined, { timeout: 10_000 });
+    expect(within(dialog).getByText(/相关的编排、草稿、运行记录和标签绑定/)).toBeInTheDocument();
+    fireEvent.click(within(dialog).getByRole('button', { name: /删\s*除/ }));
+
+    await waitFor(
+      () => {
+        expect(applicationsApi.deleteApplication).toHaveBeenCalledWith('app-1', 'csrf-123');
       },
       { timeout: 10_000 }
     );

@@ -628,6 +628,10 @@ impl ApplicationRepository for InMemoryOrchestrationRuntimeRepository {
         ApplicationRepository::update_application(&self.flow, input).await
     }
 
+    async fn delete_application(&self, input: &DeleteApplicationInput) -> Result<()> {
+        ApplicationRepository::delete_application(&self.flow, input).await
+    }
+
     async fn get_application(
         &self,
         workspace_id: Uuid,

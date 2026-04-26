@@ -13,7 +13,7 @@ use crate::{
     errors::ControlPlaneError,
     ports::{
         ApplicationRepository, ApplicationVisibility, CreateApplicationInput,
-        CreateApplicationTagInput, UpdateApplicationInput,
+        CreateApplicationTagInput, DeleteApplicationInput, UpdateApplicationInput,
     },
 };
 
@@ -33,6 +33,11 @@ pub struct UpdateApplicationCommand {
     pub name: String,
     pub description: String,
     pub tag_ids: Vec<Uuid>,
+}
+
+pub struct DeleteApplicationCommand {
+    pub actor_user_id: Uuid,
+    pub application_id: Uuid,
 }
 
 pub struct CreateApplicationTagCommand {
@@ -152,6 +157,43 @@ where
         Ok(updated)
     }
 
+    pub async fn delete_application(&self, command: DeleteApplicationCommand) -> Result<()> {
+        let actor = self
+            .repository
+            .load_actor_context_for_user(command.actor_user_id)
+            .await?;
+        let application = self
+            .repository
+            .get_application(actor.current_workspace_id, command.application_id)
+            .await?
+            .ok_or(ControlPlaneError::NotFound("application"))?;
+
+        ensure_application_delete_permission(&actor, &application)?;
+
+        self.repository
+            .delete_application(&DeleteApplicationInput {
+                actor_user_id: command.actor_user_id,
+                workspace_id: actor.current_workspace_id,
+                application_id: command.application_id,
+            })
+            .await?;
+        self.repository
+            .append_audit_log(&audit_log(
+                Some(actor.current_workspace_id),
+                Some(command.actor_user_id),
+                "application",
+                Some(application.id),
+                "application.deleted",
+                serde_json::json!({
+                    "application_type": application.application_type.as_str(),
+                    "name": application.name,
+                }),
+            ))
+            .await?;
+
+        Ok(())
+    }
+
     pub async fn list_application_tags(
         &self,
         actor_user_id: Uuid,
@@ -253,6 +295,21 @@ fn ensure_application_edit_permission(
     }
 
     if actor.has_permission("application.edit.own") && application.created_by == actor.user_id {
+        return Ok(());
+    }
+
+    Err(ControlPlaneError::PermissionDenied("permission_denied"))
+}
+
+fn ensure_application_delete_permission(
+    actor: &domain::ActorContext,
+    application: &domain::ApplicationRecord,
+) -> Result<(), ControlPlaneError> {
+    if actor.is_root || actor.has_permission("application.delete.all") {
+        return Ok(());
+    }
+
+    if actor.has_permission("application.delete.own") && application.created_by == actor.user_id {
         return Ok(());
     }
 
@@ -436,6 +493,21 @@ impl ApplicationRepository for InMemoryApplicationRepository {
         Ok(application.clone())
     }
 
+    async fn delete_application(&self, input: &DeleteApplicationInput) -> Result<()> {
+        let deleted = self
+            .inner
+            .lock()
+            .expect("in-memory app repo mutex poisoned")
+            .applications
+            .remove(&input.application_id);
+
+        if deleted.is_none() {
+            return Err(ControlPlaneError::NotFound("application").into());
+        }
+
+        Ok(())
+    }
+
     async fn get_application(
         &self,
         workspace_id: Uuid,
@@ -582,5 +654,14 @@ impl ApplicationService<InMemoryApplicationRepository> {
 
     pub fn seed_foreign_application(&self, name: &str) -> domain::ApplicationRecord {
         self.repository.insert_application(Uuid::now_v7(), name)
+    }
+
+    pub fn audit_events(&self) -> Vec<String> {
+        self.repository
+            .inner
+            .lock()
+            .expect("in-memory app repo mutex poisoned")
+            .audit_events
+            .clone()
     }
 }

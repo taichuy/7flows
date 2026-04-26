@@ -7,6 +7,7 @@ vi.mock('@1flowbase/api-client', () => ({
   createConsoleApplicationTag: vi.fn().mockResolvedValue({
     id: 'tag-1'
   }),
+  deleteConsoleApplication: vi.fn().mockResolvedValue(undefined),
   getConsoleApplication: vi.fn().mockResolvedValue({
     id: 'app-1'
   }),
@@ -24,6 +25,7 @@ vi.mock('@1flowbase/api-client', () => ({
 import {
   createConsoleApplication,
   createConsoleApplicationTag,
+  deleteConsoleApplication,
   getConsoleApplication,
   getConsoleApplicationCatalog,
   getDefaultApiBaseUrl,
@@ -34,6 +36,7 @@ import {
 import {
   createApplication,
   createApplicationTag,
+  deleteApplication,
   fetchApplicationCatalog,
   fetchApplicationDetail,
   fetchApplications,
@@ -77,6 +80,7 @@ describe('applications api', () => {
     await fetchApplicationCatalog();
     await fetchApplicationDetail('app-1');
     await createApplication(input, 'csrf-123');
+    await deleteApplication('app-1', 'csrf-123');
     await updateApplication(
       'app-1',
       {
@@ -93,6 +97,11 @@ describe('applications api', () => {
     expect(getConsoleApplication).toHaveBeenCalledWith('app-1', 'http://127.0.0.1:7800');
     expect(createConsoleApplication).toHaveBeenCalledWith(
       input,
+      'csrf-123',
+      'http://127.0.0.1:7800'
+    );
+    expect(deleteConsoleApplication).toHaveBeenCalledWith(
+      'app-1',
       'csrf-123',
       'http://127.0.0.1:7800'
     );

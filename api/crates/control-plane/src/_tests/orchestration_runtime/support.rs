@@ -20,7 +20,7 @@ use crate::{
     flow::InMemoryFlowRepository,
     ports::{
         ApplicationVisibility, CreateApplicationInput, CreateApplicationTagInput,
-        UpdateApplicationInput,
+        DeleteApplicationInput, UpdateApplicationInput,
     },
 };
 

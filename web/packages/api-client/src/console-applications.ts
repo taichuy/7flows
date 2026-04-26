@@ -1,4 +1,4 @@
-import { apiFetch } from './transport';
+import { apiFetch, apiFetchVoid } from './transport';
 
 export type ConsoleApplicationType = 'agent_flow' | 'workflow';
 
@@ -137,6 +137,19 @@ export function updateConsoleApplication(
     path: `/api/console/applications/${applicationId}`,
     method: 'PATCH',
     body: input,
+    csrfToken,
+    baseUrl
+  });
+}
+
+export function deleteConsoleApplication(
+  applicationId: string,
+  csrfToken: string,
+  baseUrl?: string
+): Promise<void> {
+  return apiFetchVoid({
+    path: `/api/console/applications/${applicationId}`,
+    method: 'DELETE',
     csrfToken,
     baseUrl
   });

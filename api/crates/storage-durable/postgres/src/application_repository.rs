@@ -3,7 +3,7 @@ use async_trait::async_trait;
 use control_plane::errors::ControlPlaneError;
 use control_plane::ports::{
     ApplicationRepository, ApplicationVisibility, AuthRepository, CreateApplicationInput,
-    CreateApplicationTagInput, UpdateApplicationInput,
+    CreateApplicationTagInput, DeleteApplicationInput, UpdateApplicationInput,
 };
 use sqlx::Row;
 use uuid::Uuid;
@@ -249,6 +249,41 @@ impl ApplicationRepository for PgControlPlaneStore {
         tx.commit().await?;
 
         map_application_record(row)
+    }
+
+    async fn delete_application(&self, input: &DeleteApplicationInput) -> Result<()> {
+        let mut tx = self.pool().begin().await?;
+
+        sqlx::query(
+            r#"
+            delete from flow_runs
+            where application_id = $1
+            "#,
+        )
+        .bind(input.application_id)
+        .execute(&mut *tx)
+        .await?;
+
+        let deleted_rows = sqlx::query(
+            r#"
+            delete from applications
+            where workspace_id = $1
+              and id = $2
+            "#,
+        )
+        .bind(input.workspace_id)
+        .bind(input.application_id)
+        .execute(&mut *tx)
+        .await?
+        .rows_affected();
+
+        if deleted_rows == 0 {
+            anyhow::bail!(ControlPlaneError::NotFound("application"));
+        }
+
+        tx.commit().await?;
+
+        Ok(())
     }
 
     async fn get_application(
