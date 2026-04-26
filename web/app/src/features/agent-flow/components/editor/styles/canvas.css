@@ -119,8 +119,8 @@
 
 .agent-flow-node-card__quick-actions {
   position: absolute;
-  top: -32px;
-  right: 10px;
+  top: -30px;
+  right: -64px;
   z-index: 20;
   display: inline-flex;
   align-items: center;
