@@ -1,59 +1,29 @@
-import { Card, Descriptions, Divider, Typography } from 'antd';
+import { Card, Divider, Typography } from 'antd';
 
 import type { NodeLastRun } from '../../../api/runtime';
 
-function summarizeValue(value: unknown): string {
-  if (value === null || value === undefined) {
-    return '无';
-  }
-
-  if (typeof value === 'string') {
-    return value;
-  }
-
-  if (typeof value === 'number' || typeof value === 'boolean') {
-    return String(value);
-  }
-
-  if (Array.isArray(value)) {
-    return value.length === 0
-      ? '空列表'
-      : value.map((entry) => summarizeValue(entry)).join('、');
-  }
-
-  if (typeof value === 'object') {
-    const entries = Object.entries(value as Record<string, unknown>);
-
-    if (entries.length === 0) {
-      return '空对象';
-    }
-
-    return entries
-      .map(([key, entryValue]) => `${key}: ${summarizeValue(entryValue)}`)
-      .join(' · ');
-  }
-
-  return String(value);
+function formatJson(payload: Record<string, unknown>) {
+  return JSON.stringify(payload, null, 2);
 }
 
-function payloadItems(payload: Record<string, unknown>) {
-  const entries = Object.entries(payload);
-
-  if (entries.length === 0) {
-    return [
-      {
-        key: 'empty',
-        label: '内容',
-        children: '无'
-      }
-    ];
-  }
-
-  return entries.map(([key, value]) => ({
-    key,
-    label: key,
-    children: summarizeValue(value)
-  }));
+function JsonBlock({
+  title,
+  payload
+}: {
+  title: string;
+  payload: Record<string, unknown>;
+}) {
+  return (
+    <section className="agent-flow-node-run-json">
+      <Typography.Text strong>{title}</Typography.Text>
+      <pre
+        aria-label={`${title} JSON`}
+        className="agent-flow-node-run-json__code"
+      >
+        <code>{formatJson(payload)}</code>
+      </pre>
+    </section>
+  );
 }
 
 export function NodeRunIOCard({
@@ -63,21 +33,9 @@ export function NodeRunIOCard({
 }) {
   return (
     <Card title="节点输入输出">
-      <Typography.Text strong>输入</Typography.Text>
-      <Descriptions
-        column={1}
-        size="small"
-        style={{ marginTop: 12 }}
-        items={payloadItems(lastRun.node_run.input_payload)}
-      />
+      <JsonBlock payload={lastRun.node_run.input_payload} title="输入" />
       <Divider />
-      <Typography.Text strong>输出</Typography.Text>
-      <Descriptions
-        column={1}
-        size="small"
-        style={{ marginTop: 12 }}
-        items={payloadItems(lastRun.node_run.output_payload)}
-      />
+      <JsonBlock payload={lastRun.node_run.output_payload} title="输出" />
     </Card>
   );
 }

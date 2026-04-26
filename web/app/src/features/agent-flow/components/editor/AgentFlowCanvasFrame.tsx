@@ -20,9 +20,10 @@ import { useEditorShortcuts } from '../../hooks/interactions/use-editor-shortcut
 import { useNodeDetailActions } from '../../hooks/interactions/use-node-detail-actions';
 import { useAgentFlowDebugSession } from '../../hooks/runtime/useAgentFlowDebugSession';
 import {
-  buildNodeDebugPreviewInput,
+  buildNodeDebugPreviewPlan,
   nodeLastRunQueryKey,
-  startNodeDebugPreview
+  startNodeDebugPreview,
+  type NodeDebugPreviewPlan
 } from '../../api/runtime';
 import {
   fetchModelProviderOptions,
@@ -49,6 +50,7 @@ import {
 } from '../../store/editor/selectors';
 import { AgentFlowDebugConsole } from '../debug-console/AgentFlowDebugConsole';
 import { NodeDetailPanel } from '../detail/NodeDetailPanel';
+import { NodePreviewVariablesModal } from '../detail/NodePreviewVariablesModal';
 import { VersionHistoryDrawer } from '../history/VersionHistoryDrawer';
 import { IssuesDrawer } from '../issues/IssuesDrawer';
 import { AgentFlowCanvas } from './AgentFlowCanvas';
@@ -122,6 +124,10 @@ export function AgentFlowCanvasFrame({
   const [bodyWidth, setBodyWidth] = useState(0);
   const [isResizingNodeDetail, setIsResizingNodeDetail] = useState(false);
   const [isResizingDebugConsole, setIsResizingDebugConsole] = useState(false);
+  const [pendingNodePreview, setPendingNodePreview] = useState<{
+    nodeId: string;
+    plan: NodeDebugPreviewPlan;
+  } | null>(null);
   const modelProviderOptionsQuery = useQuery({
     queryKey: modelProviderOptionsQueryKey,
     queryFn: fetchModelProviderOptions
@@ -157,7 +163,13 @@ export function AgentFlowCanvasFrame({
   const activeContainerId = activeContainerPath.at(-1) ?? null;
   const detailActions = useNodeDetailActions();
   const nodePreviewMutation = useMutation({
-    mutationFn: async (nodeId: string) => {
+    mutationFn: async ({
+      nodeId,
+      inputPayload
+    }: {
+      nodeId: string;
+      inputPayload: Record<string, Record<string, unknown>>;
+    }) => {
       if (!csrfToken) {
         throw new Error('missing csrf token');
       }
@@ -166,15 +178,15 @@ export function AgentFlowCanvasFrame({
         applicationId,
         nodeId,
         {
-          ...buildNodeDebugPreviewInput(documentRef.current, nodeId),
+          input_payload: inputPayload,
           document: getDocumentWithLatestViewport(documentRef.current)
         },
         csrfToken
       );
     },
-    onSuccess: async (lastRun, nodeId) => {
+    onSuccess: async (lastRun, variables) => {
       queryClient.setQueryData(
-        nodeLastRunQueryKey(applicationId, nodeId),
+        nodeLastRunQueryKey(applicationId, variables.nodeId),
         lastRun
       );
       setPanelState({ nodeDetailTab: 'lastRun' });
@@ -393,8 +405,49 @@ export function AgentFlowCanvasFrame({
     };
   }
 
+  function runNodePreview(
+    nodeId: string,
+    inputPayload: Record<string, Record<string, unknown>>
+  ) {
+    debugSession.rememberNodePreviewVariables(inputPayload);
+    nodePreviewMutation.mutate({ nodeId, inputPayload });
+  }
+
   function handleRunNode(nodeId: string) {
-    nodePreviewMutation.mutate(nodeId);
+    const plan = buildNodeDebugPreviewPlan(
+      documentRef.current,
+      nodeId,
+      debugSession.getNodePreviewVariableCache()
+    );
+
+    if (plan.missing_fields.length > 0) {
+      setPendingNodePreview({ nodeId, plan });
+      return;
+    }
+
+    runNodePreview(nodeId, plan.input_payload);
+  }
+
+  function handleSubmitNodePreviewVariables(
+    inputPayload: Record<string, Record<string, unknown>>
+  ) {
+    if (!pendingNodePreview) {
+      return;
+    }
+
+    const mergedInputPayload = { ...pendingNodePreview.plan.input_payload };
+
+    for (const [nodeId, payload] of Object.entries(inputPayload)) {
+      mergedInputPayload[nodeId] = {
+        ...(mergedInputPayload[nodeId] ?? {}),
+        ...payload
+      };
+    }
+
+    const nodeId = pendingNodePreview.nodeId;
+
+    setPendingNodePreview(null);
+    runNodePreview(nodeId, mergedInputPayload);
   }
 
   function handleRunSelectedNode() {
@@ -553,6 +606,13 @@ export function AgentFlowCanvasFrame({
           当前草稿存在全局问题，请先查看 Issues 面板处理。
         </Typography.Text>
       ) : null}
+      <NodePreviewVariablesModal
+        confirmLoading={nodePreviewMutation.isPending}
+        fields={pendingNodePreview?.plan.missing_fields ?? []}
+        open={Boolean(pendingNodePreview)}
+        onCancel={() => setPendingNodePreview(null)}
+        onSubmit={handleSubmitNodePreviewVariables}
+      />
       <IssuesDrawer
         open={issuesOpen}
         issues={issues}

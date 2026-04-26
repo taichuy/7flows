@@ -83,8 +83,8 @@ describe('NodeLastRunTab', () => {
 
     expect(await screen.findByText('运行摘要')).toBeInTheDocument();
     expect(screen.getByText('debug_node_preview')).toBeInTheDocument();
-    expect(screen.getByText('user_prompt')).toBeInTheDocument();
-    expect(screen.getByText('总结退款政策')).toBeInTheDocument();
+    expect(screen.getByLabelText('输入 JSON')).toHaveTextContent('user_prompt');
+    expect(screen.getByLabelText('输入 JSON')).toHaveTextContent('总结退款政策');
     expect(screen.getByText('provider-openai-prod')).toBeInTheDocument();
     expect(screen.getByText('openai_compatible')).toBeInTheDocument();
     expect(screen.getByText('stop')).toBeInTheDocument();

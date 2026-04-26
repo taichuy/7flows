@@ -11,7 +11,8 @@ import {
   type AgentFlowDebugMessage,
   type AgentFlowRunContext,
   type AgentFlowVariableGroup,
-  type FlowDebugRunDetail
+  type FlowDebugRunDetail,
+  type NodeDebugPreviewVariableCache
 } from '../../api/runtime';
 import {
   mapRunDetailToConversation,
@@ -232,6 +233,8 @@ export function useAgentFlowDebugSession({
   const [messages, setMessages] = useState<AgentFlowDebugMessage[]>([]);
   const [lastDetail, setLastDetail] = useState<FlowDebugRunDetail | null>(null);
   const [activeNodeFilter, setActiveNodeFilter] = useState<string | null>(null);
+  const [nodePreviewVariableCache, setNodePreviewVariableCache] =
+    useState<NodeDebugPreviewVariableCache>({});
   const [runContext, setRunContext] = useState(() =>
     buildRunContextFromDocument(document, rememberedInputValues)
   );
@@ -483,6 +486,72 @@ export function useAgentFlowDebugSession({
     }));
   }
 
+  function getNodePreviewVariableCache(): NodeDebugPreviewVariableCache {
+    const cache: NodeDebugPreviewVariableCache = {};
+
+    for (const field of runContext.fields) {
+      cache[field.nodeId] ??= {};
+      cache[field.nodeId][field.key] = field.value;
+    }
+
+    if (lastDetail) {
+      for (const [nodeId, payload] of Object.entries(lastDetail.flow_run.input_payload)) {
+        if (payload && typeof payload === 'object' && !Array.isArray(payload)) {
+          cache[nodeId] = {
+            ...(cache[nodeId] ?? {}),
+            ...(payload as Record<string, unknown>)
+          };
+        }
+      }
+
+      for (const nodeRun of lastDetail.node_runs) {
+        cache[nodeRun.node_id] = {
+          ...(cache[nodeRun.node_id] ?? {}),
+          ...nodeRun.output_payload
+        };
+      }
+    }
+
+    for (const [nodeId, payload] of Object.entries(nodePreviewVariableCache)) {
+      cache[nodeId] = {
+        ...(cache[nodeId] ?? {}),
+        ...payload
+      };
+    }
+
+    return cache;
+  }
+
+  function rememberNodePreviewVariables(
+    inputPayload: NodeDebugPreviewVariableCache
+  ) {
+    setNodePreviewVariableCache((currentCache) => {
+      const nextCache: NodeDebugPreviewVariableCache = { ...currentCache };
+
+      for (const [nodeId, payload] of Object.entries(inputPayload)) {
+        nextCache[nodeId] = {
+          ...(nextCache[nodeId] ?? {}),
+          ...payload
+        };
+      }
+
+      return nextCache;
+    });
+
+    setRunContext((currentRunContext) => ({
+      ...currentRunContext,
+      remembered: false,
+      fields: currentRunContext.fields.map((field) =>
+        Object.prototype.hasOwnProperty.call(
+          inputPayload[field.nodeId] ?? {},
+          field.key
+        )
+          ? { ...field, value: inputPayload[field.nodeId]?.[field.key] }
+          : field
+      )
+    }));
+  }
+
   function selectTraceNode(nodeId: string | null) {
     setActiveNodeFilter(nodeId);
   }
@@ -503,6 +572,8 @@ export function useAgentFlowDebugSession({
     stopRun,
     clearSession,
     setRunContextValue,
+    getNodePreviewVariableCache,
+    rememberNodePreviewVariables,
     selectTraceNode,
     syncSelectedNode
   };

@@ -1,9 +1,10 @@
-import { fireEvent, screen, waitFor } from '@testing-library/react';
+import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { beforeEach, describe, expect, test, vi } from 'vitest';
 
 import { createDefaultAgentFlowDocument } from '@1flowbase/flow-schema';
 import { resetAuthStore, useAuthStore } from '../../../state/auth-store';
 import * as runtimeApi from '../api/runtime';
+import { buildAgentFlowDebugSessionStorageKey } from '../hooks/runtime/useAgentFlowDebugSession';
 import { AgentFlowEditorShell } from '../components/editor/AgentFlowEditorShell';
 import { renderReactFlowScene } from '../../../test/renderers/render-react-flow-scene';
 
@@ -121,6 +122,7 @@ function authenticate() {
 describe('node last run runtime', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    window.localStorage.clear();
     resetAuthStore();
     authenticate();
 
@@ -129,16 +131,17 @@ describe('node last run runtime', () => {
       .mockResolvedValueOnce(null)
       .mockResolvedValue(sampleNodeLastRun());
     vi.spyOn(runtimeApi, 'startNodeDebugPreview').mockResolvedValue(sampleNodeLastRun());
-    vi.spyOn(runtimeApi, 'buildNodeDebugPreviewInput').mockReturnValue({
-      input_payload: {
-        'node-start': {
-          query: '总结退款政策'
-        }
-      }
-    });
   });
 
-  test('runs node preview and refreshes last-run cards', async () => {
+  test('runs node preview from cached variables and refreshes last-run cards', async () => {
+    window.localStorage.setItem(
+      buildAgentFlowDebugSessionStorageKey('app-1', 'draft-1'),
+      JSON.stringify({
+        version: 1,
+        inputValues: { query: '总结退款政策' }
+      })
+    );
+
     renderReactFlowScene(
       <AgentFlowEditorShell
         applicationId="app-1"
@@ -170,6 +173,43 @@ describe('node last run runtime', () => {
 
     expect(await screen.findByText('运行摘要')).toBeInTheDocument();
     expect(await screen.findByText('debug_node_preview')).toBeInTheDocument();
-    expect(await screen.findByText('总结退款政策')).toBeInTheDocument();
+    expect(await screen.findByLabelText('输入 JSON')).toHaveTextContent('总结退款政策');
+  }, 30_000);
+
+  test('asks for referenced variables before running when cache is empty', async () => {
+    renderReactFlowScene(
+      <AgentFlowEditorShell
+        applicationId="app-1"
+        applicationName="Support Agent"
+        initialState={createInitialState()}
+      />
+    );
+
+    fireEvent.click(await screen.findByRole('button', { name: '运行当前节点' }));
+
+    expect(await screen.findByText('输入节点引用变量')).toBeInTheDocument();
+
+    fireEvent.change(screen.getByLabelText(/node-start\.query/), {
+      target: { value: '总结退款政策' }
+    });
+    fireEvent.click(within(screen.getByRole('dialog', { name: '输入节点引用变量' })).getByRole('button', { name: /运\s*行/ }));
+
+    await waitFor(() => {
+      expect(runtimeApi.startNodeDebugPreview).toHaveBeenCalledWith(
+        'app-1',
+        'node-llm',
+        {
+          input_payload: {
+            'node-start': {
+              query: '总结退款政策'
+            }
+          },
+          document: expect.objectContaining({
+            schemaVersion: '1flowbase.flow/v1'
+          })
+        },
+        'csrf-123'
+      );
+    });
   }, 30_000);
 });

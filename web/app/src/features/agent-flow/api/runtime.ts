@@ -78,6 +78,24 @@ export interface AgentFlowRunContext {
   fields: AgentFlowRunContextField[];
 }
 
+export interface NodeDebugPreviewVariableField {
+  nodeId: string;
+  key: string;
+  title: string;
+  valueType: FlowNodeDocument['outputs'][number]['valueType'];
+  value: unknown;
+}
+
+export type NodeDebugPreviewVariableCache = Record<
+  string,
+  Record<string, unknown>
+>;
+
+export interface NodeDebugPreviewPlan {
+  input_payload: Record<string, Record<string, unknown>>;
+  missing_fields: NodeDebugPreviewVariableField[];
+}
+
 export const nodeLastRunQueryKey = (applicationId: string, nodeId: string) =>
   [
     'applications',
@@ -239,6 +257,36 @@ function extractSelectors(
   }
 }
 
+function hasPreviewVariableValue(value: unknown) {
+  return value !== undefined && value !== null && value !== '';
+}
+
+function findNodeOutput(
+  node: FlowNodeDocument | undefined,
+  outputKey: string
+) {
+  return node
+    ? getNodeVariableOutputs(node).find((output) => output.key === outputKey)
+    : undefined;
+}
+
+function buildMissingPreviewField(
+  document: FlowAuthoringDocument,
+  nodeId: string,
+  outputKey: string
+): NodeDebugPreviewVariableField {
+  const node = document.graph.nodes.find((entry) => entry.id === nodeId);
+  const output = findNodeOutput(node, outputKey);
+
+  return {
+    nodeId,
+    key: outputKey,
+    title: output?.title ?? `${node?.alias ?? nodeId}.${outputKey}`,
+    valueType: output?.valueType ?? 'unknown',
+    value: buildPreviewValue(node, outputKey)
+  };
+}
+
 function buildStringPreviewValue(
   node: FlowNodeDocument | undefined,
   outputKey: string
@@ -315,4 +363,52 @@ export function buildNodeDebugPreviewInput(
   }
 
   return { input_payload: inputPayload };
+}
+
+export function buildNodeDebugPreviewPlan(
+  document: FlowAuthoringDocument,
+  nodeId: string,
+  variableCache: NodeDebugPreviewVariableCache = {}
+): NodeDebugPreviewPlan {
+  const node = document.graph.nodes.find((entry) => entry.id === nodeId);
+  const inputPayload: Record<string, Record<string, unknown>> = {};
+  const missingFields: NodeDebugPreviewVariableField[] = [];
+
+  if (!node) {
+    return { input_payload: inputPayload, missing_fields: missingFields };
+  }
+
+  const selectors = Object.values(node.bindings).flatMap((binding) =>
+    extractSelectors(binding)
+  );
+  const visited = new Set<string>();
+
+  for (const [sourceNodeId, outputKey] of selectors) {
+    const cacheKey = `${sourceNodeId}.${outputKey}`;
+
+    if (visited.has(cacheKey)) {
+      continue;
+    }
+
+    visited.add(cacheKey);
+
+    if (
+      Object.prototype.hasOwnProperty.call(
+        variableCache[sourceNodeId] ?? {},
+        outputKey
+      ) &&
+      hasPreviewVariableValue(variableCache[sourceNodeId]?.[outputKey])
+    ) {
+      inputPayload[sourceNodeId] ??= {};
+      inputPayload[sourceNodeId][outputKey] =
+        variableCache[sourceNodeId]?.[outputKey];
+      continue;
+    }
+
+    missingFields.push(
+      buildMissingPreviewField(document, sourceNodeId, outputKey)
+    );
+  }
+
+  return { input_payload: inputPayload, missing_fields: missingFields };
 }
