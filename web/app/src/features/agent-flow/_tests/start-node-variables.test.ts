@@ -55,7 +55,7 @@ describe('start node variables', () => {
     );
   });
 
-  test('normalizes legacy start system output titles to canonical userinput labels', () => {
+  test('fails fast when a start node carries unexpected outputs', () => {
     const document = createDefaultAgentFlowDocument({ flowId: 'flow-1' });
     const startNode = document.graph.nodes.find(
       (node) => node.id === 'node-start'
@@ -66,26 +66,13 @@ describe('start node variables', () => {
     }
 
     startNode.outputs = [
-      { key: 'query', title: '用户输入', valueType: 'string' },
-      { key: 'files', title: '文件', valueType: 'array' }
+      { key: 'query', title: 'unexpected query', valueType: 'string' },
+      { key: 'files', title: 'unexpected files', valueType: 'array' }
     ];
 
-    expect(
-      listVisibleSelectorOptions(document, 'node-llm').map((option) => ({
-        value: option.value,
-        label: option.displayLabel
-      }))
-    ).toEqual(
-      expect.arrayContaining([
-        { value: ['node-start', 'query'], label: 'Start / userinput.query' },
-        { value: ['node-start', 'files'], label: 'Start / userinput.files' }
-      ])
+    expect(() => listVisibleSelectorOptions(document, 'node-llm')).toThrow(
+      'Start node outputs must be empty'
     );
-    expect(
-      listVisibleSelectorOptions(document, 'node-llm').map(
-        (option) => option.displayLabel
-      )
-    ).not.toContain('Start / 用户输入');
   });
 
   test('builds flow debug input from start input field value types', () => {

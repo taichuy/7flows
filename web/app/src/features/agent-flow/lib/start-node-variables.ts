@@ -130,30 +130,19 @@ export function getStartInputFields(
 export function getStartNodeVariableOutputs(
   node: Pick<FlowNodeDocument, 'config' | 'outputs'>
 ): FlowNodeOutputDocument[] {
+  if (node.outputs.length > 0) {
+    throw new Error('Start node outputs must be empty');
+  }
+
   const fields = getStartInputFields(node).map((field) => ({
     key: field.key,
     title: `userinput.${field.key}`,
     valueType: field.valueType
   }));
   const usedKeys = new Set(fields.map((field) => field.key));
-  const systemKeys = new Set(startSystemVariables.map((field) => field.key));
-  // 兼容早期草稿：旧版开始节点把输入字段直接写在 outputs 上。
-  const legacyOutputs = node.outputs
-    .filter(
-      (output) => !usedKeys.has(output.key) && !systemKeys.has(output.key)
-    )
-    .map((output) => ({
-      ...output,
-      title: `userinput.${output.key}`
-    }));
-
-  for (const output of legacyOutputs) {
-    usedKeys.add(output.key);
-  }
 
   return [
     ...fields,
-    ...legacyOutputs,
     ...startSystemVariables.filter((variable) => !usedKeys.has(variable.key))
   ];
 }
