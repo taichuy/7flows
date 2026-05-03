@@ -138,6 +138,23 @@ describe('agent-flow node schema registry', () => {
     );
   });
 
+  test('registers start and answer nodes for the built-in node picker', () => {
+    expect(BUILTIN_NODE_PICKER_OPTIONS).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          kind: 'builtin',
+          type: 'start',
+          label: 'Start'
+        }),
+        expect.objectContaining({
+          kind: 'builtin',
+          type: 'answer',
+          label: 'Answer'
+        })
+      ])
+    );
+  });
+
   test('renders generated output variables as a readonly shared config section', () => {
     const schema = resolveAgentFlowNodeSchema('llm');
 

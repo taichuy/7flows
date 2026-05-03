@@ -26,6 +26,8 @@ export type NodePickerOption =
   | PluginContributionPickerOption;
 
 export const BUILTIN_NODE_PICKER_OPTIONS: BuiltinNodePickerOption[] = [
+  { kind: 'builtin', type: 'start', label: 'Start' },
+  { kind: 'builtin', type: 'answer', label: 'Answer' },
   { kind: 'builtin', type: 'llm', label: 'LLM' },
   { kind: 'builtin', type: 'template_transform', label: 'Template Transform' },
   { kind: 'builtin', type: 'knowledge_retrieval', label: 'Knowledge Retrieval' },
