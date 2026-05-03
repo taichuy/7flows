@@ -1,7 +1,10 @@
 import { fireEvent, render, screen } from '@testing-library/react';
 import { describe, expect, test, vi } from 'vitest';
 
-import { NodePickerPopover } from '../components/node-picker/NodePickerPopover';
+import {
+  calculateNodePickerMaxHeight,
+  NodePickerPopover
+} from '../components/node-picker/NodePickerPopover';
 import type { NodePickerOption } from '../lib/plugin-node-definitions';
 
 const pluginOptions: NodePickerOption[] = [
@@ -115,7 +118,16 @@ describe('NodePickerPopover', () => {
       />
     );
 
-    expect(screen.getByRole('menuitem', { name: /OpenAI Prompt/i })).toBeEnabled();
-    expect(screen.getByRole('menuitem', { name: /SQL Exporter/i })).toBeDisabled();
+    expect(
+      screen.getByRole('menuitem', { name: /OpenAI Prompt/i })
+    ).toBeEnabled();
+    expect(
+      screen.getByRole('menuitem', { name: /SQL Exporter/i })
+    ).toBeDisabled();
+  });
+
+  test('calculates picker height with a 10px canvas bottom gap', () => {
+    expect(calculateNodePickerMaxHeight(500, 360)).toBe(130);
+    expect(calculateNodePickerMaxHeight(500, 460)).toBe(120);
   });
 });

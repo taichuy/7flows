@@ -168,6 +168,7 @@
       "web/app/src/features/agent-flow/components/editor/styles/canvas.css",
       "web/app/src/features/agent-flow/components/editor/styles/inspector.css",
       "web/app/src/features/agent-flow/components/editor/agent-flow-editor.css",
+      "web/app/src/features/agent-flow/components/node-picker/NodePickerPopover.tsx",
       "web/app/src/features/agent-flow/components/canvas/node-types.tsx",
       "web/app/src/features/agent-flow/components/detail/NodeDetailPanel.tsx",
       "web/app/src/features/agent-flow/components/detail/NodeDetailHeader.tsx",
