@@ -1,10 +1,6 @@
 import type { FlowNodeDocument } from '@1flowbase/flow-schema';
-import {
-  BookOutlined,
-  HomeOutlined,
-  PlusOutlined
-} from '@ant-design/icons';
-import { Button, Card, Empty, Select, Space, Switch, Typography } from 'antd';
+import { BookOutlined, HomeOutlined, PlusOutlined } from '@ant-design/icons';
+import { Card, Empty, Select, Space, Switch, Typography } from 'antd';
 
 import type {
   SchemaViewRenderer,
@@ -64,7 +60,9 @@ function renderCardEyebrowView({ adapter }: SchemaViewRendererProps) {
   return (
     <div className="agent-flow-node-card__header">
       <span className="agent-flow-node-card__header-main">
-        {typeIcon ? <span className="agent-flow-node-card__type-icon">{typeIcon}</span> : null}
+        {typeIcon ? (
+          <span className="agent-flow-node-card__type-icon">{typeIcon}</span>
+        ) : null}
         <span className="agent-flow-node-card__title">{node.alias}</span>
       </span>
     </div>
@@ -95,31 +93,41 @@ function renderCardDescriptionView({ adapter }: SchemaViewRendererProps) {
     | undefined;
   const displayContent = description || meta?.summary || '节点配置将在这里展示';
 
-  return <div className="agent-flow-node-card__description">{displayContent}</div>;
+  return (
+    <div className="agent-flow-node-card__description">{displayContent}</div>
+  );
 }
 
 function renderOutputContractView({ adapter, block }: SchemaViewRendererProps) {
   const node = getNode(adapter);
-  const outputs = (adapter.getValue('config.output_contract') as Array<{
-    key: string;
-    title: string;
-    valueType: string;
-  }>) ?? node?.outputs ?? [];
+  const outputs =
+    (adapter.getValue('config.output_contract') as Array<{
+      key: string;
+      title: string;
+      valueType: string;
+    }>) ??
+    node?.outputs ??
+    [];
 
   if (!node) {
     return null;
   }
 
   const title = node.type === 'start' ? '输入字段' : '输出变量';
-  const subtitle = node.type === 'start' ? '设置的输入可在工作流程中使用' : '节点产出的数据字段';
+  const subtitle =
+    node.type === 'start'
+      ? '设置的输入可在工作流程中使用'
+      : '节点产出的数据字段';
 
   return (
     <div className="agent-flow-node-detail__section">
       <div className="agent-flow-node-detail__section-header">
-        <Typography.Title level={5} className="agent-flow-node-detail__section-title">
+        <Typography.Title
+          level={5}
+          className="agent-flow-node-detail__section-title"
+        >
           {block.title ?? title}
         </Typography.Title>
-        <Button type="text" icon={<PlusOutlined />} size="small" aria-label="新增输出变量" />
       </div>
       <Typography.Text
         className="agent-flow-node-detail__section-subtitle"
@@ -132,10 +140,16 @@ function renderOutputContractView({ adapter, block }: SchemaViewRendererProps) {
           {outputs.map((output) => (
             <div key={output.key} className="agent-flow-node-detail__list-item">
               <div className="agent-flow-node-detail__list-item-left">
-                <span className="agent-flow-node-detail__list-item-icon">{'{x}'}</span>
-                <span className="agent-flow-node-detail__list-item-name">{output.key}</span>
+                <span className="agent-flow-node-detail__list-item-icon">
+                  {'{x}'}
+                </span>
+                <span className="agent-flow-node-detail__list-item-name">
+                  {output.key}
+                </span>
               </div>
-              <span className="agent-flow-node-detail__list-item-type">{output.valueType}</span>
+              <span className="agent-flow-node-detail__list-item-type">
+                {output.valueType}
+              </span>
             </div>
           ))}
         </div>
@@ -148,7 +162,8 @@ function renderOutputContractView({ adapter, block }: SchemaViewRendererProps) {
 
 function renderPolicyGroupView({ adapter }: SchemaViewRendererProps) {
   const retryEnabled = Boolean(adapter.getValue('config.retry_enabled'));
-  const errorPolicy = (adapter.getValue('config.error_policy') as string | undefined) ?? 'none';
+  const errorPolicy =
+    (adapter.getValue('config.error_policy') as string | undefined) ?? 'none';
 
   const errorPolicyOptions = [
     {
@@ -170,7 +185,10 @@ function renderPolicyGroupView({ adapter }: SchemaViewRendererProps) {
 
   return (
     <div className="agent-flow-node-detail__policies">
-      <div className="agent-flow-node-detail__policy-row" data-testid="node-policy-row">
+      <div
+        className="agent-flow-node-detail__policy-row"
+        data-testid="node-policy-row"
+      >
         <Typography.Text className="agent-flow-node-detail__policy-label">
           失败重试
         </Typography.Text>
@@ -178,7 +196,9 @@ function renderPolicyGroupView({ adapter }: SchemaViewRendererProps) {
           aria-label="失败重试"
           checked={retryEnabled}
           className="agent-flow-node-detail__policy-control"
-          onChange={(checked) => adapter.setValue('config.retry_enabled', checked)}
+          onChange={(checked) =>
+            adapter.setValue('config.retry_enabled', checked)
+          }
         />
       </div>
       <div
@@ -227,10 +247,11 @@ function renderPolicyGroupView({ adapter }: SchemaViewRendererProps) {
 
 function renderRelationsView({ adapter, block }: SchemaViewRendererProps) {
   const node = getNode(adapter);
-  const downstreamNodes = (adapter.getDerived('downstreamNodes') as Array<{
-    id: string;
-    alias: string;
-  }>) ?? [];
+  const downstreamNodes =
+    (adapter.getDerived('downstreamNodes') as Array<{
+      id: string;
+      alias: string;
+    }>) ?? [];
 
   if (!node) {
     return null;
@@ -238,20 +259,29 @@ function renderRelationsView({ adapter, block }: SchemaViewRendererProps) {
 
   return (
     <div className="agent-flow-node-detail__section">
-      <Typography.Title level={5} className="agent-flow-node-detail__section-title">
+      <Typography.Title
+        level={5}
+        className="agent-flow-node-detail__section-title"
+      >
         {block.title ?? '下一步'}
       </Typography.Title>
       <Typography.Text className="agent-flow-node-detail__section-subtitle">
         添加此工作流程中的下一个节点
       </Typography.Text>
-      <div className="agent-flow-node-detail__relation-list" style={{ marginTop: 12 }}>
+      <div
+        className="agent-flow-node-detail__relation-list"
+        style={{ marginTop: 12 }}
+      >
         <div className="agent-flow-node-detail__relation-source">
           <HomeOutlined />
         </div>
         <div className="agent-flow-node-detail__relation-line" />
         <div className="agent-flow-node-detail__relation-nodes">
           {downstreamNodes.map((downstreamNode) => (
-            <div key={downstreamNode.id} className="agent-flow-node-detail__relation-item">
+            <div
+              key={downstreamNode.id}
+              className="agent-flow-node-detail__relation-item"
+            >
               <div className="agent-flow-node-detail__relation-item-icon">
                 <HomeOutlined style={{ fontSize: 12 }} />
               </div>
@@ -260,7 +290,9 @@ function renderRelationsView({ adapter, block }: SchemaViewRendererProps) {
           ))}
           <div
             className="agent-flow-node-detail__relation-add"
-            onClick={() => adapter.dispatch('openNodePicker', { nodeId: node.id })}
+            onClick={() =>
+              adapter.dispatch('openNodePicker', { nodeId: node.id })
+            }
           >
             <PlusOutlined /> 添加并行节点
           </div>
@@ -271,38 +303,59 @@ function renderRelationsView({ adapter, block }: SchemaViewRendererProps) {
 }
 
 function renderRuntimeSummaryView({ adapter, block }: SchemaViewRendererProps) {
-  const lastRun = adapter.getDerived('lastRun') as NodeLastRun | null | undefined;
+  const lastRun = adapter.getDerived('lastRun') as
+    | NodeLastRun
+    | null
+    | undefined;
 
-  return (
-    lastRun ? <NodeRunSummaryCard lastRun={lastRun} /> : (
-      <Card title={block.title ?? '运行摘要'}>
-        <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="当前节点还没有运行记录" />
-      </Card>
-    )
+  return lastRun ? (
+    <NodeRunSummaryCard lastRun={lastRun} />
+  ) : (
+    <Card title={block.title ?? '运行摘要'}>
+      <Empty
+        image={Empty.PRESENTED_IMAGE_SIMPLE}
+        description="当前节点还没有运行记录"
+      />
+    </Card>
   );
 }
 
 function renderRuntimeIoView({ adapter, block }: SchemaViewRendererProps) {
-  const lastRun = adapter.getDerived('lastRun') as NodeLastRun | null | undefined;
+  const lastRun = adapter.getDerived('lastRun') as
+    | NodeLastRun
+    | null
+    | undefined;
 
-  return (
-    lastRun ? <NodeRunIOCard lastRun={lastRun} /> : (
-      <Card title={block.title ?? '运行输入输出'}>
-        <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="暂无运行输入输出" />
-      </Card>
-    )
+  return lastRun ? (
+    <NodeRunIOCard lastRun={lastRun} />
+  ) : (
+    <Card title={block.title ?? '运行输入输出'}>
+      <Empty
+        image={Empty.PRESENTED_IMAGE_SIMPLE}
+        description="暂无运行输入输出"
+      />
+    </Card>
   );
 }
 
-function renderRuntimeMetadataView({ adapter, block }: SchemaViewRendererProps) {
-  const lastRun = adapter.getDerived('lastRun') as NodeLastRun | null | undefined;
+function renderRuntimeMetadataView({
+  adapter,
+  block
+}: SchemaViewRendererProps) {
+  const lastRun = adapter.getDerived('lastRun') as
+    | NodeLastRun
+    | null
+    | undefined;
 
-  return (
-    lastRun ? <NodeRunMetadataCard lastRun={lastRun} /> : (
-      <Card title={block.title ?? '运行元数据'}>
-        <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="暂无运行元数据" />
-      </Card>
-    )
+  return lastRun ? (
+    <NodeRunMetadataCard lastRun={lastRun} />
+  ) : (
+    <Card title={block.title ?? '运行元数据'}>
+      <Empty
+        image={Empty.PRESENTED_IMAGE_SIMPLE}
+        description="暂无运行元数据"
+      />
+    </Card>
   );
 }
 

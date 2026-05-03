@@ -138,24 +138,33 @@ describe('agent-flow node schema registry', () => {
     );
   });
 
-  test('renders node-level output variables as a shared config section', () => {
+  test('renders generated output variables as a readonly shared config section', () => {
     const schema = resolveAgentFlowNodeSchema('llm');
 
     expect(schema.detail.tabs.config.blocks).toEqual(
       expect.arrayContaining([
         expect.objectContaining({
-          kind: 'section',
+          kind: 'view',
+          renderer: 'output_contract',
           title: '输出变量',
-          blocks: [
-            expect.objectContaining({
-              kind: 'field',
-              path: 'config.output_contract',
-              renderer: 'output_contract_definition',
-              label: '输出变量'
-            })
-          ]
+          key: 'llm-generated-outputs'
         })
       ])
+    );
+  });
+
+  test('keeps Code on the editable output contract instead of the generated output view', () => {
+    const schema = resolveAgentFlowNodeSchema('code');
+    const serializedConfigBlocks = JSON.stringify(
+      schema.detail.tabs.config.blocks
+    );
+
+    expect(serializedConfigBlocks).toContain('"path":"config.output_contract"');
+    expect(serializedConfigBlocks).toContain(
+      '"renderer":"output_contract_definition"'
+    );
+    expect(serializedConfigBlocks).not.toContain(
+      '"renderer":"output_contract"'
     );
   });
 

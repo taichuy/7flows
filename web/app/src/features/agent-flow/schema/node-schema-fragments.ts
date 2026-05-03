@@ -51,29 +51,29 @@ function createSectionBlock(
   };
 }
 
-function shouldExposeSharedOutputVariables(nodeType: FlowNodeType) {
-  return nodeType !== 'start' && nodeType !== 'if_else';
+const EDITABLE_OUTPUT_CONTRACT_NODE_TYPES = new Set<FlowNodeType>(['code']);
+
+function shouldExposeGeneratedOutputVariables(nodeType: FlowNodeType) {
+  return (
+    nodeType !== 'start' &&
+    nodeType !== 'if_else' &&
+    !EDITABLE_OUTPUT_CONTRACT_NODE_TYPES.has(nodeType)
+  );
 }
 
 function buildSharedOutputVariableBlocks(
   nodeType: FlowNodeType
 ): SchemaBlock[] {
-  if (!shouldExposeSharedOutputVariables(nodeType)) {
+  if (!shouldExposeGeneratedOutputVariables(nodeType)) {
     return [];
   }
 
   return [
     {
-      kind: 'section',
+      kind: 'view',
+      renderer: 'output_contract',
       title: '输出变量',
-      blocks: [
-        {
-          kind: 'field',
-          renderer: 'output_contract_definition',
-          path: 'config.output_contract',
-          label: '输出变量'
-        }
-      ]
+      key: `${nodeType}-generated-outputs`
     }
   ];
 }

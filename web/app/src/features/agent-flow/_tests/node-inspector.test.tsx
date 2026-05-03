@@ -1,4 +1,10 @@
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import {
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+  within
+} from '@testing-library/react';
 import { useEffect, type ReactNode } from 'react';
 import { beforeEach, describe, expect, test, vi } from 'vitest';
 
@@ -160,7 +166,9 @@ function renderWithProviders(ui: ReactNode) {
   return render(<AppProviders>{ui}</AppProviders>);
 }
 
-function getLlmNodeConfig(document: ReturnType<typeof createDefaultAgentFlowDocument>) {
+function getLlmNodeConfig(
+  document: ReturnType<typeof createDefaultAgentFlowDocument>
+) {
   const llmNode = document.graph.nodes.find((node) => node.id === 'node-llm');
 
   if (!llmNode) {
@@ -228,7 +236,12 @@ describe('NodeInspector', () => {
         modelCode: 'orders',
         fields: [
           { code: 'name', title: 'Name', valueType: 'string', required: true },
-          { code: 'amount', title: 'Amount', valueType: 'number', required: false }
+          {
+            code: 'amount',
+            title: 'Amount',
+            valueType: 'number',
+            required: false
+          }
         ]
       },
       {
@@ -284,42 +297,51 @@ describe('NodeInspector', () => {
     expect(createAgentFlowNodeSchemaAdapterSpy).toHaveBeenCalledTimes(1);
   });
 
-  test(
-    'renders config sections as always-open blocks without repeating basics once summary content moves out',
-    async () => {
-      renderWithProviders(
-        <AgentFlowEditorStoreProvider initialState={createInitialState()}>
-          <SelectionSeed nodeId="node-llm" />
-          <NodeInspector />
-        </AgentFlowEditorStoreProvider>
-      );
+  test('renders config sections as always-open blocks without repeating basics once summary content moves out', async () => {
+    renderWithProviders(
+      <AgentFlowEditorStoreProvider initialState={createInitialState()}>
+        <SelectionSeed nodeId="node-llm" />
+        <NodeInspector />
+      </AgentFlowEditorStoreProvider>
+    );
 
-      await waitFor(() => {
-        expect(screen.getByLabelText('USER 消息内容')).toHaveAttribute(
-          'contenteditable',
-          'true'
-        );
-      });
-      expect(screen.queryByRole('button', { name: 'Inputs' })).not.toBeInTheDocument();
-      expect(screen.queryByRole('button', { name: 'Policy' })).not.toBeInTheDocument();
-      expect(screen.queryByRole('button', { name: 'Advanced' })).not.toBeInTheDocument();
-      expect(screen.queryByRole('combobox', { name: 'USER 消息内容' })).not.toBeInTheDocument();
-      expect(screen.queryByText('Basics')).not.toBeInTheDocument();
-      expect(screen.queryByLabelText('节点别名')).not.toBeInTheDocument();
-      expect(screen.queryByLabelText('节点简介')).not.toBeInTheDocument();
-      expect(screen.queryByText('Inputs')).not.toBeInTheDocument();
-      expect(screen.queryByText('Outputs')).not.toBeInTheDocument();
-      expect(screen.queryByText('Advanced')).not.toBeInTheDocument();
-      expect(screen.queryByText('LLM 参数')).not.toBeInTheDocument();
-      expect(screen.queryByText('返回格式')).not.toBeInTheDocument();
-      expect(screen.getByLabelText('失败重试')).toBeInTheDocument();
-      expect(screen.getByRole('combobox', { name: '异常处理' })).toBeInTheDocument();
-      expect(screen.getByLabelText('SYSTEM 消息内容')).toBeInTheDocument();
-      expect(screen.getByLabelText('USER 消息内容').tagName).toBe('DIV');
-      expect(screen.getByLabelText('USER 消息内容')).toHaveAttribute('contenteditable', 'true');
-    },
-    10000
-  );
+    await waitFor(() => {
+      expect(screen.getByLabelText('USER 消息内容')).toHaveAttribute(
+        'contenteditable',
+        'true'
+      );
+    });
+    expect(
+      screen.queryByRole('button', { name: 'Inputs' })
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole('button', { name: 'Policy' })
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole('button', { name: 'Advanced' })
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole('combobox', { name: 'USER 消息内容' })
+    ).not.toBeInTheDocument();
+    expect(screen.queryByText('Basics')).not.toBeInTheDocument();
+    expect(screen.queryByLabelText('节点别名')).not.toBeInTheDocument();
+    expect(screen.queryByLabelText('节点简介')).not.toBeInTheDocument();
+    expect(screen.queryByText('Inputs')).not.toBeInTheDocument();
+    expect(screen.queryByText('Outputs')).not.toBeInTheDocument();
+    expect(screen.queryByText('Advanced')).not.toBeInTheDocument();
+    expect(screen.queryByText('LLM 参数')).not.toBeInTheDocument();
+    expect(screen.queryByText('返回格式')).not.toBeInTheDocument();
+    expect(screen.getByLabelText('失败重试')).toBeInTheDocument();
+    expect(
+      screen.getByRole('combobox', { name: '异常处理' })
+    ).toBeInTheDocument();
+    expect(screen.getByLabelText('SYSTEM 消息内容')).toBeInTheDocument();
+    expect(screen.getByLabelText('USER 消息内容').tagName).toBe('DIV');
+    expect(screen.getByLabelText('USER 消息内容')).toHaveAttribute(
+      'contenteditable',
+      'true'
+    );
+  }, 10000);
 
   test('updates node identity through header interactions instead of mutating document inline', () => {
     let latestDocument = createDefaultAgentFlowDocument({ flowId: 'flow-1' });
@@ -398,26 +420,52 @@ describe('NodeInspector', () => {
     const modelTrigger = await screen.findByRole('button', { name: '模型' });
 
     await waitFor(() => {
-      expect(within(modelTrigger).getByLabelText('上下文 128K')).toBeInTheDocument();
+      expect(
+        within(modelTrigger).getByLabelText('上下文 128K')
+      ).toBeInTheDocument();
     });
+  });
+
+  test('shows LLM generated outputs without exposing output contract editing', async () => {
+    renderWithProviders(
+      <AgentFlowEditorStoreProvider initialState={createInitialState()}>
+        <SelectionSeed nodeId="node-llm" />
+        <NodeConfigTab />
+      </AgentFlowEditorStoreProvider>
+    );
+
+    expect(await screen.findByText('输出变量')).toBeInTheDocument();
+    expect(screen.getByText('text')).toBeInTheDocument();
+    expect(screen.getByText('reasoning_content')).toBeInTheDocument();
+    expect(screen.getByText('usage')).toBeInTheDocument();
+    expect(
+      screen.queryByRole('button', { name: '新增输出变量' })
+    ).not.toBeInTheDocument();
+    expect(screen.queryByLabelText('输出变量名 1')).not.toBeInTheDocument();
   });
 
   test('keeps code output contract definition editable without rendering the shared output contract card', () => {
     renderWithProviders(
-      <AgentFlowEditorStoreProvider initialState={createInitialStateWithCodeNode()}>
+      <AgentFlowEditorStoreProvider
+        initialState={createInitialStateWithCodeNode()}
+      >
         <SelectionSeed nodeId="node-code" />
         <NodeConfigTab />
       </AgentFlowEditorStoreProvider>
     );
 
     expect(screen.queryByText('输出契约')).not.toBeInTheDocument();
-    expect(screen.getByRole('button', { name: '新增变量' })).toBeInTheDocument();
+    expect(
+      screen.getByRole('button', { name: '新增变量' })
+    ).toBeInTheDocument();
     expect(screen.queryByLabelText('代码结果')).not.toBeInTheDocument();
   });
 
   test('renders loop number fields in compact inline rows while keeping condition groups stacked', () => {
     renderWithProviders(
-      <AgentFlowEditorStoreProvider initialState={createInitialStateWithLoopNode()}>
+      <AgentFlowEditorStoreProvider
+        initialState={createInitialStateWithLoopNode()}
+      >
         <SelectionSeed nodeId="node-loop" />
         <NodeConfigTab />
       </AgentFlowEditorStoreProvider>
@@ -430,7 +478,9 @@ describe('NodeInspector', () => {
     expect(
       within(toolbar).getByRole('combobox', { name: '入口条件-operator' })
     ).toBeInTheDocument();
-    expect(within(toolbar).getByRole('button', { name: '新增条件' })).toBeInTheDocument();
+    expect(
+      within(toolbar).getByRole('button', { name: '新增条件' })
+    ).toBeInTheDocument();
     expect(screen.getByTestId('inspector-field-config.max_rounds')).toHaveClass(
       'agent-flow-editor__inspector-field--inline'
     );
@@ -441,7 +491,9 @@ describe('NodeInspector', () => {
 
   test('loads Data Model options from the feature API and disables unavailable models', async () => {
     renderWithProviders(
-      <AgentFlowEditorStoreProvider initialState={createInitialStateWithDataModelNode()}>
+      <AgentFlowEditorStoreProvider
+        initialState={createInitialStateWithDataModelNode()}
+      >
         <SelectionSeed nodeId="node-data-model" />
         <NodeConfigTab />
       </AgentFlowEditorStoreProvider>
@@ -450,29 +502,27 @@ describe('NodeInspector', () => {
     await openSelect('Data Model');
 
     expect(fetchDataModelOptionsSpy).toHaveBeenCalledTimes(1);
-    expect(await screen.findByTestId('data-model-option-orders')).not.toHaveAttribute(
-      'aria-disabled',
-      'true'
-    );
-    expect(screen.getByTestId('data-model-option-draft_orders')).toHaveAttribute(
-      'aria-disabled',
-      'true'
-    );
-    expect(screen.getByTestId('data-model-option-disabled_orders')).toHaveAttribute(
-      'aria-disabled',
-      'true'
-    );
-    expect(screen.getByTestId('data-model-option-broken_orders')).toHaveAttribute(
-      'aria-disabled',
-      'true'
-    );
+    expect(
+      await screen.findByTestId('data-model-option-orders')
+    ).not.toHaveAttribute('aria-disabled', 'true');
+    expect(
+      screen.getByTestId('data-model-option-draft_orders')
+    ).toHaveAttribute('aria-disabled', 'true');
+    expect(
+      screen.getByTestId('data-model-option-disabled_orders')
+    ).toHaveAttribute('aria-disabled', 'true');
+    expect(
+      screen.getByTestId('data-model-option-broken_orders')
+    ).toHaveAttribute('aria-disabled', 'true');
   });
 
   test('updates selected Data Model metadata when the selected model changes', async () => {
     let latestDocument = createDefaultAgentFlowDocument({ flowId: 'flow-1' });
 
     renderWithProviders(
-      <AgentFlowEditorStoreProvider initialState={createInitialStateWithDataModelNode()}>
+      <AgentFlowEditorStoreProvider
+        initialState={createInitialStateWithDataModelNode()}
+      >
         <SelectionSeed nodeId="node-data-model" />
         <DocumentObserver
           onChange={(document) => {
@@ -493,7 +543,12 @@ describe('NodeInspector', () => {
         data_model_label: 'Orders',
         data_model_fields: [
           { code: 'name', title: 'Name', valueType: 'string', required: true },
-          { code: 'amount', title: 'Amount', valueType: 'number', required: false }
+          {
+            code: 'amount',
+            title: 'Amount',
+            valueType: 'number',
+            required: false
+          }
         ]
       });
     });
@@ -503,7 +558,9 @@ describe('NodeInspector', () => {
     let latestDocument = createDefaultAgentFlowDocument({ flowId: 'flow-1' });
 
     renderWithProviders(
-      <AgentFlowEditorStoreProvider initialState={createInitialStateWithDataModelNode()}>
+      <AgentFlowEditorStoreProvider
+        initialState={createInitialStateWithDataModelNode()}
+      >
         <SelectionSeed nodeId="node-data-model" />
         <DocumentObserver
           onChange={(document) => {
