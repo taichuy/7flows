@@ -1,4 +1,5 @@
 mod cancel;
+mod data_model_query;
 mod flow_document_snapshot;
 mod resume;
 mod runtime_observability;

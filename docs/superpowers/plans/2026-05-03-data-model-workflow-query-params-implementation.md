@@ -47,6 +47,7 @@ Do not revert or reformat them. The implementation does not require touching tho
   - Adds workflow list pagination clamp and runtime validation.
   - Adds Data Model execution coverage.
   - Runs final frontend and backend gates.
+  - [x] Task 1 and Task 2 completed; Task 3 final gates remain pending in main session.
 
 ## Acceptance Mapping
 
@@ -71,7 +72,8 @@ pnpm --dir web/app test -- node-schema-registry node-inspector node-debug-previe
 Targeted backend:
 
 ```bash
-cargo test -p orchestration-runtime compile_data_model data_model_query -- --test-threads=1
+cargo test -p orchestration-runtime compile_data_model -- --test-threads=1
+cargo test -p orchestration-runtime data_model_query -- --test-threads=1
 cargo test -p control-plane orchestration_runtime_data_model -- --test-threads=1
 ```
 

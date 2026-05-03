@@ -6,6 +6,8 @@ use time::OffsetDateTime;
 
 use crate::{model_definition::ModelDefinitionService, ports::ModelDefinitionRepository};
 
+const WORKFLOW_LIST_PAGE_SIZE_MAX: i64 = 100;
+
 pub(super) struct DataModelNodeExecution {
     pub(super) output_payload: Value,
     pub(super) error_payload: Option<Value>,
@@ -122,6 +124,9 @@ where
         query: Value,
     ) -> Result<Value> {
         let options = ListOptions::from_value(query)?;
+        if let Some(metadata) = self.runtime_model_metadata(&actor, &model_code) {
+            validate_list_options(&metadata, &options)?;
+        }
         let scope_grant = self.scope_grant(&actor, &model_code).await?;
         let result = self
             .runtime_engine
@@ -227,6 +232,27 @@ where
         Ok(json!({ "deleted_id": record_id }))
     }
 
+    fn runtime_model_metadata(
+        &self,
+        actor: &domain::ActorContext,
+        model_code: &str,
+    ) -> Option<runtime_core::model_metadata::ModelMetadata> {
+        self.runtime_engine
+            .registry()
+            .get(
+                domain::DataModelScopeKind::Workspace,
+                actor.current_workspace_id,
+                model_code,
+            )
+            .or_else(|| {
+                self.runtime_engine.registry().get(
+                    domain::DataModelScopeKind::System,
+                    domain::SYSTEM_SCOPE_ID,
+                    model_code,
+                )
+            })
+    }
+
     async fn scope_grant(
         &self,
         actor: &domain::ActorContext,
@@ -274,15 +300,16 @@ impl ListOptions {
             _ => return Err(anyhow!("data_model list query must be object")),
         };
 
+        let page = optional_integer(object.get("page"), "page", 1)?.max(1);
+        let page_size = optional_integer(object.get("page_size"), "page_size", 20)?
+            .clamp(1, WORKFLOW_LIST_PAGE_SIZE_MAX);
+
         Ok(Self {
             filters: parse_filters(object.get("filters"))?,
             sorts: parse_sorts(object.get("sorts"))?,
             expand_relations: parse_string_list(object.get("expand_relations"))?,
-            page: object.get("page").and_then(Value::as_i64).unwrap_or(1),
-            page_size: object
-                .get("page_size")
-                .and_then(Value::as_i64)
-                .unwrap_or(20),
+            page,
+            page_size,
         })
     }
 }
@@ -303,9 +330,11 @@ fn parse_filters(
             let object = entry
                 .as_object()
                 .ok_or_else(|| anyhow!("data_model list filter must be object"))?;
+            let operator = required_string(object, "operator")?;
+            ensure_supported_filter_operator(&operator)?;
             Ok(runtime_core::runtime_engine::RuntimeFilterInput {
                 field_code: required_string(object, "field_code")?,
-                operator: required_string(object, "operator")?,
+                operator,
                 value: object.get("value").cloned().unwrap_or(Value::Null),
             })
         })
@@ -328,13 +357,15 @@ fn parse_sorts(
             let object = entry
                 .as_object()
                 .ok_or_else(|| anyhow!("data_model list sort must be object"))?;
+            let direction = object
+                .get("direction")
+                .and_then(Value::as_str)
+                .unwrap_or("asc")
+                .to_ascii_lowercase();
+            ensure_supported_sort_direction(&direction)?;
             Ok(runtime_core::runtime_engine::RuntimeSortInput {
                 field_code: required_string(object, "field_code")?,
-                direction: object
-                    .get("direction")
-                    .and_then(Value::as_str)
-                    .unwrap_or("asc")
-                    .to_string(),
+                direction,
             })
         })
         .collect()
@@ -357,6 +388,62 @@ fn parse_string_list(value: Option<&Value>) -> Result<Vec<String>> {
                 .ok_or_else(|| anyhow!("data_model list expand_relations item must be string"))
         })
         .collect()
+}
+
+fn optional_integer(value: Option<&Value>, key: &'static str, default_value: i64) -> Result<i64> {
+    match value {
+        Some(value) => value
+            .as_i64()
+            .ok_or_else(|| anyhow!("data_model list {key} must be integer")),
+        None => Ok(default_value),
+    }
+}
+
+fn validate_list_options(
+    metadata: &runtime_core::model_metadata::ModelMetadata,
+    options: &ListOptions,
+) -> Result<()> {
+    for filter in &options.filters {
+        if metadata.field_by_code(&filter.field_code).is_none() {
+            return Err(anyhow!("undeclared field code: {}", filter.field_code));
+        }
+        ensure_supported_filter_operator(&filter.operator)?;
+    }
+
+    for sort in &options.sorts {
+        if metadata.field_by_code(&sort.field_code).is_none() {
+            return Err(anyhow!("undeclared sort field: {}", sort.field_code));
+        }
+        ensure_supported_sort_direction(&sort.direction)?;
+    }
+
+    for relation_code in &options.expand_relations {
+        let field = metadata
+            .field_by_code(relation_code)
+            .ok_or_else(|| anyhow!("undeclared relation code: {relation_code}"))?;
+        if !matches!(
+            field.field_kind,
+            domain::ModelFieldKind::ManyToOne | domain::ModelFieldKind::OneToMany
+        ) {
+            return Err(anyhow!("unsupported relation expansion"));
+        }
+    }
+
+    Ok(())
+}
+
+fn ensure_supported_filter_operator(operator: &str) -> Result<()> {
+    match operator {
+        "eq" | "ne" | "gt" | "gte" | "lt" | "lte" => Ok(()),
+        _ => Err(anyhow!("data_model list filter operator is unsupported")),
+    }
+}
+
+fn ensure_supported_sort_direction(direction: &str) -> Result<()> {
+    match direction.to_ascii_lowercase().as_str() {
+        "asc" | "desc" => Ok(()),
+        _ => Err(anyhow!("data_model list sort direction is unsupported")),
+    }
 }
 
 fn required_string(object: &Map<String, Value>, key: &'static str) -> Result<String> {

@@ -13,12 +13,14 @@
 ## Files
 
 - Modify: `api/crates/control-plane/src/orchestration_runtime/data_model_runtime.rs`
-- Modify: `api/crates/control-plane/src/_tests/orchestration_runtime/service.rs`
+- Create: `api/crates/control-plane/src/_tests/orchestration_runtime/data_model_query.rs`
+- Modify: `api/crates/control-plane/src/_tests/orchestration_runtime/mod.rs`
+- Reference existing coverage in: `api/crates/control-plane/src/_tests/orchestration_runtime/service.rs`
 - Verification only: `tmp/test-governance/`
 
 ### Task 1: Add Data Model Runtime Tests
 
-- [ ] **Step 1: Add query execution tests**
+- [x] **Step 1: Add query execution tests**
 
 Append near the existing Data Model orchestration tests in `api/crates/control-plane/src/_tests/orchestration_runtime/service.rs`:
 
@@ -173,7 +175,7 @@ fn data_model_query_binding(value: Value) -> Value {
 }
 ```
 
-- [ ] **Step 2: Confirm failure**
+- [x] **Step 2: Confirm failure**
 
 Run:
 
@@ -183,9 +185,20 @@ cargo test -p control-plane orchestration_runtime_data_model -- --test-threads=1
 
 Expected: FAIL before child plan 03 is complete; after child plan 03, failures should identify control-plane validation gaps only.
 
+Implementation note: child plan 03 already rejects unsupported `data_model_query`
+operators in binding resolution, before a Data Model node run exists. The workflow
+binding test therefore asserts the flow-level error, and an additional config-query
+operator test covers the control-plane `WorkflowDataModelRuntime::list` validation
+path directly. Additional focused coverage for sort, pagination, page size clamp,
+undeclared fields, sort validation, and relation expansion validation lives in
+`api/crates/control-plane/src/_tests/orchestration_runtime/data_model_query.rs`
+to keep `service.rs` under the project file-size budget. Pagination defaults are
+only used when fields are missing; present non-integer `page` or `page_size`
+values fail validation.
+
 ### Task 2: Clamp And Validate Workflow List Queries
 
-- [ ] **Step 1: Clamp pagination**
+- [x] **Step 1: Clamp pagination**
 
 In `api/crates/control-plane/src/orchestration_runtime/data_model_runtime.rs`, add:
 
@@ -212,7 +225,7 @@ Update `ListOptions::from_value`:
         })
 ```
 
-- [ ] **Step 2: Validate fields, operators, sorts, and expand relations**
+- [x] **Step 2: Validate fields, operators, sorts, and expand relations**
 
 In `WorkflowDataModelRuntime::list`, after `let options = ListOptions::from_value(query)?;`, add:
 
@@ -309,7 +322,7 @@ In `parse_sorts`, normalize and validate direction:
             })
 ```
 
-- [ ] **Step 3: Verify control-plane tests**
+- [x] **Step 3: Verify control-plane tests**
 
 Run:
 
@@ -319,7 +332,9 @@ cargo test -p control-plane orchestration_runtime_data_model -- --test-threads=1
 
 Expected: PASS.
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
+
+Completed in the main session after spec and code-quality re-review.
 
 Run:
 
@@ -345,7 +360,8 @@ Expected: PASS.
 Run:
 
 ```bash
-cargo test -p orchestration-runtime compile_data_model data_model_query -- --test-threads=1
+cargo test -p orchestration-runtime compile_data_model -- --test-threads=1
+cargo test -p orchestration-runtime data_model_query -- --test-threads=1
 cargo test -p control-plane orchestration_runtime_data_model -- --test-threads=1
 ```
 
@@ -383,7 +399,8 @@ Use this verification block:
 ```text
 Verification:
 - pnpm --dir web/app test -- node-schema-registry node-inspector node-debug-preview-input validate-document document-transforms
-- cargo test -p orchestration-runtime compile_data_model data_model_query -- --test-threads=1
+- cargo test -p orchestration-runtime compile_data_model -- --test-threads=1
+- cargo test -p orchestration-runtime data_model_query -- --test-threads=1
 - cargo test -p control-plane orchestration_runtime_data_model -- --test-threads=1
 - pnpm --dir web/app test -- agent-flow
 ```
