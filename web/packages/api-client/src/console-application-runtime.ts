@@ -193,6 +193,10 @@ export interface ConsoleNodeLastRun {
   events: ConsoleRunEvent[];
 }
 
+export interface ConsoleDebugVariableSnapshot {
+  variable_cache: Record<string, Record<string, unknown>>;
+}
+
 export function startConsoleNodeDebugPreview(
   applicationId: string,
   nodeId: string,
@@ -395,6 +399,16 @@ export function getConsoleRuntimeDebugStream(
 ) {
   return apiFetch<RuntimeDebugStreamResponse>({
     path: `/api/console/applications/${applicationId}/logs/runs/${runId}/debug-stream`,
+    baseUrl
+  });
+}
+
+export function getConsoleDebugVariableSnapshot(
+  applicationId: string,
+  baseUrl?: string
+) {
+  return apiFetch<ConsoleDebugVariableSnapshot>({
+    path: `/api/console/applications/${applicationId}/orchestration/debug-variable-snapshot`,
     baseUrl
   });
 }

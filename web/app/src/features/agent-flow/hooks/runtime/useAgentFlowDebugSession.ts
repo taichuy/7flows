@@ -7,6 +7,7 @@ import {
   buildFlowDebugRunInput,
   cancelFlowDebugRun,
   fetchApplicationRunDetail,
+  fetchDebugVariableSnapshot,
   startFlowDebugRun,
   startFlowDebugRunStream,
   type AgentFlowDebugMessage,
@@ -395,6 +396,7 @@ export function useAgentFlowDebugSession({
   const flushStreamMessageFrameRef = useRef<number | null>(null);
   const streamAbortControllerRef = useRef<AbortController | null>(null);
   const streamGenerationRef = useRef(0);
+  const variableSnapshotRestoreGenerationRef = useRef(0);
 
   useEffect(() => {
     setRunContext((currentRunContext) => {
@@ -413,6 +415,33 @@ export function useAgentFlowDebugSession({
         : nextRunContext;
     });
   }, [document, rememberedInputValues, storageKey]);
+
+  useEffect(() => {
+    let disposed = false;
+    const restoreGeneration = (variableSnapshotRestoreGenerationRef.current += 1);
+
+    setNodePreviewVariableCache({});
+    fetchDebugVariableSnapshot(applicationId)
+      .then((snapshot) => {
+        if (
+          disposed ||
+          restoreGeneration !== variableSnapshotRestoreGenerationRef.current
+        ) {
+          return;
+        }
+
+        setNodePreviewVariableCache((currentCache) =>
+          mergeVariableCache(snapshot.variable_cache, currentCache)
+        );
+      })
+      .catch(() => {
+        // Durable variable snapshots are a convenience cache; the editor still opens without them.
+      });
+
+    return () => {
+      disposed = true;
+    };
+  }, [applicationId, draftId]);
 
   const rawTraceItems = useMemo(
     () =>
@@ -913,6 +942,7 @@ export function useAgentFlowDebugSession({
   }
 
   function resetVariableCache() {
+    variableSnapshotRestoreGenerationRef.current += 1;
     cancelActiveDebugStream();
     stopPolling();
     clearScheduledAssistantMessageFlush();

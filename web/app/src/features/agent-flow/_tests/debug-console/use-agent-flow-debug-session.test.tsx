@@ -237,6 +237,87 @@ describe('useAgentFlowDebugSession', () => {
     );
   });
 
+  test('restores node preview variable cache from durable runtime snapshot', async () => {
+    const queryClient = createQueryClient();
+    const document = createDefaultAgentFlowDocument({ flowId: 'flow-1' });
+    vi.spyOn(runtimeApi, 'fetchDebugVariableSnapshot').mockResolvedValue({
+      variable_cache: {
+        'node-start': {
+          query: '沿用 durable 输入'
+        },
+        'node-llm': {
+          text: '沿用 durable 输出'
+        }
+      }
+    });
+
+    const { result } = renderHook(
+      () =>
+        useAgentFlowDebugSession({
+          applicationId: 'app-1',
+          draftId: 'draft-1',
+          document
+        }),
+      { wrapper: createWrapper(queryClient) }
+    );
+
+    await waitFor(() => {
+      expect(result.current.getNodePreviewVariableCache()).toEqual(
+        expect.objectContaining({
+          'node-start': expect.objectContaining({
+            query: '沿用 durable 输入'
+          }),
+          'node-llm': expect.objectContaining({
+            text: '沿用 durable 输出'
+          })
+        })
+      );
+    });
+    expect(result.current.variableGroups[0]).toEqual(
+      expect.objectContaining({
+        title: 'Variable Cache'
+      })
+    );
+  });
+
+  test('ignores a delayed durable snapshot after resetting variable cache', async () => {
+    const queryClient = createQueryClient();
+    const document = createDefaultAgentFlowDocument({ flowId: 'flow-1' });
+    let resolveSnapshot:
+      | ((value: runtimeApi.DebugVariableSnapshot) => void)
+      | null = null;
+    vi.spyOn(runtimeApi, 'fetchDebugVariableSnapshot').mockReturnValue(
+      new Promise<runtimeApi.DebugVariableSnapshot>((resolve) => {
+        resolveSnapshot = resolve;
+      })
+    );
+
+    const { result } = renderHook(
+      () =>
+        useAgentFlowDebugSession({
+          applicationId: 'app-1',
+          draftId: 'draft-1',
+          document
+        }),
+      { wrapper: createWrapper(queryClient) }
+    );
+
+    act(() => {
+      result.current.resetVariableCache();
+    });
+    await act(async () => {
+      resolveSnapshot?.({
+        variable_cache: {
+          'node-llm': {
+            text: '迟到输出'
+          }
+        }
+      });
+    });
+
+    expect(result.current.getNodePreviewVariableCache()['node-llm']).toBeUndefined();
+  });
+
   test('creates user and assistant messages after a debug run succeeds', async () => {
     const queryClient = createQueryClient();
     const invalidateQueriesSpy = vi.spyOn(queryClient, 'invalidateQueries');

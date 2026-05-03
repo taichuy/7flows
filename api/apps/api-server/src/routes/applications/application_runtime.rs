@@ -10,6 +10,7 @@ use axum::{
 use control_plane::{
     application::ApplicationService,
     errors::ControlPlaneError,
+    flow::FlowService,
     orchestration_runtime::{
         debug_stream_events, CancelFlowRunCommand, CompleteCallbackTaskCommand,
         ContinueFlowDebugRunCommand, OrchestrationRuntimeService, PrepareFlowDebugRunCommand,
@@ -328,6 +329,11 @@ pub struct ApplicationRunDetailResponse {
 }
 
 #[derive(Debug, Serialize, ToSchema)]
+pub struct DebugVariableSnapshotResponse {
+    pub variable_cache: serde_json::Value,
+}
+
+#[derive(Debug, Serialize, ToSchema)]
 pub struct RuntimeDebugStreamResponse {
     pub parts: Vec<RuntimeDebugStreamPartResponse>,
 }
@@ -377,6 +383,10 @@ pub fn router() -> Router<Arc<ApiState>> {
         .route(
             "/applications/:id/orchestration/nodes/:node_id/debug-runs",
             post(start_node_debug_preview),
+        )
+        .route(
+            "/applications/:id/orchestration/debug-variable-snapshot",
+            get(get_debug_variable_snapshot),
         )
         .route("/applications/:id/logs/runs", get(list_application_runs))
         .route(
@@ -533,6 +543,109 @@ fn to_node_last_run_response(last_run: domain::NodeLastRun) -> NodeLastRunRespon
             .map(to_run_event_response)
             .collect(),
     }
+}
+
+fn merge_variable_object_missing(
+    variable_cache: &mut serde_json::Map<String, serde_json::Value>,
+    payload: &serde_json::Value,
+) {
+    let Some(payload) = payload.as_object() else {
+        return;
+    };
+
+    for (node_id, node_payload) in payload {
+        let Some(node_payload) = node_payload.as_object() else {
+            continue;
+        };
+        let cache_entry = variable_cache
+            .entry(node_id.clone())
+            .or_insert_with(|| serde_json::Value::Object(serde_json::Map::new()));
+        let Some(cache_entry) = cache_entry.as_object_mut() else {
+            continue;
+        };
+
+        for (key, value) in node_payload {
+            cache_entry
+                .entry(key.clone())
+                .or_insert_with(|| value.clone());
+        }
+    }
+}
+
+fn preview_output_cache_payload(output_payload: &serde_json::Value) -> Option<serde_json::Value> {
+    let payload = output_payload.as_object()?;
+
+    if let Some(node_output) = payload
+        .get("node_output")
+        .and_then(|value| value.as_object())
+    {
+        if !node_output.is_empty() {
+            return Some(serde_json::Value::Object(node_output.clone()));
+        }
+    }
+
+    if payload.is_empty() {
+        None
+    } else {
+        Some(serde_json::Value::Object(payload.clone()))
+    }
+}
+
+fn merge_node_output_missing(
+    variable_cache: &mut serde_json::Map<String, serde_json::Value>,
+    node_id: &str,
+    output_payload: &serde_json::Value,
+) {
+    let Some(output_payload) = preview_output_cache_payload(output_payload) else {
+        return;
+    };
+
+    let mut payload = serde_json::Map::new();
+    payload.insert(node_id.to_string(), output_payload);
+    merge_variable_object_missing(variable_cache, &serde_json::Value::Object(payload));
+}
+
+async fn build_debug_variable_snapshot(
+    store: &MainDurableStore,
+    application_id: Uuid,
+    draft_id: Uuid,
+) -> Result<DebugVariableSnapshotResponse, ApiError> {
+    let runs = <MainDurableStore as OrchestrationRuntimeRepository>::list_application_runs(
+        store,
+        application_id,
+    )
+    .await?;
+    let mut variable_cache = serde_json::Map::new();
+
+    for run in runs {
+        let Some(detail) =
+            <MainDurableStore as OrchestrationRuntimeRepository>::get_application_run_detail(
+                store,
+                application_id,
+                run.id,
+            )
+            .await?
+        else {
+            continue;
+        };
+
+        if detail.flow_run.draft_id != draft_id {
+            continue;
+        }
+
+        merge_variable_object_missing(&mut variable_cache, &detail.flow_run.input_payload);
+        for node_run in detail.node_runs {
+            merge_node_output_missing(
+                &mut variable_cache,
+                &node_run.node_id,
+                &node_run.output_payload,
+            );
+        }
+    }
+
+    Ok(DebugVariableSnapshotResponse {
+        variable_cache: serde_json::Value::Object(variable_cache),
+    })
 }
 
 fn to_runtime_debug_stream_part_response(
@@ -932,6 +1045,33 @@ pub async fn start_node_debug_preview(
     });
 
     Ok((StatusCode::CREATED, Json(ApiSuccess::new(response))))
+}
+
+#[utoipa::path(
+    get,
+    path = "/api/console/applications/{id}/orchestration/debug-variable-snapshot",
+    params(("id" = String, Path, description = "Application id")),
+    responses(
+        (status = 200, body = DebugVariableSnapshotResponse),
+        (status = 401, body = crate::error_response::ErrorBody),
+        (status = 403, body = crate::error_response::ErrorBody),
+        (status = 404, body = crate::error_response::ErrorBody)
+    )
+)]
+pub async fn get_debug_variable_snapshot(
+    State(state): State<Arc<ApiState>>,
+    headers: HeaderMap,
+    Path(id): Path<Uuid>,
+) -> Result<Json<ApiSuccess<DebugVariableSnapshotResponse>>, ApiError> {
+    let context = require_session(&state, &headers).await?;
+    ensure_application_visible(&state, context.user.id, id).await?;
+    let editor_state = FlowService::new(state.store.clone())
+        .get_or_create_editor_state(context.user.id, id)
+        .await?;
+
+    Ok(Json(ApiSuccess::new(
+        build_debug_variable_snapshot(&state.store, id, editor_state.draft.id).await?,
+    )))
 }
 
 #[utoipa::path(

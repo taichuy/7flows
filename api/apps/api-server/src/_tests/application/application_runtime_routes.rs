@@ -685,6 +685,67 @@ async fn get_runtime_debug_stream_returns_trusted_parts() {
 }
 
 #[tokio::test]
+async fn get_debug_variable_snapshot_restores_latest_preview_inputs_and_outputs() {
+    let app = test_app().await;
+    let (cookie, csrf) = login_and_capture_cookie(&app, "root", "change-me").await;
+    let provider_instance_id = create_ready_provider_instance(&app, &cookie, &csrf).await;
+    let application_id =
+        seed_agent_flow_application(&app, &cookie, &csrf, &provider_instance_id).await;
+
+    let preview = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri(format!(
+                    "/api/console/applications/{application_id}/orchestration/nodes/node-llm/debug-runs"
+                ))
+                .header("cookie", &cookie)
+                .header("x-csrf-token", &csrf)
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    json!({
+                        "input_payload": {
+                            "node-start": { "query": "总结退款政策" }
+                        }
+                    })
+                    .to_string(),
+                ))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(preview.status(), StatusCode::CREATED);
+
+    let response = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("GET")
+                .uri(format!(
+                    "/api/console/applications/{application_id}/orchestration/debug-variable-snapshot"
+                ))
+                .header("cookie", &cookie)
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+
+    assert_eq!(response.status(), StatusCode::OK);
+    let payload: Value =
+        serde_json::from_slice(&to_bytes(response.into_body(), usize::MAX).await.unwrap()).unwrap();
+    assert_eq!(
+        payload["data"]["variable_cache"]["node-start"]["query"],
+        "总结退款政策"
+    );
+    assert_eq!(
+        payload["data"]["variable_cache"]["node-llm"]["text"],
+        "reply:总结退款政策"
+    );
+}
+
+#[tokio::test]
 async fn external_agent_opaque_boundary_keeps_external_trust_level() {
     let (app, database_url) = test_app_with_database_url().await;
     let (cookie, csrf) = login_and_capture_cookie(&app, "root", "change-me").await;

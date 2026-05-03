@@ -6,6 +6,7 @@ import type {
 import {
   cancelConsoleFlowRun,
   getConsoleApplicationRunDetail,
+  getConsoleDebugVariableSnapshot,
   startConsoleFlowDebugRun,
   startConsoleFlowDebugRunStream,
   getConsoleNodeLastRun,
@@ -24,6 +25,9 @@ import {
 
 export type NodeLastRun = ConsoleNodeLastRun;
 export type FlowDebugRunDetail = ConsoleApplicationRunDetail;
+export type DebugVariableSnapshot = {
+  variable_cache: NodeDebugPreviewVariableCache;
+};
 export type FlowDebugRunStreamEvent = ConsoleFlowDebugStreamEvent;
 export type FlowDebugRunStreamHandlers = ConsoleFlowDebugStreamHandlers;
 export type AgentFlowDebugMessageStatus =
@@ -116,6 +120,13 @@ export function fetchNodeLastRun(applicationId: string, nodeId: string) {
   return getConsoleNodeLastRun(
     applicationId,
     nodeId,
+    getApplicationsApiBaseUrl()
+  );
+}
+
+export function fetchDebugVariableSnapshot(applicationId: string) {
+  return getConsoleDebugVariableSnapshot(
+    applicationId,
     getApplicationsApiBaseUrl()
   );
 }
