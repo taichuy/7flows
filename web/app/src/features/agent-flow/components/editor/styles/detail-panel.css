@@ -436,9 +436,50 @@
   padding: 0;
 }
 
-.agent-flow-output-contract-editor__row {
+.agent-flow-output-contract-editor {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
   width: 100%;
+}
+
+.agent-flow-output-contract-editor__header {
+  display: flex;
+  align-items: center;
   justify-content: space-between;
+  gap: 8px;
+}
+
+.agent-flow-output-contract-editor__list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.agent-flow-output-contract-editor__row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) 104px 28px;
+  align-items: end;
+  gap: 8px;
+  width: 100%;
+}
+
+.agent-flow-output-contract-editor__cell {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 6px;
+  color: #55645d;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.agent-flow-output-contract-editor__cell .ant-select {
+  width: 100%;
+}
+
+.agent-flow-output-contract-editor__delete {
+  justify-self: end;
 }
 
 .agent-flow-start-input-fields {
@@ -654,6 +695,19 @@
 }
 
 @media (max-width: 640px) {
+  .agent-flow-output-contract-editor__row {
+    grid-template-columns: minmax(0, 1fr) 28px;
+  }
+
+  .agent-flow-output-contract-editor__cell {
+    grid-column: 1 / 2;
+  }
+
+  .agent-flow-output-contract-editor__delete {
+    grid-column: 2 / 3;
+    grid-row: 1 / 2;
+  }
+
   .agent-flow-start-input-fields__item {
     grid-template-columns: 24px minmax(0, 1fr) 28px;
   }

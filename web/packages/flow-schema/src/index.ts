@@ -49,6 +49,12 @@ export interface FlowNodeOutputDocument {
   valueType: string;
 }
 
+export const DEFAULT_LLM_NODE_OUTPUTS = [
+  { key: 'text', title: '模型输出', valueType: 'string' },
+  { key: 'reasoning_content', title: '推理内容', valueType: 'string' },
+  { key: 'usage', title: '模型用量', valueType: 'json' }
+] satisfies FlowNodeOutputDocument[];
+
 export interface FlowPluginContributionRef {
   plugin_id: string;
   plugin_version: string;
@@ -223,7 +229,7 @@ export function createDefaultAgentFlowDocument({
               ]
             }
           },
-          outputs: [{ key: 'text', title: '模型输出', valueType: 'string' }]
+          outputs: DEFAULT_LLM_NODE_OUTPUTS.map((output) => ({ ...output }))
         },
         {
           id: 'node-answer',

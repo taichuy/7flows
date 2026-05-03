@@ -40,7 +40,10 @@ function createFieldBlock(field: NodeDefinitionField): SchemaFieldBlock {
   };
 }
 
-function createSectionBlock(title: string, fields: NodeDefinitionField[]): SchemaSectionBlock {
+function createSectionBlock(
+  title: string,
+  fields: NodeDefinitionField[]
+): SchemaSectionBlock {
   return {
     kind: 'section',
     title,
@@ -48,9 +51,41 @@ function createSectionBlock(title: string, fields: NodeDefinitionField[]): Schem
   };
 }
 
+function shouldExposeSharedOutputVariables(nodeType: FlowNodeType) {
+  return nodeType !== 'start' && nodeType !== 'if_else';
+}
+
+function buildSharedOutputVariableBlocks(
+  nodeType: FlowNodeType
+): SchemaBlock[] {
+  if (!shouldExposeSharedOutputVariables(nodeType)) {
+    return [];
+  }
+
+  return [
+    {
+      kind: 'section',
+      title: '输出变量',
+      blocks: [
+        {
+          kind: 'field',
+          renderer: 'output_contract_definition',
+          path: 'config.output_contract',
+          label: '输出变量'
+        }
+      ]
+    }
+  ];
+}
+
 export function buildNodeDetailHeaderBlocks(): SchemaBlock[] {
   return [
-    { kind: 'field', renderer: 'header_alias', path: 'alias', label: '节点别名' },
+    {
+      kind: 'field',
+      renderer: 'header_alias',
+      path: 'alias',
+      label: '节点别名'
+    },
     {
       kind: 'field',
       renderer: 'header_description',
@@ -107,6 +142,7 @@ export function buildCommonConfigBlocks(nodeType: FlowNodeType): SchemaBlock[] {
 
   return [
     ...definitionSections,
+    ...buildSharedOutputVariableBlocks(nodeType),
     ...policyBlocks,
     { kind: 'view', renderer: 'relations', title: '下一步' }
   ];

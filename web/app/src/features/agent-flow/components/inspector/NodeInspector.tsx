@@ -1,4 +1,7 @@
-import type { SchemaBlock, CanvasNodeSchema } from '../../../../shared/schema-ui/contracts/canvas-node-schema';
+import type {
+  SchemaBlock,
+  CanvasNodeSchema
+} from '../../../../shared/schema-ui/contracts/canvas-node-schema';
 import { SchemaRenderer } from '../../../../shared/schema-ui/runtime/SchemaRenderer';
 import { evaluateSchemaRule } from '../../../../shared/schema-ui/runtime/rule-evaluator';
 import type { SchemaAdapter } from '../../../../shared/schema-ui/registry/create-renderer-registry';
@@ -22,11 +25,15 @@ function isFieldBlock(
 }
 
 function isInlineFieldRenderer(renderer: string) {
-  return renderer === 'text' || renderer === 'number' || renderer === 'selector';
+  return (
+    renderer === 'text' || renderer === 'number' || renderer === 'selector'
+  );
 }
 
 function hasEmbeddedLabel(renderer: string) {
-  return renderer === 'templated_text';
+  return (
+    renderer === 'templated_text' || renderer === 'output_contract_definition'
+  );
 }
 
 function shouldRenderSectionTitle(title: string) {
@@ -46,7 +53,9 @@ function resolveFocusableFieldKey(fieldKey: string) {
 }
 
 function getRootValues(adapter: SchemaAdapter) {
-  return (adapter.getDerived('rootValues') as Record<string, unknown> | null) ?? {};
+  return (
+    (adapter.getDerived('rootValues') as Record<string, unknown> | null) ?? {}
+  );
 }
 
 function shouldRenderFieldBlock(
@@ -69,7 +78,9 @@ export function NodeInspector({
 } = {}) {
   const rootRef = useRef<HTMLElement | null>(null);
   const setSelection = useAgentFlowEditorStore((state) => state.setSelection);
-  const focusFieldKey = useAgentFlowEditorStore((state) => state.focusedFieldKey);
+  const focusFieldKey = useAgentFlowEditorStore(
+    (state) => state.focusedFieldKey
+  );
   const runtime = useNodeSchemaRuntime(!schema || !adapter);
   const activeSchema = schema ?? runtime.schema;
   const activeAdapter = adapter ?? runtime.adapter;
@@ -132,10 +143,6 @@ export function NodeInspector({
             <div className="agent-flow-editor__inspector-fields">
               {block.blocks.map((childBlock, index) => {
                 if (isFieldBlock(childBlock)) {
-                  if (childBlock.path === 'config.output_contract') {
-                    return null;
-                  }
-
                   if (
                     !shouldRenderFieldBlock(
                       childBlock,

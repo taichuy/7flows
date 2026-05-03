@@ -2,7 +2,10 @@ import {
   createDefaultAgentFlowDocument,
   type FlowNodeDocument
 } from '@1flowbase/flow-schema';
-import type { SchemaBlock } from '../../../shared/schema-ui/contracts/canvas-node-schema';
+import type {
+  SchemaBlock,
+  SchemaFieldBlock
+} from '../../../shared/schema-ui/contracts/canvas-node-schema';
 import { describe, expect, test, vi } from 'vitest';
 
 import { agentFlowRendererRegistry } from '../schema/agent-flow-renderer-registry';
@@ -26,7 +29,10 @@ function getNode(
   return node;
 }
 
-function findFieldBlock(blocks: SchemaBlock[], path: string) {
+function findFieldBlock(
+  blocks: SchemaBlock[],
+  path: string
+): SchemaFieldBlock | null {
   for (const block of blocks) {
     if (block.kind === 'field' && block.path === path) {
       return block;
@@ -132,9 +138,44 @@ describe('agent-flow node schema registry', () => {
     );
   });
 
+  test('renders node-level output variables as a shared config section', () => {
+    const schema = resolveAgentFlowNodeSchema('llm');
+
+    expect(schema.detail.tabs.config.blocks).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          kind: 'section',
+          title: '输出变量',
+          blocks: [
+            expect.objectContaining({
+              kind: 'field',
+              path: 'config.output_contract',
+              renderer: 'output_contract_definition',
+              label: '输出变量'
+            })
+          ]
+        })
+      ])
+    );
+  });
+
+  test('keeps the start node on input fields instead of the shared output editor', () => {
+    const schema = resolveAgentFlowNodeSchema('start');
+    const serializedConfigBlocks = JSON.stringify(
+      schema.detail.tabs.config.blocks
+    );
+
+    expect(serializedConfigBlocks).toContain('"path":"config.input_fields"');
+    expect(serializedConfigBlocks).not.toContain(
+      '"path":"config.output_contract"'
+    );
+  });
+
   test('registers the built-in Data Model node for picker and schema-driven config', () => {
     const schema = resolveAgentFlowNodeSchema('data_model' as never);
-    const serializedConfigBlocks = JSON.stringify(schema.detail.tabs.config.blocks);
+    const serializedConfigBlocks = JSON.stringify(
+      schema.detail.tabs.config.blocks
+    );
 
     expect(BUILTIN_NODE_PICKER_OPTIONS.map((option) => option.type)).toContain(
       'data_model'
@@ -153,14 +194,18 @@ describe('agent-flow node schema registry', () => {
 
   test('keeps Data Model record and payload fields action-scoped in schema', () => {
     const schema = resolveAgentFlowNodeSchema('data_model' as never);
-    const serializedConfigBlocks = JSON.stringify(schema.detail.tabs.config.blocks);
+    const serializedConfigBlocks = JSON.stringify(
+      schema.detail.tabs.config.blocks
+    );
     const payloadField = findFieldBlock(
       schema.detail.tabs.config.blocks,
       'bindings.payload'
     );
 
     expect(serializedConfigBlocks).toContain('"path":"bindings.record_id"');
-    expect(serializedConfigBlocks).toContain('"values":["get","update","delete"]');
+    expect(serializedConfigBlocks).toContain(
+      '"values":["get","update","delete"]'
+    );
     expect(serializedConfigBlocks).toContain('"path":"bindings.payload"');
     expect(serializedConfigBlocks).toContain('"values":["create","update"]');
     expect(payloadField).toEqual(
@@ -249,7 +294,9 @@ describe('agent-flow node schema registry', () => {
 
     const update = setWorkingDocument.mock.calls[0]?.[0] as
       | typeof documentWithDataModel
-      | ((currentDocument: typeof documentWithDataModel) => typeof documentWithDataModel);
+      | ((
+          currentDocument: typeof documentWithDataModel
+        ) => typeof documentWithDataModel);
     const nextDocument =
       typeof update === 'function' ? update(documentWithDataModel) : update;
     const nextNode = getNode(nextDocument, 'node-data-model');

@@ -45,7 +45,8 @@ import {
   type UpdateSettingsDataModelApiExposureInput,
   type UpdateSettingsDataModelFieldInput,
   type UpdateSettingsDataModelInput,
-  type UpdateSettingsDataModelScopeGrantInput
+  type UpdateSettingsDataModelScopeGrantInput,
+  type UpdateSettingsDataSourceDefaultsInput
 } from '../../api/data-models';
 import { DataModelDetail } from '../../components/data-models/DataModelDetail';
 import { DataModelTable } from '../../components/data-models/DataModelTable';
@@ -60,15 +61,39 @@ function getErrorMessage(error: unknown) {
 const emptySources: SettingsDataSourceInstance[] = [];
 const emptyModels: SettingsDataModel[] = [];
 
-const dataModelStatusOptions = ['draft', 'published', 'disabled', 'broken'].map(
-  (value) => ({ label: `默认 ${value}`, value })
-);
+type DefaultDataModelStatus =
+  UpdateSettingsDataSourceDefaultsInput['default_data_model_status'];
+type DefaultApiExposureStatus =
+  UpdateSettingsDataSourceDefaultsInput['default_api_exposure_status'];
 
-const apiExposureOptions = [
+const dataModelStatusOptions = (
+  [
+    'draft',
+    'published',
+    'disabled',
+    'broken'
+  ] satisfies DefaultDataModelStatus[]
+).map((value) => ({ label: `默认 ${value}`, value }));
+
+const defaultApiExposureStatuses = [
   'draft',
   'published_not_exposed',
   'api_exposed_no_permission'
-].map((value) => ({ label: `默认 ${value}`, value }));
+] satisfies DefaultApiExposureStatus[];
+
+const apiExposureOptions = defaultApiExposureStatuses.map((value) => ({
+  label: `默认 ${value}`,
+  value
+})) satisfies Array<{
+  label: string;
+  value: DefaultApiExposureStatus;
+}>;
+
+function toDefaultApiExposureStatus(
+  status: SettingsDataSourceInstance['default_api_exposure_status']
+): DefaultApiExposureStatus {
+  return status === 'api_exposed_ready' ? 'published_not_exposed' : status;
+}
 
 function readSourceIdFromLocation() {
   if (typeof window === 'undefined') {
@@ -190,7 +215,7 @@ export function SettingsDataModelsSection({
     }: {
       source: SettingsDataSourceInstance;
       patch: Pick<
-        SettingsDataSourceInstance,
+        UpdateSettingsDataSourceDefaultsInput,
         'default_data_model_status' | 'default_api_exposure_status'
       >;
     }) => {
@@ -482,7 +507,9 @@ export function SettingsDataModelsSection({
                           patch: {
                             default_data_model_status: value,
                             default_api_exposure_status:
-                              selectedSource.default_api_exposure_status
+                              toDefaultApiExposureStatus(
+                                selectedSource.default_api_exposure_status
+                              )
                           }
                         })
                       }
@@ -494,13 +521,15 @@ export function SettingsDataModelsSection({
                   >
                     <Select
                       id="data-source-default-api-status"
-                      value={selectedSource.default_api_exposure_status}
+                      value={toDefaultApiExposureStatus(
+                        selectedSource.default_api_exposure_status
+                      )}
                       options={apiExposureOptions}
                       disabled={
                         selectedSource.source_kind === 'main_source' ||
                         updateDefaultsMutation.isPending
                       }
-                      onChange={(value) =>
+                      onChange={(value: DefaultApiExposureStatus) =>
                         updateDefaultsMutation.mutate({
                           source: selectedSource,
                           patch: {

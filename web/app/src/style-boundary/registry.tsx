@@ -340,7 +340,9 @@ function seedStyleBoundarySettingsFetch() {
       );
     }
 
-    if (url.includes('/api/console/docs/operations/list_members/openapi.json')) {
+    if (
+      url.includes('/api/console/docs/operations/list_members/openapi.json')
+    ) {
       return new Response(
         JSON.stringify({
           openapi: '3.1.0',
@@ -532,6 +534,26 @@ function seedStyleBoundaryApplicationFetch() {
     }
 
     if (
+      method.toUpperCase() === 'GET' &&
+      url.endsWith(
+        '/api/console/applications/app-1/orchestration/debug-variable-snapshot'
+      )
+    ) {
+      return new Response(
+        JSON.stringify({
+          data: {
+            variable_cache: {}
+          },
+          meta: null
+        }),
+        {
+          status: 200,
+          headers: { 'content-type': 'application/json' }
+        }
+      );
+    }
+
+    if (
       method.toUpperCase() === 'PUT' &&
       url.includes('/api/console/applications/app-1/orchestration/draft')
     ) {
@@ -704,7 +726,9 @@ const renderers: Record<string, StyleBoundaryRuntimeScene['render']> = {
 
     return (
       <div style={{ width: 1280, height: 800 }}>
-        <AgentFlowEditorStoreProvider initialState={createStyleBoundaryOrchestrationState()}>
+        <AgentFlowEditorStoreProvider
+          initialState={createStyleBoundaryOrchestrationState()}
+        >
           <StyleBoundarySelectionSeed nodeId="node-llm" />
           <AgentFlowCanvasFrame
             applicationId="app-1"
@@ -717,7 +741,11 @@ const renderers: Record<string, StyleBoundaryRuntimeScene['render']> = {
   },
   'component.account-popup': () => (
     <div className="app-shell-account-popup">
-      <Menu mode="vertical" selectable={false} items={getAccountPopupChildren()} />
+      <Menu
+        mode="vertical"
+        selectable={false}
+        items={getAccountPopupChildren()}
+      />
     </div>
   ),
   'component.account-trigger': () => (
@@ -737,7 +765,8 @@ const renderers: Record<string, StyleBoundaryRuntimeScene['render']> = {
     seedStyleBoundaryApplicationFetch();
     return renderRouterScene('/applications/app-1/orchestration');
   },
-  'page.embedded-apps': () => renderShellScene('/embedded-apps', <EmbeddedAppsPage />),
+  'page.embedded-apps': () =>
+    renderShellScene('/embedded-apps', <EmbeddedAppsPage />),
   'page.tools': () => renderShellScene('/tools', <ToolsPage />),
   'page.settings': () => {
     seedStyleBoundarySettingsFetch();

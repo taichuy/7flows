@@ -3,6 +3,16 @@ import { describe, expect, test } from 'vitest';
 import { createNodeDocument } from '../lib/document/node-factory';
 
 describe('LLM node defaults', () => {
+  test('seeds node-level output variables from the LLM runtime contract', () => {
+    const node = createNodeDocument('llm', 'node-llm-2');
+
+    expect(node.outputs).toEqual([
+      { key: 'text', title: '模型输出', valueType: 'string' },
+      { key: 'reasoning_content', title: '推理内容', valueType: 'string' },
+      { key: 'usage', title: '模型用量', valueType: 'json' }
+    ]);
+  });
+
   test('manual LLM nodes seed only an empty system prompt message', () => {
     const node = createNodeDocument('llm', 'node-llm-2');
 

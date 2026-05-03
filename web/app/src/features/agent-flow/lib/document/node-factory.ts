@@ -4,6 +4,7 @@ import type {
   FlowNodeDocument,
   FlowNodeType
 } from '@1flowbase/flow-schema';
+import { DEFAULT_LLM_NODE_OUTPUTS } from '@1flowbase/flow-schema';
 
 import {
   createPluginNodeOutputs,
@@ -36,7 +37,7 @@ function defaultOutputs(
     case 'start':
       return [];
     case 'llm':
-      return [{ key: 'text', title: '模型输出', valueType: 'string' }];
+      return DEFAULT_LLM_NODE_OUTPUTS.map((output) => ({ ...output }));
     case 'answer':
       return [{ key: 'answer', title: '对话输出', valueType: 'string' }];
     case 'template_transform':
@@ -136,7 +137,9 @@ function defaultBindings(
   };
 }
 
-function isNodePickerOption(value: NodeFactoryInput): value is NodePickerOption {
+function isNodePickerOption(
+  value: NodeFactoryInput
+): value is NodePickerOption {
   return typeof value === 'object' && value !== null && 'kind' in value;
 }
 

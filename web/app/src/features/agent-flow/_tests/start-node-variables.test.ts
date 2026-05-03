@@ -39,7 +39,9 @@ describe('start node variables', () => {
 
     expect(ifElseNode.outputs).toEqual([]);
     expect(
-      listVisibleSelectorOptions(document, 'node-llm').map((option) => option.value)
+      listVisibleSelectorOptions(document, 'node-llm').map(
+        (option) => option.value
+      )
     ).not.toContainEqual(['node-if-else-1', 'result']);
   });
 
@@ -87,6 +89,26 @@ describe('start node variables', () => {
         },
         { value: ['node-start', 'query'], label: 'Start / userinput.query' },
         { value: ['node-start', 'files'], label: 'Start / userinput.files' }
+      ])
+    );
+  });
+
+  test('exposes LLM runtime output variables to downstream selectors', () => {
+    const document = createDefaultAgentFlowDocument({ flowId: 'flow-1' });
+
+    expect(
+      listVisibleSelectorOptions(document, 'node-answer').map((option) => ({
+        value: option.value,
+        label: option.displayLabel
+      }))
+    ).toEqual(
+      expect.arrayContaining([
+        { value: ['node-llm', 'text'], label: 'LLM / 模型输出' },
+        {
+          value: ['node-llm', 'reasoning_content'],
+          label: 'LLM / 推理内容'
+        },
+        { value: ['node-llm', 'usage'], label: 'LLM / 模型用量' }
       ])
     );
   });
