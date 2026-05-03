@@ -19,20 +19,8 @@
   display: none;
 }
 
-/* ===== 节点类型主题色（统一蓝色） ===== */
-.agent-flow-node-card--type-start,
-.agent-flow-node-card--type-answer,
-.agent-flow-node-card--type-llm,
-.agent-flow-node-card--type-template_transform,
-.agent-flow-node-card--type-knowledge_retrieval,
-.agent-flow-node-card--type-question_classifier,
-.agent-flow-node-card--type-if_else,
-.agent-flow-node-card--type-http_request,
-.agent-flow-node-card--type-tool,
-.agent-flow-node-card--type-variable_assigner,
-.agent-flow-node-card--type-iteration,
-.agent-flow-node-card--type-loop,
-.agent-flow-node-card--type-plugin_node {
+/* ===== 节点壳主题色（统一蓝色） ===== */
+.agent-flow-node-card--theme-unified {
   --node-accent: #1677ff;
   --node-accent-bg: #e6f4ff;
   --node-accent-border: #91caff;

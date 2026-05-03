@@ -203,18 +203,31 @@
   border: none;
   border-radius: 6px;
   background: transparent;
-  color: rgba(255, 255, 255, 0.86);
+  color: #101828;
   cursor: grab;
+  opacity: 0;
+  transition:
+    background 0.16s ease,
+    color 0.16s ease,
+    opacity 0.16s ease;
 }
 
 .agent-flow-node-config-field__drag-handle:active {
   cursor: grabbing;
 }
 
+.agent-flow-node-config-field__frame:hover
+  .agent-flow-node-config-field__drag-handle,
+.agent-flow-node-config-field__frame:focus-within
+  .agent-flow-node-config-field__drag-handle,
+.agent-flow-node-config-field__drag-handle:focus-visible {
+  opacity: 1;
+}
+
 .agent-flow-node-config-field__drag-handle:hover,
 .agent-flow-node-config-field__drag-handle:focus-visible {
-  background: rgba(255, 255, 255, 0.16);
-  color: #fff;
+  background: rgba(16, 24, 40, 0.08);
+  color: #101828;
 }
 
 .agent-flow-templated-text-field__actions {

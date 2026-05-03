@@ -39,13 +39,59 @@ vi.mock('@xyflow/react', () => ({
 }));
 
 describe('AgentFlowNodeCard', () => {
+  test('keeps node color on the shell theme instead of per-type selectors', () => {
+    const canvasStyles = readFileSync(
+      'src/features/agent-flow/components/editor/styles/canvas.css',
+      'utf8'
+    );
+
+    expect(canvasStyles).toContain('.agent-flow-node-card--theme-unified');
+    expect(canvasStyles).toContain('--node-accent: #1677ff');
+
+    render(
+      <AppProviders>
+        <AgentFlowNodeCard
+          {...({
+            data: {
+              nodeId: 'node-data-model',
+              nodeType: 'data_model',
+              nodeSchema: resolveAgentFlowNodeSchema('data_model'),
+              typeLabel: 'Data Model',
+              alias: 'Data Model',
+              description: '通过 Data Model 运行时执行记录操作。',
+              config: {},
+              issueCount: 0,
+              canEnterContainer: false,
+              pickerOpen: false,
+              showTargetHandle: true,
+              showSourceHandle: true,
+              isContainer: false,
+              onOpenPicker: vi.fn(),
+              onClosePicker: vi.fn(),
+              onOpenContainer: vi.fn(),
+              onSelectNode: vi.fn(),
+              onInsertNode: vi.fn()
+            },
+            id: 'node-data-model',
+            selected: false
+          } as unknown as Parameters<typeof AgentFlowNodeCard>[0])}
+        />
+      </AppProviders>
+    );
+
+    const card = screen.getByRole('button', { name: /database Data Model/ });
+
+    expect(card).toHaveClass('agent-flow-node-card--theme-unified');
+    expect(card).toHaveClass('agent-flow-node-card--type-data_model');
+  });
+
   test('keeps the answer node on the unified blue node-card theme with a header icon', () => {
     const canvasStyles = readFileSync(
       'src/features/agent-flow/components/editor/styles/canvas.css',
       'utf8'
     );
 
-    expect(canvasStyles).toContain('.agent-flow-node-card--type-answer');
+    expect(canvasStyles).toContain('.agent-flow-node-card--theme-unified');
 
     render(
       <AppProviders>
@@ -80,6 +126,7 @@ describe('AgentFlowNodeCard', () => {
 
     const card = screen.getByRole('button', { name: /message Answer/ });
 
+    expect(card).toHaveClass('agent-flow-node-card--theme-unified');
     expect(card).toHaveClass('agent-flow-node-card--type-answer');
     expect(
       within(card).getByRole('img', { name: 'message' })

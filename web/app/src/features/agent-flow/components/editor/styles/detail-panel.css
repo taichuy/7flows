@@ -527,18 +527,31 @@
   height: 32px;
   padding: 0;
   border-radius: 6px;
-  color: #8ca095;
+  color: #101828;
   cursor: grab;
+  opacity: 0;
+  transition:
+    background 0.16s ease,
+    color 0.16s ease,
+    opacity 0.16s ease;
 }
 
 .agent-flow-start-input-fields__drag-handle:active {
   cursor: grabbing;
 }
 
+.agent-flow-start-input-fields__item:hover
+  .agent-flow-start-input-fields__drag-handle,
+.agent-flow-start-input-fields__item:focus-within
+  .agent-flow-start-input-fields__drag-handle,
+.agent-flow-start-input-fields__drag-handle:focus-visible {
+  opacity: 1;
+}
+
 .agent-flow-start-input-fields__drag-handle:hover,
 .agent-flow-start-input-fields__drag-handle:focus-visible {
-  background: #f3f8f3;
-  color: #55645d;
+  background: rgba(16, 24, 40, 0.08);
+  color: #101828;
 }
 
 .agent-flow-start-input-fields__variable-main {

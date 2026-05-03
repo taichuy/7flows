@@ -156,7 +156,7 @@ export function AgentFlowNodeCard({
         />
       ) : null}
       <div
-        className={`agent-flow-node-card agent-flow-node-card--type-${data.nodeType}${selected ? ' agent-flow-node-card--selected' : ''}`}
+        className={`agent-flow-node-card agent-flow-node-card--theme-unified agent-flow-node-card--type-${data.nodeType}${selected ? ' agent-flow-node-card--selected' : ''}`}
         role="button"
         tabIndex={0}
         onClick={() => data.onSelectNode(data.nodeId)}
