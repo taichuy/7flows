@@ -157,6 +157,38 @@
   color: #1677ff;
 }
 
+.agent-flow-container-boundary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 104px;
+  height: 52px;
+  border: 1px solid #b8c6d8;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.96);
+  color: #344054;
+  box-shadow:
+    0 1px 3px rgba(15, 23, 42, 0.06),
+    0 8px 20px rgba(15, 23, 42, 0.05);
+  font-size: 13px;
+  font-weight: 650;
+  pointer-events: none;
+}
+
+.agent-flow-container-boundary__dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+  background: #1677ff;
+  box-shadow: 0 0 0 4px #e6f4ff;
+}
+
+.agent-flow-container-boundary--end .agent-flow-container-boundary__dot {
+  background: #667085;
+  box-shadow: 0 0 0 4px #eef2f6;
+}
+
 /* ===== Model Badge ===== */
 .agent-flow-node-card__model {
   display: inline-flex;
