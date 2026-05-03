@@ -3,11 +3,11 @@ description: Run repository quality gates and optionally publish one GitHub Issu
 
 inputs:
   scope:
-    description: Quality gate scope: ci, repo, backend, or coverage.
+    description: "Quality gate scope: ci, repo, backend, or coverage."
     required: false
     default: ci
   report_type:
-    description: Report classification: ci or cd.
+    description: "Report classification: ci or cd."
     required: false
     default: ci
   publish_issue:
