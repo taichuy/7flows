@@ -271,6 +271,64 @@ describe('agent flow document transforms', () => {
     });
   });
 
+  test('duplicates malformed Data Model query binding without crashing', () => {
+    const document = createDefaultAgentFlowDocument({ flowId: 'flow-1' });
+    const sourceNode = createNodeDocument('data_model' as never, 'node-data-model');
+    sourceNode.bindings.query = {
+      kind: 'data_model_query',
+      value: {
+        filters: [
+          {},
+          {
+            field_code: 'status',
+            operator: 'eq',
+            value: {
+              kind: 'selector',
+              selector: ['node-data-model', 'total', 1]
+            }
+          }
+        ],
+        sorts: {},
+        expand_relations: [false, 'customer'],
+        page: {
+          kind: 'selector',
+          selector: ['node-data-model', 'total', null]
+        }
+      }
+    } as never;
+    document.graph.nodes.push(sourceNode);
+
+    const duplicated = duplicateNodeSubgraph(document, {
+      nodeId: 'node-data-model'
+    });
+    const copied = duplicated.graph.nodes.find(
+      (node) => node.id === 'node-data-model-copy'
+    );
+
+    expect(copied?.bindings.query).toMatchObject({
+      kind: 'data_model_query',
+      value: {
+        filters: [
+          {
+            field_code: 'status',
+            operator: 'eq',
+            value: {
+              kind: 'selector',
+              selector: ['node-data-model-copy', 'total']
+            }
+          }
+        ],
+        sorts: [],
+        expand_relations: ['customer'],
+        page: {
+          kind: 'selector',
+          selector: ['node-data-model-copy', 'total']
+        },
+        page_size: { kind: 'constant', value: 20 }
+      }
+    });
+  });
+
   test('removes a selected node together with connected edges', () => {
     const document = createDefaultAgentFlowDocument({ flowId: 'flow-1' });
 

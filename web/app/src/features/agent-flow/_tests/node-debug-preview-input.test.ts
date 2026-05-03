@@ -129,6 +129,55 @@ describe('node debug preview input', () => {
     });
   });
 
+  test('normalizes malformed Data Model query binding before preview extraction', () => {
+    const document = createDefaultAgentFlowDocument({ flowId: 'flow-1' });
+    document.graph.nodes.push({
+      id: 'node-data-model',
+      type: 'data_model',
+      alias: 'Orders',
+      description: '',
+      containerId: null,
+      position: { x: 720, y: 220 },
+      configVersion: 1,
+      config: { data_model_code: 'orders', action: 'list' },
+      bindings: {
+        query: {
+          kind: 'data_model_query',
+          value: {
+            filters: [
+              {},
+              {
+                field_code: 'status',
+                operator: 'eq',
+                value: {
+                  kind: 'selector',
+                  selector: ['node-start', 'query', 1]
+                }
+              }
+            ],
+            sorts: 'bad',
+            expand_relations: [1, 'customer'],
+            page: { kind: 'selector', selector: ['node-start', 'query', null] }
+          }
+        } as never
+      },
+      outputs: [
+        { key: 'records', title: '记录列表', valueType: 'array' },
+        { key: 'total', title: '记录总数', valueType: 'number' }
+      ]
+    });
+
+    expect(buildNodeDebugPreviewPlan(document, 'node-data-model')).toEqual({
+      input_payload: {},
+      missing_fields: [
+        expect.objectContaining({
+          nodeId: 'node-start',
+          key: 'query'
+        })
+      ]
+    });
+  });
+
   test('ignores residual Data Model query binding when action is create', () => {
     const document = createDefaultAgentFlowDocument({ flowId: 'flow-1' });
     document.graph.nodes.push({

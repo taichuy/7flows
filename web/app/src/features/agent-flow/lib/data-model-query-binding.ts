@@ -2,6 +2,7 @@ import type {
   DataModelQueryBindingValue,
   DataModelQueryFilter,
   DataModelQueryOperator,
+  DataModelQuerySort,
   DataModelQueryValue,
   FlowBinding,
   FlowNodeDocument
@@ -23,6 +24,10 @@ export const DATA_MODEL_QUERY_DEFAULT_VALUE: DataModelQueryBindingValue = {
   page: { kind: 'constant', value: 1 },
   page_size: { kind: 'constant', value: 20 }
 };
+
+const DATA_MODEL_QUERY_OPERATOR_SET = new Set<string>(
+  DATA_MODEL_QUERY_OPERATORS
+);
 
 const ACTIVE_BINDINGS: Record<string, string[]> = {
   list: ['query'],
@@ -51,25 +56,107 @@ export function getActiveNodeBindings(node: FlowNodeDocument) {
   return Object.entries(node.bindings).filter(([key]) => activeKeys.has(key));
 }
 
+function createDefaultDataModelQueryBindingValue(): DataModelQueryBindingValue {
+  return {
+    filters: [],
+    sorts: [],
+    expand_relations: [],
+    page: { kind: 'constant', value: 1 },
+    page_size: { kind: 'constant', value: 20 }
+  };
+}
+
+function isObjectRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+function normalizeSelectorPath(value: unknown) {
+  return Array.isArray(value)
+    ? value.filter((segment): segment is string => typeof segment === 'string')
+    : [];
+}
+
+function normalizeDataModelQueryFilter(
+  value: unknown
+): DataModelQueryFilter | null {
+  if (!isObjectRecord(value)) {
+    return null;
+  }
+
+  const fieldCode =
+    typeof value.field_code === 'string' ? value.field_code.trim() : '';
+  const operator =
+    typeof value.operator === 'string' &&
+    DATA_MODEL_QUERY_OPERATOR_SET.has(value.operator)
+      ? (value.operator as DataModelQueryOperator)
+      : null;
+
+  if (!fieldCode || !operator) {
+    return null;
+  }
+
+  return {
+    field_code: fieldCode,
+    operator,
+    value: normalizeDataModelQueryValue(value.value, '')
+  };
+}
+
+function normalizeDataModelQuerySort(
+  value: unknown
+): DataModelQuerySort | null {
+  if (!isObjectRecord(value)) {
+    return null;
+  }
+
+  const fieldCode =
+    typeof value.field_code === 'string' ? value.field_code.trim() : '';
+  const direction =
+    value.direction === 'desc'
+      ? 'desc'
+      : value.direction === 'asc'
+        ? 'asc'
+        : null;
+
+  if (!fieldCode || !direction) {
+    return null;
+  }
+
+  return {
+    field_code: fieldCode,
+    direction
+  };
+}
+
 export function normalizeDataModelQueryBindingValue(
   value: unknown
 ): DataModelQueryBindingValue {
-  if (!value || typeof value !== 'object' || Array.isArray(value)) {
-    return DATA_MODEL_QUERY_DEFAULT_VALUE;
+  if (!isObjectRecord(value)) {
+    return createDefaultDataModelQueryBindingValue();
   }
 
-  const object = value as Partial<DataModelQueryBindingValue>;
-
   return {
-    filters: Array.isArray(object.filters) ? object.filters : [],
-    sorts: Array.isArray(object.sorts) ? object.sorts : [],
-    expand_relations: Array.isArray(object.expand_relations)
-      ? object.expand_relations.filter(
+    filters: Array.isArray(value.filters)
+      ? value.filters.flatMap((entry) => {
+          const filter = normalizeDataModelQueryFilter(entry);
+
+          return filter ? [filter] : [];
+        })
+      : [],
+    sorts: Array.isArray(value.sorts)
+      ? value.sorts.flatMap((entry) => {
+          const sort = normalizeDataModelQuerySort(entry);
+
+          return sort ? [sort] : [];
+        })
+      : [],
+    expand_relations: Array.isArray(value.expand_relations)
+      ? value.expand_relations.filter(
           (entry): entry is string => typeof entry === 'string'
         )
       : [],
-    page: normalizeDataModelQueryValue(object.page, 1),
-    page_size: normalizeDataModelQueryValue(object.page_size, 20)
+    page: normalizeDataModelQueryValue(value.page, 1),
+    page_size: normalizeDataModelQueryValue(value.page_size, 20)
   };
 }
 
@@ -77,41 +164,38 @@ export function normalizeDataModelQueryValue(
   value: unknown,
   fallback: unknown
 ): DataModelQueryValue {
-  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+  if (!isObjectRecord(value)) {
     return { kind: 'constant', value: fallback };
   }
 
-  const object = value as Partial<DataModelQueryValue>;
-
-  if (object.kind === 'selector' && Array.isArray(object.selector)) {
+  if (value.kind === 'selector') {
     return {
       kind: 'selector',
-      selector: object.selector.filter(
-        (segment): segment is string => typeof segment === 'string'
-      )
+      selector: normalizeSelectorPath(value.selector)
     };
   }
 
-  if (object.kind === 'constant') {
-    return { kind: 'constant', value: object.value };
+  if (value.kind === 'constant') {
+    return { kind: 'constant', value: value.value };
   }
 
   return { kind: 'constant', value: fallback };
 }
 
 export function extractDataModelQuerySelectors(
-  value: DataModelQueryBindingValue
+  value: unknown
 ) {
-  const selectors = value.filters.flatMap((filter) =>
+  const query = normalizeDataModelQueryBindingValue(value);
+  const selectors = query.filters.flatMap((filter) =>
     filter.value.kind === 'selector' ? [filter.value.selector] : []
   );
 
-  if (value.page.kind === 'selector') {
-    selectors.push(value.page.selector);
+  if (query.page.kind === 'selector') {
+    selectors.push(query.page.selector);
   }
 
-  if (value.page_size.kind === 'selector') {
-    selectors.push(value.page_size.selector);
+  if (query.page_size.kind === 'selector') {
+    selectors.push(query.page_size.selector);
   }
 
   return selectors;
@@ -125,6 +209,7 @@ export function remapDataModelQueryBinding(
     return binding;
   }
 
+  const value = normalizeDataModelQueryBindingValue(binding.value);
   const remapValue = (value: DataModelQueryValue): DataModelQueryValue =>
     value.kind === 'selector'
       ? { ...value, selector: remapSelector(value.selector) }
@@ -133,13 +218,13 @@ export function remapDataModelQueryBinding(
   return {
     ...binding,
     value: {
-      ...binding.value,
-      filters: binding.value.filters.map((filter: DataModelQueryFilter) => ({
+      ...value,
+      filters: value.filters.map((filter: DataModelQueryFilter) => ({
         ...filter,
         value: remapValue(filter.value)
       })),
-      page: remapValue(binding.value.page),
-      page_size: remapValue(binding.value.page_size)
+      page: remapValue(value.page),
+      page_size: remapValue(value.page_size)
     }
   };
 }

@@ -28,7 +28,7 @@ Do not revert or reformat them. The implementation does not require touching tho
 
 ## Child Plans
 
-- [ ] **01 Frontend Contract:** `docs/superpowers/plans/2026-05-03-data-model-workflow-query-params-implementation-01-frontend-contract.md`
+- [x] **01 Frontend Contract:** `docs/superpowers/plans/2026-05-03-data-model-workflow-query-params-implementation-01-frontend-contract.md`
   - Adds shared TypeScript query binding types.
   - Adds frontend query helpers.
   - Makes debug preview, validation, and duplicate transforms selector-aware and action-aware.

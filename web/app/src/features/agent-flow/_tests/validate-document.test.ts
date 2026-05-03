@@ -341,4 +341,33 @@ describe('validateDocument', () => {
       )
     ).toBe(false);
   });
+
+  test('does not crash on malformed saved Data Model query binding', () => {
+    const document = createDefaultAgentFlowDocument({ flowId: 'flow-1' });
+    document.graph.nodes.push({
+      ...createNodeDocument('data_model' as never, 'node-data-model'),
+      config: { data_model_code: 'orders', action: 'list' },
+      bindings: {
+        query: {
+          kind: 'data_model_query',
+          value: {
+            filters: [
+              {},
+              {
+                field_code: 'status',
+                operator: 'eq',
+                value: {
+                  kind: 'selector',
+                  selector: ['node-start', 'query', false]
+                }
+              }
+            ],
+            page: { kind: 'selector', selector: ['node-start', 'query', null] }
+          }
+        } as never
+      }
+    });
+
+    expect(() => validateDocument(document)).not.toThrow();
+  });
 });
