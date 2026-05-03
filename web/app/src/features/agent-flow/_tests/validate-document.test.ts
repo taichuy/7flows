@@ -333,5 +333,12 @@ describe('validateDocument', () => {
           issue.fieldKey === 'bindings.query'
       )
     ).toBe(false);
+    expect(
+      issues.some(
+        (issue) =>
+          issue.nodeId === 'node-data-model' &&
+          issue.fieldKey === 'bindings.record_id'
+      )
+    ).toBe(false);
   });
 });

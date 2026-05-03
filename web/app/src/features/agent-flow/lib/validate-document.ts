@@ -1,13 +1,14 @@
 import type { FlowAuthoringDocument } from '@1flowbase/flow-schema';
 import type { FlowBinding, FlowNodeDocument } from '@1flowbase/flow-schema';
 
+import { evaluateSchemaRule } from '../../../shared/schema-ui/runtime/rule-evaluator';
 import type { AgentFlowModelProviderOptions } from '../api/model-provider-options';
 import {
   extractDataModelQuerySelectors,
   getActiveNodeBindings
 } from './data-model-query-binding';
 import { getLlmModelProvider } from './llm-node-config';
-import type { InspectorSectionKey } from './node-definitions';
+import type { InspectorSectionKey, NodeDefinitionField } from './node-definitions';
 import { findInspectorSectionKey, nodeDefinitions } from './node-definitions';
 import { hasPluginContributionRef } from './plugin-node-definitions';
 import { isSelectorVisible } from './selector-options';
@@ -86,6 +87,26 @@ function isMissingRequiredField(
     case 'state_write':
       return binding.value.length === 0;
   }
+}
+
+function createNodeRuleValues(node: FlowNodeDocument): Record<string, unknown> {
+  return {
+    ...node,
+    config: {
+      ...node.config,
+      output_contract: node.outputs
+    }
+  };
+}
+
+function isFieldVisibleForNode(
+  node: FlowNodeDocument,
+  field: NodeDefinitionField
+) {
+  return evaluateSchemaRule(field.visibleWhen, {
+    values: createNodeRuleValues(node),
+    capabilities: []
+  });
 }
 
 function collectBindingSelectors(binding: FlowBinding): string[][] {
@@ -202,7 +223,11 @@ export function validateDocument(
     if (definition) {
       for (const section of definition.sections) {
         for (const field of section.fields) {
-          if (field.required && isMissingRequiredField(node, field.key)) {
+          if (
+            field.required &&
+            isFieldVisibleForNode(node, field) &&
+            isMissingRequiredField(node, field.key)
+          ) {
             if (node.type === 'llm' && field.key === 'config.model_provider') {
               const modelProvider = getLlmModelProvider(node.config);
               const providerMissing = modelProvider.provider_code.trim().length === 0;
