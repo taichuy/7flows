@@ -1,6 +1,6 @@
 ## Scope
 - 作用域：`web/` 及其子目录。
-- 当前阶段：前端仍处于 bootstrap 阶段；新增代码要向目标结构收敛，不要继续把混合职责堆进 `app/src/app/router.tsx` 和 `app/src/styles/globals.css`。
+- 当前阶段：不要继续把混合职责堆进 `app/src/app/router.tsx` 和 `app/src/styles/globals.css`。
 
 ## Skills
 - 做前端实现、页面、壳层、组件、交互时：使用 `frontend-development`
