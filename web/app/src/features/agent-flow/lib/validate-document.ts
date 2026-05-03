@@ -2,6 +2,10 @@ import type { FlowAuthoringDocument } from '@1flowbase/flow-schema';
 import type { FlowBinding, FlowNodeDocument } from '@1flowbase/flow-schema';
 
 import type { AgentFlowModelProviderOptions } from '../api/model-provider-options';
+import {
+  extractDataModelQuerySelectors,
+  getActiveNodeBindings
+} from './data-model-query-binding';
 import { getLlmModelProvider } from './llm-node-config';
 import type { InspectorSectionKey } from './node-definitions';
 import { findInspectorSectionKey, nodeDefinitions } from './node-definitions';
@@ -71,6 +75,8 @@ function isMissingRequiredField(
       return binding.value.length === 0;
     case 'selector_list':
       return binding.value.length === 0;
+    case 'data_model_query':
+      return false;
     case 'prompt_messages':
       return binding.value.length === 0;
     case 'named_bindings':
@@ -108,6 +114,8 @@ function collectBindingSelectors(binding: FlowBinding): string[][] {
       });
     case 'state_write':
       return binding.value.flatMap((entry) => (entry.source ? [entry.source] : []));
+    case 'data_model_query':
+      return extractDataModelQuerySelectors(binding.value);
   }
 }
 
@@ -293,7 +301,7 @@ export function validateDocument(
       });
     }
 
-    for (const [bindingKey, bindingValue] of Object.entries(node.bindings)) {
+    for (const [bindingKey, bindingValue] of getActiveNodeBindings(node)) {
       const selectors = collectBindingSelectors(bindingValue);
 
       for (const selector of selectors) {

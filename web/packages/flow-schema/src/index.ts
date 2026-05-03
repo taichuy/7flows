@@ -74,10 +74,39 @@ export interface LlmPromptMessage {
   };
 }
 
+export type DataModelQueryOperator = 'eq' | 'ne' | 'gt' | 'gte' | 'lt' | 'lte';
+
+export type DataModelQueryValue =
+  | { kind: 'constant'; value: unknown }
+  | { kind: 'selector'; selector: string[] };
+
+export interface DataModelQueryFilter {
+  field_code: string;
+  operator: DataModelQueryOperator;
+  value: DataModelQueryValue;
+}
+
+export interface DataModelQuerySort {
+  field_code: string;
+  direction: 'asc' | 'desc';
+}
+
+export interface DataModelQueryBindingValue {
+  filters: DataModelQueryFilter[];
+  sorts: DataModelQuerySort[];
+  expand_relations: string[];
+  page: DataModelQueryValue;
+  page_size: DataModelQueryValue;
+}
+
 export type FlowBinding =
   | { kind: 'templated_text'; value: string }
   | { kind: 'selector'; value: string[] }
   | { kind: 'selector_list'; value: string[][] }
+  | {
+      kind: 'data_model_query';
+      value: DataModelQueryBindingValue;
+    }
   | {
       kind: 'prompt_messages';
       value: LlmPromptMessage[];

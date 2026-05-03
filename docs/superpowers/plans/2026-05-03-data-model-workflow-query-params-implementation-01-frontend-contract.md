@@ -23,7 +23,7 @@
 
 ### Task 1: Add Failing Frontend Contract Tests
 
-- [ ] **Step 1: Add debug preview coverage**
+- [x] **Step 1: Add debug preview coverage**
 
 Append these tests to `web/app/src/features/agent-flow/_tests/node-debug-preview-input.test.ts`:
 
@@ -124,7 +124,7 @@ Append these tests to `web/app/src/features/agent-flow/_tests/node-debug-preview
   });
 ```
 
-- [ ] **Step 2: Add validation and duplication coverage**
+- [x] **Step 2: Add validation and duplication coverage**
 
 Append this test to `web/app/src/features/agent-flow/_tests/validate-document.test.ts`:
 
@@ -217,7 +217,7 @@ Append this test to `web/app/src/features/agent-flow/_tests/document-transforms.
   });
 ```
 
-- [ ] **Step 3: Confirm failure**
+- [x] **Step 3: Confirm failure**
 
 Run:
 
@@ -229,7 +229,7 @@ Expected: FAIL because `data_model_query` is not in `FlowBinding`, selector extr
 
 ### Task 2: Add Binding Types And Helper
 
-- [ ] **Step 1: Extend `FlowBinding`**
+- [x] **Step 1: Extend `FlowBinding`**
 
 Add these exported types before `export type FlowBinding` in `web/packages/flow-schema/src/index.ts`:
 
@@ -269,7 +269,7 @@ Add this branch to `FlowBinding`:
     }
 ```
 
-- [ ] **Step 2: Create helper module**
+- [x] **Step 2: Create helper module**
 
 Create `web/app/src/features/agent-flow/lib/data-model-query-binding.ts`:
 
@@ -417,7 +417,7 @@ export function remapDataModelQueryBinding(
 
 ### Task 3: Wire Frontend Consumers
 
-- [ ] **Step 1: Update debug preview selector extraction**
+- [x] **Step 1: Update debug preview selector extraction**
 
 In `web/app/src/features/agent-flow/api/runtime.ts`, import:
 
@@ -445,7 +445,7 @@ Replace both selector scans over `Object.values(node.bindings)` with:
   );
 ```
 
-- [ ] **Step 2: Update validation**
+- [x] **Step 2: Update validation**
 
 In `web/app/src/features/agent-flow/lib/validate-document.ts`, import:
 
@@ -469,7 +469,7 @@ Replace the binding loop with:
     for (const [bindingKey, bindingValue] of getActiveNodeBindings(node)) {
 ```
 
-- [ ] **Step 3: Update duplicate remapping**
+- [x] **Step 3: Update duplicate remapping**
 
 In `web/app/src/features/agent-flow/lib/document/transforms/duplicate.ts`, import:
 
@@ -486,7 +486,7 @@ Add this branch to `remapBinding`:
       );
 ```
 
-- [ ] **Step 4: Verify**
+- [x] **Step 4: Verify**
 
 Run:
 
@@ -496,7 +496,7 @@ pnpm --dir web/app test -- node-debug-preview-input validate-document document-t
 
 Expected: PASS.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 Run:
 

@@ -294,4 +294,44 @@ describe('validateDocument', () => {
       ])
     );
   });
+
+  test('validates only active Data Model action bindings', () => {
+    const document = createDefaultAgentFlowDocument({ flowId: 'flow-1' });
+    document.graph.nodes.push({
+      ...createNodeDocument('data_model' as never, 'node-data-model'),
+      config: { data_model_code: 'orders', action: 'create' },
+      bindings: {
+        query: {
+          kind: 'data_model_query',
+          value: {
+            filters: [
+              {
+                field_code: 'status',
+                operator: 'eq',
+                value: { kind: 'selector', selector: ['node-answer', 'answer'] }
+              }
+            ],
+            sorts: [],
+            expand_relations: [],
+            page: { kind: 'constant', value: 1 },
+            page_size: { kind: 'constant', value: 20 }
+          }
+        },
+        payload: {
+          kind: 'named_bindings',
+          value: [{ name: 'title', selector: ['node-start', 'query'] }]
+        }
+      }
+    });
+
+    const issues = validateDocument(document);
+
+    expect(
+      issues.some(
+        (issue) =>
+          issue.nodeId === 'node-data-model' &&
+          issue.fieldKey === 'bindings.query'
+      )
+    ).toBe(false);
+  });
 });

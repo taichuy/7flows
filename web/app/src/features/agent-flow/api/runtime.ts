@@ -19,6 +19,10 @@ import {
 
 import { getApplicationsApiBaseUrl } from '../../applications/api/applications';
 import {
+  extractDataModelQuerySelectors,
+  getActiveNodeBindings
+} from '../lib/data-model-query-binding';
+import {
   getNodeVariableOutputs,
   getStartInputFields
 } from '../lib/start-node-variables';
@@ -310,6 +314,10 @@ function extractSelectors(
       return binding.value
         .map((entry) => normalizeSelectorPath(entry.source))
         .filter((value): value is readonly [string, string] => value !== null);
+    case 'data_model_query':
+      return extractDataModelQuerySelectors(binding.value)
+        .map((value) => normalizeSelectorPath(value))
+        .filter((value): value is readonly [string, string] => value !== null);
     case 'templated_text':
       return extractTemplateSelectors(binding.value);
   }
@@ -401,7 +409,7 @@ export function buildNodeDebugPreviewInput(
     return { input_payload: inputPayload };
   }
 
-  const selectors = Object.values(node.bindings).flatMap((binding) =>
+  const selectors = getActiveNodeBindings(node).flatMap(([, binding]) =>
     extractSelectors(binding)
   );
 
@@ -433,7 +441,7 @@ export function buildNodeDebugPreviewPlan(
     return { input_payload: inputPayload, missing_fields: missingFields };
   }
 
-  const selectors = Object.values(node.bindings).flatMap((binding) =>
+  const selectors = getActiveNodeBindings(node).flatMap(([, binding]) =>
     extractSelectors(binding)
   );
   const visited = new Set<string>();

@@ -6,6 +6,7 @@ import type {
 
 import { getNodeById } from '../selectors';
 import { remapTemplateSelectorTokens } from '../../template-binding';
+import { remapDataModelQueryBinding } from '../../data-model-query-binding';
 
 function collectDuplicatedNodeIds(
   document: FlowAuthoringDocument,
@@ -129,6 +130,10 @@ function remapBinding(
           source: entry.source ? remapSelector(entry.source, idMap) : null
         }))
       };
+    case 'data_model_query':
+      return remapDataModelQueryBinding(binding, (selector) =>
+        remapSelector(selector, idMap)
+      );
   }
 }
 

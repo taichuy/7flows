@@ -228,6 +228,49 @@ describe('agent flow document transforms', () => {
     });
   });
 
+  test('duplicates Data Model query binding and rewrites selector values', () => {
+    const document = createDefaultAgentFlowDocument({ flowId: 'flow-1' });
+    const sourceNode = createNodeDocument('data_model' as never, 'node-data-model');
+    sourceNode.bindings.query = {
+      kind: 'data_model_query',
+      value: {
+        filters: [
+          {
+            field_code: 'status',
+            operator: 'eq',
+            value: { kind: 'selector', selector: ['node-data-model', 'total'] }
+          }
+        ],
+        sorts: [],
+        expand_relations: [],
+        page: { kind: 'constant', value: 1 },
+        page_size: { kind: 'constant', value: 20 }
+      }
+    };
+    document.graph.nodes.push(sourceNode);
+
+    const duplicated = duplicateNodeSubgraph(document, {
+      nodeId: 'node-data-model'
+    });
+    const copied = duplicated.graph.nodes.find(
+      (node) => node.id === 'node-data-model-copy'
+    );
+
+    expect(copied?.bindings.query).toMatchObject({
+      kind: 'data_model_query',
+      value: {
+        filters: [
+          {
+            value: {
+              kind: 'selector',
+              selector: ['node-data-model-copy', 'total']
+            }
+          }
+        ]
+      }
+    });
+  });
+
   test('removes a selected node together with connected edges', () => {
     const document = createDefaultAgentFlowDocument({ flowId: 'flow-1' });
 
