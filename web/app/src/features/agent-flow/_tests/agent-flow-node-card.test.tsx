@@ -144,6 +144,51 @@ describe('AgentFlowNodeCard', () => {
     expect(onOpenPicker).toHaveBeenCalledWith('node-llm');
   });
 
+  test('renders container nodes as a visible group with start and end boundary nodes', () => {
+    render(
+      <AppProviders>
+        <AgentFlowNodeCard
+          {...({
+            data: {
+              nodeId: 'node-iteration',
+              nodeType: 'iteration',
+              nodeSchema: resolveAgentFlowNodeSchema('iteration'),
+              typeLabel: 'Iteration',
+              alias: 'Iteration',
+              description: '对列表中的每一项重复执行一组节点。',
+              config: {},
+              issueCount: 0,
+              canEnterContainer: true,
+              pickerOpen: false,
+              showTargetHandle: true,
+              showSourceHandle: true,
+              isContainer: true,
+              containerChildCount: 2,
+              nodePickerOptions: [],
+              onOpenPicker: vi.fn(),
+              onClosePicker: vi.fn(),
+              onOpenContainer: vi.fn(),
+              onSelectNode: vi.fn(),
+              onInsertNode: vi.fn(),
+              onRunNode: vi.fn(),
+              onReplaceNode: vi.fn(),
+              onDeleteNode: vi.fn()
+            },
+            id: 'node-iteration',
+            selected: false
+          } as unknown as Parameters<typeof AgentFlowNodeCard>[0])}
+        />
+      </AppProviders>
+    );
+
+    const group = screen.getByRole('group', { name: 'Iteration 节点分组' });
+
+    expect(group).toHaveClass('agent-flow-node-card--container-group');
+    expect(within(group).getByText('开始')).toBeInTheDocument();
+    expect(within(group).getByText('结束')).toBeInTheDocument();
+    expect(within(group).getByText('2 个节点')).toBeInTheDocument();
+  });
+
   test('shows hover quick actions for running, replacing and deleting a node', async () => {
     const onRunNode = vi.fn();
     const onReplaceNode = vi.fn();

@@ -74,6 +74,21 @@
     0 8px 28px color-mix(in srgb, var(--node-accent, #497a5d) 20%, transparent);
 }
 
+.agent-flow-node-card--container-group {
+  width: 392px;
+  min-width: 392px;
+  border-style: dashed;
+  border-color: #91caff;
+  border-radius: 12px;
+  background:
+    linear-gradient(180deg, rgba(230, 244, 255, 0.5), rgba(255, 255, 255, 0.96)),
+    #fff;
+}
+
+.agent-flow-node-card--container-group:hover {
+  transform: translateY(-1px);
+}
+
 /* ===== 节点上半区：分割线上方展示图标和节点名称 ===== */
 .agent-flow-node-card__header {
   display: flex;
@@ -155,6 +170,81 @@
 .agent-flow-node-card__quick-action.ant-btn:focus-visible {
   background: #f3f7ff;
   color: #1677ff;
+}
+
+.agent-flow-node-card__group-body {
+  padding: 18px 18px 20px;
+}
+
+.agent-flow-node-card__group-rail {
+  display: grid;
+  grid-template-columns: 84px minmax(96px, 1fr) 84px;
+  align-items: center;
+  gap: 10px;
+  min-height: 72px;
+}
+
+.agent-flow-node-card__group-boundary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  height: 42px;
+  border: 1px solid #b8c6d8;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.98);
+  color: #344054;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.06);
+  font-size: 12px;
+  font-weight: 650;
+}
+
+.agent-flow-node-card__group-boundary-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: #1677ff;
+  box-shadow: 0 0 0 3px #e6f4ff;
+}
+
+.agent-flow-node-card__group-boundary--end
+  .agent-flow-node-card__group-boundary-dot {
+  background: #667085;
+  box-shadow: 0 0 0 3px #eef2f6;
+}
+
+.agent-flow-node-card__group-track {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 0;
+  height: 42px;
+}
+
+.agent-flow-node-card__group-track::before {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 50%;
+  height: 2px;
+  border-radius: 999px;
+  background: #b8c6d8;
+  content: '';
+}
+
+.agent-flow-node-card__group-count {
+  position: relative;
+  z-index: 1;
+  max-width: 100%;
+  padding: 4px 10px;
+  border: 1px solid #d6e4ff;
+  border-radius: 999px;
+  background: #fff;
+  color: #475467;
+  font-size: 12px;
+  line-height: 1.2;
+  white-space: nowrap;
 }
 
 .agent-flow-container-boundary {

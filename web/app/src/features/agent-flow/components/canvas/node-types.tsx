@@ -20,6 +20,7 @@ export interface AgentFlowCanvasNodeData extends Record<string, unknown> {
   showTargetHandle: boolean;
   showSourceHandle: boolean;
   isContainer: boolean;
+  containerChildCount: number;
   nodePickerOptions: NodePickerOption[];
   onOpenPicker: (nodeId: string) => void;
   onClosePicker: () => void;

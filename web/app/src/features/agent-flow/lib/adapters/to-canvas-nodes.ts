@@ -10,6 +10,8 @@ import { resolveAgentFlowNodeSchema } from '../../schema/node-schema-registry';
 
 const CANVAS_NODE_WIDTH = 196;
 const CANVAS_NODE_HEIGHT = 96;
+const CONTAINER_CANVAS_NODE_WIDTH = 392;
+const CONTAINER_CANVAS_NODE_HEIGHT = 180;
 const CONTAINER_BOUNDARY_NODE_WIDTH = 104;
 const CONTAINER_BOUNDARY_NODE_HEIGHT = 52;
 const CONTAINER_BOUNDARY_GAP = 280;
@@ -55,16 +57,38 @@ export function toCanvasNodes(
   const visibleNodes = document.graph.nodes.filter(
     (node) => node.containerId === activeContainerId
   );
+  const childCountByContainerId = document.graph.nodes.reduce<
+    Record<string, number>
+  >((counts, node) => {
+    if (!node.containerId) {
+      return counts;
+    }
+
+    counts[node.containerId] = (counts[node.containerId] ?? 0) + 1;
+    return counts;
+  }, {});
   const canvasNodes: AgentFlowCanvasNode[] = visibleNodes.map((node) => ({
     id: node.id,
     type: 'agentFlowNode',
     selected: node.id === selectedNodeId,
     position: node.position,
-    width: CANVAS_NODE_WIDTH,
-    height: CANVAS_NODE_HEIGHT,
+    width:
+      node.type === 'iteration' || node.type === 'loop'
+        ? CONTAINER_CANVAS_NODE_WIDTH
+        : CANVAS_NODE_WIDTH,
+    height:
+      node.type === 'iteration' || node.type === 'loop'
+        ? CONTAINER_CANVAS_NODE_HEIGHT
+        : CANVAS_NODE_HEIGHT,
     measured: {
-      width: CANVAS_NODE_WIDTH,
-      height: CANVAS_NODE_HEIGHT
+      width:
+        node.type === 'iteration' || node.type === 'loop'
+          ? CONTAINER_CANVAS_NODE_WIDTH
+          : CANVAS_NODE_WIDTH,
+      height:
+        node.type === 'iteration' || node.type === 'loop'
+          ? CONTAINER_CANVAS_NODE_HEIGHT
+          : CANVAS_NODE_HEIGHT
     },
     data: {
       nodeId: node.id,
@@ -80,6 +104,7 @@ export function toCanvasNodes(
       showTargetHandle: node.type !== 'start',
       showSourceHandle: true,
       isContainer: node.type === 'iteration' || node.type === 'loop',
+      containerChildCount: childCountByContainerId[node.id] ?? 0,
       ...actions
     }
   }));

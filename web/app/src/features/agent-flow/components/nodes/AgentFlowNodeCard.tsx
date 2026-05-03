@@ -145,6 +145,19 @@ export function AgentFlowNodeCard({
     },
     dispatch: () => undefined
   } as const;
+  const cardBlocks = data.isContainer
+    ? data.nodeSchema.card.blocks.filter(
+        (block) => block.kind === 'view' && block.renderer === 'card_eyebrow'
+      )
+    : data.nodeSchema.card.blocks;
+  const cardClassName = [
+    'agent-flow-node-card',
+    `agent-flow-node-card--type-${data.nodeType}`,
+    data.isContainer ? 'agent-flow-node-card--container-group' : '',
+    selected ? 'agent-flow-node-card--selected' : ''
+  ]
+    .filter(Boolean)
+    .join(' ');
 
   return (
     <>
@@ -156,8 +169,11 @@ export function AgentFlowNodeCard({
         />
       ) : null}
       <div
-        className={`agent-flow-node-card agent-flow-node-card--type-${data.nodeType}${selected ? ' agent-flow-node-card--selected' : ''}`}
-        role="button"
+        aria-label={
+          data.isContainer ? `${data.alias} 节点分组` : undefined
+        }
+        className={cardClassName}
+        role={data.isContainer ? 'group' : 'button'}
         tabIndex={0}
         onClick={() => data.onSelectNode(data.nodeId)}
         onMouseEnter={showQuickActions}
@@ -178,9 +194,28 @@ export function AgentFlowNodeCard({
       >
         <SchemaRenderer
           adapter={cardAdapter}
-          blocks={data.nodeSchema.card.blocks}
+          blocks={cardBlocks}
           registry={agentFlowRendererRegistry}
         />
+        {data.isContainer ? (
+          <div className="agent-flow-node-card__group-body">
+            <div className="agent-flow-node-card__group-rail">
+              <div className="agent-flow-node-card__group-boundary agent-flow-node-card__group-boundary--start">
+                <span className="agent-flow-node-card__group-boundary-dot" />
+                <span>开始</span>
+              </div>
+              <div className="agent-flow-node-card__group-track">
+                <span className="agent-flow-node-card__group-count">
+                  {data.containerChildCount} 个节点
+                </span>
+              </div>
+              <div className="agent-flow-node-card__group-boundary agent-flow-node-card__group-boundary--end">
+                <span className="agent-flow-node-card__group-boundary-dot" />
+                <span>结束</span>
+              </div>
+            </div>
+          </div>
+        ) : null}
         <div
           className={`agent-flow-node-card__quick-actions${quickActionsVisible ? ' agent-flow-node-card__quick-actions--visible' : ''}`}
           data-testid={`agent-flow-node-quick-actions-${data.nodeId}`}
