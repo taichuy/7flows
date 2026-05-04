@@ -8,7 +8,10 @@ import {
 import { useEffect, type ReactNode } from 'react';
 import { beforeEach, describe, expect, test, vi } from 'vitest';
 
-import { createDefaultAgentFlowDocument } from '@1flowbase/flow-schema';
+import {
+  createDefaultAgentFlowDocument,
+  type BuiltinFlowNodeType
+} from '@1flowbase/flow-schema';
 import { AppProviders } from '../../../app/AppProviders';
 import {
   modelProviderOptionsContract,
@@ -97,11 +100,13 @@ function createInitialStateWithLoopNode() {
   };
 }
 
-function createInitialStateWithDataModelNode() {
+function createInitialStateWithDataModelNode(
+  nodeType: BuiltinFlowNodeType = 'data_model_list'
+) {
   const document = createDefaultAgentFlowDocument({ flowId: 'flow-1' });
 
   document.graph.nodes.push(
-    createNodeDocument('data_model' as never, 'node-data-model', 720, 240)
+    createNodeDocument(nodeType, 'node-data-model', 720, 240)
   );
   document.graph.edges.push({
     id: 'edge-start-data-model',
@@ -810,70 +815,56 @@ describe('NodeInspector', () => {
     });
   }, 10000);
 
-  test('toggles Data Model record and payload editors by action and keeps outputs aligned', async () => {
-    let latestDocument = createDefaultAgentFlowDocument({ flowId: 'flow-1' });
-
-    renderWithProviders(
+  test('renders Data Model create, update, and delete editors from fixed node types', async () => {
+    const { unmount: unmountCreate } = renderWithProviders(
       <AgentFlowEditorStoreProvider
-        initialState={createInitialStateWithDataModelNode()}
+        initialState={createInitialStateWithDataModelNode('data_model_create')}
       >
         <SelectionSeed nodeId="node-data-model" />
-        <DocumentObserver
-          onChange={(document) => {
-            latestDocument = document;
-          }}
-        />
+        <NodeConfigTab />
+      </AgentFlowEditorStoreProvider>
+    );
+
+    expect(screen.queryByLabelText('Action')).not.toBeInTheDocument();
+    expect(
+      screen.queryByTestId('inspector-field-bindings.record_id')
+    ).not.toBeInTheDocument();
+    expect(
+      screen.getByTestId('inspector-field-bindings.payload')
+    ).toBeInTheDocument();
+    unmountCreate();
+
+    const { unmount: unmountUpdate } = renderWithProviders(
+      <AgentFlowEditorStoreProvider
+        initialState={createInitialStateWithDataModelNode('data_model_update')}
+      >
+        <SelectionSeed nodeId="node-data-model" />
         <NodeConfigTab />
       </AgentFlowEditorStoreProvider>
     );
 
     expect(
-      screen.queryByTestId('inspector-field-bindings.record_id')
-    ).not.toBeInTheDocument();
+      screen.getByTestId('inspector-field-bindings.record_id')
+    ).toBeInTheDocument();
+    expect(
+      screen.getByTestId('inspector-field-bindings.payload')
+    ).toBeInTheDocument();
+    unmountUpdate();
+
+    renderWithProviders(
+      <AgentFlowEditorStoreProvider
+        initialState={createInitialStateWithDataModelNode('data_model_delete')}
+      >
+        <SelectionSeed nodeId="node-data-model" />
+        <NodeConfigTab />
+      </AgentFlowEditorStoreProvider>
+    );
+
+    expect(
+      screen.getByTestId('inspector-field-bindings.record_id')
+    ).toBeInTheDocument();
     expect(
       screen.queryByTestId('inspector-field-bindings.payload')
     ).not.toBeInTheDocument();
-
-    await openSelect('Action');
-    await selectOption('Create');
-
-    await waitFor(() => {
-      expect(
-        screen.queryByTestId('inspector-field-bindings.record_id')
-      ).not.toBeInTheDocument();
-      expect(
-        screen.getByTestId('inspector-field-bindings.payload')
-      ).toBeInTheDocument();
-      expect(getDataModelNode(latestDocument).outputs).toEqual([
-        { key: 'record', title: '记录', valueType: 'json' }
-      ]);
-    });
-
-    await openSelect('Action');
-    await selectOption('Update');
-
-    await waitFor(() => {
-      expect(
-        screen.getByTestId('inspector-field-bindings.record_id')
-      ).toBeInTheDocument();
-      expect(
-        screen.getByTestId('inspector-field-bindings.payload')
-      ).toBeInTheDocument();
-    });
-
-    await openSelect('Action');
-    await selectOption('Delete');
-
-    await waitFor(() => {
-      expect(
-        screen.getByTestId('inspector-field-bindings.record_id')
-      ).toBeInTheDocument();
-      expect(
-        screen.queryByTestId('inspector-field-bindings.payload')
-      ).not.toBeInTheDocument();
-      expect(getDataModelNode(latestDocument).outputs).toEqual([
-        { key: 'deleted_id', title: '删除记录 ID', valueType: 'string' }
-      ]);
-    });
   });
 });

@@ -7,6 +7,7 @@ import type {
   FlowBinding,
   FlowNodeDocument
 } from '@1flowbase/flow-schema';
+import { getDataModelActionForNodeType } from './node-definitions/nodes/data-model';
 
 export const DATA_MODEL_QUERY_OPERATORS: DataModelQueryOperator[] = [
   'eq',
@@ -38,20 +39,29 @@ const ACTIVE_BINDINGS: Record<string, string[]> = {
 };
 
 export function getDataModelAction(value: unknown) {
-  return typeof value === 'string' &&
-    Object.prototype.hasOwnProperty.call(ACTIVE_BINDINGS, value)
-    ? value
-    : 'list';
+  if (typeof value === 'string') {
+    const nodeTypeAction = getDataModelActionForNodeType(value);
+
+    if (nodeTypeAction) {
+      return nodeTypeAction;
+    }
+
+    if (Object.prototype.hasOwnProperty.call(ACTIVE_BINDINGS, value)) {
+      return value;
+    }
+  }
+
+  return 'list';
 }
 
 export function getActiveNodeBindings(node: FlowNodeDocument) {
-  if (node.type !== 'data_model') {
+  const action = getDataModelActionForNodeType(node.type);
+
+  if (!action) {
     return Object.entries(node.bindings);
   }
 
-  const activeKeys = new Set(
-    ACTIVE_BINDINGS[getDataModelAction(node.config.action)]
-  );
+  const activeKeys = new Set(ACTIVE_BINDINGS[action]);
 
   return Object.entries(node.bindings).filter(([key]) => activeKeys.has(key));
 }

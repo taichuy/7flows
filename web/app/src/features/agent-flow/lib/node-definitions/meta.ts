@@ -1,4 +1,5 @@
 import type { NodeDefinitionMetaMap } from './types';
+import { dataModelNodeMeta } from './nodes/data-model';
 
 export const nodeDefinitionMeta: NodeDefinitionMetaMap = {
   start: {
@@ -41,10 +42,7 @@ export const nodeDefinitionMeta: NodeDefinitionMetaMap = {
     summary: '调用外部工具能力并返回工具执行结果。',
     helpHref: '/docs/agentflow/nodes/tool'
   },
-  data_model: {
-    summary: '通过 Data Model 运行时执行列表、读取、创建、更新或删除记录。',
-    helpHref: '/docs/agentflow/nodes/data-model'
-  },
+  ...dataModelNodeMeta,
   variable_assigner: {
     summary: '把上游数据写入或更新到工作流状态。',
     helpHref: '/docs/agentflow/nodes/variable-assigner'

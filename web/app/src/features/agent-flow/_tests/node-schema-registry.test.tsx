@@ -200,52 +200,68 @@ describe('agent-flow node schema registry', () => {
     );
   });
 
-  test('registers the built-in Data Model node for picker and schema-driven config', () => {
-    const schema = resolveAgentFlowNodeSchema('data_model' as never);
-    const serializedConfigBlocks = JSON.stringify(
-      schema.detail.tabs.config.blocks
-    );
+  test('registers built-in Data Model CRUD nodes for picker and schema-driven config', () => {
+    const pickerTypes = BUILTIN_NODE_PICKER_OPTIONS.map((option) => option.type);
 
-    expect(BUILTIN_NODE_PICKER_OPTIONS.map((option) => option.type)).toContain(
-      'data_model'
+    expect(pickerTypes).toEqual(
+      expect.arrayContaining([
+        'data_model_list',
+        'data_model_get',
+        'data_model_create',
+        'data_model_update',
+        'data_model_delete'
+      ])
     );
-    expect(schema.nodeType).toBe('data_model');
-    expect(serializedConfigBlocks).toContain('"path":"config.data_model_code"');
-    expect(serializedConfigBlocks).toContain('"renderer":"data_model"');
-    expect(serializedConfigBlocks).toContain('"path":"config.action"');
-    expect(serializedConfigBlocks).toContain('"renderer":"static_select"');
-    expect(serializedConfigBlocks).toContain('"value":"list"');
-    expect(serializedConfigBlocks).toContain('"value":"get"');
-    expect(serializedConfigBlocks).toContain('"value":"create"');
-    expect(serializedConfigBlocks).toContain('"value":"update"');
-    expect(serializedConfigBlocks).toContain('"value":"delete"');
+    expect(pickerTypes).not.toContain('data_model');
+
+    for (const nodeType of [
+      'data_model_list',
+      'data_model_get',
+      'data_model_create',
+      'data_model_update',
+      'data_model_delete'
+    ] as const) {
+      const schema = resolveAgentFlowNodeSchema(nodeType);
+      const serializedConfigBlocks = JSON.stringify(
+        schema.detail.tabs.config.blocks
+      );
+
+      expect(schema.nodeType).toBe(nodeType);
+      expect(serializedConfigBlocks).toContain('"path":"config.data_model_code"');
+      expect(serializedConfigBlocks).toContain('"renderer":"data_model"');
+      expect(serializedConfigBlocks).not.toContain('"path":"config.action"');
+    }
   });
 
-  test('keeps Data Model record and payload fields action-scoped in schema', () => {
-    const schema = resolveAgentFlowNodeSchema('data_model' as never);
-    const serializedConfigBlocks = JSON.stringify(
-      schema.detail.tabs.config.blocks
-    );
-    const payloadField = findFieldBlock(
-      schema.detail.tabs.config.blocks,
-      'bindings.payload'
-    );
+  test('keeps Data Model CRUD node fields fixed by node type', () => {
+    const listSchema = resolveAgentFlowNodeSchema('data_model_list');
+    const getSchema = resolveAgentFlowNodeSchema('data_model_get');
+    const createSchema = resolveAgentFlowNodeSchema('data_model_create');
+    const updateSchema = resolveAgentFlowNodeSchema('data_model_update');
+    const deleteSchema = resolveAgentFlowNodeSchema('data_model_delete');
 
-    expect(serializedConfigBlocks).toContain('"path":"bindings.record_id"');
-    expect(serializedConfigBlocks).toContain(
-      '"values":["get","update","delete"]'
+    expect(findFieldBlock(listSchema.detail.tabs.config.blocks, 'bindings.query')).toEqual(
+      expect.objectContaining({ renderer: 'data_model_query' })
     );
-    expect(serializedConfigBlocks).toContain('"path":"bindings.payload"');
-    expect(serializedConfigBlocks).toContain('"values":["create","update"]');
-    expect(payloadField).toEqual(
-      expect.objectContaining({
-        renderer: 'named_bindings'
-      })
+    expect(findFieldBlock(getSchema.detail.tabs.config.blocks, 'bindings.record_id')).toEqual(
+      expect.objectContaining({ renderer: 'templated_text' })
+    );
+    expect(findFieldBlock(createSchema.detail.tabs.config.blocks, 'bindings.payload')).toEqual(
+      expect.objectContaining({ renderer: 'named_bindings' })
+    );
+    expect(findFieldBlock(updateSchema.detail.tabs.config.blocks, 'bindings.record_id')).toEqual(
+      expect.objectContaining({ renderer: 'templated_text' })
+    );
+    expect(findFieldBlock(updateSchema.detail.tabs.config.blocks, 'bindings.payload')).toEqual(
+      expect.objectContaining({ renderer: 'named_bindings' })
+    );
+    expect(findFieldBlock(deleteSchema.detail.tabs.config.blocks, 'bindings.record_id')).toEqual(
+      expect.objectContaining({ renderer: 'templated_text' })
     );
   });
 
-  test('exposes Data Model query params only for list action', () => {
-    const schema = resolveAgentFlowNodeSchema('data_model' as never);
+  test('exposes Data Model list query params without action-scoped visibility', () => {
+    const schema = resolveAgentFlowNodeSchema('data_model_list');
     const queryField = findFieldBlock(
       schema.detail.tabs.config.blocks,
       'bindings.query'
@@ -253,26 +269,29 @@ describe('agent-flow node schema registry', () => {
 
     expect(queryField).toEqual(
       expect.objectContaining({
-        renderer: 'data_model_query',
-        visibleWhen: {
-          operator: 'eq',
-          path: 'config.action',
-          value: 'list'
-        }
+        renderer: 'data_model_query'
       })
     );
+    expect(queryField).not.toHaveProperty('visibleWhen');
   });
 
-  test('creates Data Model nodes with list outputs by default', () => {
-    const node = createNodeDocument('data_model' as never, 'node-data-model');
+  test('creates Data Model CRUD nodes with fixed outputs', () => {
+    const listNode = createNodeDocument('data_model_list', 'node-data-model-list');
+    const getNode = createNodeDocument('data_model_get', 'node-data-model-get');
+    const createNode = createNodeDocument('data_model_create', 'node-data-model-create');
+    const updateNode = createNodeDocument('data_model_update', 'node-data-model-update');
+    const deleteNode = createNodeDocument('data_model_delete', 'node-data-model-delete');
 
-    expect(node.config).toMatchObject({
-      data_model_code: '',
-      action: 'list'
-    });
-    expect(node.outputs).toEqual([
-      { key: 'records', title: '记录列表', valueType: 'array' },
-      { key: 'total', title: '记录总数', valueType: 'number' }
+    expect(listNode.config).toEqual({ data_model_code: '' });
+    expect(listNode.outputs).toEqual([
+      { key: 'records', title: 'Records', valueType: 'array' },
+      { key: 'total', title: 'Total', valueType: 'number' }
+    ]);
+    expect(getNode.outputs).toEqual([{ key: 'record', title: 'Record', valueType: 'json' }]);
+    expect(createNode.outputs).toEqual([{ key: 'record', title: 'Record', valueType: 'json' }]);
+    expect(updateNode.outputs).toEqual([{ key: 'record', title: 'Record', valueType: 'json' }]);
+    expect(deleteNode.outputs).toEqual([
+      { key: 'deleted_id', title: 'Deleted ID', valueType: 'string' }
     ]);
   });
 
@@ -317,41 +336,4 @@ describe('agent-flow node schema registry', () => {
     expect(dispatch).not.toHaveBeenCalled();
   });
 
-  test('updates Data Model output contract when the action changes', () => {
-    const document = createDefaultAgentFlowDocument({ flowId: 'flow-1' });
-    const dataModelNode = createNodeDocument(
-      'data_model' as never,
-      'node-data-model'
-    );
-    const documentWithDataModel = {
-      ...document,
-      graph: {
-        ...document.graph,
-        nodes: [...document.graph.nodes, dataModelNode]
-      }
-    };
-    const setWorkingDocument = vi.fn();
-    const adapter = createAgentFlowNodeSchemaAdapter({
-      document: documentWithDataModel,
-      nodeId: 'node-data-model',
-      setWorkingDocument,
-      dispatch: vi.fn()
-    });
-
-    adapter.setValue('config.action', 'delete');
-
-    const update = setWorkingDocument.mock.calls[0]?.[0] as
-      | typeof documentWithDataModel
-      | ((
-          currentDocument: typeof documentWithDataModel
-        ) => typeof documentWithDataModel);
-    const nextDocument =
-      typeof update === 'function' ? update(documentWithDataModel) : update;
-    const nextNode = getNode(nextDocument, 'node-data-model');
-
-    expect(nextNode.config.action).toBe('delete');
-    expect(nextNode.outputs).toEqual([
-      { key: 'deleted_id', title: '删除记录 ID', valueType: 'string' }
-    ]);
-  });
 });

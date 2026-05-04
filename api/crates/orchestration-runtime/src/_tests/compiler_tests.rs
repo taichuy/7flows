@@ -250,13 +250,13 @@ fn compile_data_model_query_extracts_selector_dependencies() {
     let mut document = sample_document(flow_id);
     document["graph"]["nodes"][1] = json!({
         "id": "node-data-model",
-        "type": "data_model",
+        "type": "data_model_list",
         "alias": "Orders",
         "description": "",
         "containerId": null,
         "position": { "x": 240, "y": 0 },
         "configVersion": 1,
-        "config": { "data_model_code": "orders", "action": "list" },
+        "config": { "data_model_code": "orders" },
         "bindings": {
             "query": {
                 "kind": "data_model_query",
@@ -294,18 +294,18 @@ fn compile_data_model_query_extracts_selector_dependencies() {
 }
 
 #[test]
-fn compile_data_model_filters_inactive_bindings_by_action() {
+fn compile_data_model_filters_inactive_bindings_by_node_type() {
     let flow_id = Uuid::now_v7();
     let mut document = sample_document(flow_id);
     document["graph"]["nodes"][1] = json!({
         "id": "node-data-model",
-        "type": "data_model",
+        "type": "data_model_create",
         "alias": "Orders",
         "description": "",
         "containerId": null,
         "position": { "x": 240, "y": 0 },
         "configVersion": 1,
-        "config": { "data_model_code": "orders", "action": "create" },
+        "config": { "data_model_code": "orders" },
         "bindings": {
             "query": {
                 "kind": "data_model_query",
@@ -336,6 +336,55 @@ fn compile_data_model_filters_inactive_bindings_by_action() {
 
     assert!(!plan.nodes["node-data-model"].bindings.contains_key("query"));
     assert!(plan.nodes["node-data-model"]
+        .bindings
+        .contains_key("payload"));
+}
+
+#[test]
+fn compile_data_model_create_node_filters_inactive_bindings_by_type() {
+    let flow_id = Uuid::now_v7();
+    let mut document = sample_document(flow_id);
+    document["graph"]["nodes"][1] = json!({
+        "id": "node-data-model-create",
+        "type": "data_model_create",
+        "alias": "Create Order",
+        "description": "",
+        "containerId": null,
+        "position": { "x": 240, "y": 0 },
+        "configVersion": 1,
+        "config": { "data_model_code": "orders" },
+        "bindings": {
+            "query": {
+                "kind": "data_model_query",
+                "value": {
+                    "filters": [
+                        {
+                            "field_code": "status",
+                            "operator": "eq",
+                            "value": { "kind": "selector", "selector": ["missing-node", "answer"] }
+                        }
+                    ],
+                    "sorts": [],
+                    "expand_relations": [],
+                    "page": { "kind": "constant", "value": 1 },
+                    "page_size": { "kind": "constant", "value": 20 }
+                }
+            },
+            "payload": {
+                "kind": "named_bindings",
+                "value": [{ "name": "title", "selector": ["node-start", "query"] }]
+            }
+        },
+        "outputs": [{ "key": "record", "title": "记录", "valueType": "json" }]
+    });
+    document["graph"]["edges"][0]["target"] = json!("node-data-model-create");
+
+    let plan = FlowCompiler::compile(flow_id, "draft-1", &document, &compile_context()).unwrap();
+
+    assert!(!plan.nodes["node-data-model-create"]
+        .bindings
+        .contains_key("query"));
+    assert!(plan.nodes["node-data-model-create"]
         .bindings
         .contains_key("payload"));
 }

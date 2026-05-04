@@ -46,7 +46,16 @@ const BUILTIN_NODE_PICKER_GROUPS: NodePickerGroup[] = [
     key: 'data',
     title: '数据处理',
     description: '读写结构化数据并维护流程变量。',
-    types: ['data_model', 'variable_assigner', 'parameter_extractor', 'code']
+    types: [
+      'data_model_list',
+      'data_model_get',
+      'data_model_create',
+      'data_model_update',
+      'data_model_delete',
+      'variable_assigner',
+      'parameter_extractor',
+      'code'
+    ]
   },
   {
     key: 'external',
@@ -70,7 +79,11 @@ const BUILTIN_NODE_PICKER_SUMMARIES: Record<
   if_else: '按条件判断选择路径。',
   http_request: '请求外部 HTTP 接口。',
   tool: '调用已接入的工具能力。',
-  data_model: '读取或写入数据模型记录。',
+  data_model_list: 'List Data Model records.',
+  data_model_get: 'Get one Data Model record.',
+  data_model_create: 'Create a Data Model record.',
+  data_model_update: 'Update a Data Model record.',
+  data_model_delete: 'Delete a Data Model record.',
   variable_assigner: '设置或更新流程变量。',
   parameter_extractor: '从文本中提取结构化参数。',
   code: '执行脚本处理复杂转换。',

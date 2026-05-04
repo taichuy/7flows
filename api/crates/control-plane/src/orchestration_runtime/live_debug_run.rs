@@ -1131,7 +1131,8 @@ where
 
                 variable_pool.insert(node.node_id.clone(), execution.output_payload);
             }
-            "data_model" => {
+            "data_model_list" | "data_model_get" | "data_model_create" | "data_model_update"
+            | "data_model_delete" => {
                 let execution = super::data_model_runtime::execute_data_model_node(
                     service.repository.clone(),
                     service.runtime_engine.clone(),

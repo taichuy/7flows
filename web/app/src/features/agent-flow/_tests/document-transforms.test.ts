@@ -230,7 +230,7 @@ describe('agent flow document transforms', () => {
 
   test('duplicates Data Model query binding and rewrites selector values', () => {
     const document = createDefaultAgentFlowDocument({ flowId: 'flow-1' });
-    const sourceNode = createNodeDocument('data_model' as never, 'node-data-model');
+    const sourceNode = createNodeDocument('data_model_list', 'node-data-model');
     sourceNode.bindings.query = {
       kind: 'data_model_query',
       value: {
@@ -273,7 +273,7 @@ describe('agent flow document transforms', () => {
 
   test('duplicates malformed Data Model query binding without crashing', () => {
     const document = createDefaultAgentFlowDocument({ flowId: 'flow-1' });
-    const sourceNode = createNodeDocument('data_model' as never, 'node-data-model');
+    const sourceNode = createNodeDocument('data_model_list', 'node-data-model');
     sourceNode.bindings.query = {
       kind: 'data_model_query',
       value: {

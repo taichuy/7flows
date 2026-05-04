@@ -54,11 +54,11 @@ describe('AgentFlowNodeCard', () => {
           {...({
             data: {
               nodeId: 'node-data-model',
-              nodeType: 'data_model',
-              nodeSchema: resolveAgentFlowNodeSchema('data_model'),
-              typeLabel: 'Data Model',
-              alias: 'Data Model',
-              description: '通过 Data Model 运行时执行记录操作。',
+              nodeType: 'data_model_list',
+              nodeSchema: resolveAgentFlowNodeSchema('data_model_list'),
+              typeLabel: 'Data Model List',
+              alias: 'Data Model List',
+              description: 'List records from a Data Model runtime.',
               config: {},
               issueCount: 0,
               canEnterContainer: false,
@@ -79,10 +79,10 @@ describe('AgentFlowNodeCard', () => {
       </AppProviders>
     );
 
-    const card = screen.getByRole('button', { name: /database Data Model/ });
+    const card = screen.getByRole('button', { name: /database Data Model List/ });
 
     expect(card).toHaveClass('agent-flow-node-card--theme-unified');
-    expect(card).toHaveClass('agent-flow-node-card--type-data_model');
+    expect(card).toHaveClass('agent-flow-node-card--type-data_model_list');
   });
 
   test('keeps the answer node on the unified blue node-card theme with a header icon', () => {

@@ -295,11 +295,11 @@ describe('validateDocument', () => {
     );
   });
 
-  test('validates only active Data Model action bindings', () => {
+  test('validates only active Data Model node type bindings', () => {
     const document = createDefaultAgentFlowDocument({ flowId: 'flow-1' });
     document.graph.nodes.push({
-      ...createNodeDocument('data_model' as never, 'node-data-model'),
-      config: { data_model_code: 'orders', action: 'create' },
+      ...createNodeDocument('data_model_create', 'node-data-model'),
+      config: { data_model_code: 'orders' },
       bindings: {
         query: {
           kind: 'data_model_query',
@@ -345,8 +345,8 @@ describe('validateDocument', () => {
   test('does not crash on malformed saved Data Model query binding', () => {
     const document = createDefaultAgentFlowDocument({ flowId: 'flow-1' });
     document.graph.nodes.push({
-      ...createNodeDocument('data_model' as never, 'node-data-model'),
-      config: { data_model_code: 'orders', action: 'list' },
+      ...createNodeDocument('data_model_list', 'node-data-model'),
+      config: { data_model_code: 'orders' },
       bindings: {
         query: {
           kind: 'data_model_query',

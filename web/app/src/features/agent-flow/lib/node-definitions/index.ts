@@ -3,7 +3,7 @@ import type { FlowNodeType } from '@1flowbase/flow-schema';
 import { nodeDefinitionMeta } from './meta';
 import { answerNodeDefinition } from './nodes/answer';
 import { codeNodeDefinition } from './nodes/code';
-import { dataModelNodeDefinition } from './nodes/data-model';
+import { dataModelNodeDefinitions } from './nodes/data-model';
 import { humanInputNodeDefinition } from './nodes/human-input';
 import { httpRequestNodeDefinition } from './nodes/http-request';
 import { ifElseNodeDefinition } from './nodes/if-else';
@@ -40,7 +40,7 @@ export const nodeDefinitions: NodeDefinitionMap = {
   template_transform: templateTransformNodeDefinition,
   http_request: httpRequestNodeDefinition,
   tool: toolNodeDefinition,
-  data_model: dataModelNodeDefinition,
+  ...dataModelNodeDefinitions,
   variable_assigner: variableAssignerNodeDefinition,
   parameter_extractor: parameterExtractorNodeDefinition,
   iteration: iterationNodeDefinition,

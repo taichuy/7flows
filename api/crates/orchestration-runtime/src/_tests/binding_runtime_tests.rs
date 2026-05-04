@@ -7,14 +7,14 @@ use serde_json::{json, Map, Value};
 fn compiled_node(binding: CompiledBinding) -> CompiledNode {
     CompiledNode {
         node_id: "node-data-model".to_string(),
-        node_type: "data_model".to_string(),
+        node_type: "data_model_list".to_string(),
         alias: "Orders".to_string(),
         container_id: None,
         dependency_node_ids: Vec::new(),
         downstream_node_ids: Vec::new(),
         bindings: BTreeMap::from([("query".to_string(), binding)]),
         outputs: Vec::new(),
-        config: json!({ "data_model_code": "orders", "action": "list" }),
+        config: json!({ "data_model_code": "orders" }),
         plugin_runtime: None,
         llm_runtime: None,
     }

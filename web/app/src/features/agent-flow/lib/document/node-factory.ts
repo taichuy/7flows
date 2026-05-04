@@ -13,7 +13,9 @@ import {
   type NodePickerOption
 } from '../plugin-node-definitions';
 import {
+  DATA_MODEL_NODE_LABELS,
   defaultDataModelNodeConfig,
+  getDataModelActionForNodeType,
   getDataModelNodeOutputs
 } from '../node-definitions/nodes/data-model';
 
@@ -54,8 +56,14 @@ function defaultOutputs(
       return [{ key: 'body', title: '响应正文', valueType: 'json' }];
     case 'tool':
       return [{ key: 'result', title: '工具输出', valueType: 'unknown' }];
-    case 'data_model':
-      return getDataModelNodeOutputs('list');
+    case 'data_model_list':
+    case 'data_model_get':
+    case 'data_model_create':
+    case 'data_model_update':
+    case 'data_model_delete':
+      return getDataModelNodeOutputs(
+        getDataModelActionForNodeType(nodeType) ?? 'list'
+      );
     case 'variable_assigner':
       return [{ key: 'state', title: '状态结果', valueType: 'json' }];
     case 'parameter_extractor':
@@ -101,7 +109,11 @@ function defaultConfig(nodeType: BuiltinFlowNodeType): Record<string, unknown> {
       return { method: 'GET', url: '' };
     case 'tool':
       return { tool_name: '' };
-    case 'data_model':
+    case 'data_model_list':
+    case 'data_model_get':
+    case 'data_model_create':
+    case 'data_model_update':
+    case 'data_model_delete':
       return { ...defaultDataModelNodeConfig };
     case 'variable_assigner':
       return { writes: [] };
@@ -187,7 +199,8 @@ export function createNodeDocument(
   return {
     id,
     type: nodeTypeOrOption,
-    alias: humanizeNodeType(nodeTypeOrOption),
+    alias: DATA_MODEL_NODE_LABELS[nodeTypeOrOption as keyof typeof DATA_MODEL_NODE_LABELS]
+      ?? humanizeNodeType(nodeTypeOrOption),
     description: '',
     containerId: null,
     position: { x, y },

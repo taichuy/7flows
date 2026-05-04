@@ -422,18 +422,15 @@ fn create_order_node(id: &str, title: &str, status: &str) -> Value {
 }
 
 fn data_model_node(id: &str, action: &str, config_patch: Value, bindings: Value) -> Value {
-    let mut config = serde_json::Map::from_iter([
-        ("data_model_code".to_string(), json!("orders")),
-        ("action".to_string(), json!(action)),
-    ]);
+    let mut config = serde_json::Map::from_iter([("data_model_code".to_string(), json!("orders"))]);
     if let Some(patch) = config_patch.as_object() {
         config.extend(patch.clone());
     }
 
     json!({
         "id": id,
-        "type": "data_model",
-        "alias": "Data Model",
+        "type": data_model_node_type(action),
+        "alias": format!("Data Model {}", action),
         "description": "",
         "containerId": null,
         "position": { "x": 240, "y": 0 },
@@ -442,6 +439,17 @@ fn data_model_node(id: &str, action: &str, config_patch: Value, bindings: Value)
         "bindings": bindings,
         "outputs": [{ "key": "record", "title": "Record", "valueType": "object" }]
     })
+}
+
+fn data_model_node_type(action: &str) -> &'static str {
+    match action {
+        "list" => "data_model_list",
+        "get" => "data_model_get",
+        "create" => "data_model_create",
+        "update" => "data_model_update",
+        "delete" => "data_model_delete",
+        _ => panic!("unsupported data model action in test: {action}"),
+    }
 }
 
 fn data_model_query_binding(value: Value) -> Value {

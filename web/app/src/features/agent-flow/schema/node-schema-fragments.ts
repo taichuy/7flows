@@ -31,14 +31,19 @@ const FIELD_RENDERER_BY_EDITOR: Record<NodeEditorKind, string> = {
 };
 
 function createFieldBlock(field: NodeDefinitionField): SchemaFieldBlock {
-  return {
+  const block: SchemaFieldBlock = {
     kind: 'field',
     renderer: FIELD_RENDERER_BY_EDITOR[field.editor],
     path: field.key,
     label: field.label,
-    options: field.options,
-    visibleWhen: field.visibleWhen
+    options: field.options
   };
+
+  if (field.visibleWhen) {
+    block.visibleWhen = field.visibleWhen;
+  }
+
+  return block;
 }
 
 function createSectionBlock(

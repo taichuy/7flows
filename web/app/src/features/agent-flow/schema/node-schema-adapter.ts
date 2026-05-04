@@ -4,7 +4,6 @@ import { replaceNodeOutputs, updateNodeField } from '../lib/document/transforms/
 import { getDirectDownstreamNodes } from '../lib/document/relations';
 import { listVisibleSelectorOptions } from '../lib/selector-options';
 import { getNodeDefinitionMeta } from '../lib/node-definitions';
-import { getDataModelNodeOutputs } from '../lib/node-definitions/nodes/data-model';
 
 import type { SchemaAdapter } from '../../../shared/schema-ui/registry/create-renderer-registry';
 
@@ -86,24 +85,6 @@ export function createAgentFlowNodeSchemaAdapter({
       return undefined;
     },
     setValue(path: string, value: unknown) {
-      if (node.type === 'data_model' && path === 'config.action') {
-        setWorkingDocument((currentDocument) => {
-          const updatedDocument = updateNodeField(currentDocument, {
-            nodeId,
-            fieldKey: path,
-            value: value as never
-          });
-
-          return replaceNodeOutputs(
-            updatedDocument,
-            nodeId,
-            getDataModelNodeOutputs(value)
-          );
-        });
-
-        return;
-      }
-
       if (path === 'config.output_contract' && Array.isArray(value)) {
         setWorkingDocument((currentDocument) => {
           const nextDocument = replaceNodeOutputs(currentDocument, nodeId, value);

@@ -63,7 +63,7 @@ where
     R: ModelDefinitionRepository + Clone,
 {
     let model_code = required_config_string(&node.config, "data_model_code")?;
-    let action = required_config_string(&node.config, "action")?;
+    let action = data_model_action(node)?;
     let runtime = WorkflowDataModelRuntime::new(repository, runtime_engine);
 
     match action.as_str() {
@@ -94,6 +94,17 @@ where
             runtime.delete(actor.clone(), model_code, record_id).await
         }
         other => Err(anyhow!("unsupported data_model action: {other}")),
+    }
+}
+
+fn data_model_action(node: &orchestration_runtime::compiled_plan::CompiledNode) -> Result<String> {
+    match node.node_type.as_str() {
+        "data_model_list" => Ok("list".to_string()),
+        "data_model_get" => Ok("get".to_string()),
+        "data_model_create" => Ok("create".to_string()),
+        "data_model_update" => Ok("update".to_string()),
+        "data_model_delete" => Ok("delete".to_string()),
+        other => Err(anyhow!("unsupported data_model node type: {other}")),
     }
 }
 

@@ -234,7 +234,7 @@ fn compile_node(
         .get("bindings")
         .and_then(Value::as_object)
         .ok_or_else(|| anyhow!("node {node_id} missing bindings"))?;
-    let active_bindings = active_binding_values(&node_type, &config, raw_bindings);
+    let active_bindings = active_binding_values(&node_type, raw_bindings);
     let bindings = compile_bindings(&active_bindings)
         .with_context(|| format!("failed to compile bindings for node {node_id}"))?;
     let outputs = compile_outputs(
@@ -762,17 +762,14 @@ fn compile_bindings(
 
 fn active_binding_values(
     node_type: &str,
-    config: &Value,
     binding_values: &serde_json::Map<String, Value>,
 ) -> BTreeMap<String, Value> {
-    if node_type != "data_model" {
+    let Some(active_keys) = active_data_model_binding_keys(node_type) else {
         return binding_values
             .iter()
             .map(|(key, value)| (key.clone(), value.clone()))
             .collect();
-    }
-
-    let active_keys = active_data_model_binding_keys(config);
+    };
 
     binding_values
         .iter()
@@ -781,18 +778,23 @@ fn active_binding_values(
         .collect()
 }
 
-fn active_data_model_binding_keys(config: &Value) -> &'static [&'static str] {
-    match config
-        .get("action")
-        .and_then(Value::as_str)
-        .unwrap_or("list")
-    {
+fn active_data_model_binding_keys(node_type: &str) -> Option<&'static [&'static str]> {
+    let action = match node_type {
+        "data_model_list" => "list",
+        "data_model_get" => "get",
+        "data_model_create" => "create",
+        "data_model_update" => "update",
+        "data_model_delete" => "delete",
+        _ => return None,
+    };
+
+    Some(match action {
         "get" => &["record_id"],
         "create" => &["payload"],
         "update" => &["record_id", "payload"],
         "delete" => &["record_id"],
         _ => &["query"],
-    }
+    })
 }
 
 fn compile_outputs(output_values: &[Value]) -> Result<Vec<CompiledOutput>> {

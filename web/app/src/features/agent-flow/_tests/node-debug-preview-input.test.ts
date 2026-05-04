@@ -85,13 +85,13 @@ describe('node debug preview input', () => {
     const document = createDefaultAgentFlowDocument({ flowId: 'flow-1' });
     document.graph.nodes.push({
       id: 'node-data-model',
-      type: 'data_model',
+      type: 'data_model_list',
       alias: 'Orders',
       description: '',
       containerId: null,
       position: { x: 720, y: 220 },
       configVersion: 1,
-      config: { data_model_code: 'orders', action: 'list' },
+      config: { data_model_code: 'orders' },
       bindings: {
         query: {
           kind: 'data_model_query',
@@ -112,8 +112,8 @@ describe('node debug preview input', () => {
         record_id: { kind: 'selector', value: ['node-answer', 'answer'] }
       },
       outputs: [
-        { key: 'records', title: '记录列表', valueType: 'array' },
-        { key: 'total', title: '记录总数', valueType: 'number' }
+        { key: 'records', title: 'Records', valueType: 'array' },
+        { key: 'total', title: 'Total', valueType: 'number' }
       ]
     });
 
@@ -133,13 +133,13 @@ describe('node debug preview input', () => {
     const document = createDefaultAgentFlowDocument({ flowId: 'flow-1' });
     document.graph.nodes.push({
       id: 'node-data-model',
-      type: 'data_model',
+      type: 'data_model_list',
       alias: 'Orders',
       description: '',
       containerId: null,
       position: { x: 720, y: 220 },
       configVersion: 1,
-      config: { data_model_code: 'orders', action: 'list' },
+      config: { data_model_code: 'orders' },
       bindings: {
         query: {
           kind: 'data_model_query',
@@ -162,8 +162,8 @@ describe('node debug preview input', () => {
         } as never
       },
       outputs: [
-        { key: 'records', title: '记录列表', valueType: 'array' },
-        { key: 'total', title: '记录总数', valueType: 'number' }
+        { key: 'records', title: 'Records', valueType: 'array' },
+        { key: 'total', title: 'Total', valueType: 'number' }
       ]
     });
 
@@ -178,17 +178,17 @@ describe('node debug preview input', () => {
     });
   });
 
-  test('ignores residual Data Model query binding when action is create', () => {
+  test('ignores residual Data Model query binding on create node type', () => {
     const document = createDefaultAgentFlowDocument({ flowId: 'flow-1' });
     document.graph.nodes.push({
       id: 'node-data-model',
-      type: 'data_model',
+      type: 'data_model_create',
       alias: 'Orders',
       description: '',
       containerId: null,
       position: { x: 720, y: 220 },
       configVersion: 1,
-      config: { data_model_code: 'orders', action: 'create' },
+      config: { data_model_code: 'orders' },
       bindings: {
         query: {
           kind: 'data_model_query',
@@ -211,7 +211,7 @@ describe('node debug preview input', () => {
           value: [{ name: 'title', selector: ['node-start', 'query'] }]
         }
       },
-      outputs: [{ key: 'record', title: '记录', valueType: 'json' }]
+      outputs: [{ key: 'record', title: 'Record', valueType: 'json' }]
     });
 
     expect(buildNodeDebugPreviewPlan(document, 'node-data-model')).toEqual({
