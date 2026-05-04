@@ -16,7 +16,7 @@
 - Read/verify: `/home/taichu/git/1flowbase-official-plugins/runtime-extensions/model-providers/deepseek`
 - Read/verify: `/home/taichu/git/1flowbase-official-plugins/scripts/_tests`
 
-- [ ] **Step 1: Run DeepSeek provider crate tests**
+- [x] **Step 1: Run DeepSeek provider crate tests**
 
 Run:
 
@@ -27,7 +27,7 @@ cargo test --manifest-path runtime-extensions/model-providers/deepseek/Cargo.tom
 
 Expected: PASS.
 
-- [ ] **Step 2: Run official plugin script tests**
+- [x] **Step 2: Run official plugin script tests**
 
 Run:
 
@@ -46,7 +46,7 @@ node --test \
 
 Expected: PASS.
 
-- [ ] **Step 3: Verify package target detection includes DeepSeek**
+- [x] **Step 3: Verify package target detection includes DeepSeek**
 
 Run:
 
@@ -65,7 +65,7 @@ Expected JSON contains:
 }
 ```
 
-- [ ] **Step 4: Commit verification fixes if needed**
+- [x] **Step 4: Commit verification fixes if needed**
 
 If a verification-only fix is required in the official plugin repo:
 
@@ -89,7 +89,7 @@ If no fix is required, leave the repository clean.
 - Read/verify: `/home/taichu/git/1flowbase/api/crates/orchestration-runtime`
 - Read/verify: `/home/taichu/git/1flowbase/api/crates/storage-durable`
 
-- [ ] **Step 1: Run focused contract and route tests**
+- [x] **Step 1: Run focused contract and route tests**
 
 Run:
 
@@ -105,7 +105,7 @@ cargo test -p storage-postgres input_cache
 
 Expected: PASS.
 
-- [ ] **Step 2: Run OpenAPI route coverage**
+- [x] **Step 2: Run OpenAPI route coverage**
 
 Run:
 
@@ -116,7 +116,7 @@ cargo test -p api-server operation_spec_builder_exposes_model_provider_catalog_r
 
 Expected: PASS and the generated OpenAPI registry includes `model_provider_get_balance`.
 
-- [ ] **Step 3: Commit verification fixes if needed**
+- [x] **Step 3: Commit verification fixes if needed**
 
 If a verification-only fix is required in the main repository:
 
@@ -137,7 +137,7 @@ If no fix is required, leave the repository clean.
 - Read/verify: `/home/taichu/git/1flowbase/scripts/node/plugin.js`
 - Read/verify: `/home/taichu/git/1flowbase-official-plugins/runtime-extensions/model-providers/deepseek`
 
-- [ ] **Step 1: Build DeepSeek provider binary**
+- [x] **Step 1: Build DeepSeek provider binary**
 
 Run:
 
@@ -152,7 +152,7 @@ Expected: binary exists at:
 runtime-extensions/model-providers/deepseek/target/release/deepseek-provider
 ```
 
-- [ ] **Step 2: Run package dry-run**
+- [x] **Step 2: Run package dry-run**
 
 Run:
 
@@ -166,7 +166,7 @@ node /home/taichu/git/1flowbase/scripts/node/plugin.js package \
 
 Expected: a `.1flowbasepkg` file appears under `dist/`.
 
-- [ ] **Step 3: Record package dry-run limitation if local target tooling differs**
+- [x] **Step 3: Record package dry-run limitation if local target tooling differs**
 
 If the package command requires a target triple, rerun using the same target pattern used by `.github/workflows/provider-ci.yml`. Record the exact command and result in the final QA note.
 
@@ -180,7 +180,7 @@ If the package command requires a target triple, rerun using the same target pat
 - Read/verify: `docs/superpowers/specs/2026-05-04-deepseek-provider-design.md`
 - Read/verify: all three DeepSeek implementation plan files
 
-- [ ] **Step 1: Invoke qa-evaluation**
+- [x] **Step 1: Invoke qa-evaluation**
 
 Use `qa-evaluation` in task mode.
 
@@ -201,7 +201,7 @@ Include:
 - warning/coverage artifact location check;
 - remaining risk.
 
-- [ ] **Step 2: Push both repositories**
+- [x] **Step 2: Push both repositories**
 
 Run:
 
@@ -214,7 +214,7 @@ git push origin main
 
 Expected: both pushes complete or report `Everything up-to-date`.
 
-- [ ] **Step 3: Final status**
+- [x] **Step 3: Final status**
 
 Confirm:
 
@@ -233,8 +233,8 @@ Expected for both:
 
 ## Plan Completion
 
-- [ ] All Task 1 checkboxes are complete.
-- [ ] All Task 2 checkboxes are complete.
-- [ ] All Task 3 checkboxes are complete.
-- [ ] All Task 4 checkboxes are complete.
-- [ ] Update the index plan checkbox for `03 - Verification And Delivery`.
+- [x] All Task 1 checkboxes are complete.
+- [x] All Task 2 checkboxes are complete.
+- [x] All Task 3 checkboxes are complete.
+- [x] All Task 4 checkboxes are complete.
+- [x] Update the index plan checkbox for `03 - Verification And Delivery`.

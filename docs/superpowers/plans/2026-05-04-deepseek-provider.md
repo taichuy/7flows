@@ -39,7 +39,7 @@
   - Maps DeepSeek `prompt_cache_hit_tokens` and `prompt_cache_miss_tokens`.
   - Does not hard-code current DeepSeek prices.
 
-- [ ] [03 - Verification And Delivery](2026-05-04-deepseek-provider-03-verification-delivery.md)
+- [x] [03 - Verification And Delivery](2026-05-04-deepseek-provider-03-verification-delivery.md)
   - Runs focused main-repo tests.
   - Runs official plugin tests.
   - Runs package dry-run when local tooling is available.
