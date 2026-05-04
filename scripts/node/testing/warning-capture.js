@@ -9,6 +9,16 @@ const {
 const { buildNodePreferredEnv } = require('./node-runtime.js');
 
 const RUN_COMMAND_SEQUENCE_MAX_BUFFER_BYTES = 16 * 1024 * 1024;
+const ANSI_CONTROL_SEQUENCE_PATTERN = /\u001b(?:\[[0-?]*[ -/]*[@-~]|\][^\u0007]*(?:\u0007|\u001b\\)|[@-Z\\-_])/gu;
+const TURBO_TELEMETRY_LINES = new Set([
+  'Attention:',
+  'Turborepo now collects completely anonymous telemetry regarding usage.',
+  'This information is used to shape the Turborepo roadmap and prioritize features.',
+  "You can learn more, including how to opt-out if you'd not like to participate in this anonymous program, by visiting the following URL:",
+  'https://turborepo.dev/docs/telemetry',
+]);
+const CARGO_PROGRESS_LINE_PATTERN = /^\s*(Updating|Downloading|Downloaded|Compiling|Checking|Finished|Fresh|Running|Doc-tests|Blocking|Waiting)\b/u;
+const CARGO_LLVM_COV_INFO_LINE_PATTERN = /^info: (cargo-llvm-cov currently setting cfg\(coverage\)|running `rustup component add llvm-tools-preview\b|downloading component llvm-tools\b)/u;
 
 function getRepoRoot() {
   return path.resolve(__dirname, '..', '..', '..');
@@ -73,6 +83,34 @@ function writeWarningCapture({
   return logPath;
 }
 
+function stripAnsiControlSequences(value) {
+  return value.replace(ANSI_CONTROL_SEQUENCE_PATTERN, '');
+}
+
+function isKnownSuccessfulToolNoiseLine(line) {
+  const normalized = stripAnsiControlSequences(line).trim();
+
+  if (!normalized) {
+    return true;
+  }
+
+  return TURBO_TELEMETRY_LINES.has(normalized)
+    || CARGO_PROGRESS_LINE_PATTERN.test(normalized)
+    || CARGO_LLVM_COV_INFO_LINE_PATTERN.test(normalized);
+}
+
+function filterSuccessfulWarningStderr(stderr) {
+  if (!stderr) {
+    return '';
+  }
+
+  return stderr
+    .split(/\r?\n/u)
+    .filter((line) => !isKnownSuccessfulToolNoiseLine(line))
+    .join('\n')
+    .trimEnd();
+}
+
 function resolveCwd(repoRoot, cwd) {
   if (!cwd) {
     return repoRoot;
@@ -127,13 +165,17 @@ function runCommandSequence({
       writeStderr(result.stderr);
     }
 
-    if (result.stderr) {
+    const warningStderr = result.status === 0
+      ? filterSuccessfulWarningStderr(result.stderr)
+      : result.stderr;
+
+    if (warningStderr) {
       writeWarningCapture({
         repoRoot,
         env,
         scope,
         step: command.label,
-        stderr: result.stderr,
+        stderr: warningStderr,
       });
     }
 
