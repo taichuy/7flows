@@ -205,7 +205,7 @@ DeepSeek usage 归一化规则：
 - 单元测试聊天请求体包含 `thinking`、`reasoning_effort`、`response_format`、`tool_choice`、`user_id`、tools 和 stream usage；
 - 如果实现内部 non-streaming JSON completion helper，补对应解析测试；
 - 单元测试 streaming SSE 解析 text、reasoning、tool call、usage、finish；
-- 单元测试 DeepSeek usage 映射 cache hit tokens，并将 miss tokens 保留在 metadata；
+- 单元测试 DeepSeek usage 将 cache hit / miss tokens 分别映射到 `input_cache_hit_tokens` / `input_cache_miss_tokens`，且不设置 `cache_write_tokens`；
 - 单元测试 `/models` 归一化会合并静态能力 metadata；
 - 单元测试 `/user/balance` 归一化。
 
