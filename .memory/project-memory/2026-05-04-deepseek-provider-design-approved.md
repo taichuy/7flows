@@ -1,7 +1,7 @@
 ---
 memory_type: project
 topic: DeepSeek 官方供应商插件设计方向已确认
-summary: 用户在 `2026-05-04 20` 明确确认采用“专用 DeepSeek 官方插件 + 主仓 provider runtime 余额能力扩展”的方向；DeepSeek 不复用 `openai_compatible` 配置绕过，也不把余额塞进 validate metadata。设计文档已写入 `docs/superpowers/specs/2026-05-04-deepseek-provider-design.md`。
+summary: 用户在 `2026-05-04 20` 明确确认采用“专用 DeepSeek 官方插件 + 主仓 provider runtime 余额能力扩展”的方向；DeepSeek 不复用 `openai_compatible` 配置绕过，也不把余额塞进 validate metadata。`2026-05-04 21` 进一步确认主仓 `ProviderUsage` 需要一等表达输入缓存命中 / 未命中字段，不能把 DeepSeek `prompt_cache_miss_tokens` 当成 `cache_write_tokens`。设计文档已写入 `docs/superpowers/specs/2026-05-04-deepseek-provider-design.md`。
 keywords:
   - deepseek
   - model-provider
@@ -15,7 +15,7 @@ match_when:
   - 需要确认 DeepSeek 是否应作为独立 provider 而非 OpenAI-compatible 配置项
 created_at: 2026-05-04 20
 updated_at: 2026-05-04 20
-last_verified_at: 2026-05-04 20
+last_verified_at: 2026-05-04 21
 decision_policy: verify_before_decision
 scope:
   - docs/superpowers/specs/2026-05-04-deepseek-provider-design.md
@@ -51,3 +51,4 @@ scope:
 
 - 专用插件承载 DeepSeek 品牌、默认地址、参数表、模型元数据和价格元数据。
 - 主仓扩展 provider runtime balance contract，给后续控制台和 API 使用保留稳定入口。
+- 主仓 `ProviderUsage` 应补齐 `input_cache_hit_tokens` 和 `input_cache_miss_tokens` 这类标准输入缓存字段；`cache_write_tokens` 只用于 provider 明确返回或明确按缓存写入计费的 token。

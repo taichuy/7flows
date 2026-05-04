@@ -141,16 +141,39 @@ DeepSeek 已废弃的 `frequency_penalty` 和 `presence_penalty` 不应暴露在
 
 ## Usage 与价格元数据
 
+DeepSeek usage 说明：
+
+- DeepSeek 的上下文硬盘缓存默认开启；
+- 每次请求都会触发缓存构建；
+- DeepSeek 返回的是输入 token 的缓存命中情况，不返回独立“写入缓存 token”；
+- 价格口径按输入缓存命中、输入缓存未命中、输出三类计费。
+
+主仓 `ProviderUsage` 需要补齐输入缓存命中 / 未命中字段，而不是只依赖 provider metadata：
+
+- `input_tokens`
+- `input_cache_hit_tokens`
+- `input_cache_miss_tokens`
+- `output_tokens`
+- `reasoning_tokens`
+- `cache_write_tokens`
+- `total_tokens`
+
+字段语义：
+
+- `input_cache_hit_tokens`：输入中命中 provider 缓存的 token，DeepSeek 对应 `prompt_cache_hit_tokens`；
+- `input_cache_miss_tokens`：输入中未命中 provider 缓存的 token，DeepSeek 对应 `prompt_cache_miss_tokens`；
+- `cache_write_tokens`：只表示 provider 明确返回或明确按“缓存写入 / 缓存创建”计费的 token。DeepSeek 当前没有这个返回字段，不应从 miss tokens 推导。
+
 DeepSeek usage 归一化规则：
 
 - `prompt_tokens` -> `input_tokens`
 - `completion_tokens` -> `output_tokens`
 - `total_tokens` -> `total_tokens`
 - `completion_tokens_details.reasoning_tokens` 或顶层 `reasoning_tokens` -> `reasoning_tokens`
-- `prompt_cache_hit_tokens` -> `cache_read_tokens`
-- `prompt_cache_miss_tokens` 保留在 `provider_metadata.usage.prompt_cache_miss_tokens`
+- `prompt_cache_hit_tokens` -> `input_cache_hit_tokens`
+- `prompt_cache_miss_tokens` -> `input_cache_miss_tokens`
 
-宿主 `ProviderUsage` 有 `cache_write_tokens`，但 DeepSeek 的 miss tokens 不是写入 token 数。不要把 miss tokens 存成 `cache_write_tokens`，避免语义漂移；保留到 provider metadata 中。
+为兼容已有运行观测字段，实施时可以保留 `cache_read_tokens` 作为 `input_cache_hit_tokens` 的旧口径 alias，但新的设计和价格计算应优先使用 `input_cache_hit_tokens` / `input_cache_miss_tokens`。
 
 模型 metadata 应包含：
 
