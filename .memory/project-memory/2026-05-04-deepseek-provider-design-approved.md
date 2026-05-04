@@ -1,7 +1,7 @@
 ---
 memory_type: project
 topic: DeepSeek 官方供应商插件设计方向已确认
-summary: 用户在 `2026-05-04 20` 明确确认采用“专用 DeepSeek 官方插件 + 主仓 provider runtime 余额能力扩展”的方向；DeepSeek 不复用 `openai_compatible` 配置绕过，也不把余额塞进 validate metadata。`2026-05-04 21` 进一步确认主仓 `ProviderUsage` 需要一等表达输入缓存命中 / 未命中字段，不能把 DeepSeek `prompt_cache_miss_tokens` 当成 `cache_write_tokens`；DeepSeek 插件本轮不静态记录当前价格，价格后续走主仓动态 pricing source / pricing adapter。设计文档已写入 `docs/superpowers/specs/2026-05-04-deepseek-provider-design.md`。
+summary: 用户在 `2026-05-04 20` 明确确认采用“专用 DeepSeek 官方插件 + 主仓 provider runtime 余额能力扩展”的方向；DeepSeek 不复用 `openai_compatible` 配置绕过，也不把余额塞进 validate metadata。`2026-05-04 21` 进一步确认主仓 `ProviderUsage` 需要一等表达输入缓存命中 / 未命中字段，不能把 DeepSeek `prompt_cache_miss_tokens` 当成 `cache_write_tokens`；DeepSeek 插件本轮不静态记录当前价格，价格后续走主仓动态 pricing source / pricing adapter。设计文档已写入 `docs/superpowers/specs/2026-05-04-deepseek-provider-design.md`，implementation plan 已拆成 `docs/superpowers/plans/2026-05-04-deepseek-provider.md` 索引计划和 3 个子计划。
 keywords:
   - deepseek
   - model-provider
@@ -14,11 +14,15 @@ match_when:
   - 需要判断余额接口应该放在插件 metadata 还是主仓 provider runtime contract
   - 需要确认 DeepSeek 是否应作为独立 provider 而非 OpenAI-compatible 配置项
 created_at: 2026-05-04 20
-updated_at: 2026-05-04 20
-last_verified_at: 2026-05-04 21
+updated_at: 2026-05-04 22
+last_verified_at: 2026-05-04 22
 decision_policy: verify_before_decision
 scope:
   - docs/superpowers/specs/2026-05-04-deepseek-provider-design.md
+  - docs/superpowers/plans/2026-05-04-deepseek-provider.md
+  - docs/superpowers/plans/2026-05-04-deepseek-provider-01-main-contract-api.md
+  - docs/superpowers/plans/2026-05-04-deepseek-provider-02-official-plugin.md
+  - docs/superpowers/plans/2026-05-04-deepseek-provider-03-verification-delivery.md
   - ../1flowbase-official-plugins/runtime-extensions/model-providers/deepseek
   - api/crates/plugin-framework/src/provider_contract.rs
   - api/apps/plugin-runner/src/provider_host.rs
@@ -31,7 +35,8 @@ scope:
 ## 谁在做什么
 
 - 用户确认 DeepSeek 要做成独立官方模型供应商插件。
-- AI 已将设计写入 `docs/superpowers/specs/2026-05-04-deepseek-provider-design.md`，当前等待用户确认 spec 后再写 implementation plan 并实现。
+- AI 已将设计写入 `docs/superpowers/specs/2026-05-04-deepseek-provider-design.md`。
+- AI 已将 implementation plan 拆成 1 个索引计划和 3 个子计划，索引为 `docs/superpowers/plans/2026-05-04-deepseek-provider.md`。
 
 ## 为什么这样做
 
@@ -53,3 +58,11 @@ scope:
 - 主仓扩展 provider runtime balance contract，给后续控制台和 API 使用保留稳定入口。
 - 主仓 `ProviderUsage` 应补齐 `input_cache_hit_tokens` 和 `input_cache_miss_tokens` 这类标准输入缓存字段；`cache_write_tokens` 只用于 provider 明确返回或明确按缓存写入计费的 token。
 - 价格后续如需进入平台，应通过主仓动态 pricing source / pricing adapter 从官方来源获取或更新，不把时间敏感价格固化进插件版本。
+
+## 当前计划状态
+
+- 主计划索引：`docs/superpowers/plans/2026-05-04-deepseek-provider.md`
+- 子计划 01：主仓 provider contract、balance API、usage persistence。
+- 子计划 02：官方插件仓库 DeepSeek provider 实现。
+- 子计划 03：跨仓库验证、QA 和交付。
+- 计划提交：`d35e8c5c docs: add deepseek provider implementation plan`
