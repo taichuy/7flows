@@ -30,7 +30,6 @@ use axum::{routing::get, Json, Router};
 use control_plane::bootstrap::{BootstrapConfig, BootstrapService};
 use rand_core::OsRng;
 use serde::Serialize;
-use storage_durable::build_main_durable_postgres;
 use time::OffsetDateTime;
 use tokio::sync::RwLock;
 use tower_http::{
@@ -166,7 +165,11 @@ pub async fn app_from_env() -> Result<Router> {
 }
 
 pub async fn app_from_config(config: &ApiConfig) -> Result<Router> {
-    let durable = build_main_durable_postgres(&config.database_url).await?;
+    let durable = storage_durable::build_main_durable_postgres_with_max_connections(
+        &config.database_url,
+        config.database_pool_max_connections,
+    )
+    .await?;
     let store = durable.store.clone();
     let infrastructure = Arc::new(build_local_host_infrastructure());
     let session_store = infrastructure

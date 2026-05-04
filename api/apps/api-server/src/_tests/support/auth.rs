@@ -51,6 +51,10 @@ fn default_test_config() -> ApiConfig {
     let entries = [
         ("API_DATABASE_URL".to_string(), database_url),
         (
+            "API_DATABASE_POOL_MAX_CONNECTIONS".to_string(),
+            "1".to_string(),
+        ),
+        (
             "API_PLUGIN_ALLOW_UPLOADED_HOST_EXTENSIONS".to_string(),
             "true".to_string(),
         ),
@@ -98,9 +102,12 @@ async fn test_state_with_runtime_profile_state(
         .join(format!("api-business-files-{}", Uuid::now_v7()))
         .display()
         .to_string();
-    let durable = storage_durable::build_main_durable_postgres(&config.database_url)
-        .await
-        .unwrap();
+    let durable = storage_durable::build_main_durable_postgres_with_max_connections(
+        &config.database_url,
+        config.database_pool_max_connections,
+    )
+    .await
+    .unwrap();
     let store = durable.store.clone();
     let file_storage_registry = Arc::new(storage_object::builtin_driver_registry());
     let salt = SaltString::generate(&mut rand_core::OsRng);

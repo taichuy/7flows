@@ -9,6 +9,7 @@ const OUTPUT_ROOT = path.join('tmp', 'test-governance');
 const VALID_SCOPES = new Set(['ci', 'repo', 'backend', 'coverage']);
 const VALID_REPORT_TYPES = new Set(['ci', 'cd']);
 const MAX_GATE_OUTPUT_BYTES = 64 * 1024 * 1024;
+const FAILURE_EXCERPT_MAX_LINES = 80;
 
 function resolveCliEntry(repoRoot, entryName) {
   return path.join(repoRoot, 'scripts', 'node', `${entryName}.js`);
@@ -111,7 +112,6 @@ function buildIssueTitle({
 function buildIssueLabels({ reportType, status }) {
   return [
     'quality-gate',
-    'manual-run',
     `${reportType}-report`,
     status,
   ];
@@ -142,6 +142,15 @@ function listFilesBySuffix(rootDir, suffix) {
   return collected.sort();
 }
 
+function readFailureExcerpt(logPath) {
+  if (!fs.existsSync(logPath)) {
+    return '';
+  }
+
+  const lines = fs.readFileSync(logPath, 'utf8').trimEnd().split(/\r?\n/u);
+  return lines.slice(-FAILURE_EXCERPT_MAX_LINES).join('\n').trim();
+}
+
 function toRepoRelative(repoRoot, filePath) {
   return path.relative(repoRoot, filePath).replace(/\\/gu, '/');
 }
@@ -165,6 +174,7 @@ function buildReport({
     .map((filePath) => toRepoRelative(repoRoot, filePath));
   const runUrl = buildRunUrl(env);
   const shortSha = shortShaFromEnv(env);
+  const failureExcerpt = status === 'failed' ? readFailureExcerpt(logPath) : '';
 
   const report = {
     reportType,
@@ -203,6 +213,12 @@ function buildReport({
     '- Artifact: test-governance-artifacts',
     ...warningFiles.map((filePath) => `- Warning log: ${filePath}`),
     ...coverageFiles.map((filePath) => `- Coverage summary: ${filePath}`),
+    failureExcerpt ? '' : null,
+    failureExcerpt ? '## Failure Excerpt' : null,
+    failureExcerpt ? '' : null,
+    failureExcerpt ? '```text' : null,
+    failureExcerpt || null,
+    failureExcerpt ? '```' : null,
   ].filter((line) => line !== null).join('\n');
 
   return {

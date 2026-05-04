@@ -22,11 +22,12 @@ It calls the local Quality Gate Action with:
 ```yaml
 scope: ci
 report_type: ci
-publish_issue: "false"
+publish_issue: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
 ```
 
-Automatic CI never creates GitHub Issues. It only runs the quality gate and uploads
-`tmp/test-governance` as the `test-governance-artifacts` artifact.
+Automatic CI creates a GitHub Issue for main branch push failures and uploads
+`tmp/test-governance` as the `test-governance-artifacts` artifact. The issue body includes
+a failure excerpt; use the artifact for full logs.
 
 ## Manual Quality Gate
 

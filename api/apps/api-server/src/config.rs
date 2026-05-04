@@ -31,6 +31,7 @@ impl ApiEnvironment {
 pub struct ApiConfig {
     pub env: ApiEnvironment,
     pub database_url: String,
+    pub database_pool_max_connections: u32,
     pub business_file_local_root: String,
     pub plugin_runner_internal_base_url: String,
     pub cookie_name: String,
@@ -152,6 +153,11 @@ impl ApiConfig {
         Ok(Self {
             env,
             database_url: get("API_DATABASE_URL")?,
+            database_pool_max_connections: parse_positive_u32(
+                "API_DATABASE_POOL_MAX_CONNECTIONS",
+                map.get("API_DATABASE_POOL_MAX_CONNECTIONS"),
+                5,
+            )?,
             business_file_local_root: default_business_file_local_root(),
             plugin_runner_internal_base_url: map
                 .get("API_PLUGIN_RUNNER_INTERNAL_BASE_URL")
@@ -248,6 +254,21 @@ fn parse_cors_allowed_origins(value: Option<&String>) -> Result<Option<Vec<Heade
     }
 
     Ok(Some(origins))
+}
+
+fn parse_positive_u32(key: &str, value: Option<&String>, default: u32) -> Result<u32> {
+    let Some(value) = value else {
+        return Ok(default);
+    };
+    let parsed = value
+        .parse::<u32>()
+        .map_err(|_| anyhow!("invalid env {key}: expected positive integer"))?;
+
+    if parsed == 0 {
+        return Err(anyhow!("invalid env {key}: expected positive integer"));
+    }
+
+    Ok(parsed)
 }
 
 fn default_provider_install_root() -> String {
