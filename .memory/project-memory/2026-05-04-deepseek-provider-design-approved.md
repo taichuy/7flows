@@ -1,7 +1,7 @@
 ---
 memory_type: project
-topic: DeepSeek 官方供应商插件设计方向已确认
-summary: 用户在 `2026-05-04 20` 明确确认采用“专用 DeepSeek 官方插件 + 主仓 provider runtime 余额能力扩展”的方向；DeepSeek 不复用 `openai_compatible` 配置绕过，也不把余额塞进 validate metadata。`2026-05-04 21` 进一步确认主仓 `ProviderUsage` 需要一等表达输入缓存命中 / 未命中字段，不能把 DeepSeek `prompt_cache_miss_tokens` 当成 `cache_write_tokens`；DeepSeek 插件本轮不静态记录当前价格，价格后续走主仓动态 pricing source / pricing adapter。设计文档已写入 `docs/superpowers/specs/2026-05-04-deepseek-provider-design.md`，implementation plan 已拆成 `docs/superpowers/plans/2026-05-04-deepseek-provider.md` 索引计划和 3 个子计划。
+topic: DeepSeek 官方供应商插件设计方向已确认并完成交付
+summary: 用户在 `2026-05-04 20` 明确确认采用“专用 DeepSeek 官方插件 + 主仓 provider runtime 余额能力扩展”的方向；DeepSeek 不复用 `openai_compatible` 配置绕过，也不把余额塞进 validate metadata。`2026-05-04 21` 进一步确认主仓 `ProviderUsage` 需要一等表达输入缓存命中 / 未命中字段，不能把 DeepSeek `prompt_cache_miss_tokens` 当成 `cache_write_tokens`；DeepSeek 插件本轮不静态记录当前价格。`2026-05-05 02` 已完成主仓 contract/API/persistence、官方 DeepSeek provider 插件、跨仓库验证和 package dry-run，两个仓库均已 push 到 origin/main。
 keywords:
   - deepseek
   - model-provider
@@ -14,8 +14,8 @@ match_when:
   - 需要判断余额接口应该放在插件 metadata 还是主仓 provider runtime contract
   - 需要确认 DeepSeek 是否应作为独立 provider 而非 OpenAI-compatible 配置项
 created_at: 2026-05-04 20
-updated_at: 2026-05-04 22
-last_verified_at: 2026-05-04 22
+updated_at: 2026-05-05 02
+last_verified_at: 2026-05-05 02
 decision_policy: verify_before_decision
 scope:
   - docs/superpowers/specs/2026-05-04-deepseek-provider-design.md
@@ -62,7 +62,20 @@ scope:
 ## 当前计划状态
 
 - 主计划索引：`docs/superpowers/plans/2026-05-04-deepseek-provider.md`
-- 子计划 01：主仓 provider contract、balance API、usage persistence。
-- 子计划 02：官方插件仓库 DeepSeek provider 实现。
-- 子计划 03：跨仓库验证、QA 和交付。
+- 子计划 01：主仓 provider contract、balance API、usage persistence，已完成。
+- 子计划 02：官方插件仓库 DeepSeek provider 实现，已完成。
+- 子计划 03：跨仓库验证、QA 和交付，已完成。
 - 计划提交：`d35e8c5c docs: add deepseek provider implementation plan`
+
+## 交付状态
+
+- 主仓已新增 provider balance contract、plugin-runner balance route、console balance API、ProviderUsage input cache hit/miss 字段和持久化映射。
+- 官方插件仓库已新增 `runtime-extensions/model-providers/deepseek`，实现 `validate`、`list_models`、`balance`、streaming `invoke`。
+- DeepSeek usage 映射保持：`prompt_cache_hit_tokens` -> `input_cache_hit_tokens` / `cache_read_tokens`，`prompt_cache_miss_tokens` -> `input_cache_miss_tokens`，不写 `cache_write_tokens`。
+- DeepSeek 静态模型 metadata 只记录 `pricing_source: dynamic`，不写当前价格快照。
+- `2026-05-05 02` 独立 QA 子 agent 复核通过：官方插件测试、主仓定向测试、package target 检测、package dry-run artifact、分层边界和两仓 git 状态均通过。
+
+## 关键提交
+
+- 主仓：`45cf1102 docs: mark deepseek verification complete`
+- 官方插件仓库：`2a15eb1 feat: implement deepseek chat streaming`
