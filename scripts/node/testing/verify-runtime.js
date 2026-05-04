@@ -70,7 +70,7 @@ function resolveCargoDefaults(availableParallelism) {
 
   return {
     cargoJobs: Math.min(cargoJobs, parallelism),
-    cargoTestThreads: Math.min(cargoJobs, parallelism),
+    cargoTestThreads: 1,
   };
 }
 

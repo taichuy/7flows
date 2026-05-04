@@ -90,7 +90,7 @@ test('main routes backend verification through the heavy managed gate', async ()
   assert.deepEqual(capturedOptions.commands, buildCommands({ cargoJobs: 3, cargoTestThreads: 1 }));
 });
 
-test('verify-backend limits cargo concurrency to half of available CPU', async () => {
+test('verify-backend limits cargo jobs to half of available CPU and serializes tests', async () => {
   const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'oneflowbase-verify-backend-'));
   const fakeBinDir = path.join(tempDir, 'bin');
   const logPath = path.join(tempDir, 'cargo.log');
@@ -133,7 +133,7 @@ test('verify-backend limits cargo concurrency to half of available CPU', async (
 
   assert.equal(invocations.length, 4);
   assert.match(invocations[1], new RegExp(`clippy --workspace --all-targets --jobs ${expectedParallelism} -- -D warnings`));
-  assert.match(invocations[2], new RegExp(`test --workspace --jobs ${expectedParallelism} -- --test-threads=${expectedParallelism}`));
+  assert.match(invocations[2], new RegExp(`test --workspace --jobs ${expectedParallelism} -- --test-threads=1`));
   assert.match(invocations[3], new RegExp(`check --workspace --jobs ${expectedParallelism}`));
 
   const warningLogPath = path.join(warningOutputDir, 'verify-backend.warnings.log');

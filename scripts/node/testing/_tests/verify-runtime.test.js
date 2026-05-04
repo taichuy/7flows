@@ -30,7 +30,7 @@ test('loadVerifyRuntimeConfig returns defaults when local config is absent', () 
   assert.deepEqual(config, {
     backend: {
       cargoJobs: 4,
-      cargoTestThreads: 4,
+      cargoTestThreads: 1,
     },
     frontend: {
       turboConcurrency: 4,
@@ -217,7 +217,7 @@ test('loadVerifyRuntimeConfig merges backend and lock overrides field by field',
   assert.deepEqual(config, {
     backend: {
       cargoJobs: 3,
-      cargoTestThreads: 4,
+      cargoTestThreads: 1,
     },
     frontend: {
       turboConcurrency: 4,
@@ -258,7 +258,7 @@ test('loadVerifyRuntimeConfig ignores local config in CI environments', () => {
   assert.deepEqual(config, {
     backend: {
       cargoJobs: 4,
-      cargoTestThreads: 4,
+      cargoTestThreads: 1,
     },
     frontend: {
       turboConcurrency: 4,
