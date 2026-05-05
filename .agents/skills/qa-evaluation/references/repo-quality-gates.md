@@ -23,7 +23,7 @@
 ## Quality Gate Watch Routing
 
 - 仓库管理者、有 GitHub Actions 和 issue 权限：按 `quality-gate-watch.md` 的 GitHub 场景走，用远端 workflow run、artifact JSON 和 issue 状态闭环。
-- 共享者、fork 用户或没有仓库权限：不要假装能关闭 issue 或确认远端门禁；按 `quality-gate-watch.md` 的本地脚本场景运行 `verify-ci` / `verify-repo` / 定向脚本，并把产物路径、退出码和关键日志作为证据交付。
+- 无权限贡献者：不要假装能关闭 issue 或确认远端门禁；按 `quality-gate-watch.md` 的本地脚本场景运行 `verify-ci` / `verify-repo` / 定向脚本，并把产物路径、退出码和关键日志作为证据交付。
 - 两种场景都不能只凭 issue 正文、PR 绿色标识或口头推测下 QA 结论；需要可复查的运行证据。
 
 ## Selection Defaults

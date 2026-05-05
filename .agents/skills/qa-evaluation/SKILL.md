@@ -34,7 +34,7 @@ description: Use when evaluating 1flowbase task outcomes or current project qual
 - 默认 `task mode`；只有用户明确要求全量审计时才进入 `project evaluation mode`
 - 评估前先读 `.memory/AGENTS.md`、`.memory/user-memory.md`、项目记忆、反馈记忆和相关 spec
 - 仓库质量门禁“怎么选、怎么组合、各自覆盖什么”看 `references/repo-quality-gates.md`
-- 需要处理周期性质量门禁值守、GitHub Issue / Actions 报告闭环或无权限共享者本地门禁取证时，看 `references/quality-gate-watch.md`
+- 需要处理周期性质量门禁值守、GitHub Issue / Actions 报告闭环或无权限贡献者本地门禁取证时，看 `references/quality-gate-watch.md`
 - 如果评估范围命中后端，必须先读 `api/AGENTS.md`，再对齐 `.memory/project-memory` 中最近的后端规范、计划和插件边界记忆，不能沿用旧口径
 - `task mode` 必查：验收场景、交互流、变化传播、状态 / API / 数据映射、关键回归
 - `project evaluation mode` 必查：UI 一致性、流程逻辑、响应式降级、API 契约、状态数据一致性、架构边界、测试缺口

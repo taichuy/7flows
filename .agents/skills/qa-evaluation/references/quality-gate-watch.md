@@ -9,7 +9,7 @@
 | 场景 | 使用方式 | 可下的结论 |
 | --- | --- | --- |
 | 仓库管理者或维护者，有 GitHub Actions、artifact、issue 权限 | 用 GitHub workflow run、`test-governance-artifacts`、quality-gate issue 闭环 | 可确认远端门禁是否通过，并评论 / 关闭质量 issue |
-| 共享者、fork 用户、无 issue 或 Actions 权限 | 用本地脚本运行对应 gate，保存 `tmp/test-governance/` 证据 | 只能确认“本地脚本在当前环境的结果”，不能宣称远端门禁已通过或关闭 issue |
+| 无权限贡献者，无 issue 或 Actions 权限 | 用本地脚本运行对应 gate，保存 `tmp/test-governance/` 证据 | 只能确认“本地脚本在当前环境的结果”，不能宣称远端门禁已通过或关闭 issue |
 
 ## Manager GitHub Flow
 
@@ -28,7 +28,7 @@
 
 评论证据至少包含：run URL 或 run id、workflow、branch、commit、issue number、run conclusion、artifact `status`、`exitCode`、`warningFiles`。
 
-## Shared Local Flow
+## Contributor Local Flow
 
 无 GitHub 权限时，目标是给出可复查的本地质量证据，不做远端状态承诺。
 
