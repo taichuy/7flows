@@ -9,18 +9,20 @@ import {
   type NodeDebugPreviewVariableCache
 } from '../../api/runtime';
 import { getNodeVariableOutputs } from '../start-node-variables';
+import { formatNodeVariablePathLabel } from '../variable-labels';
 
 function flattenValue(
+  keyPrefix: string,
   labelPrefix: string,
   value: unknown
 ): AgentFlowVariableItem[] {
   if (Array.isArray(value)) {
     if (value.length === 0) {
-      return [{ key: labelPrefix, label: labelPrefix, value: [] }];
+      return [{ key: keyPrefix, label: labelPrefix, value: [] }];
     }
 
     return value.flatMap((entry, index) =>
-      flattenValue(`${labelPrefix}[${index}]`, entry)
+      flattenValue(`${keyPrefix}[${index}]`, `${labelPrefix}[${index}]`, entry)
     );
   }
 
@@ -28,15 +30,38 @@ function flattenValue(
     const entries = Object.entries(value as Record<string, unknown>);
 
     if (entries.length === 0) {
-      return [{ key: labelPrefix, label: labelPrefix, value: {} }];
+      return [{ key: keyPrefix, label: labelPrefix, value: {} }];
     }
 
     return entries.flatMap(([key, entryValue]) =>
-      flattenValue(`${labelPrefix}.${key}`, entryValue)
+      flattenValue(`${keyPrefix}.${key}`, `${labelPrefix}.${key}`, entryValue)
     );
   }
 
-  return [{ key: labelPrefix, label: labelPrefix, value }];
+  return [{ key: keyPrefix, label: labelPrefix, value }];
+}
+
+function flattenNodeVariables(
+  nodeId: string,
+  value: unknown
+): AgentFlowVariableItem[] {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    return flattenValue(nodeId, nodeId, value);
+  }
+
+  const entries = Object.entries(value as Record<string, unknown>);
+
+  if (entries.length === 0) {
+    return [{ key: nodeId, label: nodeId, value: {} }];
+  }
+
+  return entries.flatMap(([key, entryValue]) =>
+    flattenValue(
+      `${nodeId}.${key}`,
+      formatNodeVariablePathLabel(nodeId, key),
+      entryValue
+    )
+  );
 }
 
 export function getRunContextValues(
@@ -83,7 +108,7 @@ export function mapRunContextToVariableGroups(
       title: 'Input Variables',
       items: runContext.fields.map((field) => ({
         key: `${field.nodeId}.${field.key}`,
-        label: `${field.nodeId}.${field.key}`,
+        label: formatNodeVariablePathLabel(field.nodeId, field.key),
         value: field.value
       }))
     },
@@ -128,7 +153,7 @@ export function mapVariableCacheToVariableGroup(
   variableCache: NodeDebugPreviewVariableCache
 ): AgentFlowVariableGroup | null {
   const items = Object.entries(variableCache).flatMap(([nodeId, value]) =>
-    flattenValue(nodeId, value)
+    flattenNodeVariables(nodeId, value)
   );
 
   if (items.length === 0) {
@@ -150,10 +175,10 @@ export function mapRunDetailToVariableGroups(
   }
 ): AgentFlowVariableGroup[] {
   const inputItems = Object.entries(detail.flow_run.input_payload).flatMap(
-    ([nodeId, value]) => flattenValue(nodeId, value)
+    ([nodeId, value]) => flattenNodeVariables(nodeId, value)
   );
   const nodeOutputItems = detail.node_runs.flatMap((nodeRun) =>
-    flattenValue(nodeRun.node_id, nodeRun.output_payload)
+    flattenNodeVariables(nodeRun.node_id, nodeRun.output_payload)
   );
   const sessionItems: AgentFlowVariableItem[] = [
     {

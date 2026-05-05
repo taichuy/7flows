@@ -1,6 +1,7 @@
 import type { FlowAuthoringDocument } from '@1flowbase/flow-schema';
 
 import { getNodeVariableOutputs } from './start-node-variables';
+import { formatNodeVariableLabel } from './variable-labels';
 
 export interface FlowSelectorOption {
   nodeId: string;
@@ -49,11 +50,11 @@ export function listVisibleSelectorOptions(
     .flatMap((node) =>
       getNodeVariableOutputs(node).map((output) => ({
         nodeId: node.id,
-        nodeLabel: node.alias,
+        nodeLabel: node.id,
         outputKey: output.key,
-        outputLabel: output.title,
+        outputLabel: output.key,
         value: [node.id, output.key],
-        displayLabel: `${node.alias} / ${output.title}`
+        displayLabel: formatNodeVariableLabel(node.id, output.key)
       }))
     );
 }

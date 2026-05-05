@@ -2,6 +2,7 @@ import { Form, Input, InputNumber, Modal, Switch } from 'antd';
 import { useEffect } from 'react';
 
 import type { NodeDebugPreviewVariableField } from '../../api/runtime';
+import { formatNodeVariableLabel } from '../../lib/variable-labels';
 
 type NodePreviewVariablesModalProps = {
   open: boolean;
@@ -102,10 +103,9 @@ export function NodePreviewVariablesModal({
         {fields.map((field) => (
           <Form.Item
             key={fieldName(field)}
-            label={`${field.nodeId}.${field.key}`}
+            label={formatNodeVariableLabel(field.nodeId, field.key)}
             name={fieldName(field)}
             rules={[{ required: true, message: '请输入变量值' }]}
-            tooltip={field.title}
             valuePropName={field.valueType === 'boolean' ? 'checked' : 'value'}
           >
             {renderField(field)}

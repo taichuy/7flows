@@ -1,4 +1,5 @@
 import type { FlowSelectorOption } from './selector-options';
+import { formatNodeVariableLabel } from './variable-labels';
 
 export const TEMPLATE_SELECTOR_REGEX = /{{\s*([A-Za-z0-9_-]+)\.([A-Za-z0-9_-]+)\s*}}/g;
 
@@ -48,7 +49,9 @@ export function getTemplateSelectorLabel(
 ) {
   const matchedOption = options.find((option) => isSameSelector(option.value, selector));
 
-  return matchedOption ? matchedOption.displayLabel : `${selector[0]} / ${selector[1]}`;
+  return matchedOption
+    ? matchedOption.displayLabel
+    : formatNodeVariableLabel(selector[0], selector[1]);
 }
 
 export function remapTemplateSelectorTokens(

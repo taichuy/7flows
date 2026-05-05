@@ -1,6 +1,7 @@
 import { Input, InputNumber, Space, Switch, Tag, Typography } from 'antd';
 
 import type { AgentFlowRunContext } from '../../api/runtime';
+import { formatNodeVariableLabel } from '../../lib/variable-labels';
 
 function renderFieldInput(
   field: AgentFlowRunContext['fields'][number],
@@ -71,7 +72,9 @@ export function RunContextPanel({
             key={`${field.nodeId}.${field.key}`}
             className="agent-flow-editor__debug-console-field"
           >
-            <Typography.Text type="secondary">{field.title}</Typography.Text>
+            <Typography.Text type="secondary">
+              {formatNodeVariableLabel(field.nodeId, field.key)}
+            </Typography.Text>
             {renderFieldInput(field, (value) =>
               onChangeValue(field.nodeId, field.key, value)
             )}
