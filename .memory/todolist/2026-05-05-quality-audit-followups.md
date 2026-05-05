@@ -2,7 +2,7 @@
 created_at: 2026-05-05 23
 topic: quality-audit-followups
 status: needs_user_decision
-updated_at: 2026-05-06 01
+updated_at: 2026-05-06 02
 ---
 
 # 2026-05-05 质量审核待确认项
@@ -15,6 +15,13 @@ updated_at: 2026-05-06 01
 - GitHub Actions：`verify` run `25389415294` 成功，`CodeQL` run `25389414651` 成功。
 - Artifact JSON：`status=passed`、`exitCode=0`、`warningFiles=[]`。
 - Artifact 已下载到 `tmp/test-governance/remote-25389415294/`，该目录按 `.gitignore` 保持本地证据，不提交。
+
+## 2026-05-06 02 值守证据
+
+- 最新远端质量门禁 issue：`#61`，`latest` / `ceb42f7` / passed，已评论并关闭。
+- GitHub Actions：`verify` run `25391498159` 成功，`CodeQL` run `25391496705` 成功。
+- Artifact JSON：`status=passed`、`exitCode=0`、`warningFiles=[]`。
+- Artifact 已下载到 `tmp/test-governance/remote-run-25391498159/`，该目录按 `.gitignore` 保持本地证据，不提交。
 
 ## 需要拍板的方向
 
@@ -47,3 +54,8 @@ updated_at: 2026-05-06 01
 - 覆盖 `applications/api/runtime.ts` 的 query key、read request base URL 传递、resume/callback mutation payload 映射。
 - 调整 `scripts/node/plugin/manifest.js` 的 Rust provider scaffold，stdin 读取失败时显式 `stderr + exit(1)`，避免模板传播 `unwrap()` 式 panic。
 - 补充 `scripts/node/plugin/_tests/core.test.js` 断言生成的 `src/main.rs` 不再包含 `.unwrap(`，并验证错误处理模板存在。
+- 补充 `api/crates/storage-durable/postgres/src/_tests/member_role_repository_tests.rs` 中成员 / 角色仓储边界测试：
+  - 普通成员禁用和重置密码会更新状态、副作用和 `session_version`。
+  - root 用户禁用 / 重置密码保持不可变保护。
+  - 无效角色替换不会清空已有成员角色绑定。
+  - 默认角色、已绑定角色和未使用自定义角色删除路径有明确回归覆盖。

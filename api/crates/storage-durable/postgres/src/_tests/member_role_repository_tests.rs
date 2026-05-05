@@ -1,6 +1,9 @@
-use control_plane::ports::{
-    CreateMemberInput, CreateWorkspaceRoleInput, MemberRepository, RoleRepository,
-    UpdateWorkspaceRoleInput,
+use control_plane::{
+    errors::ControlPlaneError,
+    ports::{
+        CreateMemberInput, CreateWorkspaceRoleInput, MemberRepository, RoleRepository,
+        UpdateWorkspaceRoleInput,
+    },
 };
 use domain::{PermissionDefinition, RoleScopeKind, UserStatus};
 use sqlx::PgPool;
@@ -102,6 +105,32 @@ async fn role_codes_for_user(store: &PgControlPlaneStore, user_id: Uuid) -> Vec<
     .unwrap()
 }
 
+async fn create_member(
+    store: &PgControlPlaneStore,
+    workspace_id: Uuid,
+    actor_user_id: Uuid,
+    account: &str,
+) -> domain::UserRecord {
+    <PgControlPlaneStore as MemberRepository>::create_member_with_default_role(
+        store,
+        &CreateMemberInput {
+            actor_user_id,
+            workspace_id,
+            account: account.to_string(),
+            email: format!("{account}@example.com"),
+            phone: None,
+            password_hash: "member-hash".to_string(),
+            name: account.to_string(),
+            nickname: account.to_string(),
+            introduction: String::new(),
+            email_login_enabled: true,
+            phone_login_enabled: false,
+        },
+    )
+    .await
+    .unwrap()
+}
+
 #[tokio::test]
 async fn create_member_with_default_role_assigns_default_role_and_login_identities() {
     let (store, workspace_id, actor_user_id) = bootstrapped_store().await;
@@ -170,24 +199,7 @@ async fn replace_member_roles_normalizes_codes_and_replaces_workspace_roles() {
     let (store, workspace_id, actor_user_id) = bootstrapped_store().await;
     create_workspace_role(&store, workspace_id, actor_user_id, "auditor").await;
     create_workspace_role(&store, workspace_id, actor_user_id, "editor").await;
-    let member = <PgControlPlaneStore as MemberRepository>::create_member_with_default_role(
-        &store,
-        &CreateMemberInput {
-            actor_user_id,
-            workspace_id,
-            account: "bob".to_string(),
-            email: "bob@example.com".to_string(),
-            phone: None,
-            password_hash: "member-hash".to_string(),
-            name: "Bob".to_string(),
-            nickname: "Bob".to_string(),
-            introduction: String::new(),
-            email_login_enabled: true,
-            phone_login_enabled: false,
-        },
-    )
-    .await
-    .unwrap();
+    let member = create_member(&store, workspace_id, actor_user_id, "bob").await;
 
     <PgControlPlaneStore as MemberRepository>::replace_member_roles(
         &store,
@@ -207,6 +219,85 @@ async fn replace_member_roles_normalizes_codes_and_replaces_workspace_roles() {
     assert_eq!(
         role_codes_for_user(&store, member.id).await,
         vec!["auditor", "editor"]
+    );
+}
+
+#[tokio::test]
+async fn member_status_and_password_updates_reject_root_and_bump_session_version() {
+    let (store, workspace_id, actor_user_id) = bootstrapped_store().await;
+    let member = create_member(&store, workspace_id, actor_user_id, "carol").await;
+
+    <PgControlPlaneStore as MemberRepository>::reset_member_password(
+        &store,
+        actor_user_id,
+        member.id,
+        "new-member-hash",
+    )
+    .await
+    .unwrap();
+    <PgControlPlaneStore as MemberRepository>::disable_member(&store, actor_user_id, member.id)
+        .await
+        .unwrap();
+
+    let updated: (String, i64, String) =
+        sqlx::query_as("select status, session_version, password_hash from users where id = $1")
+            .bind(member.id)
+            .fetch_one(store.pool())
+            .await
+            .unwrap();
+    assert_eq!(
+        updated,
+        ("disabled".to_string(), 3, "new-member-hash".to_string())
+    );
+
+    let root_disable = <PgControlPlaneStore as MemberRepository>::disable_member(
+        &store,
+        actor_user_id,
+        actor_user_id,
+    )
+    .await
+    .unwrap_err();
+    assert!(matches!(
+        root_disable.downcast_ref::<ControlPlaneError>(),
+        Some(ControlPlaneError::PermissionDenied("root_user_immutable"))
+    ));
+
+    let root_reset = <PgControlPlaneStore as MemberRepository>::reset_member_password(
+        &store,
+        actor_user_id,
+        actor_user_id,
+        "root-new-hash",
+    )
+    .await
+    .unwrap_err();
+    assert!(matches!(
+        root_reset.downcast_ref::<ControlPlaneError>(),
+        Some(ControlPlaneError::PermissionDenied("root_user_immutable"))
+    ));
+}
+
+#[tokio::test]
+async fn replace_member_roles_rejects_unknown_code_without_clearing_existing_bindings() {
+    let (store, workspace_id, actor_user_id) = bootstrapped_store().await;
+    let member = create_member(&store, workspace_id, actor_user_id, "dana").await;
+
+    let result = <PgControlPlaneStore as MemberRepository>::replace_member_roles(
+        &store,
+        actor_user_id,
+        workspace_id,
+        member.id,
+        &["missing-role".to_string()],
+    )
+    .await;
+
+    let error = result.unwrap_err();
+    assert!(matches!(
+        error.downcast_ref::<ControlPlaneError>(),
+        Some(ControlPlaneError::InvalidInput("role_code"))
+    ));
+    assert_eq!(
+        role_codes_for_user(&store, member.id).await,
+        vec!["manager"]
     );
 }
 
@@ -337,4 +428,69 @@ async fn replace_role_permissions_normalizes_codes_and_replaces_existing_permiss
     .unwrap();
 
     assert_eq!(permissions, vec!["workspace.support.write"]);
+}
+
+#[tokio::test]
+async fn role_deletion_rejects_default_and_bound_roles_before_deleting_unused_custom_role() {
+    let (store, workspace_id, actor_user_id) = bootstrapped_store().await;
+    create_workspace_role(&store, workspace_id, actor_user_id, "temporary").await;
+    create_workspace_role(&store, workspace_id, actor_user_id, "assigned").await;
+    let member = create_member(&store, workspace_id, actor_user_id, "erin").await;
+
+    <PgControlPlaneStore as MemberRepository>::replace_member_roles(
+        &store,
+        actor_user_id,
+        workspace_id,
+        member.id,
+        &["assigned".to_string()],
+    )
+    .await
+    .unwrap();
+
+    let default_role_result = <PgControlPlaneStore as RoleRepository>::delete_team_role(
+        &store,
+        actor_user_id,
+        workspace_id,
+        "manager",
+    )
+    .await;
+    let default_role_error = default_role_result.unwrap_err();
+    assert!(matches!(
+        default_role_error.downcast_ref::<ControlPlaneError>(),
+        Some(ControlPlaneError::PermissionDenied(
+            "builtin_role_immutable"
+        )) | Some(ControlPlaneError::InvalidInput(
+            "default_member_role_required"
+        ))
+    ));
+
+    let bound_role_result = <PgControlPlaneStore as RoleRepository>::delete_team_role(
+        &store,
+        actor_user_id,
+        workspace_id,
+        "assigned",
+    )
+    .await;
+    let bound_role_error = bound_role_result.unwrap_err();
+    assert!(matches!(
+        bound_role_error.downcast_ref::<ControlPlaneError>(),
+        Some(ControlPlaneError::Conflict("role_in_use"))
+    ));
+
+    <PgControlPlaneStore as RoleRepository>::delete_team_role(
+        &store,
+        actor_user_id,
+        workspace_id,
+        "temporary",
+    )
+    .await
+    .unwrap();
+    let role_count: i64 = sqlx::query_scalar(
+        "select count(*) from roles where workspace_id = $1 and code = 'temporary'",
+    )
+    .bind(workspace_id)
+    .fetch_one(store.pool())
+    .await
+    .unwrap();
+    assert_eq!(role_count, 0);
 }
