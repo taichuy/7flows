@@ -13,6 +13,7 @@ const runContext: AgentFlowRunContext = {
   fields: [
     {
       nodeId: 'node-start',
+      nodeLabel: 'Start',
       key: 'query',
       title: '问题',
       valueType: 'string',

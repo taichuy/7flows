@@ -80,6 +80,7 @@ export interface AgentFlowDebugMessage {
 
 export interface AgentFlowRunContextField {
   nodeId: string;
+  nodeLabel: string;
   key: string;
   title: string;
   valueType: FlowNodeDocument['outputs'][number]['valueType'];
@@ -94,6 +95,7 @@ export interface AgentFlowRunContext {
 
 export interface NodeDebugPreviewVariableField {
   nodeId: string;
+  nodeLabel: string;
   key: string;
   title: string;
   valueType: FlowNodeDocument['outputs'][number]['valueType'];
@@ -343,6 +345,7 @@ function buildMissingPreviewField(
 
   return {
     nodeId,
+    nodeLabel: node?.alias ?? nodeId,
     key: outputKey,
     title: output?.title ?? `${node?.alias ?? nodeId}.${outputKey}`,
     valueType: output?.valueType ?? 'unknown',

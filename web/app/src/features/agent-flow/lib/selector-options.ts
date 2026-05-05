@@ -50,11 +50,11 @@ export function listVisibleSelectorOptions(
     .flatMap((node) =>
       getNodeVariableOutputs(node).map((output) => ({
         nodeId: node.id,
-        nodeLabel: node.id,
+        nodeLabel: node.alias,
         outputKey: output.key,
         outputLabel: output.key,
         value: [node.id, output.key],
-        displayLabel: formatNodeVariableLabel(node.id, output.key)
+        displayLabel: formatNodeVariableLabel(node.alias, output.key)
       }))
     );
 }

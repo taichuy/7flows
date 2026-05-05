@@ -73,7 +73,7 @@ export function RunContextPanel({
             className="agent-flow-editor__debug-console-field"
           >
             <Typography.Text type="secondary">
-              {formatNodeVariableLabel(field.nodeId, field.key)}
+              {formatNodeVariableLabel(field.nodeLabel, field.key)}
             </Typography.Text>
             {renderFieldInput(field, (value) =>
               onChangeValue(field.nodeId, field.key, value)

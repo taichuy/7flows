@@ -202,7 +202,7 @@ describe('node last run runtime', () => {
     const variableSidebar = screen.getByTestId(
       'agent-flow-editor-variable-cache-sidebar'
     );
-    expect(within(variableSidebar).getByText('node-start/query')).toBeInTheDocument();
+    expect(within(variableSidebar).getByText('Start/query')).toBeInTheDocument();
   }, 30_000);
 
   test('asks for referenced variables before running when cache is empty', async () => {
@@ -220,7 +220,7 @@ describe('node last run runtime', () => {
 
     expect(await screen.findByText('输入节点引用变量')).toBeInTheDocument();
 
-    fireEvent.change(screen.getByLabelText(/node-start\/query/), {
+    fireEvent.change(screen.getByLabelText(/Start\/query/), {
       target: { value: '总结退款政策' }
     });
     fireEvent.click(within(screen.getByRole('dialog', { name: '输入节点引用变量' })).getByRole('button', { name: /运\s*行/ }));

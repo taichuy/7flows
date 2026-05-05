@@ -9,11 +9,11 @@ import type { FlowSelectorOption } from '../lib/selector-options';
 
 const startQueryOption: FlowSelectorOption = {
   nodeId: 'node-start',
-  nodeLabel: 'node-start',
+  nodeLabel: 'Start',
   outputKey: 'query',
   outputLabel: 'query',
   value: ['node-start', 'query'],
-  displayLabel: 'node-start/query'
+  displayLabel: 'Start/query'
 };
 
 function PromptPairHarness() {

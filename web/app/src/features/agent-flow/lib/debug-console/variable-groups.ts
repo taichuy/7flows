@@ -88,6 +88,7 @@ export function buildRunContextFromDocument(
     remembered: Boolean(rememberedInputs && Object.keys(rememberedInputs).length > 0),
     fields: (startNode ? getNodeVariableOutputs(startNode) : []).map((output) => ({
       nodeId: startNode?.id ?? 'node-start',
+      nodeLabel: startNode?.alias ?? startNode?.id ?? 'node-start',
       key: output.key,
       title: output.title,
       valueType: output.valueType,
@@ -108,7 +109,7 @@ export function mapRunContextToVariableGroups(
       title: 'Input Variables',
       items: runContext.fields.map((field) => ({
         key: `${field.nodeId}.${field.key}`,
-        label: formatNodeVariablePathLabel(field.nodeId, field.key),
+        label: formatNodeVariablePathLabel(field.nodeLabel, field.key),
         value: field.value
       }))
     },
@@ -150,10 +151,11 @@ export function mapRunContextToVariableGroups(
 }
 
 export function mapVariableCacheToVariableGroup(
-  variableCache: NodeDebugPreviewVariableCache
+  variableCache: NodeDebugPreviewVariableCache,
+  nodeLabels: Record<string, string> = {}
 ): AgentFlowVariableGroup | null {
   const items = Object.entries(variableCache).flatMap(([nodeId, value]) =>
-    flattenNodeVariables(nodeId, value)
+    flattenNodeVariables(nodeLabels[nodeId] ?? nodeId, value)
   );
 
   if (items.length === 0) {
@@ -174,11 +176,15 @@ export function mapRunDetailToVariableGroups(
     runContext: AgentFlowRunContext;
   }
 ): AgentFlowVariableGroup[] {
+  const runContextNodeLabels = Object.fromEntries(
+    options.runContext.fields.map((field) => [field.nodeId, field.nodeLabel])
+  );
   const inputItems = Object.entries(detail.flow_run.input_payload).flatMap(
-    ([nodeId, value]) => flattenNodeVariables(nodeId, value)
+    ([nodeId, value]) =>
+      flattenNodeVariables(runContextNodeLabels[nodeId] ?? nodeId, value)
   );
   const nodeOutputItems = detail.node_runs.flatMap((nodeRun) =>
-    flattenNodeVariables(nodeRun.node_id, nodeRun.output_payload)
+    flattenNodeVariables(nodeRun.node_alias, nodeRun.output_payload)
   );
   const sessionItems: AgentFlowVariableItem[] = [
     {

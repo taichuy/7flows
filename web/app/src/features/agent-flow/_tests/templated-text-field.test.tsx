@@ -94,20 +94,20 @@ import type { FlowSelectorOption } from '../lib/selector-options';
 
 const startQueryOption: FlowSelectorOption = {
   nodeId: 'node-start',
-  nodeLabel: 'node-start',
+  nodeLabel: 'Start',
   outputKey: 'query',
   outputLabel: 'query',
   value: ['node-start', 'query'],
-  displayLabel: 'node-start/query'
+  displayLabel: 'Start/query'
 };
 
 const answerOption: FlowSelectorOption = {
   nodeId: 'node-answer',
-  nodeLabel: 'node-answer',
+  nodeLabel: 'Answer',
   outputKey: 'answer',
   outputLabel: 'answer',
   value: ['node-answer', 'answer'],
-  displayLabel: 'node-answer/answer'
+  displayLabel: 'Answer/answer'
 };
 
 function TemplatedTextHarness() {
@@ -205,7 +205,7 @@ describe('TemplatedTextField', () => {
 
     await waitFor(() => {
       expect(
-        screen.getAllByText('node-start/query').length
+        screen.getAllByText('Start/query').length
       ).toBeGreaterThan(0);
     });
     expect(
@@ -229,7 +229,7 @@ describe('TemplatedTextField', () => {
     triggerEditorInput(editor, '{', '{');
 
     expect(
-      await screen.findByRole('option', { name: 'node-start/query' })
+      await screen.findByRole('option', { name: 'Start/query' })
     ).toBeInTheDocument();
   });
 
@@ -243,7 +243,7 @@ describe('TemplatedTextField', () => {
     triggerEditorInput(editor, '请基于 /', '/');
 
     expect(
-      await screen.findByRole('option', { name: 'node-start/query' })
+      await screen.findByRole('option', { name: 'Start/query' })
     ).toBeInTheDocument();
   });
 
@@ -256,7 +256,7 @@ describe('TemplatedTextField', () => {
       await screen.findByRole('listbox', { name: '变量建议' })
     ).toBeInTheDocument();
     expect(
-      screen.getByRole('option', { name: 'node-start/query' })
+      screen.getByRole('option', { name: 'Start/query' })
     ).toBeInTheDocument();
   });
 
@@ -281,11 +281,11 @@ describe('TemplatedTextField', () => {
     });
 
     expect(
-      screen.getByRole('option', { name: 'node-start/query' })
+      screen.getByRole('option', { name: 'Start/query' })
     ).toBeInTheDocument();
 
     fireEvent.click(
-      screen.getByRole('option', { name: 'node-start/query' })
+      screen.getByRole('option', { name: 'Start/query' })
     );
 
     await waitFor(() => {
@@ -323,7 +323,7 @@ describe('TemplatedTextField', () => {
     });
 
     expect(
-      screen.getByRole('option', { name: 'node-start/query' })
+      screen.getByRole('option', { name: 'Start/query' })
     ).toBeInTheDocument();
   });
 
@@ -342,11 +342,11 @@ describe('TemplatedTextField', () => {
 
     await waitFor(() => {
       expect(
-        screen.getByRole('option', { name: 'node-answer/answer' })
+        screen.getByRole('option', { name: 'Answer/answer' })
       ).toBeInTheDocument();
     });
     expect(
-      screen.queryByRole('option', { name: 'node-start/query' })
+      screen.queryByRole('option', { name: 'Start/query' })
     ).not.toBeInTheDocument();
   });
   test('supports keyboard navigation and enter-to-insert inside the shared picker', async () => {
@@ -360,7 +360,7 @@ describe('TemplatedTextField', () => {
 
     await waitFor(() => {
       expect(
-        screen.getByRole('option', { name: 'node-answer/answer' })
+        screen.getByRole('option', { name: 'Answer/answer' })
       ).toHaveAttribute('aria-selected', 'true');
     });
 
@@ -469,7 +469,7 @@ describe('TemplatedTextField', () => {
 
     fireEvent.click(screen.getByRole('button', { name: '插入变量' }));
     fireEvent.click(
-      await screen.findByRole('option', { name: 'node-start/query' })
+      await screen.findByRole('option', { name: 'Start/query' })
     );
     await act(async () => {
       await new Promise((resolve) => {
@@ -478,12 +478,12 @@ describe('TemplatedTextField', () => {
     });
     await waitFor(() => {
       expect(
-        screen.queryByRole('option', { name: 'node-start/query' })
+        screen.queryByRole('option', { name: 'Start/query' })
       ).not.toBeInTheDocument();
     });
 
     expect(
-      screen.getAllByText('node-start/query').length
+      screen.getAllByText('Start/query').length
     ).toBeGreaterThan(0);
     expect(screen.getByTestId('templated-text-value')).toHaveTextContent(
       '请基于 {{node-start.query}}'
@@ -499,14 +499,14 @@ describe('TemplatedTextField', () => {
     triggerEditorInput(editor, '请基于 /', '/');
     fireEvent.keyDown(editor, { key: '/' });
     fireEvent.click(
-      await screen.findByRole('option', { name: 'node-start/query' })
+      await screen.findByRole('option', { name: 'Start/query' })
     );
 
     await waitFor(() => {
-      expect(screen.getByText('node-start/query')).toBeInTheDocument();
+      expect(screen.getByText('Start/query')).toBeInTheDocument();
     });
 
-    expect(editor).toHaveTextContent('请基于 node-start/query');
+    expect(editor).toHaveTextContent('请基于 Start/query');
     expect(screen.getByTestId('templated-text-value')).toHaveTextContent(
       '请基于 {{node-start.query}}'
     );

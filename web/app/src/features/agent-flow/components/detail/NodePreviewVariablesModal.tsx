@@ -103,7 +103,7 @@ export function NodePreviewVariablesModal({
         {fields.map((field) => (
           <Form.Item
             key={fieldName(field)}
-            label={formatNodeVariableLabel(field.nodeId, field.key)}
+            label={formatNodeVariableLabel(field.nodeLabel, field.key)}
             name={fieldName(field)}
             rules={[{ required: true, message: '请输入变量值' }]}
             valuePropName={field.valueType === 'boolean' ? 'checked' : 'value'}

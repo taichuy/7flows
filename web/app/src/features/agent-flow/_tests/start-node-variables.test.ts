@@ -81,14 +81,14 @@ describe('start node variables', () => {
       expect.arrayContaining([
         {
           value: ['node-start', 'customer_name'],
-          label: 'node-start/customer_name'
+          label: 'Start/customer_name'
         },
         {
           value: ['node-start', 'attachments'],
-          label: 'node-start/attachments'
+          label: 'Start/attachments'
         },
-        { value: ['node-start', 'query'], label: 'node-start/query' },
-        { value: ['node-start', 'files'], label: 'node-start/files' }
+        { value: ['node-start', 'query'], label: 'Start/query' },
+        { value: ['node-start', 'files'], label: 'Start/files' }
       ])
     );
   });
@@ -103,12 +103,12 @@ describe('start node variables', () => {
       }))
     ).toEqual(
       expect.arrayContaining([
-        { value: ['node-llm', 'text'], label: 'node-llm/text' },
+        { value: ['node-llm', 'text'], label: 'LLM/text' },
         {
           value: ['node-llm', 'reasoning_content'],
-          label: 'node-llm/reasoning_content'
+          label: 'LLM/reasoning_content'
         },
-        { value: ['node-llm', 'usage'], label: 'node-llm/usage' }
+        { value: ['node-llm', 'usage'], label: 'LLM/usage' }
       ])
     );
   });

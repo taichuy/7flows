@@ -659,7 +659,7 @@ describe('NodeInspector', () => {
     await openSelect('过滤值来源 1');
     await selectOption('变量');
     await openSelect('过滤变量 1');
-    await selectOption('node-start');
+    await selectOption('Start');
     await selectOption('query');
     fireEvent.click(await screen.findByRole('button', { name: '新增过滤条件' }));
     await openSelect('过滤字段 2');

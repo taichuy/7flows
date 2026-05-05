@@ -358,6 +358,12 @@ function buildDisplayVariableCache(
   return displayCache;
 }
 
+function buildNodeLabelMap(document: FlowAuthoringDocument) {
+  return Object.fromEntries(
+    document.graph.nodes.map((node) => [node.id, node.alias])
+  );
+}
+
 export function useAgentFlowDebugSession({
   applicationId,
   draftId,
@@ -467,13 +473,15 @@ export function useAgentFlowDebugSession({
       draftId
     });
     const cacheGroup = mapVariableCacheToVariableGroup(
-      buildDisplayVariableCache(nodePreviewVariableCache, runContext)
+      buildDisplayVariableCache(nodePreviewVariableCache, runContext),
+      buildNodeLabelMap(document)
     );
 
     return cacheGroup ? [cacheGroup, ...groups] : groups;
   }, [
     applicationId,
     draftId,
+    document,
     lastDetail,
     nodePreviewVariableCache,
     runContext
