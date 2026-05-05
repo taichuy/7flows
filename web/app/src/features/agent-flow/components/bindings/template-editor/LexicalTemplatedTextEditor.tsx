@@ -326,10 +326,27 @@ export const LexicalTemplatedTextEditor = forwardRef<
     }
   }, []);
 
+  function clearBlurCloseTimer() {
+    if (blurCloseTimerRef.current === null) {
+      return;
+    }
+
+    window.clearTimeout(blurCloseTimerRef.current);
+    blurCloseTimerRef.current = null;
+  }
+
+  function isInsideEditorOrTypeahead(node: EventTarget | null) {
+    return (
+      node instanceof Node &&
+      (shellRef.current?.contains(node) || typeaheadRef.current?.contains(node))
+    );
+  }
+
   function openTypeahead(
     nextQuery = '',
     nextPosition: TypeaheadPosition = DEFAULT_TYPEAHEAD_POSITION
   ) {
+    clearBlurCloseTimer();
     setQuery(nextQuery);
     setActiveIndex(0);
     setTypeaheadPosition(nextPosition);
@@ -357,11 +374,7 @@ export const LexicalTemplatedTextEditor = forwardRef<
   function handleBlur(event: FocusEvent<HTMLDivElement>) {
     const nextFocusedNode = event.relatedTarget;
 
-    if (
-      nextFocusedNode instanceof Node &&
-      (shellRef.current?.contains(nextFocusedNode) ||
-        typeaheadRef.current?.contains(nextFocusedNode))
-    ) {
+    if (isInsideEditorOrTypeahead(nextFocusedNode)) {
       return;
     }
 
@@ -371,6 +384,11 @@ export const LexicalTemplatedTextEditor = forwardRef<
 
     blurCloseTimerRef.current = window.setTimeout(() => {
       blurCloseTimerRef.current = null;
+
+      if (isInsideEditorOrTypeahead(document.activeElement)) {
+        return;
+      }
+
       closeTypeahead();
     }, 120);
   }

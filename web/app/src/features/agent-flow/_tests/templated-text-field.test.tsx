@@ -260,6 +260,73 @@ describe('TemplatedTextField', () => {
     ).toBeInTheDocument();
   });
 
+  test('keeps the toolbar picker open after the editor blurs to the toolbar action', async () => {
+    render(<TemplatedTextHarness />);
+
+    const editor = screen.getByLabelText('User Prompt');
+    const insertButton = screen.getByRole('button', { name: '插入变量' });
+
+    fireEvent.focus(editor);
+    fireEvent.blur(editor, { relatedTarget: insertButton });
+    fireEvent.click(insertButton);
+
+    expect(
+      await screen.findByRole('listbox', { name: '变量建议' })
+    ).toBeInTheDocument();
+
+    await act(async () => {
+      await new Promise((resolve) => {
+        window.setTimeout(resolve, 150);
+      });
+    });
+
+    expect(
+      screen.getByRole('option', { name: 'Start / userinput.query' })
+    ).toBeInTheDocument();
+
+    fireEvent.click(
+      screen.getByRole('option', { name: 'Start / userinput.query' })
+    );
+
+    await waitFor(() => {
+      expect(
+        screen.queryByRole('listbox', { name: '变量建议' })
+      ).not.toBeInTheDocument();
+    });
+    await waitFor(() => {
+      expect(screen.getByTestId('templated-text-value')).toHaveTextContent(
+        '请基于 {{node-start.query}}'
+      );
+    });
+  });
+
+  test('keeps the toolbar picker open after focus moves into the portal searchbox', async () => {
+    render(<TemplatedTextHarness />);
+
+    const editor = screen.getByLabelText('User Prompt');
+
+    fireEvent.focus(editor);
+    fireEvent.click(screen.getByRole('button', { name: '插入变量' }));
+
+    const searchbox = await screen.findByRole('searchbox', {
+      name: '搜索变量'
+    });
+
+    fireEvent.focus(editor);
+    fireEvent.blur(editor);
+    searchbox.focus();
+
+    await act(async () => {
+      await new Promise((resolve) => {
+        window.setTimeout(resolve, 150);
+      });
+    });
+
+    expect(
+      screen.getByRole('option', { name: 'Start / userinput.query' })
+    ).toBeInTheDocument();
+  });
+
   test('filters variable suggestions inside the shared picker', async () => {
     render(<TemplatedTextHarness />);
 
