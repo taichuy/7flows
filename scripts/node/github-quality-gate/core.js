@@ -200,6 +200,93 @@ function toRepoRelative(repoRoot, filePath) {
   return path.relative(repoRoot, filePath).replace(/\\/gu, '/');
 }
 
+function readJsonFileIfPresent(filePath) {
+  if (!fs.existsSync(filePath)) {
+    return null;
+  }
+
+  try {
+    return JSON.parse(fs.readFileSync(filePath, 'utf8'));
+  } catch {
+    return null;
+  }
+}
+
+function readFrontendMetricPct(summary, metric) {
+  const value = summary?.total?.[metric]?.pct;
+  return Number.isFinite(value) ? value : null;
+}
+
+function readBackendMetricPct(summary, metric) {
+  const value = summary?.data?.[0]?.totals?.[metric]?.percent;
+  return Number.isFinite(value) ? value : null;
+}
+
+function formatCoveragePct(value) {
+  return value === null ? 'n/a' : `${value.toFixed(2)}%`;
+}
+
+function buildCoverageSummaries({ repoRoot, coverageFiles }) {
+  return coverageFiles.flatMap((relativePath) => {
+    const absolutePath = path.join(repoRoot, relativePath);
+    const summary = readJsonFileIfPresent(absolutePath);
+
+    if (!summary) {
+      return [{
+        name: path.basename(relativePath, '.json'),
+        kind: 'unknown',
+        path: relativePath,
+        metrics: {},
+      }];
+    }
+
+    if (relativePath.endsWith('coverage/frontend/coverage-summary.json')) {
+      return [{
+        name: 'frontend total',
+        kind: 'frontend',
+        path: relativePath,
+        metrics: {
+          lines: readFrontendMetricPct(summary, 'lines'),
+          functions: readFrontendMetricPct(summary, 'functions'),
+          statements: readFrontendMetricPct(summary, 'statements'),
+          branches: readFrontendMetricPct(summary, 'branches'),
+        },
+      }];
+    }
+
+    if (relativePath.includes('/coverage/backend/')) {
+      return [{
+        name: path.basename(relativePath, '.json'),
+        kind: 'backend',
+        path: relativePath,
+        metrics: {
+          lines: readBackendMetricPct(summary, 'lines'),
+          functions: readBackendMetricPct(summary, 'functions'),
+          branches: readBackendMetricPct(summary, 'branches'),
+          regions: readBackendMetricPct(summary, 'regions'),
+        },
+      }];
+    }
+
+    return [{
+      name: path.basename(relativePath, '.json'),
+      kind: 'unknown',
+      path: relativePath,
+      metrics: {},
+    }];
+  });
+}
+
+function formatCoverageSummaryLine(summary) {
+  const metricText = Object.entries(summary.metrics)
+    .map(([metric, value]) => `${metric} ${formatCoveragePct(value)}`)
+    .join(', ');
+
+  return metricText
+    ? `- ${summary.name}: ${metricText} (${summary.path})`
+    : `- ${summary.name}: see ${summary.path}`;
+}
+
 function buildReport({
   repoRoot,
   reportType,
@@ -217,6 +304,7 @@ function buildReport({
     .map((filePath) => toRepoRelative(repoRoot, filePath));
   const coverageFiles = listFilesBySuffix(path.join(outputDir, 'coverage'), '.json')
     .map((filePath) => toRepoRelative(repoRoot, filePath));
+  const coverageSummaries = buildCoverageSummaries({ repoRoot, coverageFiles });
   const runUrl = buildRunUrl(env);
   const shortSha = shortShaFromEnv(env);
   const failureExcerpt = status === 'failed' ? readFailureExcerpt(logPath) : '';
@@ -238,26 +326,40 @@ function buildReport({
     logPath: toRepoRelative(repoRoot, logPath),
     warningFiles,
     coverageFiles,
+    coverageSummaries,
   };
 
   const markdown = [
     '# Quality Gate Report',
     '',
-    `Type: ${reportType.toUpperCase()}`,
-    `Status: ${status}`,
-    `Scope: ${scope}`,
+    '## Result Summary',
+    '',
+    `- Type: ${reportType.toUpperCase()}`,
+    `- Status: ${status}`,
+    `- Exit code: ${exitCode}`,
+    `- Scope: ${scope}`,
     environmentName ? `Environment: ${environmentName}` : null,
-    `Branch: ${report.branch || 'unknown'}`,
-    `Commit: ${report.commit || 'unknown'}`,
-    `Actor: ${report.actor || 'unknown'}`,
-    runUrl ? `Run: ${runUrl}` : null,
+    `- Branch: ${report.branch || 'unknown'}`,
+    `- Commit: ${report.commit || 'unknown'}`,
+    `- Actor: ${report.actor || 'unknown'}`,
+    runUrl ? `- Run: ${runUrl}` : null,
+    '',
+    '## Warnings',
+    '',
+    warningFiles.length === 0 ? 'No warning logs were captured.' : null,
+    ...warningFiles.map((filePath) => `- ${filePath}`),
+    '',
+    '## Coverage',
+    '',
+    coverageSummaries.length === 0 ? 'No coverage summaries were captured for this scope.' : null,
+    ...coverageSummaries.map(formatCoverageSummaryLine),
     '',
     '## Evidence',
     '',
     `- Main log: ${report.logPath}`,
     '- Artifact: test-governance-artifacts',
     ...warningFiles.map((filePath) => `- Warning log: ${filePath}`),
-    ...coverageFiles.map((filePath) => `- Coverage summary: ${filePath}`),
+    ...coverageFiles.map((filePath) => `- Coverage summary file: ${filePath}`),
     failureExcerpt ? '' : null,
     failureExcerpt ? '## Failure Excerpt' : null,
     failureExcerpt ? '' : null,

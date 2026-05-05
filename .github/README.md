@@ -28,7 +28,8 @@ publish_issue: ${{ github.event_name == 'push' && github.ref == 'refs/heads/late
 
 Automatic CI creates a GitHub Issue only for `latest` branch pushes and uploads
 `tmp/test-governance` as the `test-governance-artifacts` artifact. The issue body includes
-a failure excerpt when the gate fails; use the artifact for full logs.
+the quality gate result summary, warning status, coverage percentages, evidence paths, and
+a failure excerpt when the gate fails. Use the artifact for full logs and raw coverage files.
 
 ## Manual Quality Gate
 

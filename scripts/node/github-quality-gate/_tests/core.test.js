@@ -157,6 +157,84 @@ test('runQualityGate creates a new issue when publishing is enabled even if the 
   assert.match(createdIssues[0].body, /failure detail/u);
 });
 
+test('runQualityGate publishes a complete passed report with coverage details', async () => {
+  const repoRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'oneflowbase-quality-gate-complete-'));
+  const createdIssues = [];
+
+  const writeJson = (relativePath, value) => {
+    const filePath = path.join(repoRoot, relativePath);
+    fs.mkdirSync(path.dirname(filePath), { recursive: true });
+    fs.writeFileSync(filePath, `${JSON.stringify(value, null, 2)}\n`, 'utf8');
+  };
+
+  const frontendSummary = {
+    total: {
+      lines: { total: 100, covered: 82, pct: 82 },
+      functions: { total: 40, covered: 32, pct: 80 },
+      statements: { total: 100, covered: 82, pct: 82 },
+      branches: { total: 50, covered: 39, pct: 78 },
+    },
+  };
+  const backendSummary = {
+    data: [{
+      totals: {
+        lines: { count: 1000, covered: 930, percent: 93 },
+        functions: { count: 120, covered: 108, percent: 90 },
+        branches: { count: 80, covered: 64, percent: 80 },
+        regions: { count: 1500, covered: 1350, percent: 90 },
+      },
+    }],
+  };
+
+  const status = await runQualityGate({
+    repoRoot,
+    scope: 'ci',
+    reportType: 'ci',
+    publishIssue: true,
+    githubToken: 'token',
+    env: {
+      GITHUB_ACTOR: 'taichu',
+      GITHUB_REF_NAME: 'latest',
+      GITHUB_REPOSITORY: 'taichuy/1flowbase',
+      GITHUB_RUN_ID: '791',
+      GITHUB_SERVER_URL: 'https://github.com',
+      GITHUB_SHA: 'abcdef1234567890',
+      GITHUB_WORKFLOW: 'verify',
+    },
+    spawnSyncImpl() {
+      writeJson('tmp/test-governance/coverage/frontend/coverage-summary.json', frontendSummary);
+      writeJson('tmp/test-governance/coverage/backend/api-server.json', backendSummary);
+      return {
+        status: 0,
+        stdout: 'repo passed\nCoverage thresholds passed for all.\n',
+        stderr: '',
+      };
+    },
+    createIssueImpl(issue) {
+      createdIssues.push(issue);
+      return { html_url: 'https://github.com/taichuy/1flowbase/issues/5' };
+    },
+    listOpenQualityGateIssuesImpl() {
+      return [];
+    },
+    writeStdout() {},
+    writeStderr() {},
+  });
+
+  assert.equal(status.status, 'passed');
+  assert.equal(createdIssues.length, 1);
+  assert.match(createdIssues[0].body, /## Result Summary/u);
+  assert.match(createdIssues[0].body, /- Status: passed/u);
+  assert.match(createdIssues[0].body, /- Exit code: 0/u);
+  assert.match(createdIssues[0].body, /## Warnings/u);
+  assert.match(createdIssues[0].body, /No warning logs were captured/u);
+  assert.match(createdIssues[0].body, /## Coverage/u);
+  assert.match(createdIssues[0].body, /frontend total: lines 82\.00%, functions 80\.00%, statements 82\.00%, branches 78\.00%/u);
+  assert.match(createdIssues[0].body, /api-server: lines 93\.00%, functions 90\.00%, branches 80\.00%, regions 90\.00%/u);
+  assert.match(createdIssues[0].body, /## Evidence/u);
+  assert.match(createdIssues[0].body, /tmp\/test-governance\/quality-gate\.latest\.log/u);
+});
+
 test('runQualityGate closes older open quality gate issues after publishing the latest report', async () => {
   const repoRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'oneflowbase-quality-gate-'));
   const closedIssues = [];
