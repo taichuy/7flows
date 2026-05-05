@@ -32,7 +32,7 @@ use crate::{
 
 #[path = "support/fixtures.rs"]
 mod fixtures;
-#[path = "support/repository.rs"]
+#[path = "support/repository/mod.rs"]
 mod repository;
 
 pub(crate) use repository::{InMemoryOrchestrationRuntimeRepository, InMemoryProviderRuntime};

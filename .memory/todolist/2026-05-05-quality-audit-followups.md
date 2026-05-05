@@ -2,7 +2,7 @@
 created_at: 2026-05-05 23
 topic: quality-audit-followups
 status: needs_user_decision
-updated_at: 2026-05-06 02
+updated_at: 2026-05-06 03
 ---
 
 # 2026-05-05 质量审核待确认项
@@ -22,6 +22,13 @@ updated_at: 2026-05-06 02
 - GitHub Actions：`verify` run `25391498159` 成功，`CodeQL` run `25391496705` 成功。
 - Artifact JSON：`status=passed`、`exitCode=0`、`warningFiles=[]`。
 - Artifact 已下载到 `tmp/test-governance/remote-run-25391498159/`，该目录按 `.gitignore` 保持本地证据，不提交。
+
+## 2026-05-06 03 值守证据
+
+- 最新远端质量门禁 issue：`#63`，`latest` / `af73c21` / passed，已评论并关闭。
+- GitHub Actions：`verify` run `25396463387` 成功，`CodeQL` run `25396459993` 成功。
+- Artifact JSON：`status=passed`、`exitCode=0`、`warningFiles=[]`。
+- Artifact 已下载到 `tmp/test-governance/remote-run-25396463387/`，该目录按 `.gitignore` 保持本地证据，不提交。
 
 ## 需要拍板的方向
 
@@ -59,3 +66,9 @@ updated_at: 2026-05-06 02
   - root 用户禁用 / 重置密码保持不可变保护。
   - 无效角色替换不会清空已有成员角色绑定。
   - 默认角色、已绑定角色和未使用自定义角色删除路径有明确回归覆盖。
+- 拆分 `api/crates/control-plane/src/_tests/orchestration_runtime/support/repository.rs`：
+  - `support/repository/mod.rs` 保留内存状态、构造器和测试 fixture seed helper。
+  - `support/repository/flow_ports.rs` 收纳 Application / Flow / Model Definition / Plugin / Model Provider 端口 mock。
+  - `support/repository/provider_runtime.rs` 收纳 provider / capability runtime mock。
+  - `support/repository/runtime_repository.rs` 收纳 orchestration runtime repository mock 与其专属回归测试。
+  - 原 2660 行单文件拆为 690 / 709 / 199 / 1068 行，均低于 1500 行预算。
