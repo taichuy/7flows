@@ -1,5 +1,4 @@
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
-import { Grid } from 'antd';
 import type { ReactElement, ReactNode } from 'react';
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 
@@ -418,11 +417,13 @@ describe('AgentFlowEditorShell', () => {
     expect(restoreVersion).toHaveBeenCalledWith('version-1');
   });
 
-  test('shows a desktop-only message on small screens', async () => {
-    vi.spyOn(Grid, 'useBreakpoint').mockReturnValue({ lg: false } as never);
+  test('renders editor chrome on small screens', async () => {
     vi.spyOn(orchestrationApi, 'fetchOrchestrationState').mockResolvedValueOnce(
       createInitialState()
     );
+    vi.mocked(nodeContributionsApi.fetchNodeContributions).mockResolvedValueOnce([
+      readyContribution
+    ]);
 
     renderShell(
       <AgentFlowEditorPage
@@ -431,11 +432,12 @@ describe('AgentFlowEditorShell', () => {
       />
     );
 
-    expect(await screen.findByText('请使用桌面端编辑')).toBeInTheDocument();
+    expect(await screen.findByRole('button', { name: '历史版本' })).toBeInTheDocument();
+    expect(screen.queryByText('请使用桌面端编辑')).not.toBeInTheDocument();
+    expect(nodeContributionsApi.fetchNodeContributions).toHaveBeenCalledWith('app-1');
   });
 
   test('renders provider-backed editor chrome on desktop', async () => {
-    vi.spyOn(Grid, 'useBreakpoint').mockReturnValue({ lg: true } as never);
     vi.spyOn(orchestrationApi, 'fetchOrchestrationState').mockResolvedValueOnce(
       createInitialState()
     );
@@ -461,7 +463,6 @@ describe('AgentFlowEditorShell', () => {
   }, 20_000);
 
   test('renders node detail inside a docked overlay panel on orchestration page', async () => {
-    vi.spyOn(Grid, 'useBreakpoint').mockReturnValue({ lg: true } as never);
     vi.spyOn(orchestrationApi, 'fetchOrchestrationState').mockResolvedValueOnce(
       createInitialState()
     );
@@ -481,7 +482,6 @@ describe('AgentFlowEditorShell', () => {
   }, 20_000);
 
   test('keeps last-run content inside the same docked detail panel dock', async () => {
-    vi.spyOn(Grid, 'useBreakpoint').mockReturnValue({ lg: true } as never);
     vi.spyOn(orchestrationApi, 'fetchOrchestrationState').mockResolvedValueOnce(
       createInitialState()
     );
@@ -504,7 +504,6 @@ describe('AgentFlowEditorShell', () => {
   }, 20_000);
 
   test('hides config content after switching to the last-run tab', async () => {
-    vi.spyOn(Grid, 'useBreakpoint').mockReturnValue({ lg: true } as never);
     vi.spyOn(orchestrationApi, 'fetchOrchestrationState').mockResolvedValueOnce(
       createInitialState()
     );
