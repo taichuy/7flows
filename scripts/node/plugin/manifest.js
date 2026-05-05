@@ -72,7 +72,10 @@ function createRustMainTemplate({ pluginCode }) {
 
 fn main() {
     let mut stdin = String::new();
-    io::stdin().read_to_string(&mut stdin).unwrap();
+    if let Err(error) = io::stdin().read_to_string(&mut stdin) {
+        eprintln!("failed to read stdin: {}", error);
+        std::process::exit(1);
+    }
 
     let payload: serde_json::Value =
         serde_json::from_str(&stdin).unwrap_or(serde_json::Value::Null);

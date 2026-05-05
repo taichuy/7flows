@@ -154,6 +154,10 @@ test('plugin init scaffolds rust provider source and executable manifest', async
   assert.match(manifest, /node_contributions: \[\]/);
   assert.equal(fs.existsSync(path.join(pluginPath, 'Cargo.toml')), true);
   assert.equal(fs.existsSync(path.join(pluginPath, 'src', 'main.rs')), true);
+  const rustMain = fs.readFileSync(path.join(pluginPath, 'src', 'main.rs'), 'utf8');
+  assert.doesNotMatch(rustMain, /\.unwrap\(/);
+  assert.match(rustMain, /eprintln!\("failed to read stdin: \{\}"/);
+  assert.match(rustMain, /std::process::exit\(1\)/);
   assert.equal(fs.existsSync(path.join(pluginPath, 'i18n', 'en_US.json')), true);
   assert.equal(fs.existsSync(path.join(pluginPath, 'i18n', 'zh_Hans.json')), true);
   assert.equal(
