@@ -329,18 +329,22 @@
 
 .agent-flow-templated-text-field__chip-container {
   display: inline-flex;
-  vertical-align: middle;
+  vertical-align: text-bottom;
 }
 
 .agent-flow-templated-text-field__chip {
   display: inline-flex;
   align-items: center;
+  box-sizing: border-box;
+  height: 20px;
   margin: 0 2px;
-  padding: 1px 8px;
+  padding: 0 6px;
   border: 1px solid rgba(22, 119, 255, 0.24);
   border-radius: 999px;
   color: var(--ant-color-primary);
   background: rgba(22, 119, 255, 0.08);
+  font-size: inherit;
+  line-height: 18px;
   cursor: pointer;
 }
 

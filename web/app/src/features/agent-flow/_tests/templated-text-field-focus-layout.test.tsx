@@ -84,6 +84,21 @@ describe('TemplatedTextField focus and layout', () => {
     );
   });
 
+  test('keeps inline variable chips within the editor text line height', async () => {
+    const cssSource = await readFile(
+      path.resolve(
+        process.cwd(),
+        'src/features/agent-flow/components/editor/styles/inspector.css'
+      ),
+      'utf8'
+    );
+
+    expect(cssSource).toContain(
+      '.agent-flow-templated-text-field__chip {\n  display: inline-flex;\n  align-items: center;\n  box-sizing: border-box;\n  height: 20px;'
+    );
+    expect(cssSource).toContain('line-height: 18px;');
+  });
+
   test('focuses the matching editor when clicking an embedded field label', async () => {
     render(
       <>
