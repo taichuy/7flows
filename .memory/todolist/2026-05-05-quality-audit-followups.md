@@ -30,6 +30,13 @@ updated_at: 2026-05-06 03
 - Artifact JSON：`status=passed`、`exitCode=0`、`warningFiles=[]`。
 - Artifact 已下载到 `tmp/test-governance/remote-run-25396463387/`，该目录按 `.gitignore` 保持本地证据，不提交。
 
+## 2026-05-06 06 值守证据
+
+- 最新远端质量门禁 issue：`#66`，`latest` / `1806bec` / passed，已评论并关闭。
+- GitHub Actions：`verify` run `25403877772` 成功，`CodeQL` run `25403877789` 成功。
+- Artifact JSON：`status=passed`、`exitCode=0`、`warningFiles=[]`。
+- Artifact 已下载到 `tmp/test-governance/remote-run-25403877772-2300/`，该目录按 `.gitignore` 保持本地证据，不提交。
+
 ## 需要拍板的方向
 
 1. 是否优先拆后端超大文件：
@@ -72,3 +79,6 @@ updated_at: 2026-05-06 03
   - `support/repository/provider_runtime.rs` 收纳 provider / capability runtime mock。
   - `support/repository/runtime_repository.rs` 收纳 orchestration runtime repository mock 与其专属回归测试。
   - 原 2660 行单文件拆为 690 / 709 / 199 / 1068 行，均低于 1500 行预算。
+- 补充 `web/app/src/features/agent-flow/_tests/api/data-model-options.test.ts`：
+  - 覆盖 `agent-flow/api/data-model-options.ts` 的稳定 query key、Data Model 状态到选项状态的映射、字段排序 / 标题兜底和 base URL 调用契约。
+  - 本地验证：`pnpm --dir web/app test -- src/features/agent-flow/_tests/data-model-options.test.ts` 触发前端 fast 套件，71 个测试文件 / 322 个测试通过；移动到 `_tests/api/` 后用 `scripts/node/exec-with-real-node.sh scripts/node/run-frontend-vitest.js run src/features/agent-flow/_tests/api/data-model-options.test.ts` 窄范围复核通过，1 个测试文件 / 3 个测试通过。
