@@ -23,11 +23,15 @@ function extractPushBranches(workflow) {
     .filter(Boolean);
 }
 
-test('verify workflow runs and publishes quality reports on latest pushes', () => {
+test('verify workflow runs on main and latest but only publishes quality reports on latest pushes', () => {
   const workflow = readVerifyWorkflow();
 
   assert.deepEqual(extractPushBranches(workflow), ['main', 'latest']);
-  assert.match(workflow, /github\.ref == 'refs\/heads\/latest'/u);
+  assert.match(
+    workflow,
+    /publish_issue: \$\{\{ github\.event_name == 'push' && github\.ref == 'refs\/heads\/latest' \}\}/u
+  );
+  assert.doesNotMatch(workflow, /publish_issue: .+refs\/heads\/main/u);
 });
 
 test('manual quality gate defaults to latest and can target supported branches', () => {

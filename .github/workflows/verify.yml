@@ -31,7 +31,7 @@ jobs:
         with:
           scope: ci
           report_type: ci
-          publish_issue: ${{ github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/latest') }}
+          publish_issue: ${{ github.event_name == 'push' && github.ref == 'refs/heads/latest' }}
           github_token: ${{ secrets.GITHUB_TOKEN }}
       - uses: actions/upload-artifact@v6
         if: always()
