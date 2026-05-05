@@ -19,6 +19,8 @@ import {
   $getSelection,
   $insertNodes,
   $isRangeSelection,
+  $setSelection,
+  SKIP_DOM_SELECTION_TAG,
 } from 'lexical';
 import {
   forwardRef,
@@ -104,7 +106,9 @@ function ControlledValuePlugin({
     }
 
     const nextState = editor.parseEditorState(textToEditorState(value));
-    editor.setEditorState(nextState);
+    editor.setEditorState(nextState, {
+      tag: SKIP_DOM_SELECTION_TAG
+    });
   }, [editor, options, value]);
 
   return null;
@@ -342,6 +346,15 @@ export const LexicalTemplatedTextEditor = forwardRef<
     );
   }
 
+  function isExternalEditableTarget(node: EventTarget | null) {
+    return (
+      node instanceof HTMLElement &&
+      node.matches(
+        'input:not([type="button"]):not([type="submit"]):not([type="reset"]), textarea, select, [contenteditable="true"], [role="textbox"], [role="combobox"]'
+      )
+    );
+  }
+
   function openTypeahead(
     nextQuery = '',
     nextPosition: TypeaheadPosition = DEFAULT_TYPEAHEAD_POSITION
@@ -371,11 +384,27 @@ export const LexicalTemplatedTextEditor = forwardRef<
     onTriggerChange?.(false);
   }
 
+  function clearEditorSelection() {
+    editorRef.current?.update(
+      () => {
+        $setSelection(null);
+      },
+      {
+        discrete: true,
+        tag: SKIP_DOM_SELECTION_TAG
+      }
+    );
+  }
+
   function handleBlur(event: FocusEvent<HTMLDivElement>) {
     const nextFocusedNode = event.relatedTarget;
 
     if (isInsideEditorOrTypeahead(nextFocusedNode)) {
       return;
+    }
+
+    if (isExternalEditableTarget(nextFocusedNode)) {
+      clearEditorSelection();
     }
 
     if (blurCloseTimerRef.current !== null) {
@@ -389,6 +418,7 @@ export const LexicalTemplatedTextEditor = forwardRef<
         return;
       }
 
+      clearEditorSelection();
       closeTypeahead();
     }, 120);
   }

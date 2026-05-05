@@ -42,6 +42,33 @@ function PromptPairHarness() {
   );
 }
 
+function PromptWithPlainInputHarness() {
+  const [systemValue, setSystemValue] = useState('');
+  const [plainValue, setPlainValue] = useState('');
+
+  return (
+    <>
+      <TemplatedTextField
+        label="System Prompt"
+        ariaLabel="System Prompt"
+        options={[startQueryOption]}
+        value={systemValue}
+        onChange={setSystemValue}
+      />
+      <input
+        aria-label="Plain Input"
+        value={plainValue}
+        onChange={(event) => {
+          setPlainValue(event.target.value);
+          setSystemValue('Synced prompt');
+        }}
+      />
+      <output data-testid="system-value">{systemValue}</output>
+      <output data-testid="plain-value">{plainValue}</output>
+    </>
+  );
+}
+
 describe('TemplatedTextField focus and layout', () => {
   test('aligns the empty placeholder with the first editor line', async () => {
     const cssSource = await readFile(
@@ -195,6 +222,26 @@ describe('TemplatedTextField focus and layout', () => {
     });
     expect(handleSystemChange).not.toHaveBeenCalled();
     expect(handleUserChange).not.toHaveBeenCalled();
+  });
+
+  test('keeps focus on a plain input when the templated value syncs from state', async () => {
+    render(<PromptWithPlainInputHarness />);
+
+    const plainInput = screen.getByLabelText('Plain Input');
+
+    plainInput.focus();
+    expect(plainInput).toHaveFocus();
+    fireEvent.change(plainInput, {
+      target: { value: 'Next field' }
+    });
+
+    await waitFor(() => {
+      expect(screen.getByTestId('system-value')).toHaveTextContent(
+        'Synced prompt'
+      );
+    });
+    expect(plainInput).toHaveFocus();
+    expect(screen.getByTestId('plain-value')).toHaveTextContent('Next field');
   });
 
   test('focuses the owning prompt editor when clicking an inline variable chip', async () => {
