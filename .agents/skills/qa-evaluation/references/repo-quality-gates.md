@@ -20,6 +20,12 @@
 | `node scripts/node/verify-ci.js` | CI 总入口 | 需要模拟 CI 最终门禁，或判断“是否可过 CI” | 不替代局部根因定位 |
 | `node scripts/node/runtime-gate.js <page-debug args>` | 单路由 / 运行态页面 / 跳转链路证据 | 评估受保护页面、跳转、ready signal、console/runtime 行为 | 不替代静态代码检查与仓库级 full gate |
 
+## Quality Gate Watch Routing
+
+- 仓库管理者、有 GitHub Actions 和 issue 权限：按 `quality-gate-watch.md` 的 GitHub 场景走，用远端 workflow run、artifact JSON 和 issue 状态闭环。
+- 共享者、fork 用户或没有仓库权限：不要假装能关闭 issue 或确认远端门禁；按 `quality-gate-watch.md` 的本地脚本场景运行 `verify-ci` / `verify-repo` / 定向脚本，并把产物路径、退出码和关键日志作为证据交付。
+- 两种场景都不能只凭 issue 正文、PR 绿色标识或口头推测下 QA 结论；需要可复查的运行证据。
+
 ## Selection Defaults
 
 - 默认先按最近作用域选门禁，不要一上来就 `verify-ci`。
