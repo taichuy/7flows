@@ -700,6 +700,23 @@ describe('Settings data models page', () => {
     expect(
       await screen.findByRole('tab', { name: '字段' })
     ).toBeInTheDocument();
+    expect(
+      within(editorDialog).getByTestId('data-model-detail-summary')
+    ).toBeInTheDocument();
+    const detailActions = within(editorDialog).getByTestId(
+      'data-model-detail-actions'
+    );
+    const tabs = within(editorDialog).getByRole('tab', { name: '字段' });
+    expect(detailActions).toBeInTheDocument();
+    expect(
+      detailActions.compareDocumentPosition(tabs) &
+        Node.DOCUMENT_POSITION_FOLLOWING
+    ).toBeTruthy();
+    expect(
+      within(detailActions).getByRole('button', {
+        name: '编辑 Data Model'
+      })
+    ).toBeInTheDocument();
     expect(screen.getByRole('tab', { name: '关系' })).toBeInTheDocument();
     expect(screen.getByRole('tab', { name: '权限' })).toBeInTheDocument();
     expect(screen.getByRole('tab', { name: 'API' })).toBeInTheDocument();

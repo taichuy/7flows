@@ -144,69 +144,81 @@ export function DataModelDetail({
 
   return (
     <section className="data-model-panel__detail" aria-label="Data Model 详情">
-      <div className="data-model-panel__detail-head">
-        <div>
+      <div
+        className="data-model-panel__detail-summary"
+        data-testid="data-model-detail-summary"
+      >
+        <div className="data-model-panel__identity">
           <Typography.Title level={4}>{model.title}</Typography.Title>
           <Typography.Text type="secondary">{model.code}</Typography.Text>
         </div>
-        <Flex align="flex-end" gap={12} wrap="wrap">
-          <div className="data-model-panel__status-control">
-            <label htmlFor="data-model-status-select">Data Model 状态</label>
-            <div className="data-model-panel__control-with-help">
-              <select
-                id="data-model-status-select"
-                className="data-model-panel__native-select"
-                value={model.status}
-                disabled={!canManage || modelSaving}
-                onChange={(event) =>
-                  onUpdateModelStatus(
-                    event.target.value as SettingsDataModel['status']
-                  )
-                }
-              >
-                {dataModelStatusOptions.map((option) => (
-                  <option key={option.value} value={option.value}>
-                    {option.label}
-                  </option>
-                ))}
-              </select>
-              <DataModelHelpTooltip
-                label="Data Model 状态"
-                title={dataModelStatusHelp}
-              />
-            </div>
-          </div>
-          <Button
-            disabled={!canManage}
-            onClick={() => setModelDrawerOpen(true)}
-          >
-            编辑 Data Model
-          </Button>
-        </Flex>
+        <Descriptions
+          className="data-model-panel__metadata"
+          size="small"
+          column={{ xs: 1, sm: 2, lg: 4 }}
+          items={[
+            {
+              key: 'status',
+              label: 'Data Model 状态',
+              children: (
+                <div className="data-model-panel__control-with-help">
+                  <select
+                    id="data-model-status-select"
+                    className="data-model-panel__native-select"
+                    value={model.status}
+                    disabled={!canManage || modelSaving}
+                    aria-label="Data Model 状态"
+                    onChange={(event) =>
+                      onUpdateModelStatus(
+                        event.target.value as SettingsDataModel['status']
+                      )
+                    }
+                  >
+                    {dataModelStatusOptions.map((option) => (
+                      <option key={option.value} value={option.value}>
+                        {option.label}
+                      </option>
+                    ))}
+                  </select>
+                  <DataModelHelpTooltip
+                    label="Data Model 状态"
+                    title={dataModelStatusHelp}
+                  />
+                </div>
+              )
+            },
+            { key: 'source', label: '来源', children: model.source_kind },
+            {
+              key: 'runtime',
+              label: 'Runtime',
+              children: model.runtime_availability
+            },
+            ...(model.source_kind === 'external_source'
+              ? [
+                  {
+                    key: 'external_table_id',
+                    label: '表 ID',
+                    children: model.external_table_id ?? '-'
+                  }
+                ]
+              : []),
+            {
+              key: 'table',
+              label: '物理表',
+              children: model.physical_table_name
+            }
+          ]}
+        />
       </div>
 
-      <Descriptions
-        size="small"
-        column={{ xs: 1, sm: 2, lg: 3 }}
-        items={[
-          { key: 'source', label: '来源', children: model.source_kind },
-          {
-            key: 'runtime',
-            label: 'Runtime',
-            children: model.runtime_availability
-          },
-          ...(model.source_kind === 'external_source'
-            ? [
-                {
-                  key: 'external_table_id',
-                  label: '表 ID',
-                  children: model.external_table_id ?? '-'
-                }
-              ]
-            : []),
-          { key: 'table', label: '物理表', children: model.physical_table_name }
-        ]}
-      />
+      <div
+        className="data-model-panel__detail-actions"
+        data-testid="data-model-detail-actions"
+      >
+        <Button disabled={!canManage} onClick={() => setModelDrawerOpen(true)}>
+          编辑 Data Model
+        </Button>
+      </div>
 
       <Tabs
         items={[
