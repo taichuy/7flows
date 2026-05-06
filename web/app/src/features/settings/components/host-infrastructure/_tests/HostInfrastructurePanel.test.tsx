@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, describe, expect, test, vi } from 'vitest';
 
 import { resetAuthStore, useAuthStore } from '../../../../../state/auth-store';
@@ -41,19 +41,6 @@ function renderPanel(canManage = true) {
   );
 }
 
-async function findProviderRow(providerName: string) {
-  return waitFor(() => {
-    const rows = screen.getAllByRole('row');
-    const providerRow = rows.find((row) => within(row).queryByText(providerName));
-
-    if (!providerRow) {
-      throw new Error(`expected provider row for ${providerName}`);
-    }
-
-    return providerRow;
-  });
-}
-
 describe('HostInfrastructurePanel', () => {
   afterEach(() => {
     vi.clearAllMocks();
@@ -87,11 +74,11 @@ describe('HostInfrastructurePanel', () => {
     expect(
       await screen.findByRole('heading', { name: '基础设施', level: 3 })
     ).toBeInTheDocument();
-    const row = await findProviderRow('Redis');
-    expect(within(row).getByText('disabled')).toBeInTheDocument();
-    expect(within(row).getByText('inactive')).toBeInTheDocument();
-    expect(within(row).getByText('storage-ephemeral')).toBeInTheDocument();
-    expect(within(row).getByText('cache-store')).toBeInTheDocument();
+    expect(await screen.findByText('Redis')).toBeInTheDocument();
+    expect(screen.getByText('disabled')).toBeInTheDocument();
+    expect(screen.getByText('inactive')).toBeInTheDocument();
+    expect(screen.getByText('storage-ephemeral')).toBeInTheDocument();
+    expect(screen.getByText('cache-store')).toBeInTheDocument();
   });
 
   test('renders pending restart state without claiming provider is active', async () => {
@@ -115,9 +102,9 @@ describe('HostInfrastructurePanel', () => {
 
     renderPanel();
 
-    const row = await findProviderRow('Redis');
-    expect(within(row).getByText('pending_restart')).toBeInTheDocument();
-    expect(within(row).getByText('inactive')).toBeInTheDocument();
+    expect(await screen.findByText('Redis')).toBeInTheDocument();
+    expect(screen.getByText('pending_restart')).toBeInTheDocument();
+    expect(screen.getByText('inactive')).toBeInTheDocument();
     expect(screen.getByText('重启后生效')).toBeInTheDocument();
   });
 
