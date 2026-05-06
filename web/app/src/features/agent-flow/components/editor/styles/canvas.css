@@ -1163,20 +1163,68 @@
   gap: 8px;
   width: min(260px, calc(100vw - 48px));
   min-width: 240px;
+  max-height: var(--agent-flow-node-picker-max-height, calc(100vh - 120px));
+  overflow: hidden;
 }
 
-.agent-flow-node-picker__search {
-  position: sticky;
-  top: 0;
-  z-index: 1;
+.agent-flow-node-picker__header {
+  display: flex;
+  flex: none;
+  flex-direction: column;
+  gap: 8px;
   padding-bottom: 2px;
   background: #ffffff;
+}
+
+.agent-flow-node-picker__tabs {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 4px;
+  padding: 3px;
+  border: 1px solid #d6e4ff;
+  border-radius: 8px;
+  background: #f3f8ff;
+}
+
+.agent-flow-node-picker__tab {
+  min-width: 0;
+  min-height: 26px;
+  padding: 0 8px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: #4e5969;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 26px;
+}
+
+.agent-flow-node-picker__tab:hover,
+.agent-flow-node-picker__tab:focus-visible {
+  background: #e6f4ff;
+  color: #1677ff;
+}
+
+.agent-flow-node-picker__tab--active {
+  background: #1677ff;
+  color: #ffffff;
+  box-shadow: 0 1px 4px rgba(22, 119, 255, 0.22);
+}
+
+.agent-flow-node-picker__tab--active:hover,
+.agent-flow-node-picker__tab--active:focus-visible {
+  background: #0958d9;
+  color: #ffffff;
 }
 
 .agent-flow-node-picker__list {
   display: flex;
   flex-direction: column;
+  min-height: 0;
   gap: 10px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
 }
 
 .agent-flow-node-picker__section {

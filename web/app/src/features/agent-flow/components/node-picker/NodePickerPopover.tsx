@@ -13,6 +13,7 @@ import { getAgentFlowNodeTypeIcon } from '../../lib/node-type-icons';
 import { calculateNodePickerMaxHeight } from './node-picker-layout';
 
 type BuiltinNodePickerOption = Extract<NodePickerOption, { kind: 'builtin' }>;
+type NodePickerTab = 'builtin' | 'plugin';
 
 interface NodePickerGroup {
   key: string;
@@ -113,6 +114,9 @@ export function NodePickerPopover({
   placement = 'rightTop'
 }: NodePickerPopoverProps) {
   const [searchValue, setSearchValue] = useState('');
+  const [activeTab, setActiveTab] = useState<NodePickerTab>(() =>
+    options.some((option) => option.kind === 'builtin') ? 'builtin' : 'plugin'
+  );
   const normalizedSearchValue = searchValue.trim().toLowerCase();
   const builtinOptions = options.filter(
     (option): option is BuiltinNodePickerOption => option.kind === 'builtin'
@@ -164,9 +168,9 @@ export function NodePickerPopover({
     )
   );
   const hasVisibleOptions =
-    groupedBuiltinOptions.length > 0 ||
-    uncategorizedBuiltinOptions.length > 0 ||
-    filteredPluginOptions.length > 0;
+    activeTab === 'builtin'
+      ? groupedBuiltinOptions.length > 0 || uncategorizedBuiltinOptions.length > 0
+      : filteredPluginOptions.length > 0;
 
   function closePicker() {
     setSearchValue('');
@@ -203,7 +207,7 @@ export function NodePickerPopover({
           boxSizing: 'border-box',
           maxHeight:
             'var(--agent-flow-node-picker-max-height, calc(100vh - 120px))',
-          overflowY: 'auto',
+          overflow: 'hidden',
           overscrollBehavior: 'contain'
         }
       }}
@@ -213,76 +217,113 @@ export function NodePickerPopover({
       onOpenChange={onOpenChange}
       content={
         <div className="agent-flow-node-picker">
-          <div className="agent-flow-node-picker__search">
-            <Input
-              allowClear
-              aria-label="搜索节点"
-              placeholder="搜索节点"
-              prefix={<SearchOutlined />}
-              size="small"
-              value={searchValue}
-              onChange={(event) => {
-                setSearchValue(event.target.value);
-              }}
-            />
+          <div className="agent-flow-node-picker__header">
+            <div
+              aria-label="节点来源"
+              className="agent-flow-node-picker__tabs"
+              role="tablist"
+            >
+              <button
+                aria-selected={activeTab === 'builtin'}
+                className={`agent-flow-node-picker__tab${activeTab === 'builtin' ? ' agent-flow-node-picker__tab--active' : ''}`}
+                role="tab"
+                type="button"
+                onClick={() => setActiveTab('builtin')}
+              >
+                内置
+              </button>
+              <button
+                aria-selected={activeTab === 'plugin'}
+                className={`agent-flow-node-picker__tab${activeTab === 'plugin' ? ' agent-flow-node-picker__tab--active' : ''}`}
+                role="tab"
+                type="button"
+                onClick={() => setActiveTab('plugin')}
+              >
+                扩展
+              </button>
+            </div>
+            <div className="agent-flow-node-picker__search">
+              <Input
+                allowClear
+                aria-label="搜索节点"
+                placeholder="搜索节点"
+                prefix={<SearchOutlined />}
+                size="small"
+                value={searchValue}
+                onChange={(event) => {
+                  setSearchValue(event.target.value);
+                }}
+              />
+            </div>
           </div>
           <div className="agent-flow-node-picker__list" role="menu">
-            {groupedBuiltinOptions.map((group) => (
-              <NodePickerSection
-                key={group.key}
-                title={group.title}
-              >
-                {group.options.map((option) => (
-                  <NodePickerOptionButton
-                    key={getNodePickerOptionKey(option)}
-                    option={option}
-                    onPick={() => {
-                      closePicker();
-                      onPickNode(option);
-                    }}
-                  />
+            {activeTab === 'builtin' ? (
+              <>
+                {groupedBuiltinOptions.map((group) => (
+                  <NodePickerSection
+                    key={group.key}
+                    title={group.title}
+                  >
+                    {group.options.map((option) => (
+                      <NodePickerOptionButton
+                        key={getNodePickerOptionKey(option)}
+                        option={option}
+                        onPick={() => {
+                          closePicker();
+                          onPickNode(option);
+                        }}
+                      />
+                    ))}
+                  </NodePickerSection>
                 ))}
-              </NodePickerSection>
-            ))}
-            {uncategorizedBuiltinOptions.length > 0 ? (
-              <NodePickerSection
-                title="其他节点"
-              >
-                {uncategorizedBuiltinOptions.map((option) => (
-                  <NodePickerOptionButton
-                    key={getNodePickerOptionKey(option)}
-                    option={option}
-                    onPick={() => {
-                      closePicker();
-                      onPickNode(option);
-                    }}
-                  />
-                ))}
-              </NodePickerSection>
-            ) : null}
-            {filteredPluginOptions.length > 0 ? (
-              <NodePickerSection
-                title="插件节点"
-              >
-                {filteredPluginOptions.map((option) => (
-                  <NodePickerOptionButton
-                    key={getNodePickerOptionKey(option)}
-                    option={option}
-                    onPick={() => {
-                      if (option.disabled) {
-                        return;
-                      }
+                {uncategorizedBuiltinOptions.length > 0 ? (
+                  <NodePickerSection
+                    title="其他节点"
+                  >
+                    {uncategorizedBuiltinOptions.map((option) => (
+                      <NodePickerOptionButton
+                        key={getNodePickerOptionKey(option)}
+                        option={option}
+                        onPick={() => {
+                          closePicker();
+                          onPickNode(option);
+                        }}
+                      />
+                    ))}
+                  </NodePickerSection>
+                ) : null}
+              </>
+            ) : (
+              <>
+                {filteredPluginOptions.length > 0 ? (
+                  <NodePickerSection
+                    title="插件节点"
+                  >
+                    {filteredPluginOptions.map((option) => (
+                      <NodePickerOptionButton
+                        key={getNodePickerOptionKey(option)}
+                        option={option}
+                        onPick={() => {
+                          if (option.disabled) {
+                            return;
+                          }
 
-                      closePicker();
-                      onPickNode(option);
-                    }}
-                  />
-                ))}
-              </NodePickerSection>
-            ) : null}
+                          closePicker();
+                          onPickNode(option);
+                        }}
+                      />
+                    ))}
+                  </NodePickerSection>
+                ) : null}
+              </>
+            )}
             {!hasVisibleOptions ? (
               <div className="agent-flow-node-picker__empty">
-                没有匹配的节点
+                {normalizedSearchValue.length > 0
+                  ? '没有匹配的节点'
+                  : activeTab === 'plugin'
+                    ? '暂无扩展节点'
+                    : '暂无内置节点'}
               </div>
             ) : null}
           </div>

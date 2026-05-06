@@ -5,7 +5,10 @@ import { NodePickerPopover } from '../components/node-picker/NodePickerPopover';
 import {
   calculateNodePickerMaxHeight
 } from '../components/node-picker/node-picker-layout';
-import type { NodePickerOption } from '../lib/plugin-node-definitions';
+import {
+  BUILTIN_NODE_PICKER_OPTIONS,
+  type NodePickerOption
+} from '../lib/plugin-node-definitions';
 
 const pluginOptions: NodePickerOption[] = [
   {
@@ -106,6 +109,53 @@ describe('NodePickerPopover', () => {
     expect(screen.getByText('外部能力')).toBeInTheDocument();
     expect(screen.queryByRole('menuitem', { name: /LLM/i })).not.toBeInTheDocument();
     expect(screen.queryByText('模型与生成')).not.toBeInTheDocument();
+  });
+
+  test('keeps category tabs and search above the scrollable node list', () => {
+    render(
+      <NodePickerPopover
+        ariaLabel="在 LLM 后新增节点"
+        open
+        options={[...BUILTIN_NODE_PICKER_OPTIONS, ...pluginOptions]}
+        onOpenChange={vi.fn()}
+        onPickNode={vi.fn()}
+      />
+    );
+
+    expect(screen.getByRole('tab', { name: '内置' })).toHaveAttribute(
+      'aria-selected',
+      'true'
+    );
+    expect(screen.getByRole('tab', { name: '扩展' })).toHaveAttribute(
+      'aria-selected',
+      'false'
+    );
+    expect(
+      screen.queryByRole('menuitem', { name: /OpenAI Prompt/i })
+    ).not.toBeInTheDocument();
+
+    const searchInput = screen.getByRole('textbox', { name: '搜索节点' });
+    const header = searchInput.closest('.agent-flow-node-picker__header');
+    const list = document.querySelector('.agent-flow-node-picker__list');
+
+    expect(header).not.toBeNull();
+    expect(list).not.toBeNull();
+    expect(list?.contains(searchInput)).toBe(false);
+
+    fireEvent.click(screen.getByRole('tab', { name: '扩展' }));
+
+    expect(screen.getByRole('tab', { name: '内置' })).toHaveAttribute(
+      'aria-selected',
+      'false'
+    );
+    expect(screen.getByRole('tab', { name: '扩展' })).toHaveAttribute(
+      'aria-selected',
+      'true'
+    );
+    expect(
+      screen.getByRole('menuitem', { name: /OpenAI Prompt/i })
+    ).toBeInTheDocument();
+    expect(screen.queryByRole('menuitem', { name: /LLM/i })).not.toBeInTheDocument();
   });
 
   test('lets mousedown bubble so the surrounding handle can start a connection drag', () => {
