@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, within } from '@testing-library/react';
 import { describe, expect, test, vi } from 'vitest';
 
 import { NodePickerPopover } from '../components/node-picker/NodePickerPopover';
@@ -135,12 +135,15 @@ describe('NodePickerPopover', () => {
     ).not.toBeInTheDocument();
 
     const searchInput = screen.getByRole('textbox', { name: '搜索节点' });
-    const header = searchInput.closest('.agent-flow-node-picker__header');
-    const list = document.querySelector('.agent-flow-node-picker__list');
+    const nodeList = screen.getByRole('menu');
 
-    expect(header).not.toBeNull();
-    expect(list).not.toBeNull();
-    expect(list?.contains(searchInput)).toBe(false);
+    expect(
+      screen.getByRole('tablist', { name: '节点来源' })
+    ).toBeInTheDocument();
+    expect(searchInput).toBeInTheDocument();
+    expect(
+      within(nodeList).queryByRole('textbox', { name: '搜索节点' })
+    ).not.toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('tab', { name: '扩展' }));
 
