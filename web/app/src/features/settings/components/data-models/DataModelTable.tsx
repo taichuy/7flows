@@ -11,6 +11,15 @@ import type {
 } from '../../api/data-models';
 import { DataModelFormDrawer } from './DataModelFormDrawer';
 
+const builtinMainSourceModelCodes = new Set(['attachments', 'users', 'roles']);
+
+function isBuiltinMainSourceModel(model: SettingsDataModel) {
+  return (
+    model.source_kind === 'main_source' &&
+    builtinMainSourceModelCodes.has(model.code)
+  );
+}
+
 export function DataModelTable({
   models,
   selectedSource,
@@ -100,34 +109,40 @@ export function DataModelTable({
       title: '操作',
       key: 'actions',
       width: 160,
-      render: (_, model) => (
-        <Space size={4}>
-          <Button
-            type="link"
-            size="small"
-            disabled={!canManage}
-            onClick={(event) => {
-              event.stopPropagation();
-              onEditModel(model);
-            }}
-          >
-            编辑
-          </Button>
-          <Button
-            danger
-            type="link"
-            size="small"
-            aria-label={`删除数据表 ${model.title}`}
-            disabled={!canManage}
-            onClick={(event) => {
-              event.stopPropagation();
-              setDeleteTarget(model);
-            }}
-          >
-            删除
-          </Button>
-        </Space>
-      )
+      render: (_, model) => {
+        const canDeleteModel = !isBuiltinMainSourceModel(model);
+
+        return (
+          <Space size={4}>
+            <Button
+              type="link"
+              size="small"
+              disabled={!canManage}
+              onClick={(event) => {
+                event.stopPropagation();
+                onEditModel(model);
+              }}
+            >
+              编辑
+            </Button>
+            {canDeleteModel ? (
+              <Button
+                danger
+                type="link"
+                size="small"
+                aria-label={`删除数据表 ${model.title}`}
+                disabled={!canManage}
+                onClick={(event) => {
+                  event.stopPropagation();
+                  setDeleteTarget(model);
+                }}
+              >
+                删除
+              </Button>
+            ) : null}
+          </Space>
+        );
+      }
     }
   ];
 
@@ -215,18 +230,20 @@ export function DataModelTable({
                     >
                       编辑
                     </Button>
-                    <Button
-                      danger
-                      type="link"
-                      size="small"
-                      aria-label={`删除数据表 ${model.title}`}
-                      onClick={(event) => {
-                        event.stopPropagation();
-                        setDeleteTarget(model);
-                      }}
-                    >
-                      删除
-                    </Button>
+                    {!isBuiltinMainSourceModel(model) ? (
+                      <Button
+                        danger
+                        type="link"
+                        size="small"
+                        aria-label={`删除数据表 ${model.title}`}
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          setDeleteTarget(model);
+                        }}
+                      >
+                        删除
+                      </Button>
+                    ) : null}
                   </Space>
                 ) : null}
               </span>

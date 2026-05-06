@@ -666,14 +666,33 @@ describe('Settings data models page', () => {
     );
 
     expect(await screen.findByText('Attachments')).toBeInTheDocument();
+    const attachmentsRow = screen
+      .getAllByRole('row')
+      .find((row) => within(row).queryByText('attachments'));
     const usersRow = screen
       .getAllByRole('row')
       .find((row) => within(row).queryByText('users'));
     const rolesRow = screen
       .getAllByRole('row')
       .find((row) => within(row).queryByText('roles'));
+    expect(attachmentsRow).toBeDefined();
     expect(usersRow).toBeDefined();
     expect(rolesRow).toBeDefined();
+    expect(
+      within(attachmentsRow as HTMLElement).queryByRole('button', {
+        name: '删除数据表 Attachments'
+      })
+    ).not.toBeInTheDocument();
+    expect(
+      within(usersRow as HTMLElement).queryByRole('button', {
+        name: '删除数据表 用户'
+      })
+    ).not.toBeInTheDocument();
+    expect(
+      within(rolesRow as HTMLElement).queryByRole('button', {
+        name: '删除数据表 角色'
+      })
+    ).not.toBeInTheDocument();
     expect(
       within(usersRow as HTMLElement).getByText('用户')
     ).toBeInTheDocument();
