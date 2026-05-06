@@ -356,6 +356,7 @@ impl RuntimeRecordRepository for PgControlPlaneStore {
             let field = metadata
                 .field_by_code(field_code)
                 .ok_or_else(|| anyhow!("undeclared field code: {field_code}"))?;
+            ensure_writable_runtime_field(field)?;
             declared_fields.push((field, value));
         }
 
@@ -413,6 +414,7 @@ impl RuntimeRecordRepository for PgControlPlaneStore {
             let field = metadata
                 .field_by_code(field_code)
                 .ok_or_else(|| anyhow!("undeclared field code: {field_code}"))?;
+            ensure_writable_runtime_field(field)?;
             declared_fields.push((field, value));
         }
 
@@ -652,11 +654,24 @@ fn append_sort_clause(
     Ok(())
 }
 
+fn ensure_writable_runtime_field(field: &domain::ModelFieldRecord) -> Result<()> {
+    if field.is_system || !field.is_writable {
+        return Err(anyhow!("field is read-only: {}", field.code));
+    }
+
+    Ok(())
+}
+
 fn push_field_value(
     builder: &mut QueryBuilder<Postgres>,
     field: &domain::ModelFieldRecord,
     value: &Value,
 ) -> Result<()> {
+    if field.physical_column_name == "id" {
+        builder.push_bind(json_uuid(value)?);
+        return Ok(());
+    }
+
     match field.field_kind {
         domain::ModelFieldKind::String
         | domain::ModelFieldKind::Enum
@@ -797,6 +812,8 @@ fn to_model_field_record(row: PgRow) -> domain::ModelFieldRecord {
         physical_column_name: row.get("physical_column_name"),
         external_field_key: row.get("external_field_key"),
         field_kind: domain::ModelFieldKind::from_db(row.get("field_kind")),
+        is_system: row.get("is_system"),
+        is_writable: row.get("is_writable"),
         is_required: row.get("is_required"),
         is_unique: row.get("is_unique"),
         default_value: row.get("default_value"),

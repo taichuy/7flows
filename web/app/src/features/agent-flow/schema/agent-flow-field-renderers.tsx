@@ -209,7 +209,7 @@ function renderNamedBindingsField({
       | undefined) ?? [];
   const isDataModelPayload = block.path === 'bindings.payload';
   const nameOptions = isDataModelPayload
-    ? fields.map((field) => ({
+    ? fields.filter((field) => field.writable !== false).map((field) => ({
         value: field.code,
         label: field.title || field.code
       }))

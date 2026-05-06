@@ -1213,9 +1213,14 @@ impl ModelDefinitionRepository for MemoryFileManagementRepository {
             data_model_id: input.model_id,
             code: input.code.clone(),
             title: input.title.clone(),
-            physical_column_name: input.code.replace('-', "_"),
+            physical_column_name: input
+                .physical_column_name
+                .clone()
+                .unwrap_or_else(|| input.code.replace('-', "_")),
             external_field_key: input.external_field_key.clone(),
             field_kind: input.field_kind,
+            is_system: input.is_system,
+            is_writable: input.is_writable,
             is_required: input.is_required,
             is_unique: input.is_unique,
             default_value: input.default_value.clone(),
@@ -1521,9 +1526,14 @@ impl ModelDefinitionRepository for MemoryProvisioningRepository {
             data_model_id: input.model_id,
             code: input.code.clone(),
             title: input.title.clone(),
-            physical_column_name: input.code.replace('-', "_"),
+            physical_column_name: input
+                .physical_column_name
+                .clone()
+                .unwrap_or_else(|| input.code.replace('-', "_")),
             external_field_key: input.external_field_key.clone(),
             field_kind: input.field_kind,
+            is_system: input.is_system,
+            is_writable: input.is_writable,
             is_required: input.is_required,
             is_unique: input.is_unique,
             default_value: input.default_value.clone(),

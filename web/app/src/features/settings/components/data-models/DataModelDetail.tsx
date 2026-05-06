@@ -85,6 +85,7 @@ export function DataModelDetail({
         <button
           type="button"
           className="data-model-panel__link-button"
+          disabled={field.is_system === true || field.is_writable === false}
           onClick={() =>
             setFieldDrawerState({ open: true, mode: 'edit', field })
           }
@@ -120,7 +121,9 @@ export function DataModelDetail({
         <Button
           type="link"
           size="small"
-          disabled={!canManage}
+          disabled={
+            !canManage || field.is_system === true || field.is_writable === false
+          }
           onClick={() =>
             setFieldDrawerState({ open: true, mode: 'edit', field })
           }

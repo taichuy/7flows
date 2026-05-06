@@ -429,6 +429,8 @@ pub struct ModelFieldRecord {
     pub physical_column_name: String,
     pub external_field_key: Option<String>,
     pub field_kind: ModelFieldKind,
+    pub is_system: bool,
+    pub is_writable: bool,
     pub is_required: bool,
     pub is_unique: bool,
     pub default_value: Option<Value>,

@@ -17,6 +17,7 @@ export interface AgentFlowDataModelFieldOption {
   title: string;
   valueType: string;
   required: boolean;
+  writable: boolean;
 }
 
 export interface AgentFlowDataModelOption {
@@ -82,7 +83,8 @@ export function listAgentFlowDataModelOptions(
           code: field.code,
           title: field.title || field.code,
           valueType: field.field_kind,
-          required: field.is_required
+          required: field.is_required,
+          writable: field.is_writable
         }))
     };
   });

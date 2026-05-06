@@ -567,10 +567,14 @@ where
                 .add_model_field(&AddModelFieldInput {
                     actor_user_id: actor.user_id,
                     model_id: model.id,
+                    physical_column_name: None,
                     code: normalize_code_identifier(&external_field_key, "external_field_key")?,
                     title: field_title(&schema),
                     external_field_key: Some(external_field_key),
                     field_kind: model_field_kind_from_schema(&schema),
+                    is_system: false,
+                    is_writable: true,
+                    apply_physical_schema: false,
                     is_required: schema.required.unwrap_or(false),
                     is_unique: descriptor
                         .primary_key

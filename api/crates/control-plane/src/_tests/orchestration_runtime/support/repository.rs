@@ -842,6 +842,8 @@ fn test_data_model_field(
         physical_column_name: code.to_string(),
         external_field_key: None,
         field_kind,
+        is_system: false,
+        is_writable: true,
         is_required: false,
         is_unique: false,
         default_value: None,

@@ -252,36 +252,47 @@ describe('NodeInspector', () => {
         modelId: 'model-orders',
         modelCode: 'orders',
         fields: [
-          { code: 'name', title: 'Name', valueType: 'string', required: true },
+          {
+            code: 'name',
+            title: 'Name',
+            valueType: 'string',
+            required: true,
+            writable: true
+          },
           {
             code: 'amount',
             title: 'Amount',
             valueType: 'number',
-            required: false
+            required: false,
+            writable: true
           },
           {
             code: 'status',
             title: 'Status',
             valueType: 'enum',
-            required: false
+            required: false,
+            writable: true
           },
           {
             code: 'customer',
             title: 'Customer',
             valueType: 'many_to_one',
-            required: false
+            required: false,
+            writable: true
           },
           {
             code: 'lines',
             title: 'Lines',
             valueType: 'one_to_many',
-            required: false
+            required: false,
+            writable: true
           },
           {
             code: 'approved',
             title: 'Approved',
             valueType: 'boolean',
-            required: false
+            required: false,
+            writable: true
           }
         ]
       },

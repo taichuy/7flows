@@ -179,6 +179,22 @@ fn ensure_protected_model_override_authorized(
     Ok(())
 }
 
+fn ensure_field_mutable(
+    model: &domain::ModelDefinitionRecord,
+    field_id: Uuid,
+) -> Result<(), ControlPlaneError> {
+    let field = model
+        .fields
+        .iter()
+        .find(|field| field.id == field_id)
+        .ok_or(ControlPlaneError::NotFound("model_field"))?;
+    if field.is_system || !field.is_writable {
+        return Err(ControlPlaneError::InvalidInput("model_field").into());
+    }
+
+    Ok(())
+}
+
 impl<R> ModelDefinitionService<R>
 where
     R: ModelDefinitionRepository,
@@ -540,8 +556,12 @@ where
                 model_id: command.model_id,
                 code: command.code,
                 title: command.title,
+                physical_column_name: None,
                 external_field_key,
                 field_kind: command.field_kind,
+                is_system: false,
+                is_writable: true,
+                apply_physical_schema: true,
                 is_required: command.is_required,
                 is_unique: command.is_unique,
                 default_value: command.default_value,
@@ -580,6 +600,7 @@ where
             .await?
             .ok_or(ControlPlaneError::NotFound("model_definition"))?;
         ensure_protected_model_override_authorized(&actor, &model)?;
+        ensure_field_mutable(&model, command.field_id)?;
 
         let field = self
             .repository
@@ -660,6 +681,7 @@ where
             .await?
             .ok_or(ControlPlaneError::NotFound("model_definition"))?;
         ensure_protected_model_override_authorized(&actor, &model)?;
+        ensure_field_mutable(&model, command.field_id)?;
 
         self.repository
             .delete_model_field(command.actor_user_id, command.model_id, command.field_id)
@@ -1486,9 +1508,14 @@ impl ModelDefinitionRepository for InMemoryModelDefinitionRepository {
             data_model_id: input.model_id,
             code: input.code.clone(),
             title: input.title.clone(),
-            physical_column_name: build_physical_column_name(&input.code),
+            physical_column_name: input
+                .physical_column_name
+                .clone()
+                .unwrap_or_else(|| build_physical_column_name(&input.code)),
             external_field_key: input.external_field_key.clone(),
             field_kind: input.field_kind,
+            is_system: input.is_system,
+            is_writable: input.is_writable,
             is_required: input.is_required,
             is_unique: input.is_unique,
             default_value: input.default_value.clone(),

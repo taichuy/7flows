@@ -11,7 +11,11 @@ use crate::ports::{
 pub struct SystemMetadataFieldTemplate {
     pub code: &'static str,
     pub title: &'static str,
+    pub physical_column_name: Option<&'static str>,
     pub field_kind: ModelFieldKind,
+    pub is_system: bool,
+    pub is_writable: bool,
+    pub apply_physical_schema: bool,
     pub is_required: bool,
     pub is_unique: bool,
 }
@@ -23,60 +27,76 @@ pub struct SystemMetadataModelTemplate {
     pub fields: Vec<SystemMetadataFieldTemplate>,
 }
 
+fn metadata_field(
+    code: &'static str,
+    title: &'static str,
+    field_kind: ModelFieldKind,
+    is_required: bool,
+    is_unique: bool,
+) -> SystemMetadataFieldTemplate {
+    SystemMetadataFieldTemplate {
+        code,
+        title,
+        physical_column_name: None,
+        field_kind,
+        is_system: false,
+        is_writable: true,
+        apply_physical_schema: true,
+        is_required,
+        is_unique,
+    }
+}
+
+fn platform_metadata_field(
+    code: &'static str,
+    title: &'static str,
+    physical_column_name: &'static str,
+    field_kind: ModelFieldKind,
+) -> SystemMetadataFieldTemplate {
+    SystemMetadataFieldTemplate {
+        code,
+        title,
+        physical_column_name: Some(physical_column_name),
+        field_kind,
+        is_system: true,
+        is_writable: false,
+        apply_physical_schema: false,
+        is_required: true,
+        is_unique: true,
+    }
+}
+
 pub fn user_metadata_template() -> SystemMetadataModelTemplate {
     SystemMetadataModelTemplate {
         code: "users",
         title: "用户",
         fields: vec![
-            SystemMetadataFieldTemplate {
-                code: "username",
-                title: "用户名",
-                field_kind: ModelFieldKind::String,
-                is_required: true,
-                is_unique: true,
-            },
-            SystemMetadataFieldTemplate {
-                code: "display_name",
-                title: "显示名称",
-                field_kind: ModelFieldKind::String,
-                is_required: true,
-                is_unique: false,
-            },
-            SystemMetadataFieldTemplate {
-                code: "email",
-                title: "邮箱",
-                field_kind: ModelFieldKind::String,
-                is_required: false,
-                is_unique: true,
-            },
-            SystemMetadataFieldTemplate {
-                code: "status",
-                title: "状态",
-                field_kind: ModelFieldKind::String,
-                is_required: true,
-                is_unique: false,
-            },
-            SystemMetadataFieldTemplate {
-                code: "role_codes",
-                title: "角色",
-                field_kind: ModelFieldKind::Json,
-                is_required: false,
-                is_unique: false,
-            },
-            SystemMetadataFieldTemplate {
-                code: "created_time",
-                title: "创建时间",
-                field_kind: ModelFieldKind::Datetime,
-                is_required: true,
-                is_unique: false,
-            },
-            SystemMetadataFieldTemplate {
-                code: "last_login_at",
-                title: "最后登录时间",
-                field_kind: ModelFieldKind::Datetime,
-                is_required: false,
-                is_unique: false,
-            },
+            platform_metadata_field("id", "用户 ID", "id", ModelFieldKind::String),
+            metadata_field("username", "用户名", ModelFieldKind::String, true, true),
+            metadata_field(
+                "display_name",
+                "显示名称",
+                ModelFieldKind::String,
+                true,
+                false,
+            ),
+            metadata_field("email", "邮箱", ModelFieldKind::String, false, true),
+            metadata_field("status", "状态", ModelFieldKind::String, true, false),
+            metadata_field("role_codes", "角色", ModelFieldKind::Json, false, false),
+            metadata_field(
+                "created_time",
+                "创建时间",
+                ModelFieldKind::Datetime,
+                true,
+                false,
+            ),
+            metadata_field(
+                "last_login_at",
+                "最后登录时间",
+                ModelFieldKind::Datetime,
+                false,
+                false,
+            ),
         ],
     }
 }
@@ -86,48 +106,30 @@ pub fn role_metadata_template() -> SystemMetadataModelTemplate {
         code: "roles",
         title: "角色",
         fields: vec![
-            SystemMetadataFieldTemplate {
-                code: "code",
-                title: "角色标识",
-                field_kind: ModelFieldKind::String,
-                is_required: true,
-                is_unique: true,
-            },
-            SystemMetadataFieldTemplate {
-                code: "name",
-                title: "角色名称",
-                field_kind: ModelFieldKind::String,
-                is_required: true,
-                is_unique: false,
-            },
-            SystemMetadataFieldTemplate {
-                code: "scope_kind",
-                title: "作用域",
-                field_kind: ModelFieldKind::String,
-                is_required: true,
-                is_unique: false,
-            },
-            SystemMetadataFieldTemplate {
-                code: "is_builtin",
-                title: "内置角色",
-                field_kind: ModelFieldKind::Boolean,
-                is_required: true,
-                is_unique: false,
-            },
-            SystemMetadataFieldTemplate {
-                code: "is_default_member_role",
-                title: "默认成员角色",
-                field_kind: ModelFieldKind::Boolean,
-                is_required: true,
-                is_unique: false,
-            },
-            SystemMetadataFieldTemplate {
-                code: "created_time",
-                title: "创建时间",
-                field_kind: ModelFieldKind::Datetime,
-                is_required: true,
-                is_unique: false,
-            },
+            metadata_field("code", "角色标识", ModelFieldKind::String, true, true),
+            metadata_field("name", "角色名称", ModelFieldKind::String, true, false),
+            metadata_field("scope_kind", "作用域", ModelFieldKind::String, true, false),
+            metadata_field(
+                "is_builtin",
+                "内置角色",
+                ModelFieldKind::Boolean,
+                true,
+                false,
+            ),
+            metadata_field(
+                "is_default_member_role",
+                "默认成员角色",
+                ModelFieldKind::Boolean,
+                true,
+                false,
+            ),
+            metadata_field(
+                "created_time",
+                "创建时间",
+                ModelFieldKind::Datetime,
+                true,
+                false,
+            ),
         ],
     }
 }
@@ -253,10 +255,14 @@ where
                 .add_model_field(&AddModelFieldInput {
                     actor_user_id,
                     model_id,
+                    physical_column_name: field.physical_column_name.map(str::to_string),
                     external_field_key: None,
                     code: field.code.to_string(),
                     title: field.title.to_string(),
                     field_kind: field.field_kind,
+                    is_system: field.is_system,
+                    is_writable: field.is_writable,
+                    apply_physical_schema: field.apply_physical_schema,
                     is_required: field.is_required,
                     is_unique: field.is_unique,
                     default_value: None,

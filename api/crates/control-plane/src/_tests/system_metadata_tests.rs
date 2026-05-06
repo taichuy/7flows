@@ -21,6 +21,7 @@ fn user_and_role_metadata_templates_match_system_table_contract() {
     assert_eq!(
         user_codes,
         vec![
+            "id",
             "username",
             "display_name",
             "email",
@@ -86,7 +87,7 @@ async fn bootstrap_creates_builtin_user_and_role_models_once() {
     assert_eq!(users.scope_kind, DataModelScopeKind::System);
     assert_eq!(users.scope_id, SYSTEM_SCOPE_ID);
     assert_eq!(users.source_kind, DataModelSourceKind::MainSource);
-    assert_eq!(users.fields.len(), 7);
+    assert_eq!(users.fields.len(), 8);
     assert_eq!(roles.fields.len(), 6);
 
     let grants = ModelDefinitionRepository::list_scope_data_model_grants(
@@ -129,10 +130,14 @@ async fn bootstrap_repairs_existing_partial_system_metadata_models() {
         .add_model_field(&AddModelFieldInput {
             actor_user_id,
             model_id: partial_users.id,
+            physical_column_name: None,
             external_field_key: None,
             code: "username".into(),
             title: "用户名".into(),
             field_kind: ModelFieldKind::String,
+            is_system: false,
+            is_writable: true,
+            apply_physical_schema: true,
             is_required: true,
             is_unique: true,
             default_value: None,
@@ -162,7 +167,8 @@ async fn bootstrap_repairs_existing_partial_system_metadata_models() {
         .map(|field| field.code.as_str())
         .collect::<Vec<_>>();
 
-    assert_eq!(user_field_codes.len(), 7);
+    assert_eq!(user_field_codes.len(), 8);
+    assert!(user_field_codes.contains(&"id"));
     assert!(user_field_codes.contains(&"username"));
     assert!(user_field_codes.contains(&"created_time"));
 

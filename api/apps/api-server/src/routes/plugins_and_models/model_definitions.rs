@@ -116,6 +116,8 @@ pub struct ModelFieldResponse {
     pub physical_column_name: String,
     pub external_field_key: Option<String>,
     pub field_kind: String,
+    pub is_system: bool,
+    pub is_writable: bool,
     pub is_required: bool,
     pub is_unique: bool,
     #[schema(value_type = Object)]
@@ -214,6 +216,8 @@ fn to_model_field_response(field: domain::ModelFieldRecord) -> ModelFieldRespons
         physical_column_name: field.physical_column_name,
         external_field_key: field.external_field_key,
         field_kind: field.field_kind.as_str().to_string(),
+        is_system: field.is_system,
+        is_writable: field.is_writable,
         is_required: field.is_required,
         is_unique: field.is_unique,
         default_value: field.default_value,

@@ -458,8 +458,11 @@ impl ModelDefinitionRepository for PgControlPlaneStore {
             ),
             None => None,
         };
-        let physical_column_name = build_physical_column_name(&input.code);
-        if is_platform_runtime_column(&physical_column_name) {
+        let physical_column_name = input
+            .physical_column_name
+            .clone()
+            .unwrap_or_else(|| build_physical_column_name(&input.code));
+        if input.apply_physical_schema && is_platform_runtime_column(&physical_column_name) {
             return Err(ControlPlaneError::InvalidInput("physical_column_name").into());
         }
 
@@ -471,6 +474,8 @@ impl ModelDefinitionRepository for PgControlPlaneStore {
             physical_column_name,
             external_field_key: input.external_field_key.clone(),
             field_kind: input.field_kind,
+            is_system: input.is_system,
+            is_writable: input.is_writable,
             is_required: input.is_required,
             is_unique: input.is_unique,
             default_value: input.default_value.clone(),
@@ -493,7 +498,9 @@ impl ModelDefinitionRepository for PgControlPlaneStore {
                 domain::MetadataAvailabilityStatus::Available,
             )
             .await?;
-            if model.source_kind == domain::DataModelSourceKind::MainSource {
+            if model.source_kind == domain::DataModelSourceKind::MainSource
+                && input.apply_physical_schema
+            {
                 match field.field_kind {
                     domain::ModelFieldKind::ManyToOne => {
                         let target = relation_target
