@@ -150,6 +150,7 @@ const dataModelsApi = vi.hoisted(() => ({
   fetchSettingsDataModels: vi.fn(),
   createSettingsDataModel: vi.fn(),
   updateSettingsDataModel: vi.fn(),
+  deleteSettingsDataModel: vi.fn(),
   updateSettingsDataModelApiExposure: vi.fn(),
   fetchSettingsDataModelScopeGrants: vi.fn(),
   createSettingsDataModelField: vi.fn(),
@@ -570,6 +571,9 @@ describe('Settings data models page', () => {
     dataModelsApi.updateSettingsDataModel.mockResolvedValue({
       id: 'model-1'
     });
+    dataModelsApi.deleteSettingsDataModel.mockResolvedValue({
+      deleted: true
+    });
     dataModelsApi.updateSettingsDataModelApiExposure.mockResolvedValue({
       id: 'model-1'
     });
@@ -714,9 +718,7 @@ describe('Settings data models page', () => {
       within(detailSummary).getAllByTestId('data-model-summary-item')
     ).toHaveLength(6);
     expect(within(detailSummary).getByText('表 ID：')).toBeInTheDocument();
-    expect(
-      within(detailSummary).queryByText('状态：')
-    ).not.toBeInTheDocument();
+    expect(within(detailSummary).queryByText('状态：')).not.toBeInTheDocument();
     const detailActions = within(editorDialog).getByTestId(
       'data-model-detail-actions'
     );
@@ -763,9 +765,7 @@ describe('Settings data models page', () => {
       within(editorDialog).getByLabelText('Data Model 状态说明')
     ).toBeInTheDocument();
     expect(
-      within(editorDialog).getByText(
-        /broken: 当前定义、运行依赖或外部资源异常/
-      )
+      within(editorDialog).getByText(/broken: 当前定义、运行依赖或外部资源异常/)
     ).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('tab', { name: 'API' }));
@@ -907,6 +907,32 @@ describe('Settings data models page', () => {
           status: 'published',
           external_table_id: 'crm.contacts.v2'
         }),
+        'csrf-123'
+      )
+    );
+  }, 20_000);
+
+  test('deletes a Data Model from the table operation column after confirmation', async () => {
+    renderApp('/settings/data-models?source=source-1');
+
+    await screen.findByText('Contacts', {}, { timeout: 10_000 });
+    const contactsRow = screen
+      .getAllByRole('row')
+      .find((row) => within(row).queryByText('Contacts'));
+    expect(contactsRow).toBeDefined();
+
+    fireEvent.click(
+      within(contactsRow as HTMLElement).getByRole('button', {
+        name: '删除数据表 Contacts'
+      })
+    );
+
+    expect(await screen.findByText('确认删除数据表')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: '确认' }));
+
+    await waitFor(() =>
+      expect(dataModelsApi.deleteSettingsDataModel).toHaveBeenCalledWith(
+        'model-1',
         'csrf-123'
       )
     );

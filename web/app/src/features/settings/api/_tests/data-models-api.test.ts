@@ -6,6 +6,7 @@ vi.mock('@1flowbase/api-client', () => ({
   createConsoleDataModelScopeGrant: vi.fn().mockResolvedValue({
     id: 'grant-1'
   }),
+  deleteConsoleDataModel: vi.fn().mockResolvedValue({ deleted: true }),
   deleteConsoleDataModelField: vi.fn().mockResolvedValue({ deleted: true }),
   fetchConsoleDataModelAdvisorFindings: vi.fn().mockResolvedValue([]),
   fetchConsoleDataModelOpenApiDocument: vi.fn().mockResolvedValue({
@@ -34,6 +35,7 @@ import {
   createConsoleDataModel,
   createConsoleDataModelField,
   createConsoleDataModelScopeGrant,
+  deleteConsoleDataModel,
   deleteConsoleDataModelField,
   fetchConsoleDataModels,
   fetchConsoleDataSourceInstances,
@@ -46,6 +48,7 @@ import {
   createSettingsDataModel,
   createSettingsDataModelField,
   createSettingsDataModelScopeGrant,
+  deleteSettingsDataModel,
   deleteSettingsDataModelField,
   fetchSettingsDataModels,
   fetchSettingsDataSourceInstances,
@@ -63,7 +66,11 @@ import {
 
 describe('settings data models API wrappers', () => {
   test('exports stable query keys for data sources, models, grants, preview, and Advisor', () => {
-    expect(settingsDataSourcesQueryKey).toEqual(['settings', 'data-models', 'sources']);
+    expect(settingsDataSourcesQueryKey).toEqual([
+      'settings',
+      'data-models',
+      'sources'
+    ]);
     expect(settingsDataModelsQueryKey('main_source')).toEqual([
       'settings',
       'data-models',
@@ -141,12 +148,19 @@ describe('settings data models API wrappers', () => {
       'csrf-123'
     );
 
-    await updateSettingsDataModel('model-1', { status: 'published' }, 'csrf-123');
+    await updateSettingsDataModel(
+      'model-1',
+      { status: 'published' },
+      'csrf-123'
+    );
     expect(updateConsoleDataModel).toHaveBeenCalledWith(
       'model-1',
       { status: 'published' },
       'csrf-123'
     );
+
+    await deleteSettingsDataModel('model-1', 'csrf-123');
+    expect(deleteConsoleDataModel).toHaveBeenCalledWith('model-1', 'csrf-123');
 
     await updateSettingsDataModelApiExposure(
       'model-1',

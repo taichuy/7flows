@@ -5,6 +5,7 @@ import {
   createConsoleDataModel,
   createConsoleDataModelField,
   createConsoleDataModelScopeGrant,
+  deleteConsoleDataModel,
   deleteConsoleDataModelField,
   fetchConsoleDataModelAdvisorFindings,
   fetchConsoleDataModelOpenApiDocument,
@@ -104,6 +105,16 @@ describe('console-data-models client', () => {
         status: 'published',
         external_table_id: 'crm.contacts.v2'
       },
+      csrfToken: 'csrf-123'
+    });
+  });
+
+  test('deleteConsoleDataModel uses the confirmed model delete route', async () => {
+    await expect(
+      deleteConsoleDataModel('model-1', 'csrf-123')
+    ).resolves.toMatchObject({
+      path: '/api/console/models/model-1?confirmed=true',
+      method: 'DELETE',
       csrfToken: 'csrf-123'
     });
   });

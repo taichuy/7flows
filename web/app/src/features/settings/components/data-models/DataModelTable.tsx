@@ -1,6 +1,6 @@
 import { useState } from 'react';
 
-import { Button, Flex, Grid, Space, Table, Tag, Typography } from 'antd';
+import { Button, Flex, Grid, Modal, Space, Table, Tag, Typography } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 
 import type {
@@ -20,6 +20,7 @@ export function DataModelTable({
   canManage,
   onSelectModel,
   onEditModel,
+  onDeleteModel,
   onCreateModel,
   onUpdateModel
 }: {
@@ -31,6 +32,7 @@ export function DataModelTable({
   canManage: boolean;
   onSelectModel: (model: SettingsDataModel) => void;
   onEditModel: (model: SettingsDataModel) => void;
+  onDeleteModel: (model: SettingsDataModel) => void;
   onCreateModel: (input: CreateSettingsDataModelInput) => void;
   onUpdateModel: (
     model: SettingsDataModel,
@@ -43,6 +45,9 @@ export function DataModelTable({
     | { open: false; mode: 'create'; model: null }
     | { open: true; mode: 'create'; model: null }
   >({ open: false, mode: 'create', model: null });
+  const [deleteTarget, setDeleteTarget] = useState<SettingsDataModel | null>(
+    null
+  );
 
   const columns: ColumnsType<SettingsDataModel> = [
     {
@@ -94,19 +99,34 @@ export function DataModelTable({
     {
       title: '操作',
       key: 'actions',
-      width: 120,
+      width: 160,
       render: (_, model) => (
-        <Button
-          type="link"
-          size="small"
-          disabled={!canManage}
-          onClick={(event) => {
-            event.stopPropagation();
-            onEditModel(model);
-          }}
-        >
-          编辑
-        </Button>
+        <Space size={4}>
+          <Button
+            type="link"
+            size="small"
+            disabled={!canManage}
+            onClick={(event) => {
+              event.stopPropagation();
+              onEditModel(model);
+            }}
+          >
+            编辑
+          </Button>
+          <Button
+            danger
+            type="link"
+            size="small"
+            aria-label={`删除数据表 ${model.title}`}
+            disabled={!canManage}
+            onClick={(event) => {
+              event.stopPropagation();
+              setDeleteTarget(model);
+            }}
+          >
+            删除
+          </Button>
+        </Space>
       )
     }
   ];
@@ -184,16 +204,30 @@ export function DataModelTable({
                   API {model.api_exposure_status}
                 </Typography.Text>
                 {canManage ? (
-                  <Button
-                    type="link"
-                    size="small"
-                    onClick={(event) => {
-                      event.stopPropagation();
-                      onEditModel(model);
-                    }}
-                  >
-                    编辑
-                  </Button>
+                  <Space size={4}>
+                    <Button
+                      type="link"
+                      size="small"
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        onEditModel(model);
+                      }}
+                    >
+                      编辑
+                    </Button>
+                    <Button
+                      danger
+                      type="link"
+                      size="small"
+                      aria-label={`删除数据表 ${model.title}`}
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        setDeleteTarget(model);
+                      }}
+                    >
+                      删除
+                    </Button>
+                  </Space>
                 ) : null}
               </span>
             </div>
@@ -212,6 +246,25 @@ export function DataModelTable({
         onCreate={onCreateModel}
         onUpdate={onUpdateModel}
       />
+      <Modal
+        title="确认删除数据表"
+        open={Boolean(deleteTarget)}
+        okText="确认"
+        okType="danger"
+        cancelText="取消"
+        okButtonProps={{ 'aria-label': '确认' }}
+        onCancel={() => setDeleteTarget(null)}
+        onOk={() => {
+          if (deleteTarget) {
+            onDeleteModel(deleteTarget);
+          }
+          setDeleteTarget(null);
+        }}
+      >
+        {deleteTarget
+          ? `确定删除数据表 "${deleteTarget.title}" (${deleteTarget.code}) 吗？此操作会同步删除运行表和字段配置。`
+          : null}
+      </Modal>
     </Flex>
   );
 }

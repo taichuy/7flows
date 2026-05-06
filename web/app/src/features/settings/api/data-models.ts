@@ -2,6 +2,7 @@ import {
   createConsoleDataModel,
   createConsoleDataModelField,
   createConsoleDataModelScopeGrant,
+  deleteConsoleDataModel,
   deleteConsoleDataModelField,
   fetchConsoleDataModelAdvisorFindings,
   fetchConsoleDataModelOpenApiDocument,
@@ -110,6 +111,10 @@ export function updateSettingsDataModel(
   csrfToken: string
 ) {
   return updateConsoleDataModel(modelId, input, csrfToken);
+}
+
+export function deleteSettingsDataModel(modelId: string, csrfToken: string) {
+  return deleteConsoleDataModel(modelId, csrfToken);
 }
 
 export function updateSettingsDataModelApiExposure(

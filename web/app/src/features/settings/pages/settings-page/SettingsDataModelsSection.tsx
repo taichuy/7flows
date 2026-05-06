@@ -20,6 +20,7 @@ import { useAuthStore } from '../../../../state/auth-store';
 import {
   createSettingsDataModel,
   createSettingsDataModelField,
+  deleteSettingsDataModel,
   deleteSettingsDataModelField,
   fetchSettingsDataModelAdvisorFindings,
   fetchSettingsDataModelRecordPreview,
@@ -288,6 +289,29 @@ export function SettingsDataModelsSection({
     }
   });
 
+  const deleteModelMutation = useMutation({
+    mutationFn: (model: SettingsDataModel) => {
+      if (!csrfToken) {
+        throw new Error('missing csrf token');
+      }
+      return deleteSettingsDataModel(model.id, csrfToken);
+    },
+    onSuccess: async (_result, model) => {
+      messageApi.success('Data Model 已删除');
+      if (selectedModelId === model.id) {
+        setSelectedModelId(null);
+      }
+      if (editingModelId === model.id) {
+        setEditingModelId(null);
+      }
+      if (effectiveSourceId) {
+        await queryClient.invalidateQueries({
+          queryKey: settingsDataModelsQueryKey(effectiveSourceId)
+        });
+      }
+    }
+  });
+
   const updateApiExposureMutation = useMutation({
     mutationFn: ({
       model,
@@ -418,6 +442,7 @@ export function SettingsDataModelsSection({
     getErrorMessage(updateDefaultsMutation.error) ??
     getErrorMessage(updateModelMutation.error) ??
     getErrorMessage(createModelMutation.error) ??
+    getErrorMessage(deleteModelMutation.error) ??
     getErrorMessage(updateApiExposureMutation.error) ??
     getErrorMessage(createFieldMutation.error) ??
     getErrorMessage(updateFieldMutation.error) ??
@@ -577,7 +602,9 @@ export function SettingsDataModelsSection({
               selectedModelId={selectedModelId}
               loading={modelsQuery.isLoading}
               saving={
-                createModelMutation.isPending || updateModelMutation.isPending
+                createModelMutation.isPending ||
+                updateModelMutation.isPending ||
+                deleteModelMutation.isPending
               }
               canManage={canManage}
               onSelectModel={(model) => setSelectedModelId(model.id)}
@@ -585,6 +612,7 @@ export function SettingsDataModelsSection({
                 setSelectedModelId(model.id);
                 setEditingModelId(model.id);
               }}
+              onDeleteModel={(model) => deleteModelMutation.mutate(model)}
               onCreateModel={(input) => createModelMutation.mutate(input)}
               onUpdateModel={(model, input) =>
                 updateModelMutation.mutate({ model, input })

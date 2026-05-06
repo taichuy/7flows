@@ -254,6 +254,19 @@ export function updateConsoleDataModel(
   });
 }
 
+export function deleteConsoleDataModel(
+  modelId: string,
+  csrfToken: string,
+  baseUrl?: string
+) {
+  return apiFetch<{ deleted: boolean }>({
+    path: `/api/console/models/${modelId}?confirmed=true`,
+    method: 'DELETE',
+    csrfToken,
+    baseUrl
+  });
+}
+
 export function updateConsoleDataModelApiExposure(
   modelId: string,
   input: UpdateConsoleDataModelApiExposureInput,
