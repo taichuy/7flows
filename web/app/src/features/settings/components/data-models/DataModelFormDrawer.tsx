@@ -8,6 +8,10 @@ import type {
   SettingsDataSourceInstance,
   UpdateSettingsDataModelInput
 } from '../../api/data-models';
+import {
+  DataModelHelpTooltip,
+  dataModelStatusHelp
+} from './DataModelHelpTooltip';
 
 const dataModelStatusOptions = ['draft', 'published', 'disabled', 'broken'].map(
   (value) => ({ label: value, value })
@@ -144,7 +148,10 @@ export function DataModelFormDrawer({
           label="状态"
           rules={[{ required: true, message: '请选择状态' }]}
         >
-          <Select options={dataModelStatusOptions} />
+          <div className="data-model-panel__control-with-help">
+            <Select options={dataModelStatusOptions} />
+            <DataModelHelpTooltip label="状态" title={dataModelStatusHelp} />
+          </div>
         </Form.Item>
         <Form.Item name="data_source_instance_id" label="数据源">
           <Input disabled />

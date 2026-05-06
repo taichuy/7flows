@@ -18,6 +18,10 @@ import { DataModelAdvisorTab } from './DataModelAdvisorTab';
 import { DataModelApiTab } from './DataModelApiTab';
 import { DataModelFieldDrawer } from './DataModelFieldDrawer';
 import { DataModelFormDrawer } from './DataModelFormDrawer';
+import {
+  DataModelHelpTooltip,
+  dataModelStatusHelp
+} from './DataModelHelpTooltip';
 import { DataModelPermissionsTab } from './DataModelPermissionsTab';
 import { DataModelRecordPreview } from './DataModelRecordPreview';
 
@@ -148,23 +152,29 @@ export function DataModelDetail({
         <Flex align="flex-end" gap={12} wrap="wrap">
           <div className="data-model-panel__status-control">
             <label htmlFor="data-model-status-select">Data Model 状态</label>
-            <select
-              id="data-model-status-select"
-              className="data-model-panel__native-select"
-              value={model.status}
-              disabled={!canManage || modelSaving}
-              onChange={(event) =>
-                onUpdateModelStatus(
-                  event.target.value as SettingsDataModel['status']
-                )
-              }
-            >
-              {dataModelStatusOptions.map((option) => (
-                <option key={option.value} value={option.value}>
-                  {option.label}
-                </option>
-              ))}
-            </select>
+            <div className="data-model-panel__control-with-help">
+              <select
+                id="data-model-status-select"
+                className="data-model-panel__native-select"
+                value={model.status}
+                disabled={!canManage || modelSaving}
+                onChange={(event) =>
+                  onUpdateModelStatus(
+                    event.target.value as SettingsDataModel['status']
+                  )
+                }
+              >
+                {dataModelStatusOptions.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+              <DataModelHelpTooltip
+                label="Data Model 状态"
+                title={dataModelStatusHelp}
+              />
+            </div>
           </div>
           <Button
             disabled={!canManage}

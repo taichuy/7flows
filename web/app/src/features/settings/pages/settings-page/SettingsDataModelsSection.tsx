@@ -49,6 +49,11 @@ import {
   type UpdateSettingsDataSourceDefaultsInput
 } from '../../api/data-models';
 import { DataModelDetail } from '../../components/data-models/DataModelDetail';
+import {
+  DataModelHelpTooltip,
+  dataModelStatusHelp,
+  defaultApiExposureStatusHelp
+} from '../../components/data-models/DataModelHelpTooltip';
 import { DataModelTable } from '../../components/data-models/DataModelTable';
 import { DataSourcePanel } from '../../components/data-models/DataSourcePanel';
 import '../../components/data-models/data-model-panel.css';
@@ -503,53 +508,65 @@ export function SettingsDataModelsSection({
                     label="默认 Data Model 状态"
                     htmlFor="data-source-default-model-status"
                   >
-                    <Select
-                      id="data-source-default-model-status"
-                      value={selectedSource.default_data_model_status}
-                      options={dataModelStatusOptions}
-                      disabled={
-                        selectedSource.source_kind === 'main_source' ||
-                        updateDefaultsMutation.isPending
-                      }
-                      onChange={(value) =>
-                        updateDefaultsMutation.mutate({
-                          source: selectedSource,
-                          patch: {
-                            default_data_model_status: value,
-                            default_api_exposure_status:
-                              toDefaultApiExposureStatus(
-                                selectedSource.default_api_exposure_status
-                              )
-                          }
-                        })
-                      }
-                    />
+                    <div className="data-model-panel__control-with-help">
+                      <Select
+                        id="data-source-default-model-status"
+                        value={selectedSource.default_data_model_status}
+                        options={dataModelStatusOptions}
+                        disabled={
+                          selectedSource.source_kind === 'main_source' ||
+                          updateDefaultsMutation.isPending
+                        }
+                        onChange={(value) =>
+                          updateDefaultsMutation.mutate({
+                            source: selectedSource,
+                            patch: {
+                              default_data_model_status: value,
+                              default_api_exposure_status:
+                                toDefaultApiExposureStatus(
+                                  selectedSource.default_api_exposure_status
+                                )
+                            }
+                          })
+                        }
+                      />
+                      <DataModelHelpTooltip
+                        label="默认 Data Model 状态"
+                        title={dataModelStatusHelp}
+                      />
+                    </div>
                   </Form.Item>
                   <Form.Item
                     label="默认 API 暴露状态"
                     htmlFor="data-source-default-api-status"
                   >
-                    <Select
-                      id="data-source-default-api-status"
-                      value={toDefaultApiExposureStatus(
-                        selectedSource.default_api_exposure_status
-                      )}
-                      options={apiExposureOptions}
-                      disabled={
-                        selectedSource.source_kind === 'main_source' ||
-                        updateDefaultsMutation.isPending
-                      }
-                      onChange={(value: DefaultApiExposureStatus) =>
-                        updateDefaultsMutation.mutate({
-                          source: selectedSource,
-                          patch: {
-                            default_data_model_status:
-                              selectedSource.default_data_model_status,
-                            default_api_exposure_status: value
-                          }
-                        })
-                      }
-                    />
+                    <div className="data-model-panel__control-with-help">
+                      <Select
+                        id="data-source-default-api-status"
+                        value={toDefaultApiExposureStatus(
+                          selectedSource.default_api_exposure_status
+                        )}
+                        options={apiExposureOptions}
+                        disabled={
+                          selectedSource.source_kind === 'main_source' ||
+                          updateDefaultsMutation.isPending
+                        }
+                        onChange={(value: DefaultApiExposureStatus) =>
+                          updateDefaultsMutation.mutate({
+                            source: selectedSource,
+                            patch: {
+                              default_data_model_status:
+                                selectedSource.default_data_model_status,
+                              default_api_exposure_status: value
+                            }
+                          })
+                        }
+                      />
+                      <DataModelHelpTooltip
+                        label="默认 API 暴露状态"
+                        title={defaultApiExposureStatusHelp}
+                      />
+                    </div>
                   </Form.Item>
                 </Form>
               </div>

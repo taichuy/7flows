@@ -632,6 +632,16 @@ describe('Settings data models page', () => {
     expect(screen.getByRole('button', { name: /返\s*回/ })).toBeInTheDocument();
     expect(screen.getByLabelText('默认 Data Model 状态')).toBeInTheDocument();
     expect(screen.getByLabelText('默认 API 暴露状态')).toBeInTheDocument();
+    expect(
+      screen.getByLabelText('默认 Data Model 状态说明')
+    ).toBeInTheDocument();
+    expect(screen.getByLabelText('默认 API 暴露状态说明')).toBeInTheDocument();
+    expect(
+      screen.getByText(/draft: 草稿，默认新建为未发布状态/)
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(/published_not_exposed: 默认不生成 API 访问面/)
+    ).toBeInTheDocument();
     expect(await screen.findByText('Contacts')).toBeInTheDocument();
     expect(screen.getByText('contacts')).toBeInTheDocument();
   }, 10_000);
@@ -686,7 +696,7 @@ describe('Settings data models page', () => {
   test('selects a Data Model and exposes detail tabs with safe status controls', async () => {
     renderApp('/settings/data-models?source=source-1');
 
-    await openContactsDataModelEditor();
+    const editorDialog = await openContactsDataModelEditor();
     expect(
       await screen.findByRole('tab', { name: '字段' })
     ).toBeInTheDocument();
@@ -701,6 +711,14 @@ describe('Settings data models page', () => {
     expect(screen.getByText('published')).toBeInTheDocument();
     expect(screen.getByText('disabled')).toBeInTheDocument();
     expect(screen.getByText('broken')).toBeInTheDocument();
+    expect(
+      within(editorDialog).getByLabelText('Data Model 状态说明')
+    ).toBeInTheDocument();
+    expect(
+      within(editorDialog).getByText(
+        /broken: 当前定义、运行依赖或外部资源异常/
+      )
+    ).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('tab', { name: 'API' }));
     expect(
@@ -748,6 +766,10 @@ describe('Settings data models page', () => {
       name: '新建 Data Model'
     });
     expect(createDialog).toBeInTheDocument();
+    expect(within(createDialog).getByLabelText('状态说明')).toBeInTheDocument();
+    expect(
+      within(createDialog).getByText(/disabled: 已停用，不进入运行面/)
+    ).toBeInTheDocument();
 
     fireEvent.change(screen.getByLabelText('Code'), {
       target: { value: 'companies' }
