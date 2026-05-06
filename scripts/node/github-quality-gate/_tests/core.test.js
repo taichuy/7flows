@@ -334,6 +334,13 @@ test('runQualityGate closes older open quality gate issues after publishing the 
         { number: 10, html_url: 'https://github.com/taichuy/1flowbase/issues/10' },
         { number: 11, html_url: 'https://github.com/taichuy/1flowbase/issues/11' },
         { number: 12, html_url: 'https://github.com/taichuy/1flowbase/issues/12' },
+        {
+          number: 13,
+          html_url: 'https://github.com/taichuy/1flowbase/pull/13',
+          pull_request: {
+            html_url: 'https://github.com/taichuy/1flowbase/pull/13',
+          },
+        },
       ];
     },
     closeIssueImpl(issue) {

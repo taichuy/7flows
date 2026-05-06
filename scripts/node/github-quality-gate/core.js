@@ -556,6 +556,10 @@ function issueNumberFromIssue(issue) {
   return match ? Number.parseInt(match[1], 10) : null;
 }
 
+function isPullRequestIssue(issue) {
+  return issue && typeof issue === 'object' && issue.pull_request !== undefined;
+}
+
 async function closeStaleOpenQualityGateIssues({
   token,
   repository,
@@ -572,6 +576,10 @@ async function closeStaleOpenQualityGateIssues({
   const openIssues = await listOpenQualityGateIssuesImpl({ token, repository });
 
   for (const issue of openIssues) {
+    if (isPullRequestIssue(issue)) {
+      continue;
+    }
+
     const issueNumber = issueNumberFromIssue(issue);
 
     if (!issueNumber || issueNumber === latestIssueNumber) {
