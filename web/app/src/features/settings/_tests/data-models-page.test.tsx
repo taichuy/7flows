@@ -178,6 +178,7 @@ vi.mock('@scalar/api-reference-react', () => ({
 import { AppProviders } from '../../../app/AppProviders';
 import { AppRouterProvider } from '../../../app/router';
 import { resetAuthStore, useAuthStore } from '../../../state/auth-store';
+import { DataModelFormDrawer } from '../components/data-models/DataModelFormDrawer';
 
 const useBreakpointSpy = vi.spyOn(Grid, 'useBreakpoint');
 const antdStaticMessageWarning =
@@ -781,7 +782,7 @@ describe('Settings data models page', () => {
     );
   }, 20_000);
 
-  test('edits Data Models from the detail drawer', async () => {
+  test('exposes Data Model editing from the detail drawer', async () => {
     renderApp('/settings/data-models?source=source-1');
 
     await screen.findByText('Contacts', {}, { timeout: 10_000 });
@@ -801,10 +802,27 @@ describe('Settings data models page', () => {
       within(editorDialog).getByRole('tab', { name: '字段' })
     ).toBeInTheDocument();
     expect(within(editorDialog).getByText('crm.contacts')).toBeInTheDocument();
-
-    fireEvent.click(
+    expect(
       within(editorDialog).getByRole('button', { name: '编辑 Data Model' })
+    ).toBeEnabled();
+  }, 20_000);
+
+  test('submits Data Model edits from the form drawer', async () => {
+    const onUpdate = vi.fn();
+
+    render(
+      <DataModelFormDrawer
+        open
+        mode="edit"
+        model={contactsModel}
+        source={null}
+        saving={false}
+        onClose={vi.fn()}
+        onCreate={vi.fn()}
+        onUpdate={onUpdate}
+      />
     );
+
     const editDialog = await screen.findByRole(
       'dialog',
       {
@@ -821,17 +839,16 @@ describe('Settings data models page', () => {
     fireEvent.click(within(editDialog).getByRole('button', { name: '保存' }));
 
     await waitFor(() =>
-      expect(dataModelsApi.updateSettingsDataModel).toHaveBeenCalledWith(
-        'model-1',
+      expect(onUpdate).toHaveBeenCalledWith(
+        contactsModel,
         expect.objectContaining({
           title: 'Customer Contacts',
           status: 'published',
           external_table_id: 'crm.contacts.v2'
-        }),
-        'csrf-123'
+        })
       )
     );
-  }, 20_000);
+  });
 
   test('manages Data Model fields through the field drawer with delete confirmation', async () => {
     renderApp('/settings/data-models?source=source-1');
