@@ -202,12 +202,28 @@ function renderNamedBindingsField({
     'named_bindings',
     []
   );
+  const fields =
+    (adapter.getValue('config.data_model_fields') as
+      | AgentFlowDataModelFieldOption[]
+      | null
+      | undefined) ?? [];
+  const isDataModelPayload = block.path === 'bindings.payload';
+  const nameOptions = isDataModelPayload
+    ? fields.map((field) => ({
+        value: field.code,
+        label: field.title || field.code
+      }))
+    : undefined;
 
   return (
     <NamedBindingsField
       ariaLabel={block.label}
       options={getSelectorOptions(adapter)}
       value={binding}
+      nameOptions={nameOptions}
+      namePlaceholder={isDataModelPayload ? '字段' : undefined}
+      selectorLabel={isDataModelPayload ? 'variable' : undefined}
+      addButtonLabel={isDataModelPayload ? '新增字段赋值' : undefined}
       onChange={(nextValue) =>
         adapter.setValue(block.path, {
           kind: 'named_bindings',
@@ -321,6 +337,10 @@ function renderDataModelQueryField({
       fields={fields}
       selectorOptions={getSelectorOptions(adapter)}
       value={binding}
+      includePagination={
+        (adapter.getDerived('node') as FlowNodeDocument | null | undefined)
+          ?.type === 'data_model_list'
+      }
       onChange={(nextValue) =>
         adapter.setValue(block.path, {
           kind: 'data_model_query',

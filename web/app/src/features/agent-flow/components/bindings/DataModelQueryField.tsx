@@ -50,6 +50,7 @@ interface DataModelQueryFieldProps {
   hasDataModelSelected: boolean;
   fields: AgentFlowDataModelFieldOption[];
   selectorOptions: FlowSelectorOption[];
+  includePagination?: boolean;
   onChange: (value: DataModelQueryBindingValue) => void;
 }
 
@@ -207,26 +208,24 @@ function QueryValueInput({
   );
 }
 
-export function DataModelQueryField({
+function DataModelQueryConditionsField({
   ariaLabel,
-  value,
-  hasDataModelSelected,
+  query,
   fields,
   selectorOptions,
+  includePagination,
   onChange
-}: DataModelQueryFieldProps) {
-  const query = normalizeDataModelQueryBindingValue(value);
+}: {
+  ariaLabel: string;
+  query: DataModelQueryBindingValue;
+  fields: AgentFlowDataModelFieldOption[];
+  selectorOptions: FlowSelectorOption[];
+  includePagination: boolean;
+  onChange: (patch: Partial<DataModelQueryBindingValue>) => void;
+}) {
   const filterOptions = fieldOptions(fields, FILTER_TYPES);
   const sortOptions = fieldOptions(fields, SORT_TYPES);
   const expandOptions = fieldOptions(fields, EXPAND_TYPES);
-  const update = (patch: Partial<DataModelQueryBindingValue>) =>
-    onChange({ ...query, ...patch });
-
-  if (!hasDataModelSelected) {
-    return (
-      <Typography.Text type="secondary">请先选择 Data Model</Typography.Text>
-    );
-  }
 
   return (
     <Flex aria-label={ariaLabel} vertical gap={12}>
@@ -240,7 +239,7 @@ export function DataModelQueryField({
               onChange={(fieldCode) => {
                 const field = fields.find((entry) => entry.code === fieldCode);
 
-                update({
+                onChange({
                   filters: query.filters.map((entry, entryIndex) =>
                     entryIndex === index
                       ? {
@@ -265,7 +264,7 @@ export function DataModelQueryField({
               options={operators(fields, filter.field_code)}
               value={filter.operator}
               onChange={(operator) =>
-                update({
+                onChange({
                   filters: query.filters.map((entry, entryIndex) =>
                     entryIndex === index
                       ? {
@@ -288,7 +287,7 @@ export function DataModelQueryField({
               selectorOptions={selectorOptions}
               value={filter.value}
               onChange={(nextValue) =>
-                update({
+                onChange({
                   filters: query.filters.map((entry, entryIndex) =>
                     entryIndex === index
                       ? { ...entry, value: nextValue }
@@ -301,7 +300,7 @@ export function DataModelQueryField({
               danger
               type="text"
               onClick={() =>
-                update({
+                onChange({
                   filters: query.filters.filter(
                     (_, entryIndex) => entryIndex !== index
                   )
@@ -316,7 +315,7 @@ export function DataModelQueryField({
           type="dashed"
           disabled={filterOptions.length === 0}
           onClick={() =>
-            update({ filters: [...query.filters, nextFilter(fields)] })
+            onChange({ filters: [...query.filters, nextFilter(fields)] })
           }
         >
           新增过滤条件
@@ -330,7 +329,7 @@ export function DataModelQueryField({
               options={sortOptions}
               value={sort.field_code || undefined}
               onChange={(fieldCode) =>
-                update({
+                onChange({
                   sorts: query.sorts.map((entry, entryIndex) =>
                     entryIndex === index
                       ? { ...entry, field_code: fieldCode }
@@ -347,7 +346,7 @@ export function DataModelQueryField({
               ]}
               value={sort.direction}
               onChange={(direction) =>
-                update({
+                onChange({
                   sorts: query.sorts.map((entry, entryIndex) =>
                     entryIndex === index
                       ? { ...entry, direction: direction as 'asc' | 'desc' }
@@ -360,7 +359,7 @@ export function DataModelQueryField({
               danger
               type="text"
               onClick={() =>
-                update({
+                onChange({
                   sorts: query.sorts.filter(
                     (_, entryIndex) => entryIndex !== index
                   )
@@ -374,7 +373,7 @@ export function DataModelQueryField({
         <Button
           type="dashed"
           disabled={sortOptions.length === 0}
-          onClick={() => update({ sorts: [...query.sorts, nextSort(fields)] })}
+          onClick={() => onChange({ sorts: [...query.sorts, nextSort(fields)] })}
         >
           新增排序规则
         </Button>
@@ -385,25 +384,58 @@ export function DataModelQueryField({
         options={expandOptions}
         value={query.expand_relations}
         onChange={(expandRelations) =>
-          update({ expand_relations: expandRelations })
+          onChange({ expand_relations: expandRelations })
         }
       />
-      <Space.Compact block>
-        <QueryValueInput
-          ariaLabel="页码"
-          numeric
-          selectorOptions={selectorOptions}
-          value={query.page}
-          onChange={(page) => update({ page })}
-        />
-        <QueryValueInput
-          ariaLabel="每页数量"
-          numeric
-          selectorOptions={selectorOptions}
-          value={query.page_size}
-          onChange={(pageSize) => update({ page_size: pageSize })}
-        />
-      </Space.Compact>
+      {includePagination ? (
+        <Space.Compact block>
+          <QueryValueInput
+            ariaLabel="页码"
+            numeric
+            selectorOptions={selectorOptions}
+            value={query.page}
+            onChange={(page) => onChange({ page })}
+          />
+          <QueryValueInput
+            ariaLabel="每页数量"
+            numeric
+            selectorOptions={selectorOptions}
+            value={query.page_size}
+            onChange={(pageSize) => onChange({ page_size: pageSize })}
+          />
+        </Space.Compact>
+      ) : null}
     </Flex>
+  );
+}
+
+export function DataModelQueryField({
+  ariaLabel,
+  value,
+  hasDataModelSelected,
+  fields,
+  selectorOptions,
+  includePagination = true,
+  onChange
+}: DataModelQueryFieldProps) {
+  const query = normalizeDataModelQueryBindingValue(value);
+  const update = (patch: Partial<DataModelQueryBindingValue>) =>
+    onChange({ ...query, ...patch });
+
+  if (!hasDataModelSelected) {
+    return (
+      <Typography.Text type="secondary">请先选择 Data Model</Typography.Text>
+    );
+  }
+
+  return (
+    <DataModelQueryConditionsField
+      ariaLabel={ariaLabel}
+      query={query}
+      fields={fields}
+      selectorOptions={selectorOptions}
+      includePagination={includePagination}
+      onChange={update}
+    />
   );
 }

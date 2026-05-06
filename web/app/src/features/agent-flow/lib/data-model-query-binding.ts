@@ -32,10 +32,10 @@ const DATA_MODEL_QUERY_OPERATOR_SET = new Set<string>(
 
 const ACTIVE_BINDINGS: Record<string, string[]> = {
   list: ['query'],
-  get: ['record_id'],
+  get: ['query'],
   create: ['payload'],
-  update: ['record_id', 'payload'],
-  delete: ['record_id']
+  update: ['query', 'payload'],
+  delete: ['query']
 };
 
 export function getDataModelAction(value: unknown) {

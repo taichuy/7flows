@@ -78,6 +78,19 @@ const dataModelField = {
   required: true
 } as const;
 
+const dataModelQueryField = {
+  key: 'bindings.query',
+  label: 'Query',
+  editor: 'data_model_query'
+} as const;
+
+const dataModelPayloadField = {
+  key: 'bindings.payload',
+  label: 'Payload',
+  editor: 'named_bindings',
+  required: true
+} as const;
+
 function createDataModelNodeDefinition({
   label,
   fields
@@ -109,67 +122,27 @@ function createDataModelNodeDefinition({
 
 export const dataModelListNodeDefinition = createDataModelNodeDefinition({
   label: DATA_MODEL_NODE_LABELS.data_model_list,
-  fields: [
-    {
-      key: 'bindings.query',
-      label: 'Query',
-      editor: 'data_model_query'
-    }
-  ]
+  fields: [dataModelQueryField]
 });
 
 export const dataModelGetNodeDefinition = createDataModelNodeDefinition({
   label: DATA_MODEL_NODE_LABELS.data_model_get,
-  fields: [
-    {
-      key: 'bindings.record_id',
-      label: 'Record ID',
-      editor: 'templated_text',
-      required: true
-    }
-  ]
+  fields: [dataModelQueryField]
 });
 
 export const dataModelCreateNodeDefinition = createDataModelNodeDefinition({
   label: DATA_MODEL_NODE_LABELS.data_model_create,
-  fields: [
-    {
-      key: 'bindings.payload',
-      label: 'Payload',
-      editor: 'named_bindings',
-      required: true
-    }
-  ]
+  fields: [dataModelPayloadField]
 });
 
 export const dataModelUpdateNodeDefinition = createDataModelNodeDefinition({
   label: DATA_MODEL_NODE_LABELS.data_model_update,
-  fields: [
-    {
-      key: 'bindings.record_id',
-      label: 'Record ID',
-      editor: 'templated_text',
-      required: true
-    },
-    {
-      key: 'bindings.payload',
-      label: 'Payload',
-      editor: 'named_bindings',
-      required: true
-    }
-  ]
+  fields: [dataModelQueryField, dataModelPayloadField]
 });
 
 export const dataModelDeleteNodeDefinition = createDataModelNodeDefinition({
   label: DATA_MODEL_NODE_LABELS.data_model_delete,
-  fields: [
-    {
-      key: 'bindings.record_id',
-      label: 'Record ID',
-      editor: 'templated_text',
-      required: true
-    }
-  ]
+  fields: [dataModelQueryField]
 });
 
 export const dataModelNodeDefinitions = {

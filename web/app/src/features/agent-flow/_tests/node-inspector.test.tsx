@@ -830,8 +830,18 @@ describe('NodeInspector', () => {
       screen.queryByTestId('inspector-field-bindings.record_id')
     ).not.toBeInTheDocument();
     expect(
+      screen.queryByTestId('inspector-field-bindings.query')
+    ).not.toBeInTheDocument();
+    expect(
       screen.getByTestId('inspector-field-bindings.payload')
     ).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: '新增字段赋值' }));
+    expect(
+      screen.getAllByLabelText('Payload-0-field').length
+    ).toBeGreaterThan(0);
+    expect(
+      screen.getAllByLabelText('Payload-0-variable').length
+    ).toBeGreaterThan(0);
     unmountCreate();
 
     const { unmount: unmountUpdate } = renderWithProviders(
@@ -844,7 +854,10 @@ describe('NodeInspector', () => {
     );
 
     expect(
-      screen.getByTestId('inspector-field-bindings.record_id')
+      screen.queryByTestId('inspector-field-bindings.record_id')
+    ).not.toBeInTheDocument();
+    expect(
+      screen.getByTestId('inspector-field-bindings.query')
     ).toBeInTheDocument();
     expect(
       screen.getByTestId('inspector-field-bindings.payload')
@@ -861,10 +874,55 @@ describe('NodeInspector', () => {
     );
 
     expect(
-      screen.getByTestId('inspector-field-bindings.record_id')
+      screen.queryByTestId('inspector-field-bindings.record_id')
+    ).not.toBeInTheDocument();
+    expect(
+      screen.getByTestId('inspector-field-bindings.query')
     ).toBeInTheDocument();
     expect(
       screen.queryByTestId('inspector-field-bindings.payload')
     ).not.toBeInTheDocument();
+  });
+
+  test('keeps pagination unique to Data Model list query editors', async () => {
+    const { unmount } = renderWithProviders(
+      <AgentFlowEditorStoreProvider
+        initialState={createInitialStateWithDataModelNode('data_model_get')}
+      >
+        <SelectionSeed nodeId="node-data-model" />
+        <NodeConfigTab />
+      </AgentFlowEditorStoreProvider>
+    );
+
+    await openSelect('Data Model');
+    await selectDataModelOption('orders');
+
+    await waitFor(() => {
+      expect(screen.getByLabelText('Query')).toBeInTheDocument();
+      expect(screen.queryByLabelText('页码')).not.toBeInTheDocument();
+      expect(screen.queryByLabelText('每页数量')).not.toBeInTheDocument();
+      expect(
+        screen.getByRole('button', { name: '新增过滤条件' })
+      ).toBeEnabled();
+    });
+
+    unmount();
+
+    renderWithProviders(
+      <AgentFlowEditorStoreProvider
+        initialState={createInitialStateWithDataModelNode('data_model_list')}
+      >
+        <SelectionSeed nodeId="node-data-model" />
+        <NodeConfigTab />
+      </AgentFlowEditorStoreProvider>
+    );
+
+    await openSelect('Data Model');
+    await selectDataModelOption('orders');
+
+    await waitFor(() => {
+      expect(screen.getByLabelText('页码')).toBeInTheDocument();
+      expect(screen.getByLabelText('每页数量')).toBeInTheDocument();
+    });
   });
 });

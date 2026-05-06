@@ -243,21 +243,24 @@ describe('agent-flow node schema registry', () => {
     expect(findFieldBlock(listSchema.detail.tabs.config.blocks, 'bindings.query')).toEqual(
       expect.objectContaining({ renderer: 'data_model_query' })
     );
-    expect(findFieldBlock(getSchema.detail.tabs.config.blocks, 'bindings.record_id')).toEqual(
-      expect.objectContaining({ renderer: 'templated_text' })
+    expect(findFieldBlock(getSchema.detail.tabs.config.blocks, 'bindings.query')).toEqual(
+      expect.objectContaining({ renderer: 'data_model_query' })
     );
     expect(findFieldBlock(createSchema.detail.tabs.config.blocks, 'bindings.payload')).toEqual(
       expect.objectContaining({ renderer: 'named_bindings' })
     );
-    expect(findFieldBlock(updateSchema.detail.tabs.config.blocks, 'bindings.record_id')).toEqual(
-      expect.objectContaining({ renderer: 'templated_text' })
+    expect(findFieldBlock(updateSchema.detail.tabs.config.blocks, 'bindings.query')).toEqual(
+      expect.objectContaining({ renderer: 'data_model_query' })
     );
     expect(findFieldBlock(updateSchema.detail.tabs.config.blocks, 'bindings.payload')).toEqual(
       expect.objectContaining({ renderer: 'named_bindings' })
     );
-    expect(findFieldBlock(deleteSchema.detail.tabs.config.blocks, 'bindings.record_id')).toEqual(
-      expect.objectContaining({ renderer: 'templated_text' })
+    expect(findFieldBlock(deleteSchema.detail.tabs.config.blocks, 'bindings.query')).toEqual(
+      expect.objectContaining({ renderer: 'data_model_query' })
     );
+    expect(findFieldBlock(getSchema.detail.tabs.config.blocks, 'bindings.record_id')).toBeNull();
+    expect(findFieldBlock(updateSchema.detail.tabs.config.blocks, 'bindings.record_id')).toBeNull();
+    expect(findFieldBlock(deleteSchema.detail.tabs.config.blocks, 'bindings.record_id')).toBeNull();
   });
 
   test('exposes Data Model list query params without action-scoped visibility', () => {
