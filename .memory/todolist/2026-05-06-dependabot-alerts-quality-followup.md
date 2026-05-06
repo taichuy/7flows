@@ -4,30 +4,29 @@
 
 质量门禁 `verify` 已在 GitHub 上通过，但 `git push` 返回 GitHub Dependabot 提示：默认分支仍有 19 个 open vulnerability alerts。
 
-已用 `gh api repos/taichuy/1flowbase/dependabot/alerts` 读取摘要：
+本文件初始记录了 `2026-05-06` 的 Dependabot 摘要。`2026-05-07 01` 的离线质量值守已处理其中可直接修的 high / critical / npm medium 项：
 
-- Critical: 1
-  - `protobufjs`, `web/pnpm-lock.yaml`, alert #23, "Arbitrary code execution in protobufjs"
-- High: 2
-  - `rustls-webpki`, `api/Cargo.lock`, alert #31, "Denial of service via panic on malformed CRL BIT STRING"
-  - `glob`, `web/pnpm-lock.yaml`, alert #16, "Command injection via -c/--cmd executes matches with shell:true"
-- Medium: 12
-  - 多数集中在 `dompurify`、`postcss`、`protobufjs` 等 npm 依赖
-- Low: 4
-  - `rand`、`rustls-webpki`、`lru` 等 Rust 依赖
+- `web/package.json` 增加 `pnpm.overrides`：`protobufjs@7.5.5`、`glob@10.5.0`、`postcss@8.5.10`、`dompurify@3.4.0`。
+- `tmp/demo/package.json` 增加 `postcss@8.5.10` override，修复历史 demo lockfile 中的 postcss alert。
+- `api/Cargo.lock` 将 `rustls-webpki 0.103.11` 更新到 `0.103.13`，修复 high alert #31。
+- 定向验证：`pnpm --dir web audit --audit-level high --registry=https://registry.npmjs.org` 与 `pnpm --dir tmp/demo audit --audit-level moderate --registry=https://registry.npmjs.org` 均返回 `No known vulnerabilities found`。
 
-## Why This Needs User Decision
+## Remaining User Decision
 
-这些 alert 不属于当前 `quality-gate` 的 pass/fail 条件；修复通常需要升级 npm / Rust lockfile 依赖，可能触发较大范围依赖解析变化。
+仍剩低危 Rust 传递依赖 alert，需要用户决定是否进入单独依赖升级任务，因为它们不是单个 patch lockfile 就能完整收口：
+
+- `rustls-webpki 0.101.7`：由 `rustls 0.21.12 -> aws-smithy-http-client / hyper-rustls / tokio-rustls` 链路引入。
+- `rand 0.8.5`：由 `sqlx-postgres 0.8.6` 链路引入，patched version 是 `0.8.6`。
+- `lru 0.12.5`：由 `aws-sdk-s3 1.119.0` 链路引入，patched version 是 `0.16.3`。
 
 ## Suggested Decision
 
-建议单独开一轮依赖安全治理任务，先处理 critical/high：
+建议单独开一轮低危 Rust 依赖治理任务：
 
-1. 前端：定位 `protobufjs`、`glob` 来源，优先升级最小 transitive dependency 或相关 direct package。
-2. 后端：定位 `rustls-webpki` 由哪些 crate 引入，优先用 `cargo update -p rustls-webpki` 或升级上游依赖。
-3. 每次锁文件更新后，通过 GitHub `verify` 跑远端质量门禁，不用本地全局门禁替代。
+1. 先评估是否升级 AWS SDK / Smithy / SQLx 相关父依赖，避免用 `[patch]` 或强行 override 破坏 semver 边界。
+2. 优先处理仍在 default branch 打开的 Dependabot alert，处理后通过 GitHub `verify` 跑远端质量门禁。
+3. 若用户决定低危 alert 不进入近期范围，则保持本文件，等依赖栈自然升级时再清理。
 
 ## Stop Condition
 
-用户确认是否把 Dependabot alert 纳入下一轮质量门禁目标；确认前本轮只记录，不擅自做大范围依赖升级。
+未确认低危 Rust 依赖治理范围前，不做 AWS SDK / SQLx 父依赖大范围升级。
