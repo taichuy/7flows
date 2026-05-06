@@ -1,4 +1,3 @@
-/* eslint-disable testing-library/no-node-access */
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, describe, expect, test, vi } from 'vitest';
@@ -42,6 +41,19 @@ function renderPanel(canManage = true) {
   );
 }
 
+async function findProviderRow(providerName: string) {
+  return waitFor(() => {
+    const rows = screen.getAllByRole('row');
+    const providerRow = rows.find((row) => within(row).queryByText(providerName));
+
+    if (!providerRow) {
+      throw new Error(`expected provider row for ${providerName}`);
+    }
+
+    return providerRow;
+  });
+}
+
 describe('HostInfrastructurePanel', () => {
   afterEach(() => {
     vi.clearAllMocks();
@@ -75,7 +87,7 @@ describe('HostInfrastructurePanel', () => {
     expect(
       await screen.findByRole('heading', { name: '基础设施', level: 3 })
     ).toBeInTheDocument();
-    const row = (await screen.findByText('Redis')).closest('tr') as HTMLElement;
+    const row = await findProviderRow('Redis');
     expect(within(row).getByText('disabled')).toBeInTheDocument();
     expect(within(row).getByText('inactive')).toBeInTheDocument();
     expect(within(row).getByText('storage-ephemeral')).toBeInTheDocument();
@@ -103,7 +115,7 @@ describe('HostInfrastructurePanel', () => {
 
     renderPanel();
 
-    const row = (await screen.findByText('Redis')).closest('tr') as HTMLElement;
+    const row = await findProviderRow('Redis');
     expect(within(row).getByText('pending_restart')).toBeInTheDocument();
     expect(within(row).getByText('inactive')).toBeInTheDocument();
     expect(screen.getByText('重启后生效')).toBeInTheDocument();
