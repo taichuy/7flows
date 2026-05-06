@@ -739,7 +739,7 @@ describe('Settings data models page', () => {
     expect(within(advisorTab).getByText('info')).toBeInTheDocument();
   }, 20_000);
 
-  test('creates and edits Data Models from the data source section', async () => {
+  test('creates Data Models from the data source section', async () => {
     renderApp('/settings/data-models?source=source-1');
 
     await screen.findByText('Contacts', {}, { timeout: 10_000 });
@@ -779,6 +779,10 @@ describe('Settings data models page', () => {
         screen.queryByRole('dialog', { name: '新建 Data Model' })
       ).not.toBeInTheDocument()
     );
+  }, 20_000);
+
+  test('edits Data Models from the detail drawer', async () => {
+    renderApp('/settings/data-models?source=source-1');
 
     await screen.findByText('Contacts', {}, { timeout: 10_000 });
     const contactsRow = screen
