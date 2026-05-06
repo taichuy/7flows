@@ -703,6 +703,11 @@ describe('Settings data models page', () => {
     expect(
       within(editorDialog).getByTestId('data-model-detail-summary')
     ).toBeInTheDocument();
+    expect(
+      within(
+        within(editorDialog).getByTestId('data-model-detail-summary')
+      ).queryByLabelText('Data Model 状态')
+    ).not.toBeInTheDocument();
     const detailActions = within(editorDialog).getByTestId(
       'data-model-detail-actions'
     );
@@ -714,8 +719,11 @@ describe('Settings data models page', () => {
     ).toBeTruthy();
     expect(
       within(detailActions).getByRole('button', {
-        name: '编辑 Data Model'
+        name: /编\s*辑/
       })
+    ).toBeInTheDocument();
+    expect(
+      within(detailActions).getByLabelText('Data Model 状态')
     ).toBeInTheDocument();
     expect(screen.getByRole('tab', { name: '关系' })).toBeInTheDocument();
     expect(screen.getByRole('tab', { name: '权限' })).toBeInTheDocument();
@@ -723,7 +731,7 @@ describe('Settings data models page', () => {
     expect(screen.getByRole('tab', { name: '记录预览' })).toBeInTheDocument();
     expect(screen.getByRole('tab', { name: 'Advisor' })).toBeInTheDocument();
 
-    fireEvent.mouseDown(screen.getByLabelText('Data Model 状态'));
+    fireEvent.mouseDown(within(detailActions).getByLabelText('Data Model 状态'));
     expect(await screen.findByText('draft')).toBeInTheDocument();
     expect(screen.getByText('published')).toBeInTheDocument();
     expect(screen.getByText('disabled')).toBeInTheDocument();
@@ -846,13 +854,16 @@ describe('Settings data models page', () => {
     const editorDialog = await screen.findByRole('region', {
       name: 'Data Model 详情'
     });
+    const detailActions = within(editorDialog).getByTestId(
+      'data-model-detail-actions'
+    );
     expect(
       within(editorDialog).getByRole('tab', { name: '字段' })
     ).toBeInTheDocument();
     expect(within(editorDialog).getByText('crm.contacts')).toBeInTheDocument();
 
     fireEvent.click(
-      within(editorDialog).getByRole('button', { name: '编辑 Data Model' })
+      within(detailActions).getByRole('button', { name: /编\s*辑/ })
     );
     const editDialog = await screen.findByRole('dialog', {
       name: '编辑 Data Model'

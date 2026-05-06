@@ -130,6 +130,8 @@
 
 .data-model-panel__detail-actions {
   display: flex;
+  align-items: flex-end;
+  gap: 12px;
   justify-content: flex-end;
   margin: 8px 0 4px;
 }

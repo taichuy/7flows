@@ -157,36 +157,6 @@ export function DataModelDetail({
           size="small"
           column={{ xs: 1, sm: 2, lg: 4 }}
           items={[
-            {
-              key: 'status',
-              label: 'Data Model 状态',
-              children: (
-                <div className="data-model-panel__control-with-help">
-                  <select
-                    id="data-model-status-select"
-                    className="data-model-panel__native-select"
-                    value={model.status}
-                    disabled={!canManage || modelSaving}
-                    aria-label="Data Model 状态"
-                    onChange={(event) =>
-                      onUpdateModelStatus(
-                        event.target.value as SettingsDataModel['status']
-                      )
-                    }
-                  >
-                    {dataModelStatusOptions.map((option) => (
-                      <option key={option.value} value={option.value}>
-                        {option.label}
-                      </option>
-                    ))}
-                  </select>
-                  <DataModelHelpTooltip
-                    label="Data Model 状态"
-                    title={dataModelStatusHelp}
-                  />
-                </div>
-              )
-            },
             { key: 'source', label: '来源', children: model.source_kind },
             {
               key: 'runtime',
@@ -215,8 +185,35 @@ export function DataModelDetail({
         className="data-model-panel__detail-actions"
         data-testid="data-model-detail-actions"
       >
+        <div className="data-model-panel__status-control">
+          <label htmlFor="data-model-status-select">Data Model 状态</label>
+          <div className="data-model-panel__control-with-help">
+            <select
+              id="data-model-status-select"
+              className="data-model-panel__native-select"
+              value={model.status}
+              disabled={!canManage || modelSaving}
+              aria-label="Data Model 状态"
+              onChange={(event) =>
+                onUpdateModelStatus(
+                  event.target.value as SettingsDataModel['status']
+                )
+              }
+            >
+              {dataModelStatusOptions.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+            <DataModelHelpTooltip
+              label="Data Model 状态"
+              title={dataModelStatusHelp}
+            />
+          </div>
+        </div>
         <Button disabled={!canManage} onClick={() => setModelDrawerOpen(true)}>
-          编辑 Data Model
+          编辑
         </Button>
       </div>
 
