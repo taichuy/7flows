@@ -152,7 +152,7 @@ test('runQualityGate creates a new issue when publishing is enabled even if the 
   assert.equal(createdIssues[0].title, '[Quality Gate][CD] 2026-05-03 15:40 staging 1234567 failed');
   assert.deepEqual(createdIssues[0].labels, ['quality-gate', 'cd-report', 'failed']);
   assert.match(createdIssues[0].body, /Status: failed/u);
-  assert.match(createdIssues[0].body, /Environment: staging/u);
+  assert.match(createdIssues[0].body, /- Environment: staging/u);
   assert.match(createdIssues[0].body, /## Failure Excerpt/u);
   assert.match(createdIssues[0].body, /failure detail/u);
 });

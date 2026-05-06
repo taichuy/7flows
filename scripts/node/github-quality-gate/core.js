@@ -348,7 +348,7 @@ function buildReport({
     `- Status: ${status}`,
     `- Exit code: ${exitCode}`,
     `- Scope: ${scope}`,
-    environmentName ? `Environment: ${environmentName}` : null,
+    environmentName ? `- Environment: ${environmentName}` : null,
     `- Branch: ${report.branch || 'unknown'}`,
     `- Commit: ${report.commit || 'unknown'}`,
     `- Actor: ${report.actor || 'unknown'}`,
