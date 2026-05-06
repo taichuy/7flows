@@ -67,6 +67,7 @@ export interface ConsoleDataModel {
   data_source_instance_id: string | null;
   source_kind: ConsoleDataModelSourceKind;
   external_resource_key: string | null;
+  external_table_id: string | null;
   physical_table_name: string;
   acl_namespace: string;
   audit_namespace: string;
@@ -120,6 +121,7 @@ export interface CreateConsoleDataModelInput {
   scope_kind: ConsoleDataModelScopeKind;
   data_source_instance_id?: string | null;
   external_resource_key?: string | null;
+  external_table_id?: string | null;
   code: string;
   title: string;
   status?: ConsoleDataModelStatus;
@@ -128,6 +130,7 @@ export interface CreateConsoleDataModelInput {
 export interface UpdateConsoleDataModelInput {
   title?: string;
   status?: ConsoleDataModelStatus;
+  external_table_id?: string | null;
 }
 
 export interface UpdateConsoleDataModelApiExposureInput {

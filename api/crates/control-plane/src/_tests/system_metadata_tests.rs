@@ -115,6 +115,7 @@ async fn bootstrap_repairs_existing_partial_system_metadata_models() {
             data_source_instance_id: None,
             source_kind: DataModelSourceKind::MainSource,
             external_resource_key: None,
+            external_table_id: None,
             external_capability_snapshot: None,
             status: DataModelStatus::Draft,
             api_exposure_status: ApiExposureStatus::PublishedNotExposed,

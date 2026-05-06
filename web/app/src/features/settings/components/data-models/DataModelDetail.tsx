@@ -66,9 +66,7 @@ export function DataModelDetail({
     input: UpdateSettingsDataModelFieldInput
   ) => void;
   onDeleteField: (field: SettingsDataModelField) => void;
-  onUpdateApiExposure: (
-    input: UpdateSettingsDataModelApiExposureInput
-  ) => void;
+  onUpdateApiExposure: (input: UpdateSettingsDataModelApiExposureInput) => void;
   onSaveGrant: Parameters<typeof DataModelPermissionsTab>[0]['onSave'];
 }) {
   const [modelDrawerOpen, setModelDrawerOpen] = useState(false);
@@ -87,7 +85,9 @@ export function DataModelDetail({
         <button
           type="button"
           className="data-model-panel__link-button"
-          onClick={() => setFieldDrawerState({ open: true, mode: 'edit', field })}
+          onClick={() =>
+            setFieldDrawerState({ open: true, mode: 'edit', field })
+          }
         >
           <Typography.Text strong>{field.title}</Typography.Text>
           <Typography.Text type="secondary">{field.code}</Typography.Text>
@@ -121,7 +121,9 @@ export function DataModelDetail({
           type="link"
           size="small"
           disabled={!canManage}
-          onClick={() => setFieldDrawerState({ open: true, mode: 'edit', field })}
+          onClick={() =>
+            setFieldDrawerState({ open: true, mode: 'edit', field })
+          }
         >
           编辑
         </Button>
@@ -161,7 +163,10 @@ export function DataModelDetail({
               ))}
             </select>
           </div>
-          <Button disabled={!canManage} onClick={() => setModelDrawerOpen(true)}>
+          <Button
+            disabled={!canManage}
+            onClick={() => setModelDrawerOpen(true)}
+          >
             编辑 Data Model
           </Button>
         </Flex>
@@ -177,6 +182,15 @@ export function DataModelDetail({
             label: 'Runtime',
             children: model.runtime_availability
           },
+          ...(model.source_kind === 'external_source'
+            ? [
+                {
+                  key: 'external_table_id',
+                  label: '表 ID',
+                  children: model.external_table_id ?? '-'
+                }
+              ]
+            : []),
           { key: 'table', label: '物理表', children: model.physical_table_name }
         ]}
       />

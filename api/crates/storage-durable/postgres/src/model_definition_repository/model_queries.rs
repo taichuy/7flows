@@ -20,6 +20,7 @@ pub(super) async fn load_model_definition(
             data_source_instance_id,
             source_kind,
             external_resource_key,
+            external_table_id,
             external_capability_snapshot,
             code,
             title,
@@ -48,6 +49,7 @@ pub(super) async fn load_model_definition(
             data_source_instance_id: row.get("data_source_instance_id"),
             source_kind: row.get("source_kind"),
             external_resource_key: row.get("external_resource_key"),
+            external_table_id: row.get("external_table_id"),
             external_capability_snapshot: row.get("external_capability_snapshot"),
             code: row.get("code"),
             title: row.get("title"),
@@ -90,6 +92,7 @@ pub(super) async fn load_model_definition_with_lock(
             data_source_instance_id,
             source_kind,
             external_resource_key,
+            external_table_id,
             external_capability_snapshot,
             code,
             title,
@@ -123,6 +126,7 @@ pub(super) async fn load_model_definition_with_lock(
             data_source_instance_id: row.get("data_source_instance_id"),
             source_kind: row.get("source_kind"),
             external_resource_key: row.get("external_resource_key"),
+            external_table_id: row.get("external_table_id"),
             external_capability_snapshot: row.get("external_capability_snapshot"),
             code: row.get("code"),
             title: row.get("title"),
@@ -155,6 +159,7 @@ pub(super) async fn insert_model_definition(
             data_source_instance_id,
             source_kind,
             external_resource_key,
+            external_table_id,
             external_capability_snapshot,
             code,
             title,
@@ -170,7 +175,7 @@ pub(super) async fn insert_model_definition(
             created_by,
             updated_by
         )
-        values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $19)
+        values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $20)
         "#,
     )
     .bind(model.id)
@@ -179,6 +184,7 @@ pub(super) async fn insert_model_definition(
     .bind(model.data_source_instance_id)
     .bind(model.source_kind.as_str())
     .bind(&model.external_resource_key)
+    .bind(&model.external_table_id)
     .bind(&model.external_capability_snapshot)
     .bind(&model.code)
     .bind(&model.title)
@@ -212,6 +218,7 @@ pub(super) async fn insert_model_definition_after_failure(
             data_source_instance_id,
             source_kind,
             external_resource_key,
+            external_table_id,
             external_capability_snapshot,
             code,
             title,
@@ -227,7 +234,7 @@ pub(super) async fn insert_model_definition_after_failure(
             created_by,
             updated_by
         )
-        values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $19)
+        values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $20)
         on conflict (id) do update
         set availability_status = excluded.availability_status,
             status = excluded.status,
@@ -242,6 +249,7 @@ pub(super) async fn insert_model_definition_after_failure(
     .bind(model.data_source_instance_id)
     .bind(model.source_kind.as_str())
     .bind(&model.external_resource_key)
+    .bind(&model.external_table_id)
     .bind(&model.external_capability_snapshot)
     .bind(&model.code)
     .bind(&model.title)

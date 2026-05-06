@@ -18,6 +18,7 @@ interface DataModelFormValues {
   title: string;
   status: SettingsDataModel['status'];
   data_source_instance_id: string;
+  external_table_id: string;
 }
 
 export function DataModelFormDrawer({
@@ -37,9 +38,16 @@ export function DataModelFormDrawer({
   saving: boolean;
   onClose: () => void;
   onCreate: (input: CreateSettingsDataModelInput) => void;
-  onUpdate: (model: SettingsDataModel, input: UpdateSettingsDataModelInput) => void;
+  onUpdate: (
+    model: SettingsDataModel,
+    input: UpdateSettingsDataModelInput
+  ) => void;
 }) {
   const [form] = Form.useForm<DataModelFormValues>();
+  const isExternalModel =
+    mode === 'edit'
+      ? model?.source_kind === 'external_source'
+      : source?.source_kind === 'external_source';
 
   useEffect(() => {
     if (!open) {
@@ -51,7 +59,8 @@ export function DataModelFormDrawer({
         code: model.code,
         title: model.title,
         status: model.status,
-        data_source_instance_id: model.data_source_instance_id ?? 'main_source'
+        data_source_instance_id: model.data_source_instance_id ?? 'main_source',
+        external_table_id: model.external_table_id ?? ''
       });
       return;
     }
@@ -60,7 +69,8 @@ export function DataModelFormDrawer({
       code: '',
       title: '',
       status: source?.default_data_model_status ?? 'published',
-      data_source_instance_id: source?.id ?? 'main_source'
+      data_source_instance_id: source?.id ?? 'main_source',
+      external_table_id: ''
     });
   }, [form, mode, model, open, source]);
 
@@ -70,7 +80,8 @@ export function DataModelFormDrawer({
     if (mode === 'edit' && model) {
       onUpdate(model, {
         title: values.title,
-        status: values.status
+        status: values.status,
+        external_table_id: isExternalModel ? values.external_table_id : null
       });
       onClose();
       return;
@@ -83,7 +94,8 @@ export function DataModelFormDrawer({
       status: values.status,
       data_source_instance_id:
         source?.source_kind === 'external_source' ? source.id : null,
-      external_resource_key: null
+      external_resource_key: isExternalModel ? values.external_table_id : null,
+      external_table_id: isExternalModel ? values.external_table_id : null
     });
     onClose();
   };
@@ -137,6 +149,15 @@ export function DataModelFormDrawer({
         <Form.Item name="data_source_instance_id" label="数据源">
           <Input disabled />
         </Form.Item>
+        {isExternalModel ? (
+          <Form.Item
+            name="external_table_id"
+            label="表 ID"
+            rules={[{ required: true, message: '请输入表 ID' }]}
+          >
+            <Input />
+          </Form.Item>
+        ) : null}
       </Form>
     </Drawer>
   );

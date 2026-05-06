@@ -94,6 +94,7 @@ async fn create_external_model_and_field_mapping_keys() {
                         "scope_kind": "workspace",
                         "data_source_instance_id": data_source_instance_id,
                         "external_resource_key": "contacts",
+                        "external_table_id": "crm.contacts",
                         "code": "external_contacts",
                         "title": "External Contacts"
                     })
@@ -123,7 +124,42 @@ async fn create_external_model_and_field_mapping_keys() {
         created_model["data"]["external_resource_key"],
         json!("contacts")
     );
+    assert_eq!(
+        created_model["data"]["external_table_id"],
+        json!("crm.contacts")
+    );
     let model_id = created_model["data"]["id"].as_str().unwrap();
+
+    let update_model_response = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("PATCH")
+                .uri(format!("/api/console/models/{model_id}"))
+                .header("cookie", &cookie)
+                .header("x-csrf-token", &csrf)
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    json!({
+                        "external_table_id": "crm.contacts.v2"
+                    })
+                    .to_string(),
+                ))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(update_model_response.status(), StatusCode::OK);
+    let updated_model: serde_json::Value = serde_json::from_slice(
+        &to_bytes(update_model_response.into_body(), usize::MAX)
+            .await
+            .unwrap(),
+    )
+    .unwrap();
+    assert_eq!(
+        updated_model["data"]["external_table_id"],
+        json!("crm.contacts.v2")
+    );
 
     let create_field_response = app
         .oneshot(

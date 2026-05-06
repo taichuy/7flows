@@ -811,6 +811,7 @@ fn test_data_model_definition() -> domain::ModelDefinitionRecord {
         data_source_instance_id: None,
         source_kind: domain::DataModelSourceKind::MainSource,
         external_resource_key: None,
+        external_table_id: None,
         external_capability_snapshot: None,
         code: "orders".to_string(),
         title: "Orders".to_string(),

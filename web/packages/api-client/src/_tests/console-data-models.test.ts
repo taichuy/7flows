@@ -64,6 +64,9 @@ describe('console-data-models client', () => {
       createConsoleDataModel(
         {
           scope_kind: 'workspace',
+          data_source_instance_id: 'source-1',
+          external_resource_key: 'contacts',
+          external_table_id: 'crm.contacts',
           code: 'orders',
           title: 'Orders',
           status: 'draft'
@@ -73,6 +76,15 @@ describe('console-data-models client', () => {
     ).resolves.toMatchObject({
       path: '/api/console/models',
       method: 'POST',
+      body: {
+        scope_kind: 'workspace',
+        data_source_instance_id: 'source-1',
+        external_resource_key: 'contacts',
+        external_table_id: 'crm.contacts',
+        code: 'orders',
+        title: 'Orders',
+        status: 'draft'
+      },
       csrfToken: 'csrf-123'
     });
 
@@ -80,13 +92,18 @@ describe('console-data-models client', () => {
       updateConsoleDataModel(
         'model-1',
         {
-          status: 'published'
+          status: 'published',
+          external_table_id: 'crm.contacts.v2'
         },
         'csrf-123'
       )
     ).resolves.toMatchObject({
       path: '/api/console/models/model-1',
       method: 'PATCH',
+      body: {
+        status: 'published',
+        external_table_id: 'crm.contacts.v2'
+      },
       csrfToken: 'csrf-123'
     });
   });
@@ -165,7 +182,9 @@ describe('console-data-models client', () => {
   });
 
   test('scope grant list and mutations use scope-grant routes', async () => {
-    await expect(fetchConsoleDataModelScopeGrants('model-1')).resolves.toMatchObject({
+    await expect(
+      fetchConsoleDataModelScopeGrants('model-1')
+    ).resolves.toMatchObject({
       path: '/api/console/models/model-1/scope-grants'
     });
 
@@ -212,7 +231,9 @@ describe('console-data-models client', () => {
       path: '/api/console/models/model-1/advisor-findings'
     });
 
-    await expect(fetchConsoleDataModelRecordPreview('orders')).resolves.toMatchObject({
+    await expect(
+      fetchConsoleDataModelRecordPreview('orders')
+    ).resolves.toMatchObject({
       path: '/api/runtime/models/orders/records?page=1&page_size=20'
     });
 

@@ -172,6 +172,7 @@ fn sample_model(model_id: Uuid) -> ModelDefinitionRecord {
         data_source_instance_id: None,
         source_kind: domain::DataModelSourceKind::MainSource,
         external_resource_key: None,
+        external_table_id: None,
         external_capability_snapshot: None,
         status: domain::DataModelStatus::Published,
         api_exposure_status: domain::ApiExposureStatus::PublishedNotExposed,

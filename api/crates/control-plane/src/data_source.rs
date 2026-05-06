@@ -537,6 +537,7 @@ where
                 data_source_instance_id: Some(instance.id),
                 source_kind: domain::DataModelSourceKind::ExternalSource,
                 external_resource_key: Some(descriptor_resource_key.clone()),
+                external_table_id: Some(descriptor_resource_key.clone()),
                 external_capability_snapshot: Some(serde_json::to_value(&descriptor.capabilities)?),
                 code: model_code,
                 title: model_title,

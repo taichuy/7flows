@@ -72,6 +72,20 @@ export function DataModelTable({
       render: (value: string) => <Tag>API {value}</Tag>
     },
     {
+      title: '表 ID',
+      dataIndex: 'external_table_id',
+      key: 'external_table_id',
+      width: 180,
+      render: (_, model) =>
+        model.source_kind === 'external_source' ? (
+          <Typography.Text type="secondary">
+            {model.external_table_id ?? '-'}
+          </Typography.Text>
+        ) : (
+          <Typography.Text type="secondary">-</Typography.Text>
+        )
+    },
+    {
       title: '字段',
       key: 'fields',
       width: 96,
@@ -155,6 +169,11 @@ export function DataModelTable({
               <span>
                 <Typography.Text strong>{model.title}</Typography.Text>
                 <Typography.Text type="secondary">{model.code}</Typography.Text>
+                {model.source_kind === 'external_source' ? (
+                  <Typography.Text type="secondary">
+                    {model.external_table_id ?? '-'}
+                  </Typography.Text>
+                ) : null}
               </span>
               <span>
                 <Tag>状态 {model.status}</Tag>

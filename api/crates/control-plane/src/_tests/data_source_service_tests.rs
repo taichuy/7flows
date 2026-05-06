@@ -606,6 +606,7 @@ impl ModelDefinitionRepository for InMemoryDataSourceRepository {
             data_source_instance_id: input.data_source_instance_id,
             source_kind: input.source_kind,
             external_resource_key: input.external_resource_key.clone(),
+            external_table_id: input.external_table_id.clone(),
             external_capability_snapshot: input.external_capability_snapshot.clone(),
             code: input.code.clone(),
             title: input.title.clone(),

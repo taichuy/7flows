@@ -31,6 +31,7 @@ pub struct CreateModelDefinitionBody {
     pub scope_kind: String,
     pub data_source_instance_id: Option<String>,
     pub external_resource_key: Option<String>,
+    pub external_table_id: Option<String>,
     pub code: String,
     pub title: String,
     pub status: Option<String>,
@@ -41,6 +42,7 @@ pub struct UpdateModelDefinitionBody {
     pub title: Option<String>,
     pub status: Option<String>,
     pub api_exposure_status: Option<String>,
+    pub external_table_id: Option<String>,
 }
 
 #[derive(Debug, Deserialize, ToSchema)]
@@ -140,6 +142,7 @@ pub struct ModelDefinitionResponse {
     pub data_source_instance_id: Option<String>,
     pub source_kind: String,
     pub external_resource_key: Option<String>,
+    pub external_table_id: Option<String>,
     pub physical_table_name: String,
     pub acl_namespace: String,
     pub audit_namespace: String,
@@ -237,6 +240,7 @@ pub(super) fn to_model_definition_response(
         data_source_instance_id: model.data_source_instance_id.map(|id| id.to_string()),
         source_kind: model.source_kind.as_str().to_string(),
         external_resource_key: model.external_resource_key,
+        external_table_id: model.external_table_id,
         physical_table_name: model.physical_table_name,
         acl_namespace: model.acl_namespace,
         audit_namespace: model.audit_namespace,
@@ -412,6 +416,7 @@ pub async fn create_model(
                 .map(|value| parse_uuid(value, "data_source_instance_id"))
                 .transpose()?,
             external_resource_key: body.external_resource_key,
+            external_table_id: body.external_table_id,
             code: body.code,
             title: body.title,
             status: requested_status,
@@ -513,12 +518,20 @@ pub async fn update_model(
         .transpose()?;
     let mutation_service = mutation_service(&state);
     let mut model = None;
-    if let Some(title) = body.title {
+    if body.title.is_some() || body.external_table_id.is_some() {
+        let current_model = ModelDefinitionService::new(state.store.clone())
+            .get_model(context.user.id, model_id)
+            .await?;
+        let title = match body.title {
+            Some(title) => title,
+            None => current_model.title,
+        };
         model = Some(
             mutation_service
                 .update_model(UpdateModelDefinitionCommand {
                     actor_user_id: context.user.id,
                     model_id,
+                    external_table_id: body.external_table_id.or(current_model.external_table_id),
                     title,
                 })
                 .await?,

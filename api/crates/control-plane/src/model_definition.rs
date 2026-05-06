@@ -25,6 +25,7 @@ pub struct CreateModelDefinitionCommand {
     pub scope_kind: DataModelScopeKind,
     pub data_source_instance_id: Option<Uuid>,
     pub external_resource_key: Option<String>,
+    pub external_table_id: Option<String>,
     pub code: String,
     pub title: String,
     pub status: Option<domain::DataModelStatus>,
@@ -39,6 +40,7 @@ pub struct UpdateModelDefinitionCommand {
     pub actor_user_id: Uuid,
     pub model_id: Uuid,
     pub title: String,
+    pub external_table_id: Option<String>,
 }
 
 pub struct UpdateModelDefinitionStatusCommand {
@@ -268,6 +270,8 @@ where
         };
         let external_resource_key =
             normalize_external_resource_key(source_kind, command.external_resource_key.as_deref())?;
+        let external_table_id =
+            normalize_external_table_id(source_kind, command.external_table_id.as_deref())?;
         let defaults = match command.data_source_instance_id {
             Some(data_source_instance_id) => {
                 self.repository
@@ -289,6 +293,7 @@ where
                 data_source_instance_id: command.data_source_instance_id,
                 source_kind,
                 external_resource_key,
+                external_table_id,
                 external_capability_snapshot: None,
                 code: command.code,
                 title: command.title,
@@ -478,6 +483,15 @@ where
             .load_actor_context_for_user(command.actor_user_id)
             .await?;
         ensure_state_model_permission(&actor, "manage")?;
+        let previous_model = self
+            .repository
+            .get_model_definition(actor.current_workspace_id, command.model_id)
+            .await?
+            .ok_or(ControlPlaneError::NotFound("model_definition"))?;
+        let external_table_id = normalize_external_table_id(
+            previous_model.source_kind,
+            command.external_table_id.as_deref(),
+        )?;
 
         let model = self
             .repository
@@ -485,6 +499,7 @@ where
                 actor_user_id: command.actor_user_id,
                 model_id: command.model_id,
                 title: command.title,
+                external_table_id,
             })
             .await?;
         self.repository
@@ -1218,6 +1233,26 @@ fn normalize_external_resource_key(
     }
 }
 
+fn normalize_optional_text(value: Option<&str>) -> Option<String> {
+    value
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+        .map(str::to_string)
+}
+
+fn normalize_external_table_id(
+    source_kind: domain::DataModelSourceKind,
+    value: Option<&str>,
+) -> Result<Option<String>, ControlPlaneError> {
+    match source_kind {
+        domain::DataModelSourceKind::ExternalSource => Ok(normalize_optional_text(value)),
+        domain::DataModelSourceKind::MainSource => match normalize_optional_text(value) {
+            Some(_) => Err(ControlPlaneError::InvalidInput("external_table_id")),
+            None => Ok(None),
+        },
+    }
+}
+
 fn normalize_external_field_key(
     source_kind: domain::DataModelSourceKind,
     value: Option<&str>,
@@ -1316,6 +1351,7 @@ impl InMemoryModelDefinitionRepository {
                 data_source_instance_id: None,
                 source_kind: domain::DataModelSourceKind::MainSource,
                 external_resource_key: None,
+                external_table_id: None,
                 external_capability_snapshot: None,
                 status: domain::DataModelStatus::Published,
                 api_exposure_status: domain::ApiExposureStatus::PublishedNotExposed,
@@ -1386,6 +1422,7 @@ impl ModelDefinitionRepository for InMemoryModelDefinitionRepository {
             data_source_instance_id: input.data_source_instance_id,
             source_kind: input.source_kind,
             external_resource_key: input.external_resource_key.clone(),
+            external_table_id: input.external_table_id.clone(),
             external_capability_snapshot: input.external_capability_snapshot.clone(),
             code: input.code.clone(),
             title: input.title.clone(),
@@ -1414,6 +1451,7 @@ impl ModelDefinitionRepository for InMemoryModelDefinitionRepository {
             .get_mut(&input.model_id)
             .ok_or(ControlPlaneError::NotFound("model_definition"))?;
         model.title = input.title.clone();
+        model.external_table_id = input.external_table_id.clone();
         Ok(model.clone())
     }
 

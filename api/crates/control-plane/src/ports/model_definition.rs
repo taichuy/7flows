@@ -8,6 +8,7 @@ pub struct CreateModelDefinitionInput {
     pub data_source_instance_id: Option<Uuid>,
     pub source_kind: domain::DataModelSourceKind,
     pub external_resource_key: Option<String>,
+    pub external_table_id: Option<String>,
     pub external_capability_snapshot: Option<serde_json::Value>,
     pub code: String,
     pub title: String,
@@ -21,6 +22,7 @@ pub struct UpdateModelDefinitionInput {
     pub actor_user_id: Uuid,
     pub model_id: Uuid,
     pub title: String,
+    pub external_table_id: Option<String>,
 }
 
 #[derive(Debug, Clone)]

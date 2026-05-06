@@ -99,6 +99,7 @@ impl ModelDefinitionRepository for PgControlPlaneStore {
                 data_source_instance_id,
                 source_kind,
                 external_resource_key,
+                external_table_id,
                 external_capability_snapshot,
                 code,
                 title,
@@ -133,6 +134,7 @@ impl ModelDefinitionRepository for PgControlPlaneStore {
                     data_source_instance_id: row.get("data_source_instance_id"),
                     source_kind: row.get("source_kind"),
                     external_resource_key: row.get("external_resource_key"),
+                    external_table_id: row.get("external_table_id"),
                     external_capability_snapshot: row.get("external_capability_snapshot"),
                     code: row.get("code"),
                     title: row.get("title"),
@@ -209,6 +211,7 @@ impl ModelDefinitionRepository for PgControlPlaneStore {
             data_source_instance_id: input.data_source_instance_id,
             source_kind: input.source_kind,
             external_resource_key: input.external_resource_key.clone(),
+            external_table_id: input.external_table_id.clone(),
             external_capability_snapshot: input.external_capability_snapshot.clone(),
             code: input.code.clone(),
             title: input.title.clone(),
@@ -297,7 +300,8 @@ impl ModelDefinitionRepository for PgControlPlaneStore {
             r#"
             update model_definitions
             set title = $2,
-                updated_by = $3,
+                external_table_id = $3,
+                updated_by = $4,
                 updated_at = now()
             where id = $1
             returning
@@ -307,6 +311,7 @@ impl ModelDefinitionRepository for PgControlPlaneStore {
                 data_source_instance_id,
                 source_kind,
                 external_resource_key,
+                external_table_id,
                 external_capability_snapshot,
                 code,
                 title,
@@ -323,6 +328,7 @@ impl ModelDefinitionRepository for PgControlPlaneStore {
         )
         .bind(input.model_id)
         .bind(&input.title)
+        .bind(&input.external_table_id)
         .bind(nullable_actor_user_id(input.actor_user_id))
         .fetch_optional(self.pool())
         .await?
@@ -337,6 +343,7 @@ impl ModelDefinitionRepository for PgControlPlaneStore {
                 data_source_instance_id: row.get("data_source_instance_id"),
                 source_kind: row.get("source_kind"),
                 external_resource_key: row.get("external_resource_key"),
+                external_table_id: row.get("external_table_id"),
                 external_capability_snapshot: row.get("external_capability_snapshot"),
                 code: row.get("code"),
                 title: row.get("title"),
@@ -381,6 +388,7 @@ impl ModelDefinitionRepository for PgControlPlaneStore {
                 data_source_instance_id,
                 source_kind,
                 external_resource_key,
+                external_table_id,
                 external_capability_snapshot,
                 code,
                 title,
@@ -413,6 +421,7 @@ impl ModelDefinitionRepository for PgControlPlaneStore {
                 data_source_instance_id: row.get("data_source_instance_id"),
                 source_kind: row.get("source_kind"),
                 external_resource_key: row.get("external_resource_key"),
+                external_table_id: row.get("external_table_id"),
                 external_capability_snapshot: row.get("external_capability_snapshot"),
                 code: row.get("code"),
                 title: row.get("title"),
