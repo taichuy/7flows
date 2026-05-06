@@ -11,6 +11,16 @@
 - `api/Cargo.lock` 将 `rustls-webpki 0.103.11` 更新到 `0.103.13`，修复 high alert #31。
 - 定向验证：`pnpm --dir web audit --audit-level high --registry=https://registry.npmjs.org` 与 `pnpm --dir tmp/demo audit --audit-level moderate --registry=https://registry.npmjs.org` 均返回 `No known vulnerabilities found`。
 
+## Latest Watch Evidence
+
+`2026-05-07 02` 质量值守推送 `420b4eb4` 后，GitHub remote 返回：
+
+- default branch 仍有 `5` 个 open vulnerability alerts。
+- 严重度摘要为 `1 high, 4 low`。
+- `gh api repos/taichuy/1flowbase/dependabot/alerts -f state=open` 返回 `HTTP 404`，当前 token / app 权限无法直接读取 alert 明细。
+
+因此下方 `2026-05-07 01` 的低危明细可能已经不完整；需要用户回到 GitHub Security / Dependabot 页面确认最新 5 条 alert 的准确依赖链。
+
 ## Remaining User Decision
 
 仍剩低危 Rust 传递依赖 alert，需要用户决定是否进入单独依赖升级任务，因为它们不是单个 patch lockfile 就能完整收口：
