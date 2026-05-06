@@ -148,7 +148,12 @@ export function DataModelTable({
 
   return (
     <Flex vertical gap={12}>
-      <Flex justify="space-between" align="center" wrap="wrap" gap={8}>
+      <Flex
+        align="center"
+        className="data-model-panel__table-head"
+        wrap="wrap"
+        gap={12}
+      >
         <Typography.Title level={4} className="data-model-panel__section-title">
           数据表
         </Typography.Title>

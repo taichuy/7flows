@@ -14,6 +14,11 @@
   gap: 14px;
 }
 
+.data-model-panel__manager-title-row,
+.data-model-panel__table-head {
+  justify-content: flex-start;
+}
+
 .data-model-panel__source-link,
 .data-model-panel__breadcrumb-link {
   height: auto;

@@ -640,6 +640,25 @@ describe('Settings data models page', () => {
       screen.getByLabelText('默认 Data Model 状态说明')
     ).toBeInTheDocument();
     expect(screen.getByLabelText('默认 API 暴露状态说明')).toBeInTheDocument();
+    const managerTitleRow = document.querySelector(
+      '.data-model-panel__manager-title-row'
+    );
+    expect(managerTitleRow).toBeInTheDocument();
+    expect(
+      within(managerTitleRow as HTMLElement).getByRole('button', {
+        name: /返\s*回/
+      })
+    ).toBeInTheDocument();
+    expect(
+      within(managerTitleRow as HTMLElement).getByText('HubSpot')
+    ).toBeInTheDocument();
+    const tableHead = screen
+      .getByRole('button', { name: '新建数据表' })
+      .closest('.data-model-panel__table-head');
+    expect(tableHead).toBeInTheDocument();
+    expect(
+      within(tableHead as HTMLElement).getByText('数据表')
+    ).toBeInTheDocument();
     expect(
       screen.getByText(/draft: 草稿，默认新建为未发布状态/)
     ).toBeInTheDocument();

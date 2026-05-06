@@ -482,8 +482,8 @@ export function SettingsDataModelsSection({
                 ]}
               />
               <Flex
-                justify="space-between"
                 align="flex-start"
+                className="data-model-panel__manager-title-row"
                 gap={16}
                 wrap="wrap"
               >
