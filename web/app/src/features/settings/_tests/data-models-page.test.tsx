@@ -778,6 +778,12 @@ describe('Settings data models page', () => {
     expect(
       within(createDialog).getByText(/disabled: 已停用，不进入运行面/)
     ).toBeInTheDocument();
+    const titleInput = within(createDialog).getByLabelText('标题');
+    const codeInput = within(createDialog).getByLabelText('Code');
+    expect(
+      titleInput.compareDocumentPosition(codeInput) &
+        Node.DOCUMENT_POSITION_FOLLOWING
+    ).toBeTruthy();
 
     fireEvent.change(screen.getByLabelText('Code'), {
       target: { value: 'companies' }

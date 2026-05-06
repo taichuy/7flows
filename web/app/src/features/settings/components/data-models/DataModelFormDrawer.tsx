@@ -132,15 +132,6 @@ export function DataModelFormDrawer({
         }}
       >
         <Form.Item
-          name="code"
-          label={
-            <DataModelFieldLabel label="Code" title={dataModelCodeHelp} />
-          }
-          rules={[{ required: true, message: '请输入 Data Model Code' }]}
-        >
-          <Input aria-label="Code" disabled={mode === 'edit'} />
-        </Form.Item>
-        <Form.Item
           name="title"
           label={
             <DataModelFieldLabel label="标题" title={dataModelTitleHelp} />
@@ -148,6 +139,15 @@ export function DataModelFormDrawer({
           rules={[{ required: true, message: '请输入标题' }]}
         >
           <Input aria-label="标题" />
+        </Form.Item>
+        <Form.Item
+          name="code"
+          label={
+            <DataModelFieldLabel label="Code" title={dataModelCodeHelp} />
+          }
+          rules={[{ required: true, message: '请输入 Data Model Code' }]}
+        >
+          <Input aria-label="Code" disabled={mode === 'edit'} />
         </Form.Item>
         <Form.Item
           name="status"
