@@ -482,31 +482,27 @@ export function SettingsDataModelsSection({
                 ]}
               />
               <Flex
-                align="flex-start"
+                align="center"
                 className="data-model-panel__manager-title-row"
-                gap={16}
+                gap={18}
                 wrap="wrap"
               >
-                <Space direction="vertical" size={4}>
-                  <Space size={8} wrap>
-                    <Typography.Title
-                      level={4}
-                      className="data-model-panel__section-title"
-                    >
-                      {selectedSource.display_name}
-                    </Typography.Title>
-                    <Tag
-                      color={
-                        selectedSource.status === 'ready' ? 'green' : 'default'
-                      }
-                    >
-                      {selectedSource.status}
-                    </Tag>
-                  </Space>
-                  <Typography.Text type="secondary">
-                    {selectedSource.source_code}
-                  </Typography.Text>
-                </Space>
+                <Typography.Title
+                  level={4}
+                  className="data-model-panel__section-title"
+                >
+                  {selectedSource.display_name}
+                </Typography.Title>
+                <Tag
+                  color={
+                    selectedSource.status === 'ready' ? 'green' : 'default'
+                  }
+                >
+                  {selectedSource.status}
+                </Tag>
+                <Typography.Text type="secondary">
+                  {selectedSource.source_code}
+                </Typography.Text>
                 <Button onClick={closeSourceManager}>返回</Button>
               </Flex>
 

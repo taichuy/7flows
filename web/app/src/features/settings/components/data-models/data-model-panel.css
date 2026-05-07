@@ -19,6 +19,10 @@
   justify-content: flex-start;
 }
 
+.data-model-panel__manager-title-row .ant-tag {
+  margin-inline-end: 0;
+}
+
 .data-model-panel__source-link,
 .data-model-panel__breadcrumb-link {
   height: auto;
