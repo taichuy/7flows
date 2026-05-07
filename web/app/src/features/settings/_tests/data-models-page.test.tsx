@@ -918,9 +918,8 @@ describe('Settings data models page', () => {
     fireEvent.click(
       within(detailActions).getByRole('button', { name: /编\s*辑/ })
     );
-    expect(
-      await screen.findByRole('dialog', { name: '编辑 Data Model' })
-    ).toBeInTheDocument();
+    expect(await screen.findByDisplayValue('Contacts')).toBeInTheDocument();
+    expect(screen.getByLabelText('Code')).toBeDisabled();
   }, 20_000);
 
   test('submits Data Model edits from the form drawer', async () => {
