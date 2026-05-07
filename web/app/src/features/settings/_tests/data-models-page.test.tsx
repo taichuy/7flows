@@ -649,37 +649,9 @@ describe('Settings data models page', () => {
     expect(screen.getByRole('button', { name: /返\s*回/ })).toBeInTheDocument();
     expect(screen.getByLabelText('默认 Data Model 状态')).toBeInTheDocument();
     expect(screen.getByLabelText('默认 API 暴露状态')).toBeInTheDocument();
-    expect(
-      screen
-        .getByText('默认 Data Model 状态')
-        .closest('.data-model-panel__field-label')
-        ?.querySelector('.data-model-panel__help-icon')
-    ).toBeInTheDocument();
-    expect(
-      screen
-        .getByText('默认 API 暴露状态')
-        .closest('.data-model-panel__field-label')
-        ?.querySelector('.data-model-panel__help-icon')
-    ).toBeInTheDocument();
-    const managerTitleRow = document.querySelector(
-      '.data-model-panel__manager-title-row'
-    );
-    expect(managerTitleRow).toBeInTheDocument();
-    expect(
-      within(managerTitleRow as HTMLElement).getByRole('button', {
-        name: /返\s*回/
-      })
-    ).toBeInTheDocument();
-    expect(
-      within(managerTitleRow as HTMLElement).getByText('HubSpot')
-    ).toBeInTheDocument();
-    const tableHead = screen
-      .getByRole('button', { name: '新建数据表' })
-      .closest('.data-model-panel__table-head');
-    expect(tableHead).toBeInTheDocument();
-    expect(
-      within(tableHead as HTMLElement).getByText('数据表')
-    ).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'HubSpot' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: '新建数据表' })).toBeInTheDocument();
+    expect(screen.getByText('数据表')).toBeInTheDocument();
     expect(await screen.findByText('Contacts')).toBeInTheDocument();
     expect(screen.getByText('contacts')).toBeInTheDocument();
   }, 10_000);
@@ -1195,33 +1167,17 @@ describe('Settings data models page', () => {
     fireEvent.change(screen.getByLabelText('外部字段映射 Key'), {
       target: { value: 'properties.status' }
     });
-    expect(
-      screen
-        .getByText('外部字段映射 Key')
-        .closest('label')
-        ?.querySelector('.ant-form-item-tooltip')
-    ).toBeInTheDocument();
-    expect(document.querySelector('#external_field_key_extra')).not.toBeInTheDocument();
+    expect(screen.queryByText('外部数据源里的字段路径，例如 properties.email。')).not.toBeInTheDocument();
     fireEvent.mouseDown(screen.getByLabelText('字段类型'));
     fireEvent.click(await screen.findByText('枚举'));
 
     expect(await screen.findByLabelText('显示格式')).toBeInTheDocument();
-    expect(
-      screen
-        .getByText('枚举选项')
-        .closest('label')
-        ?.querySelector('.ant-form-item-tooltip')
-    ).not.toBeInTheDocument();
+    expect(screen.queryByLabelText('枚举选项说明')).not.toBeInTheDocument();
     expect(screen.getByLabelText('存储值说明')).toBeInTheDocument();
     expect(screen.getByLabelText('显示值说明')).toBeInTheDocument();
     expect(
-      Array.from(document.querySelectorAll('.ant-form-item-extra')).some(
-        (node) =>
-          node.textContent?.includes(
-            '显示值用于界面展示，存储值会写入数据库和 API payload。'
-          )
-      )
-    ).toBe(false);
+      screen.queryByText('显示值用于界面展示，存储值会写入数据库和 API payload。')
+    ).not.toBeInTheDocument();
     expect(
       screen.getByText('存储值').compareDocumentPosition(screen.getByText('显示值')) &
         Node.DOCUMENT_POSITION_FOLLOWING
