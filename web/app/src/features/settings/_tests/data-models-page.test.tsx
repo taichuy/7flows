@@ -232,16 +232,21 @@ function findDataModelsNavigation() {
 
 async function openContactsDataModelEditor() {
   await screen.findByText('Contacts', {}, { timeout: 10_000 });
+  return openDataModelEditorByTitle('Contacts');
+}
+
+async function openDataModelEditorByTitle(title: string) {
+  await screen.findByText(title, {}, { timeout: 10_000 });
   const contactsRow = screen
     .getAllByRole('row')
-    .find((row) => within(row).queryByText('Contacts'));
+    .find((row) => within(row).queryByText(title));
   expect(contactsRow).toBeDefined();
 
   fireEvent.click(
     within(contactsRow as HTMLElement).getByRole('button', { name: '编辑' })
   );
 
-  expect(await screen.findByText('编辑 Contacts')).toBeInTheDocument();
+  expect(await screen.findByText(`编辑 ${title}`)).toBeInTheDocument();
   return screen.findByRole('region', { name: 'Data Model 详情' });
 }
 
@@ -994,6 +999,9 @@ describe('Settings data models page', () => {
     fireEvent.change(screen.getByLabelText('字段标题'), {
       target: { value: 'Company Name' }
     });
+    fireEvent.change(screen.getByLabelText('外部字段映射 Key'), {
+      target: { value: 'properties.company_name' }
+    });
     fireEvent.click(screen.getByRole('checkbox', { name: '必填' }));
     fireEvent.click(screen.getByRole('button', { name: '创建字段' }));
 
@@ -1003,6 +1011,7 @@ describe('Settings data models page', () => {
         expect.objectContaining({
           code: 'company_name',
           title: 'Company Name',
+          external_field_key: 'properties.company_name',
           field_kind: 'string',
           is_required: true,
           is_unique: false,
@@ -1048,6 +1057,195 @@ describe('Settings data models page', () => {
       expect(dataModelsApi.deleteSettingsDataModelField).toHaveBeenCalledWith(
         'model-1',
         'field-1',
+        'csrf-123'
+      )
+    );
+  }, 20_000);
+
+  test('keeps main source field creation focused on basic field settings', async () => {
+    renderApp('/settings/data-models?source=main_source');
+
+    const editorDialog = await openDataModelEditorByTitle('Attachments');
+    fireEvent.click(
+      within(editorDialog).getByRole('button', { name: '新增字段' })
+    );
+
+    expect(await screen.findByLabelText('字段标题')).toBeInTheDocument();
+    expect(screen.getByLabelText('字段 Code')).toBeInTheDocument();
+    expect(screen.getByLabelText('字段类型')).toBeInTheDocument();
+    expect(screen.getByLabelText('默认值')).toBeInTheDocument();
+    expect(screen.queryByLabelText('外部字段映射 Key')).not.toBeInTheDocument();
+    expect(screen.queryByLabelText('目标数据表')).not.toBeInTheDocument();
+    expect(screen.queryByLabelText('关系配置 JSON')).not.toBeInTheDocument();
+    expect(screen.queryByLabelText('显示控件配置 JSON')).not.toBeInTheDocument();
+
+    fireEvent.change(screen.getByLabelText('字段标题'), {
+      target: { value: '状态' }
+    });
+    fireEvent.change(screen.getByLabelText('字段 Code'), {
+      target: { value: 'status' }
+    });
+    fireEvent.click(screen.getByRole('button', { name: '创建字段' }));
+
+    await waitFor(() =>
+      expect(dataModelsApi.createSettingsDataModelField).toHaveBeenCalledWith(
+        'model-attachments',
+        expect.objectContaining({
+          code: 'status',
+          title: '状态',
+          external_field_key: null,
+          field_kind: 'string',
+          default_value: null,
+          display_interface: 'input',
+          display_options: {},
+          relation_target_model_id: null,
+          relation_options: {}
+        }),
+        'csrf-123'
+      )
+    );
+  }, 20_000);
+
+  test('reveals enum, relation, external, and advanced field settings only when relevant', async () => {
+    renderApp('/settings/data-models?source=source-1');
+
+    const editorDialog = await openContactsDataModelEditor();
+    fireEvent.click(
+      within(editorDialog).getByRole('button', { name: '新增字段' })
+    );
+
+    expect(await screen.findByLabelText('外部字段映射 Key')).toBeInTheDocument();
+    expect(screen.queryByLabelText('显示格式')).not.toBeInTheDocument();
+    expect(screen.queryByLabelText('目标数据表')).not.toBeInTheDocument();
+
+    fireEvent.change(screen.getByLabelText('字段标题'), {
+      target: { value: '状态' }
+    });
+    fireEvent.change(screen.getByLabelText('字段 Code'), {
+      target: { value: 'status' }
+    });
+    fireEvent.change(screen.getByLabelText('外部字段映射 Key'), {
+      target: { value: 'properties.status' }
+    });
+    fireEvent.mouseDown(screen.getByLabelText('字段类型'));
+    fireEvent.click(await screen.findByText('枚举'));
+    expect(await screen.findByLabelText('显示格式')).toBeInTheDocument();
+    expect(screen.getByLabelText('选项 1 显示值')).toBeInTheDocument();
+    expect(screen.getByLabelText('选项 1 存储值')).toBeInTheDocument();
+
+    fireEvent.mouseDown(screen.getByLabelText('字段类型'));
+    fireEvent.click(await screen.findByText('多对一关系'));
+    expect(await screen.findByLabelText('目标数据表')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByText('高级显示设置'));
+    expect(await screen.findByLabelText('显示控件')).toBeInTheDocument();
+    expect(screen.getByLabelText('显示控件配置 JSON')).toBeInTheDocument();
+    expect(screen.getByLabelText('关系配置 JSON')).toBeInTheDocument();
+  }, 20_000);
+
+  test('creates enum fields with display format and label-value options', async () => {
+    renderApp('/settings/data-models?source=source-1');
+
+    const editorDialog = await openContactsDataModelEditor();
+    fireEvent.click(
+      within(editorDialog).getByRole('button', { name: '新增字段' })
+    );
+
+    fireEvent.change(await screen.findByLabelText('字段标题'), {
+      target: { value: '状态' }
+    });
+    fireEvent.change(screen.getByLabelText('字段 Code'), {
+      target: { value: 'status' }
+    });
+    fireEvent.change(screen.getByLabelText('外部字段映射 Key'), {
+      target: { value: 'properties.status' }
+    });
+    expect(
+      screen
+        .getByText('外部字段映射 Key')
+        .closest('label')
+        ?.querySelector('.ant-form-item-tooltip')
+    ).toBeInTheDocument();
+    expect(document.querySelector('#external_field_key_extra')).not.toBeInTheDocument();
+    fireEvent.mouseDown(screen.getByLabelText('字段类型'));
+    fireEvent.click(await screen.findByText('枚举'));
+
+    expect(await screen.findByLabelText('显示格式')).toBeInTheDocument();
+    expect(
+      screen
+        .getByText('枚举选项')
+        .closest('label')
+        ?.querySelector('.ant-form-item-tooltip')
+    ).not.toBeInTheDocument();
+    expect(screen.getByLabelText('存储值说明')).toBeInTheDocument();
+    expect(screen.getByLabelText('显示值说明')).toBeInTheDocument();
+    expect(
+      Array.from(document.querySelectorAll('.ant-form-item-extra')).some(
+        (node) =>
+          node.textContent?.includes(
+            '显示值用于界面展示，存储值会写入数据库和 API payload。'
+          )
+      )
+    ).toBe(false);
+    expect(
+      screen.getByText('存储值').compareDocumentPosition(screen.getByText('显示值')) &
+        Node.DOCUMENT_POSITION_FOLLOWING
+    ).toBeTruthy();
+    expect(
+      screen
+        .getByRole('button', { name: '添加选项' })
+        .compareDocumentPosition(screen.getByText('规则')) &
+        Node.DOCUMENT_POSITION_FOLLOWING
+    ).toBeTruthy();
+    expect(
+      screen.getByText('规则').compareDocumentPosition(screen.getByText('默认值')) &
+        Node.DOCUMENT_POSITION_FOLLOWING
+    ).toBeTruthy();
+    expect(screen.getByLabelText('选项 1 显示值')).toBeInTheDocument();
+    expect(
+      (screen.getByLabelText('选项 1 存储值') as HTMLInputElement).value
+    ).toMatch(/^enum_[a-z0-9]{8}$/);
+
+    fireEvent.mouseDown(screen.getByLabelText('显示格式'));
+    fireEvent.click(await screen.findByText('多选下拉'));
+    fireEvent.change(screen.getByLabelText('选项 1 显示值'), {
+      target: { value: '草稿' }
+    });
+    fireEvent.change(screen.getByLabelText('选项 1 存储值'), {
+      target: { value: 'draft' }
+    });
+    fireEvent.click(screen.getByRole('button', { name: '添加选项' }));
+    expect(
+      ((await screen.findByLabelText('选项 2 存储值')) as HTMLInputElement)
+        .value
+    ).toMatch(/^enum_[a-z0-9]{8}$/);
+    fireEvent.change(await screen.findByLabelText('选项 2 显示值'), {
+      target: { value: '已支付' }
+    });
+    fireEvent.change(screen.getByLabelText('选项 2 存储值'), {
+      target: { value: 'paid' }
+    });
+    fireEvent.mouseDown(screen.getByLabelText('默认值'));
+    fireEvent.click(await screen.findByText('草稿'));
+    fireEvent.click(await screen.findByText('已支付'));
+    fireEvent.click(screen.getByRole('button', { name: '创建字段' }));
+
+    await waitFor(() =>
+      expect(dataModelsApi.createSettingsDataModelField).toHaveBeenCalledWith(
+        'model-1',
+        expect.objectContaining({
+          code: 'status',
+          title: '状态',
+          field_kind: 'enum',
+          default_value: ['draft', 'paid'],
+          display_interface: 'multi_select',
+          display_options: {
+            options: [
+              { label: '草稿', value: 'draft' },
+              { label: '已支付', value: 'paid' }
+            ]
+          }
+        }),
         'csrf-123'
       )
     );

@@ -6,6 +6,7 @@ import { Space } from 'antd';
 
 import { AccountMenu } from './AccountMenu';
 import { Navigation } from './Navigation';
+import { SettingsChromeMenu } from './SettingsChromeMenu';
 import { getSecondaryChromeRoutes } from '../routes/route-helpers';
 import './app-shell.css';
 
@@ -51,17 +52,21 @@ export function AppShellFrame({
       navigation={<Navigation pathname={pathname} useRouterLinks={useRouterLinks} />}
       actions={
         <Space size={20}>
+          <AccountMenu useRouterNavigation={useRouterLinks} />
           {secondaryActions.map((route) => (
             <span key={route.id}>
-              {renderActionLink(
-                route.path,
-                route.navLabel!,
-                useRouterLinks,
-                route.selectedMatchers.some((match) => match(pathname))
+              {route.id === 'settings' ? (
+                <SettingsChromeMenu pathname={pathname} useRouterLinks={useRouterLinks} />
+              ) : (
+                renderActionLink(
+                  route.path,
+                  route.navLabel!,
+                  useRouterLinks,
+                  route.selectedMatchers.some((match) => match(pathname))
+                )
               )}
             </span>
           ))}
-          <AccountMenu useRouterNavigation={useRouterLinks} />
         </Space>
       }
     >

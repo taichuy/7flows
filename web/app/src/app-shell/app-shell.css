@@ -136,6 +136,105 @@
   min-width: max-content;
 }
 
+.app-shell-settings-menu.ant-menu-horizontal {
+  border-bottom: none !important;
+  background: transparent !important;
+  line-height: 1;
+  min-width: max-content;
+}
+
+.app-shell-settings-menu.ant-menu-horizontal::after {
+  display: none;
+}
+
+.app-shell-settings-menu.ant-menu-horizontal > .ant-menu-submenu {
+  top: 0;
+  display: flex;
+  align-items: center;
+  height: 56px;
+  margin: 0 !important;
+  padding-inline: 0 !important;
+  border: none;
+  color: var(--text-primary) !important;
+}
+
+.app-shell-settings-menu.ant-menu-horizontal > .ant-menu-submenu::after {
+  inset-inline: 0 !important;
+  border-bottom-width: 2px !important;
+}
+
+.app-shell-settings-menu.ant-menu-horizontal > .ant-menu-submenu .ant-menu-submenu-title {
+  display: inline-flex;
+  align-items: center;
+  height: 100%;
+  padding-inline: 0 !important;
+  color: var(--text-secondary);
+}
+
+.app-shell-settings-menu.ant-menu-horizontal > .ant-menu-submenu .ant-menu-title-content {
+  display: flex;
+  align-items: center;
+  height: 100%;
+}
+
+.app-shell-settings-menu.ant-menu-horizontal > .ant-menu-submenu:hover .ant-menu-submenu-title,
+.app-shell-settings-menu.ant-menu-horizontal > .ant-menu-submenu-open .ant-menu-submenu-title,
+.app-shell-settings-menu.ant-menu-horizontal
+  > .ant-menu-submenu-selected
+  .ant-menu-submenu-title {
+  color: var(--text-primary);
+}
+
+.app-shell-settings-block {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  padding-inline: 10px;
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.app-shell-settings-popup.ant-menu,
+.app-shell-settings-popup .ant-menu {
+  width: 216px;
+  max-height: 60vh;
+  overflow-y: auto;
+  border-radius: 8px;
+  padding-block: 12px;
+  box-shadow: var(--shadow-float);
+}
+
+.app-shell-settings-popup.ant-menu .ant-menu-item,
+.app-shell-settings-popup .ant-menu-item {
+  display: flex;
+  align-items: center;
+  min-height: 40px;
+  margin: 4px 12px !important;
+  border-radius: 8px;
+}
+
+.app-shell-settings-popup.ant-menu .ant-menu-item-selected,
+.app-shell-settings-popup .ant-menu-item-selected {
+  background: #e6f7f2;
+  color: #00d084;
+}
+
+.app-shell-settings-popup.ant-menu .ant-menu-item-selected::after,
+.app-shell-settings-popup .ant-menu-item-selected::after {
+  display: none;
+}
+
+.app-shell-settings-popup__link {
+  display: inline-flex;
+  width: 100%;
+  color: inherit;
+}
+
+.app-shell-settings-popup__link:hover {
+  color: inherit;
+}
+
 .app-shell-account-menu.ant-menu-horizontal {
   border-bottom: none !important;
   background: transparent !important;
@@ -266,7 +365,10 @@
   }
 
   .app-shell-actions {
-    justify-content: flex-start;
+    align-self: flex-end;
+    justify-content: flex-end;
+    width: max-content;
+    max-width: 100%;
   }
 
   .app-shell-content.ant-layout-content {

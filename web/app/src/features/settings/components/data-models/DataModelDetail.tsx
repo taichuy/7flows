@@ -260,6 +260,7 @@ export function DataModelDetail({
                   open={fieldDrawerState.open}
                   mode={fieldDrawerState.mode}
                   field={fieldDrawerState.field}
+                  isExternalModel={model.source_kind === 'external_source'}
                   modelOptions={allModels}
                   saving={fieldSaving}
                   canManage={canManage}
