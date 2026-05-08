@@ -849,12 +849,16 @@ export function AgentFlowCanvasFrame({
               messages={debugSession.messages}
               runContext={debugSession.runContext}
               status={debugSession.status}
+              stopping={debugSession.stopping}
               onChangeRunContextValue={debugSession.setRunContextValue}
               onClearSession={debugSession.clearSession}
               onClose={() => setPanelState({ debugConsoleOpen: false })}
               onLoadArtifact={(artifactRef) =>
                 fetchRuntimeDebugArtifact(applicationId, artifactRef)
               }
+              onStopRun={() => {
+                void debugSession.stopRun();
+              }}
               onSubmitPrompt={() => {
                 void debugSession.submitPrompt();
               }}

@@ -209,8 +209,10 @@ where
         .iter()
         .any(|event| is_terminal_runtime_event(&event.event_type));
     let events = std::mem::take(batch);
-    if let Err(error) =
-        control_plane::orchestration_runtime::persist_debug_stream_events(repository, events).await
+    if let Err(error) = control_plane::orchestration_runtime::persist_runtime_debug_stream_events(
+        repository, events,
+    )
+    .await
     {
         warn!(
             flow_run_id = %run_id,

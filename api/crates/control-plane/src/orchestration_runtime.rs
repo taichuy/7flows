@@ -30,12 +30,12 @@ use crate::{
 mod compile_context;
 mod data_model_runtime;
 pub mod debug_artifacts;
-mod debug_event_persister;
 pub mod debug_stream_events;
 mod inputs;
 mod live_debug_run;
 mod payloads;
 mod persistence;
+mod runtime_event_persister;
 
 use self::{
     compile_context::{build_compile_context, ensure_compiled_plan_runnable},
@@ -158,14 +158,14 @@ fn ensure_data_model_side_effect_confirmation_metadata(
     Ok(())
 }
 
-pub async fn persist_debug_stream_events<R>(
+pub async fn persist_runtime_debug_stream_events<R>(
     repository: &R,
     events: Vec<RuntimeEventEnvelope>,
 ) -> Result<()>
 where
     R: OrchestrationRuntimeRepository,
 {
-    debug_event_persister::persist_debug_stream_events(repository, events).await
+    runtime_event_persister::persist_runtime_debug_stream_events(repository, events).await
 }
 
 #[derive(Clone)]

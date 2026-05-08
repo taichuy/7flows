@@ -457,6 +457,7 @@ export function useAgentFlowDebugSession({
     [storageKey]
   );
   const [status, setStatus] = useState<AgentFlowDebugSessionStatus>('idle');
+  const [stopping, setStopping] = useState(false);
   const [messages, setMessages] = useState<AgentFlowDebugMessage[]>([]);
   const [lastDetail, setLastDetail] = useState<FlowDebugRunDetail | null>(null);
   const [streamTraceItems, setStreamTraceItems] = useState<
@@ -480,6 +481,7 @@ export function useAgentFlowDebugSession({
   const streamAbortControllerRef = useRef<AbortController | null>(null);
   const streamGenerationRef = useRef(0);
   const variableSnapshotRestoreGenerationRef = useRef(0);
+  const stoppingRef = useRef(false);
 
   useEffect(() => {
     setDebugSessionState((current) =>
@@ -995,6 +997,7 @@ export function useAgentFlowDebugSession({
     const runId = lastDetail?.flow_run.id ?? activeRunIdRef.current;
 
     if (
+      stoppingRef.current ||
       !csrfToken ||
       !runId ||
       !['running', 'waiting_human', 'waiting_callback'].includes(status)
@@ -1002,6 +1005,8 @@ export function useAgentFlowDebugSession({
       return null;
     }
 
+    stoppingRef.current = true;
+    setStopping(true);
     try {
       const detail = await cancelFlowDebugRun(applicationId, runId, csrfToken);
       cancelActiveDebugStream();
@@ -1011,10 +1016,15 @@ export function useAgentFlowDebugSession({
       return detail;
     } catch {
       return null;
+    } finally {
+      stoppingRef.current = false;
+      setStopping(false);
     }
   }
 
   function clearSession() {
+    stoppingRef.current = false;
+    setStopping(false);
     cancelActiveDebugStream();
     stopPolling();
     clearScheduledAssistantMessageFlush();
@@ -1077,6 +1087,8 @@ export function useAgentFlowDebugSession({
 
   function resetVariableCache() {
     variableSnapshotRestoreGenerationRef.current += 1;
+    stoppingRef.current = false;
+    setStopping(false);
     setDebugSessionState(createDebugSessionState(applicationId, draftId));
     cancelActiveDebugStream();
     stopPolling();
@@ -1090,6 +1102,7 @@ export function useAgentFlowDebugSession({
 
   return {
     status,
+    stopping,
     debugSessionId: debugSessionState.id,
     runContext,
     messages,

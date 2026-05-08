@@ -1,4 +1,9 @@
-import { ArrowRightOutlined, ArrowUpOutlined, MessageOutlined } from '@ant-design/icons';
+import {
+  ArrowRightOutlined,
+  ArrowUpOutlined,
+  MessageOutlined,
+  StopOutlined
+} from '@ant-design/icons';
 import { Button, Input, Typography } from 'antd';
 import { useState } from 'react';
 
@@ -6,16 +11,21 @@ export function DebugComposer({
   value,
   disabled,
   submitting,
+  stopping,
   onChange,
+  onStop,
   onSubmit
 }: {
   value: string;
   disabled: boolean;
   submitting: boolean;
+  stopping: boolean;
   onChange: (value: string) => void;
+  onStop: () => void;
   onSubmit: () => void;
 }) {
   const [isComposing, setIsComposing] = useState(false);
+  const showStop = submitting || stopping;
 
   return (
     <div className="agent-flow-editor__debug-composer">
@@ -41,7 +51,7 @@ export function DebugComposer({
 
             event.preventDefault();
 
-            if (disabled || submitting) {
+            if (disabled || submitting || stopping) {
               return;
             }
 
@@ -49,16 +59,29 @@ export function DebugComposer({
           }}
         />
         <div className="agent-flow-editor__debug-composer-actions">
-          <Button
-            aria-label="发送调试消息"
-            className="agent-flow-editor__debug-composer-submit"
-            disabled={disabled}
-            icon={<ArrowUpOutlined />}
-            loading={submitting}
-            shape="circle"
-            type="primary"
-            onClick={onSubmit}
-          />
+          {showStop ? (
+            <Button
+              aria-label={stopping ? '正在终止调试运行' : '终止调试运行'}
+              className="agent-flow-editor__debug-composer-submit"
+              danger
+              disabled={stopping}
+              icon={<StopOutlined />}
+              loading={stopping}
+              shape="circle"
+              type="primary"
+              onClick={onStop}
+            />
+          ) : (
+            <Button
+              aria-label="发送调试消息"
+              className="agent-flow-editor__debug-composer-submit"
+              disabled={disabled}
+              icon={<ArrowUpOutlined />}
+              shape="circle"
+              type="primary"
+              onClick={onSubmit}
+            />
+          )}
         </div>
       </div>
       <div className="agent-flow-editor__debug-feature-bar">

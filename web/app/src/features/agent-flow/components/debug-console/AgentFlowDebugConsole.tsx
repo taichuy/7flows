@@ -17,19 +17,23 @@ export function AgentFlowDebugConsole({
   messages,
   runContext,
   status,
+  stopping,
   onChangeRunContextValue,
   onClearSession,
   onClose,
   onLoadArtifact,
+  onStopRun,
   onSubmitPrompt
 }: {
   messages: AgentFlowDebugMessage[];
   runContext: AgentFlowRunContext;
   status: AgentFlowDebugSessionStatus;
+  stopping: boolean;
   onChangeRunContextValue: (nodeId: string, key: string, value: unknown) => void;
   onClearSession: () => void;
   onClose: () => void;
   onLoadArtifact?: (artifactRef: string) => Promise<unknown>;
+  onStopRun: () => void;
   onSubmitPrompt: () => void;
 }) {
   return (
@@ -48,6 +52,7 @@ export function AgentFlowDebugConsole({
         messages={messages}
         runContext={runContext}
         status={status}
+        stopping={stopping}
         onLoadArtifact={onLoadArtifact}
         onChangeQuery={(value) => {
           const queryField =
@@ -59,6 +64,7 @@ export function AgentFlowDebugConsole({
 
           onChangeRunContextValue(queryField.nodeId, queryField.key, value);
         }}
+        onStopRun={onStopRun}
         onSubmitPrompt={onSubmitPrompt}
       />
     </SchemaDockPanel>
