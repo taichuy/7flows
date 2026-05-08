@@ -57,7 +57,9 @@ function upsertTraceItem(
   nextItem: AgentFlowTraceItem
 ) {
   const nextItemKey = getTraceItemKey(nextItem);
-  const index = items.findIndex((item) => getTraceItemKey(item) === nextItemKey);
+  const index = items.findIndex(
+    (item) => getTraceItemKey(item) === nextItemKey
+  );
 
   if (index === -1) {
     return [...items, nextItem];
@@ -104,6 +106,39 @@ function appendProcessEventToTrace(
     return matchesByKey || matchesByNodeId
       ? appendProcessEvent(item, processEvent)
       : item;
+  });
+}
+
+function appendUsageSnapshotToTrace(
+  items: AgentFlowTraceItem[],
+  event: {
+    node_run_id?: string | null;
+    node_id: string;
+    usage: Record<string, unknown>;
+  }
+) {
+  const eventKey = event.node_run_id ?? event.node_id;
+
+  return items.map((item) => {
+    const itemKey = getTraceItemKey(item);
+    const matchesByKey = itemKey === eventKey;
+    const matchesByNodeId = !event.node_run_id && item.nodeId === event.node_id;
+
+    if (!matchesByKey && !matchesByNodeId) {
+      return item;
+    }
+
+    const outputPayload = isRecord(item.outputPayload)
+      ? item.outputPayload
+      : {};
+
+    return {
+      ...item,
+      outputPayload: {
+        ...outputPayload,
+        usage: event.usage
+      }
+    };
   });
 }
 
@@ -189,10 +224,7 @@ export function applyDebugStreamEventToTrace(
   }
 
   if (event.type === 'usage_snapshot') {
-    return appendProcessEventToTrace(items, event, {
-      type: event.type,
-      usage: event.usage
-    });
+    return appendUsageSnapshotToTrace(items, event);
   }
 
   return items;

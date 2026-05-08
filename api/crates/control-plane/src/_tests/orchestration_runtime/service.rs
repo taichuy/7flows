@@ -238,9 +238,14 @@ async fn start_node_debug_preview_uses_selected_source_provider_instance() {
         serde_json::json!(seeded.source_provider_instance_id.to_string())
     );
     assert_eq!(
-        outcome.node_run.output_payload,
-        serde_json::json!({ "text": "echo:gpt-5.4-mini:请总结退款政策" })
+        outcome.node_run.output_payload["text"],
+        serde_json::json!("echo:gpt-5.4-mini:请总结退款政策")
     );
+    assert_eq!(
+        outcome.node_run.output_payload["usage"]["total_tokens"],
+        serde_json::json!(12)
+    );
+    assert!(outcome.node_run.output_payload.get("route").is_some());
     assert_eq!(
         outcome.flow_run.output_payload,
         outcome.node_run.output_payload
@@ -743,7 +748,7 @@ async fn provider_error_after_live_delta_keeps_partial_output_out_of_run_state()
 }
 
 #[tokio::test]
-async fn live_debug_checkpoint_snapshot_stores_only_public_llm_output() {
+async fn live_debug_checkpoint_snapshot_stores_llm_output_metrics_without_process_events() {
     use plugin_framework::provider_contract::{
         ProviderFinishReason, ProviderStreamEvent, ProviderToolCall, ProviderUsage,
     };
@@ -808,9 +813,11 @@ async fn live_debug_checkpoint_snapshot_stores_only_public_llm_output() {
     assert_eq!(waiting_detail.flow_run.output_payload, json!({}));
     let llm_node = node_run(&waiting_detail, "node-llm");
     assert_eq!(
-        llm_node.output_payload,
-        json!({ "text": "echo:gpt-5.4-mini:请总结退款政策" })
+        llm_node.output_payload["text"],
+        json!("echo:gpt-5.4-mini:请总结退款政策")
     );
+    assert_eq!(llm_node.output_payload["usage"]["total_tokens"], json!(12));
+    assert!(llm_node.output_payload.get("route").is_some());
     assert!(llm_node.metrics_payload.get("usage").is_some());
 
     let snapshot = &waiting_detail
@@ -822,12 +829,11 @@ async fn live_debug_checkpoint_snapshot_stores_only_public_llm_output() {
         .get("node-llm")
         .expect("llm output should be available to waiting node");
     assert_eq!(
-        llm_snapshot,
-        &json!({ "text": "echo:gpt-5.4-mini:请总结退款政策" })
+        llm_snapshot["text"],
+        json!("echo:gpt-5.4-mini:请总结退款政策")
     );
+    assert_eq!(llm_snapshot["usage"]["total_tokens"], json!(12));
     for hidden_key in [
-        "usage",
-        "route",
         "tool_calls",
         "error",
         "__context_projection_id",

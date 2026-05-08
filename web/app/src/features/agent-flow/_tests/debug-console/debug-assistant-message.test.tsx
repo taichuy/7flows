@@ -149,7 +149,9 @@ describe('DebugAssistantMessage', () => {
   });
 
   test('loads truncated trace artifact values on explicit action', async () => {
-    const onLoadArtifact = vi.fn().mockResolvedValue({ text: '完整 Trace 内容' });
+    const onLoadArtifact = vi
+      .fn()
+      .mockResolvedValue({ text: '完整 Trace 内容' });
     const message: AgentFlowDebugMessage = {
       id: 'assistant-artifact',
       role: 'assistant',
@@ -206,7 +208,7 @@ describe('DebugAssistantMessage', () => {
     });
   });
 
-  test('renders data processing for non-LLM trace items when debug payload exists', () => {
+  test('renders only event-like data processing for trace items', () => {
     const message: AgentFlowDebugMessage = {
       id: 'assistant-process',
       role: 'assistant',
@@ -234,9 +236,19 @@ describe('DebugAssistantMessage', () => {
           errorPayload: null,
           metricsPayload: {},
           debugPayload: {
-            request: {
-              url: 'https://example.test/search'
-            }
+            assistant_message: {
+              role: 'assistant',
+              content: '内部最终文本'
+            },
+            provider_route: {
+              provider_code: 'openai'
+            },
+            provider_events: [
+              {
+                type: 'tool_call_commit',
+                name: 'search'
+              }
+            ]
           }
         }
       ]
@@ -246,12 +258,14 @@ describe('DebugAssistantMessage', () => {
 
     fireEvent.click(screen.getByRole('button', { name: /Tool/ }));
 
-    expect(screen.getByLabelText('数据处理 JSON')).toHaveTextContent(
-      'example.test'
-    );
+    const processJson = screen.getByLabelText('数据处理 JSON');
+    expect(processJson).toHaveTextContent('provider_events');
+    expect(processJson).toHaveTextContent('tool_call_commit');
+    expect(processJson).not.toHaveTextContent('assistant_message');
+    expect(processJson).not.toHaveTextContent('provider_route');
     const outputJson = screen.getByLabelText('输出 JSON');
     expect(outputJson).toHaveTextContent('ok');
-    expect(outputJson).not.toHaveTextContent('example.test');
+    expect(outputJson).toHaveTextContent('example.test');
   });
 
   test('always renders data processing for trace items when debug payload is empty', () => {

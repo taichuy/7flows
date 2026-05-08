@@ -24,7 +24,9 @@ pub(super) fn persisted_node_output_payload(
     };
     let mut persisted_output = output_object.clone();
 
-    remove_payload_keys(&mut persisted_output, Some(metrics_payload));
+    if error_payload.is_some() {
+        remove_payload_keys(&mut persisted_output, Some(metrics_payload));
+    }
     remove_payload_keys(&mut persisted_output, error_payload);
     remove_payload_keys(&mut persisted_output, Some(debug_payload));
 

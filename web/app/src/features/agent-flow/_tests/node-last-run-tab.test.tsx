@@ -19,7 +19,9 @@ describe('NodeLastRunTab', () => {
       </AppProviders>
     );
 
-    expect(await screen.findByText('当前节点还没有运行记录')).toBeInTheDocument();
+    expect(
+      await screen.findByText('当前节点还没有运行记录')
+    ).toBeInTheDocument();
   });
 
   test('renders runtime-backed summary, io and metadata cards', async () => {
@@ -82,6 +84,13 @@ describe('NodeLastRunTab', () => {
           attempt: 2
         },
         debug_payload: {
+          assistant_message: {
+            role: 'assistant',
+            content: '退款政策摘要'
+          },
+          provider_route: {
+            provider_code: 'openai_compatible'
+          },
           provider_events: [
             {
               type: 'text_delta',
@@ -109,7 +118,9 @@ describe('NodeLastRunTab', () => {
     expect(screen.getByText('耗时(ms)')).toBeInTheDocument();
     expect(screen.getByText('72')).toBeInTheDocument();
     expect(screen.getByLabelText('输入 JSON')).toHaveTextContent('user_prompt');
-    expect(screen.getByLabelText('输入 JSON')).toHaveTextContent('总结退款政策');
+    expect(screen.getByLabelText('输入 JSON')).toHaveTextContent(
+      '总结退款政策'
+    );
     const outputJson = screen.getByLabelText('输出 JSON');
     expect(outputJson).toHaveTextContent('退款政策摘要');
     expect(outputJson).toHaveTextContent('usage');
@@ -118,6 +129,8 @@ describe('NodeLastRunTab', () => {
     const processJson = screen.getByLabelText('数据处理 JSON');
     expect(processJson).toHaveTextContent('provider_events');
     expect(processJson).toHaveTextContent('text_delta');
+    expect(processJson).not.toHaveTextContent('assistant_message');
+    expect(processJson).not.toHaveTextContent('provider_route');
     expect(screen.queryByLabelText('指标 JSON')).not.toBeInTheDocument();
     expect(screen.queryByLabelText('Debug JSON')).not.toBeInTheDocument();
     expect(screen.queryByText('执行人')).not.toBeInTheDocument();
@@ -130,7 +143,9 @@ describe('NodeLastRunTab', () => {
     fireEvent.click(inputToggle);
 
     expect(inputToggle).toHaveAttribute('aria-expanded', 'false');
-    expect(screen.getByRole('button', { name: '放大查看输入 JSON' })).toBeDisabled();
+    expect(
+      screen.getByRole('button', { name: '放大查看输入 JSON' })
+    ).toBeDisabled();
   });
 
   test('loads truncated last-run payload artifact on explicit action', async () => {
@@ -232,9 +247,12 @@ describe('NodeLastRunTab', () => {
         error_payload: null,
         metrics_payload: {},
         debug_payload: {
-          request: {
-            url: 'https://example.test/search'
-          }
+          provider_events: [
+            {
+              type: 'tool_request',
+              url: 'https://example.test/search'
+            }
+          ]
         },
         started_at: '2026-04-17T09:00:00Z',
         finished_at: '2026-04-17T09:00:01Z'
@@ -304,9 +322,9 @@ describe('NodeLastRunTab', () => {
   });
 
   test('renders warning state when runtime payload is malformed', async () => {
-    vi
-      .spyOn(runtimeApi, 'fetchNodeLastRun')
-      .mockResolvedValue({ node_run: null } as never);
+    vi.spyOn(runtimeApi, 'fetchNodeLastRun').mockResolvedValue({
+      node_run: null
+    } as never);
 
     render(
       <AppProviders>

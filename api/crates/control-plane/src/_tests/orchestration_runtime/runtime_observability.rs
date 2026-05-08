@@ -269,7 +269,12 @@ async fn live_debug_persists_llm_debug_payload_without_polluting_public_outputs(
         .find(|node_run| node_run.node_id == "node-llm")
         .expect("llm node run should be persisted");
 
-    assert_eq!(llm_node.output_payload.get("usage"), None);
+    assert_eq!(
+        llm_node.output_payload["usage"]["total_tokens"],
+        serde_json::json!(5)
+    );
+    assert!(llm_node.output_payload.get("route").is_some());
+    assert!(llm_node.output_payload.get("finish_reason").is_some());
     assert_eq!(llm_node.output_payload.get("provider_events"), None);
     assert_eq!(llm_node.output_payload.get("tool_calls"), None);
     assert!(llm_node.output_payload.get("text").is_some());
@@ -292,7 +297,6 @@ async fn live_debug_persists_llm_debug_payload_without_polluting_public_outputs(
     for forbidden_key in [
         "node-start",
         "node-llm",
-        "usage",
         "debug_payload",
         "provider_events",
         "tool_calls",

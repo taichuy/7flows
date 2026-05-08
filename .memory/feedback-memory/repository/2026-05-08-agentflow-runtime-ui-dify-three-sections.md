@@ -8,11 +8,11 @@ scope: agent-flow runtime UI and output contract
 
 # AgentFlow Runtime UI Follows Dify Three Sections
 
-规则：Agent Flow 节点运行详情的产品层信息架构按 Dify 风格收敛为 `输入 / 数据处理 / 输出`，其中“数据处理”固定展示；所有节点只要 `debug_payload` 非空，就在“上次运行 / 工作流展开”的“数据处理”里展示，不再只限定 LLM。
+规则：Agent Flow 节点运行详情的产品层信息架构按 Dify 风格收敛为 `输入 / 数据处理 / 输出`。其中“数据处理”不是 debug payload 全量展示，只放节点内部执行过程中发生的事件或步骤，例如 LLM 流式事件、工具/代码执行事件、转换计算步骤。
 
-规则：运行态持久化必须把公开输出、指标和数据处理分开。`output_payload` 只保存节点公开输出；`metrics_payload` 保存使用量、路由、耗时、attempt 等指标；`debug_payload` 保存 provider stream events、assistant message、tool calls、raw/context refs 等数据处理证据。数据处理数据转移到 `debug_payload` 后，不应继续在 `output_payload` 里放一份副本。
+规则：token 用量、路由、finish reason、attempt、耗时这类运行结果指标属于“输出”观察对象，不属于“数据处理”。成功节点的 `output_payload` 可以保留这些指标；失败节点仍不要把空指标或 partial live delta 当业务输出写入节点输出。
 
-规则：前端节点详情里“输出”只能展示持久化公开输出；如果历史或运行时 trace 中仍有与“数据处理”相同的字段，展示层也要避免重复显示到“输出”。变量选择器只展示输出契约声明的 selector。
+规则：`debug_payload` 里可能同时有过程事件、assistant message、provider route、raw/context refs 等内部证据；前端“数据处理”需要筛出事件类/步骤类字段，不应把 assistant message、provider route 或普通指标全量塞进去。变量选择器只展示输出契约声明的 selector。
 
 规则：异常输出如果是节点错误处理策略显式产出的变量，例如 `error_message`、`error_type` 或 fallback result，应进入输出对象；是否允许下游引用仍由输出契约/错误处理策略决定。
 

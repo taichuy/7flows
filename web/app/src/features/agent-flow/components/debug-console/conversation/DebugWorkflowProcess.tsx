@@ -11,7 +11,8 @@ import { Collapse, Tag, Typography } from 'antd';
 import type { AgentFlowTraceItem } from '../../../api/runtime';
 import {
   NodeRunJsonBlock,
-  omitProcessPayloadFromOutput
+  omitProcessPayloadFromOutput,
+  pickProcessPayload
 } from '../../detail/last-run/NodeRunIOCard';
 import { getAgentFlowNodeTypeIcon } from '../../../lib/node-type-icons';
 
@@ -66,7 +67,11 @@ function nodeDisplayName(item: AgentFlowTraceItem) {
 }
 
 function readOutputTotalTokens(outputPayload: unknown) {
-  if (!outputPayload || typeof outputPayload !== 'object' || Array.isArray(outputPayload)) {
+  if (
+    !outputPayload ||
+    typeof outputPayload !== 'object' ||
+    Array.isArray(outputPayload)
+  ) {
     return null;
   }
 
@@ -81,19 +86,15 @@ function readOutputTotalTokens(outputPayload: unknown) {
 }
 
 function readProcessPayload(item: AgentFlowTraceItem) {
-  const debugPayload = item.debugPayload;
-
-  return debugPayload && typeof debugPayload === 'object' && !Array.isArray(debugPayload)
-    ? debugPayload
-    : {};
+  return pickProcessPayload(item.debugPayload);
 }
 
 function hasPayload(value: unknown) {
   return Boolean(
     value &&
-      typeof value === 'object' &&
-      !Array.isArray(value) &&
-      Object.keys(value).length > 0
+    typeof value === 'object' &&
+    !Array.isArray(value) &&
+    Object.keys(value).length > 0
   );
 }
 
@@ -213,12 +214,19 @@ export function DebugWorkflowProcess({
                 <span className="agent-flow-editor__debug-workflow-row">
                   <NodeTypeIcon nodeType={item.nodeType} />
                   <span className="agent-flow-editor__debug-workflow-node-main">
-                    <Typography.Text strong>{nodeDisplayName(item)}</Typography.Text>
-                    <Typography.Text className="agent-flow-editor__debug-workflow-metric" type="secondary">
+                    <Typography.Text strong>
+                      {nodeDisplayName(item)}
+                    </Typography.Text>
+                    <Typography.Text
+                      className="agent-flow-editor__debug-workflow-metric"
+                      type="secondary"
+                    >
                       {metricText(item)}
                     </Typography.Text>
                   </span>
-                  <Tag className="agent-flow-editor__debug-workflow-node-type">{item.nodeType}</Tag>
+                  <Tag className="agent-flow-editor__debug-workflow-node-type">
+                    {item.nodeType}
+                  </Tag>
                   <StatusIcon status={item.status} />
                 </span>
               ),

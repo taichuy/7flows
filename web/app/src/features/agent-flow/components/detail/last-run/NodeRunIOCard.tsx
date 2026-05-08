@@ -100,9 +100,35 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 }
 
 function getProcessPayload(lastRun: NodeLastRun) {
-  const debugPayload = lastRun.node_run.debug_payload;
+  return pickProcessPayload(lastRun.node_run.debug_payload);
+}
 
-  return isRecord(debugPayload) ? debugPayload : {};
+const PROCESS_PAYLOAD_KEYS = [
+  'provider_events',
+  'tool_calls',
+  'mcp_calls',
+  'reasoning_content',
+  'process_events',
+  'execution_events',
+  'steps',
+  'transforms',
+  'calculations'
+];
+
+export function pickProcessPayload(debugPayload: unknown) {
+  if (!isRecord(debugPayload)) {
+    return {};
+  }
+
+  const processPayload: Record<string, unknown> = {};
+
+  for (const key of PROCESS_PAYLOAD_KEYS) {
+    if (Object.prototype.hasOwnProperty.call(debugPayload, key)) {
+      processPayload[key] = debugPayload[key];
+    }
+  }
+
+  return processPayload;
 }
 
 function isSameJsonValue(left: unknown, right: unknown) {
@@ -144,7 +170,10 @@ export function NodeRunJsonBlock({
   const [expanded, setExpanded] = useState(false);
   const [loadedPayload, setLoadedPayload] = useState<unknown>(null);
   const { copied, copy } = useClipboardCopy();
-  const artifactRef = useMemo(() => findRuntimeDebugArtifactRef(payload), [payload]);
+  const artifactRef = useMemo(
+    () => findRuntimeDebugArtifactRef(payload),
+    [payload]
+  );
   const displayPayload = loadedPayload ?? payload;
   const value = useMemo(() => formatJson(displayPayload), [displayPayload]);
 
