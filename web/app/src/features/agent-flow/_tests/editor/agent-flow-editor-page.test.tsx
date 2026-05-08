@@ -243,7 +243,7 @@ describe('AgentFlowEditorShell', () => {
       await screen.findByText('Start', { selector: '.agent-flow-node-card__title' })
     ).toBeInTheDocument();
     expect(screen.getByRole('button', { name: '历史版本' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: '调试整流' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: '预览' })).toBeInTheDocument();
   }, 20_000);
 
   test('renders the default three nodes and overlay controls', async () => {
@@ -267,7 +267,7 @@ describe('AgentFlowEditorShell', () => {
     ).toBeInTheDocument();
     expect(screen.getByRole('button', { name: '保存' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: '历史版本' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: '调试整流' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: '预览' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: '发布' })).toBeInTheDocument();
   }, 20_000);
 
@@ -282,7 +282,7 @@ describe('AgentFlowEditorShell', () => {
       />
     );
 
-    fireEvent.click(await screen.findByRole('button', { name: '调试整流' }));
+    fireEvent.click(await screen.findByRole('button', { name: '预览' }));
 
     expect(runtimeApi.startFlowDebugRun).not.toHaveBeenCalled();
     expect(

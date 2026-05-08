@@ -1,6 +1,7 @@
 import {
   HistoryOutlined,
   IssuesCloseOutlined,
+  PlayCircleOutlined,
   SaveOutlined
 } from '@ant-design/icons';
 import { Button, Space, Tag, Typography } from 'antd';
@@ -65,8 +66,14 @@ export function AgentFlowOverlay({
           onClick={onOpenHistory}
           title="历史版本"
         />
-        <Button onClick={onOpenDebugConsole}>
-          调试整流
+        <Button
+          aria-label="预览"
+          autoInsertSpace={false}
+          icon={<PlayCircleOutlined />}
+          onClick={onOpenDebugConsole}
+          title="预览"
+        >
+          预览
         </Button>
         <Button
           aria-label="保存"
