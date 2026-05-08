@@ -642,7 +642,9 @@ async fn llm_node_success_keeps_processed_result_fields_in_output_payload() {
         "gpt-5.4-mini"
     );
     assert_eq!(trace.output_payload["finish_reason"], json!("stop"));
-    assert!(trace.output_payload.get("usage").is_none());
+    assert_eq!(trace.output_payload["usage"]["input_tokens"], json!(5));
+    assert_eq!(trace.output_payload["usage"]["output_tokens"], json!(7));
+    assert_eq!(trace.output_payload["usage"]["total_tokens"], json!(12));
     assert!(trace.output_payload.get("route").is_none());
     assert!(trace.output_payload.get("attempts").is_none());
     assert!(trace.output_payload.get("assistant_message").is_none());
@@ -680,7 +682,10 @@ async fn llm_node_final_usage_preserves_input_cache_snapshot_fields_in_metrics_p
         .expect("llm trace should exist");
 
     assert_eq!(trace.output_payload["text"], json!("cache-aware response"));
-    assert!(trace.output_payload.get("usage").is_none());
+    assert_eq!(
+        trace.output_payload["usage"],
+        trace.metrics_payload["usage"]
+    );
     assert_eq!(trace.metrics_payload["usage"]["input_tokens"], json!(100));
     assert_eq!(
         trace.metrics_payload["usage"]["input_cache_hit_tokens"],

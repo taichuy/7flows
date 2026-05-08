@@ -242,7 +242,11 @@ async fn start_node_debug_preview_uses_selected_source_provider_instance() {
         serde_json::json!("echo:gpt-5.4-mini:请总结退款政策")
     );
     assert_eq!(
-        outcome.node_run.metrics_payload["usage"]["total_tokens"],
+        outcome.node_run.output_payload["usage"]["total_tokens"],
+        serde_json::json!(12)
+    );
+    assert_eq!(
+        outcome.node_run.metrics_payload["runtime"]["usage"]["total_tokens"],
         serde_json::json!(12)
     );
     assert!(outcome.node_run.output_payload.get("route").is_none());
@@ -838,7 +842,10 @@ async fn live_debug_checkpoint_snapshot_stores_llm_output_metrics_without_proces
         llm_node.output_payload["text"],
         json!("echo:gpt-5.4-mini:请总结退款政策")
     );
-    assert!(llm_node.output_payload.get("usage").is_none());
+    assert_eq!(
+        llm_node.output_payload["usage"],
+        llm_node.metrics_payload["usage"]
+    );
     assert!(llm_node.output_payload.get("route").is_none());
     assert!(llm_node.output_payload.get("provider_route").is_some());
     assert!(llm_node.metrics_payload.get("usage").is_some());

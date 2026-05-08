@@ -960,6 +960,9 @@ fn build_successful_llm_execution(
             serde_json::to_value(finish_reason).unwrap_or(Value::Null),
         );
     }
+    if let Some(usage) = metrics_payload.get("usage").cloned() {
+        executor_output.insert("usage".to_string(), usage);
+    }
     if !result.tool_calls.is_empty() {
         executor_output.insert(
             "tool_calls".to_string(),

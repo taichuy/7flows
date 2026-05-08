@@ -269,7 +269,10 @@ async fn live_debug_persists_llm_debug_payload_without_polluting_public_outputs(
         .find(|node_run| node_run.node_id == "node-llm")
         .expect("llm node run should be persisted");
 
-    assert_eq!(llm_node.output_payload.get("usage"), None);
+    assert_eq!(
+        llm_node.output_payload["usage"],
+        llm_node.metrics_payload["usage"]
+    );
     assert_eq!(llm_node.output_payload.get("route"), None);
     assert!(llm_node.output_payload.get("provider_route").is_some());
     assert!(llm_node.output_payload.get("finish_reason").is_some());
