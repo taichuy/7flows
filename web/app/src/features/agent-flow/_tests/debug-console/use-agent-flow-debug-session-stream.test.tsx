@@ -824,6 +824,15 @@ describe('useAgentFlowDebugSession streaming', () => {
             output_payload: { text: '退款政策摘要' },
             error_payload: null,
             metrics_payload: { total_tokens: 128 },
+            debug_payload: {
+              assistant_message: {
+                role: 'assistant',
+                content: '退款政策摘要'
+              },
+              provider_route: {
+                provider_code: 'openai_compatible'
+              }
+            },
             started_at: '2026-04-25T10:00:01Z',
             finished_at: '2026-04-25T10:00:02Z'
           });
@@ -894,7 +903,7 @@ describe('useAgentFlowDebugSession streaming', () => {
           inputPayload: {
             user_prompt: '请总结退款政策'
           },
-          debugPayload: {
+          debugPayload: expect.objectContaining({
             provider_events: [
               {
                 type: 'text_delta',
@@ -904,8 +913,12 @@ describe('useAgentFlowDebugSession streaming', () => {
                 type: 'text_delta',
                 text: '政策摘要'
               }
-            ]
-          }
+            ],
+            assistant_message: {
+              role: 'assistant',
+              content: '退款政策摘要'
+            }
+          })
         })
       ])
     );
@@ -919,9 +932,9 @@ describe('useAgentFlowDebugSession streaming', () => {
         })
       })
     );
-    expect(result.current.getNodePreviewVariableCache()['node-llm']).not.toHaveProperty(
-      'user_prompt'
-    );
+    expect(
+      result.current.getNodePreviewVariableCache()['node-llm']
+    ).not.toHaveProperty('user_prompt');
     expect(
       runtimeApi.buildNodeDebugPreviewPlan(
         document,

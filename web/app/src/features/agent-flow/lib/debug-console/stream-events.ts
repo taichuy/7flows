@@ -162,7 +162,30 @@ function chooseFinishedDebugPayload(
     return existingDebugPayload ?? {};
   }
 
-  return eventDebugPayload;
+  const existingProviderEvents = Array.isArray(
+    existingDebugPayload?.provider_events
+  )
+    ? existingDebugPayload.provider_events
+    : [];
+  const eventProviderEvents = Array.isArray(eventDebugPayload.provider_events)
+    ? eventDebugPayload.provider_events
+    : [];
+
+  if (eventProviderEvents.length > 0 || existingProviderEvents.length > 0) {
+    return {
+      ...(existingDebugPayload ?? {}),
+      ...eventDebugPayload,
+      provider_events:
+        eventProviderEvents.length > 0
+          ? eventProviderEvents
+          : existingProviderEvents
+    };
+  }
+
+  return {
+    ...(existingDebugPayload ?? {}),
+    ...eventDebugPayload
+  };
 }
 
 export function applyDebugStreamEventToTrace(
