@@ -30,3 +30,4 @@ api/apps/api-server/.env
 .claude/skills
 .aionrs/*
 docs/superpowers/specs/1flowbase/2026-04-21-1flowbase-product-vision.md
+api/storage/*
