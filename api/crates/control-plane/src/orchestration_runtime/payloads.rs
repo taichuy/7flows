@@ -24,11 +24,45 @@ pub(super) fn persisted_node_output_payload(
     };
     let mut persisted_output = output_object.clone();
 
-    if error_payload.is_some() {
-        remove_payload_keys(&mut persisted_output, Some(metrics_payload));
-    }
+    remove_payload_keys(&mut persisted_output, Some(metrics_payload));
     remove_payload_keys(&mut persisted_output, error_payload);
     remove_payload_keys(&mut persisted_output, Some(debug_payload));
 
     Value::Object(persisted_output)
+}
+
+#[cfg(test)]
+mod tests {
+    use serde_json::json;
+
+    use super::persisted_node_output_payload;
+
+    #[test]
+    fn persisted_output_keeps_success_output_separate_from_metrics_and_debug() {
+        let output_payload = json!({
+            "text": "正式回答",
+            "reasoning_content": "先分析",
+            "attempts": [{ "status": "succeeded" }],
+            "event_count": 12,
+            "provider_events": [{ "type": "text_delta", "delta": "正式回答" }],
+        });
+        let metrics_payload = json!({
+            "attempts": [{ "status": "succeeded" }],
+            "event_count": 12,
+        });
+        let debug_payload = json!({
+            "provider_events": [{ "type": "text_delta", "delta": "正式回答" }],
+        });
+
+        let persisted =
+            persisted_node_output_payload(&output_payload, &metrics_payload, None, &debug_payload);
+
+        assert_eq!(
+            persisted,
+            json!({
+                "text": "正式回答",
+                "reasoning_content": "先分析",
+            })
+        );
+    }
 }

@@ -495,6 +495,9 @@ async fn live_provider_reasoning_delta_is_appended_to_runtime_event_stream() {
         llm_node.output_payload["reasoning_content"],
         "先分析用户问题"
     );
+    assert!(llm_node.output_payload.get("attempts").is_none());
+    assert!(llm_node.output_payload.get("event_count").is_none());
+    assert!(llm_node.output_payload.get("provider_code").is_none());
     assert!(llm_node.debug_payload.get("reasoning_content").is_none());
 
     let events = stream.events();
