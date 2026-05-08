@@ -125,21 +125,18 @@ describe('DebugAssistantMessage', () => {
     const inputToggle = screen.getByRole('button', { name: '输入' });
     expect(inputToggle).toHaveAttribute('aria-expanded', 'true');
     expect(screen.getByText('输出')).toBeInTheDocument();
-    expect(screen.getByText('错误')).toBeInTheDocument();
-    expect(screen.getByText('指标')).toBeInTheDocument();
-    expect(screen.getByText('Debug')).toBeInTheDocument();
+    expect(screen.queryByText('错误')).not.toBeInTheDocument();
+    expect(screen.queryByText('指标')).not.toBeInTheDocument();
+    expect(screen.queryByText('Debug')).not.toBeInTheDocument();
     expect(screen.getByText(/user_prompt/)).toBeInTheDocument();
     const outputJson = screen.getByLabelText('输出 JSON');
     expect(outputJson).toHaveTextContent('退款处理中');
     expect(outputJson).not.toHaveTextContent('still_running');
     expect(outputJson).not.toHaveTextContent('total_tokens');
-    expect(screen.getByLabelText('错误 JSON')).toHaveTextContent(
-      'still_running'
-    );
-    expect(screen.getByLabelText('指标 JSON')).toHaveTextContent(
-      'total_tokens'
-    );
-    expect(screen.getByLabelText('Debug JSON')).toHaveTextContent(
+    expect(screen.queryByLabelText('错误 JSON')).not.toBeInTheDocument();
+    expect(screen.queryByLabelText('指标 JSON')).not.toBeInTheDocument();
+    expect(screen.queryByLabelText('Debug JSON')).not.toBeInTheDocument();
+    expect(screen.getByLabelText('数据处理 JSON')).toHaveTextContent(
       'response_ref'
     );
 

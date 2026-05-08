@@ -9,11 +9,7 @@ import {
 import { Collapse, Tag, Typography } from 'antd';
 
 import type { AgentFlowTraceItem } from '../../../api/runtime';
-import {
-  NodeRunJsonBlock,
-  omitProcessPayloadFromOutput,
-  pickProcessPayload
-} from '../../detail/last-run/NodeRunIOCard';
+import { NodeRunPayloadSections } from '../../detail/last-run/NodeRunIOCard';
 import { getAgentFlowNodeTypeIcon } from '../../../lib/node-type-icons';
 
 function statusTone(status: string) {
@@ -83,19 +79,6 @@ function readOutputTotalTokens(outputPayload: unknown) {
 
   const totalTokens = (usage as Record<string, unknown>).total_tokens;
   return typeof totalTokens === 'number' ? totalTokens : null;
-}
-
-function readProcessPayload(item: AgentFlowTraceItem) {
-  return pickProcessPayload(item.debugPayload);
-}
-
-function hasPayload(value: unknown) {
-  return Boolean(
-    value &&
-    typeof value === 'object' &&
-    !Array.isArray(value) &&
-    Object.keys(value).length > 0
-  );
 }
 
 function metricText(item: AgentFlowTraceItem) {
@@ -202,12 +185,6 @@ export function DebugWorkflowProcess({
           className="agent-flow-editor__debug-workflow-collapse-list"
           expandIconPosition="end"
           items={items.map((item) => {
-            const processPayload = readProcessPayload(item);
-            const outputPayload = omitProcessPayloadFromOutput(
-              item.outputPayload,
-              processPayload
-            );
-
             return {
               key: item.nodeRunId ?? item.nodeId,
               label: (
@@ -232,42 +209,12 @@ export function DebugWorkflowProcess({
               ),
               children: (
                 <div className="agent-flow-editor__debug-workflow-node-detail">
-                  <NodeRunJsonBlock
-                    payload={item.inputPayload}
-                    title="输入"
+                  <NodeRunPayloadSections
+                    inputPayload={item.inputPayload}
+                    debugPayload={item.debugPayload}
+                    outputPayload={item.outputPayload}
                     onLoadArtifact={onLoadArtifact}
                   />
-                  <NodeRunJsonBlock
-                    payload={processPayload}
-                    title="数据处理"
-                    onLoadArtifact={onLoadArtifact}
-                  />
-                  <NodeRunJsonBlock
-                    payload={outputPayload}
-                    title="输出"
-                    onLoadArtifact={onLoadArtifact}
-                  />
-                  {hasPayload(item.errorPayload) ? (
-                    <NodeRunJsonBlock
-                      payload={item.errorPayload}
-                      title="错误"
-                      onLoadArtifact={onLoadArtifact}
-                    />
-                  ) : null}
-                  {hasPayload(item.metricsPayload) ? (
-                    <NodeRunJsonBlock
-                      payload={item.metricsPayload}
-                      title="指标"
-                      onLoadArtifact={onLoadArtifact}
-                    />
-                  ) : null}
-                  {hasPayload(item.debugPayload) ? (
-                    <NodeRunJsonBlock
-                      payload={item.debugPayload}
-                      title="Debug"
-                      onLoadArtifact={onLoadArtifact}
-                    />
-                  ) : null}
                 </div>
               )
             };

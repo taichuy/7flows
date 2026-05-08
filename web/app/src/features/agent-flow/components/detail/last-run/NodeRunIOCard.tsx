@@ -99,10 +99,6 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return Boolean(value && typeof value === 'object' && !Array.isArray(value));
 }
 
-function getProcessPayload(lastRun: NodeLastRun) {
-  return pickProcessPayload(lastRun.node_run.debug_payload);
-}
-
 export function pickProcessPayload(debugPayload: unknown) {
   return isRecord(debugPayload) ? debugPayload : {};
 }
@@ -130,6 +126,44 @@ export function omitProcessPayloadFromOutput(
   );
 
   return Object.fromEntries(entries);
+}
+
+export function NodeRunPayloadSections({
+  inputPayload,
+  debugPayload,
+  outputPayload,
+  onLoadArtifact
+}: {
+  inputPayload: unknown;
+  debugPayload: unknown;
+  outputPayload: unknown;
+  onLoadArtifact?: (artifactRef: string) => Promise<unknown>;
+}) {
+  const processPayload = pickProcessPayload(debugPayload);
+  const visibleOutputPayload = omitProcessPayloadFromOutput(
+    outputPayload,
+    processPayload
+  );
+
+  return (
+    <>
+      <NodeRunJsonBlock
+        payload={inputPayload}
+        title="输入"
+        onLoadArtifact={onLoadArtifact}
+      />
+      <NodeRunJsonBlock
+        payload={processPayload}
+        title="数据处理"
+        onLoadArtifact={onLoadArtifact}
+      />
+      <NodeRunJsonBlock
+        payload={visibleOutputPayload}
+        title="输出"
+        onLoadArtifact={onLoadArtifact}
+      />
+    </>
+  );
 }
 
 export function NodeRunJsonBlock({
@@ -258,32 +292,14 @@ export function NodeRunJsonBlock({
 
 export function NodeRunIOCard({ lastRun }: { lastRun: NodeLastRun }) {
   const applicationId = lastRun.flow_run.application_id;
-  const processPayload = getProcessPayload(lastRun);
-  const outputPayload = omitProcessPayloadFromOutput(
-    lastRun.node_run.output_payload,
-    processPayload
-  );
 
   return (
     <Card title="节点输入输出">
       <div className="agent-flow-node-run-json-list">
-        <NodeRunJsonBlock
-          payload={lastRun.node_run.input_payload}
-          title="输入"
-          onLoadArtifact={(artifactRef) =>
-            fetchRuntimeDebugArtifact(applicationId, artifactRef)
-          }
-        />
-        <NodeRunJsonBlock
-          payload={processPayload}
-          title="数据处理"
-          onLoadArtifact={(artifactRef) =>
-            fetchRuntimeDebugArtifact(applicationId, artifactRef)
-          }
-        />
-        <NodeRunJsonBlock
-          payload={outputPayload}
-          title="输出"
+        <NodeRunPayloadSections
+          inputPayload={lastRun.node_run.input_payload}
+          debugPayload={lastRun.node_run.debug_payload}
+          outputPayload={lastRun.node_run.output_payload}
           onLoadArtifact={(artifactRef) =>
             fetchRuntimeDebugArtifact(applicationId, artifactRef)
           }
