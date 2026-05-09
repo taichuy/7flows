@@ -10,11 +10,9 @@ import {
   Empty,
   Form,
   Input,
-  InputNumber,
   Modal,
   Popconfirm,
   Select,
-  Segmented,
   Space,
   Tooltip,
   Typography
@@ -25,6 +23,7 @@ import {
   formatEnvironmentVariableTitle,
   type AgentFlowEnvironmentVariable
 } from '../../lib/application-environment-variables';
+import { EnvironmentVariableValueEditor } from './environment-variables/EnvironmentVariableValueEditor';
 
 const valueTypeOptions = [
   'string',
@@ -40,7 +39,13 @@ const valueTypeOptions = [
 interface EnvironmentVariableFormValues {
   name: string;
   value_type: string;
-  value?: string | number | boolean | null;
+  value?:
+    | string
+    | number
+    | boolean
+    | Record<string, unknown>
+    | unknown[]
+    | null;
   description?: string;
 }
 
@@ -75,7 +80,18 @@ function formatFormValue(
     return typeof value === 'boolean' ? value : false;
   }
 
-  return formatVariableValue(value);
+  if (
+    valueType === 'object' &&
+    Boolean(value && typeof value === 'object' && !Array.isArray(value))
+  ) {
+    return value as Record<string, unknown>;
+  }
+
+  if (valueType.startsWith('array[') && Array.isArray(value)) {
+    return value;
+  }
+
+  return createDefaultValueForType(valueType);
 }
 
 function createDefaultValueForType(valueType: string) {
@@ -84,38 +100,14 @@ function createDefaultValueForType(valueType: string) {
   }
 
   if (valueType === 'object') {
-    return '{}';
+    return {};
   }
 
   if (valueType.startsWith('array[')) {
-    return '[]';
+    return [];
   }
 
   return '';
-}
-
-function getValuePlaceholder(valueType: string) {
-  if (valueType === 'object') {
-    return '{\n  "key": "value"\n}';
-  }
-
-  if (valueType === 'array[string]') {
-    return '[\n  "item"\n]';
-  }
-
-  if (valueType === 'array[number]') {
-    return '[\n  1\n]';
-  }
-
-  if (valueType === 'array[boolean]') {
-    return '[\n  true\n]';
-  }
-
-  if (valueType === 'array[object]') {
-    return '[\n  { "key": "value" }\n]';
-  }
-
-  return '请输入变量值';
 }
 
 function parseVariableValue(valueType: string, rawValue: unknown) {
@@ -142,11 +134,23 @@ function parseVariableValue(valueType: string, rawValue: unknown) {
     throw new Error('value');
   }
 
-  if (typeof rawValue !== 'string') {
+  if (valueType === 'object') {
+    if (rawValue && typeof rawValue === 'object' && !Array.isArray(rawValue)) {
+      return rawValue;
+    }
+
     throw new Error('value');
   }
 
-  return JSON.parse(rawValue);
+  if (valueType.startsWith('array[')) {
+    if (Array.isArray(rawValue)) {
+      return rawValue;
+    }
+
+    throw new Error('value');
+  }
+
+  throw new Error('value');
 }
 
 function validateParsedValue(valueType: string, value: unknown) {
@@ -441,31 +445,10 @@ export function ApplicationEnvironmentVariablesPanel({
               }
             ]}
           >
-            {selectedValueType === 'number' ? (
-              <InputNumber
-                className="agent-flow-editor__environment-variable-number-input"
-                placeholder={getValuePlaceholder(selectedValueType)}
-                onChange={() => setValueError(null)}
-              />
-            ) : selectedValueType === 'boolean' ? (
-              <Segmented
-                block
-                options={[
-                  { label: 'true', value: true },
-                  { label: 'false', value: false }
-                ]}
-                onChange={() => setValueError(null)}
-              />
-            ) : (
-              <Input.TextArea
-                autoSize={{
-                  minRows: selectedValueType === 'string' ? 3 : 5,
-                  maxRows: 10
-                }}
-                placeholder={getValuePlaceholder(selectedValueType)}
-                onChange={() => setValueError(null)}
-              />
-            )}
+            <EnvironmentVariableValueEditor
+              valueType={selectedValueType}
+              onValueErrorChange={setValueError}
+            />
           </Form.Item>
           <Form.Item name="description" label="描述">
             <Input.TextArea autoSize={{ minRows: 2, maxRows: 4 }} />

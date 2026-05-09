@@ -149,6 +149,69 @@
   width: 100%;
 }
 
+.agent-flow-editor__env-value-editor {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 100%;
+}
+
+.agent-flow-editor__env-value-editor-toolbar,
+.agent-flow-editor__env-value-json-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.agent-flow-editor__env-value-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 100%;
+}
+
+.agent-flow-editor__env-object-row,
+.agent-flow-editor__env-array-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  width: 100%;
+}
+
+.agent-flow-editor__env-object-row > .ant-input {
+  flex: 0 0 96px;
+}
+
+.agent-flow-editor__env-object-type-select {
+  flex: 0 0 104px;
+}
+
+.agent-flow-editor__env-object-value,
+.agent-flow-editor__env-array-value {
+  flex: 1;
+  min-width: 0;
+}
+
+.agent-flow-editor__env-object-value.ant-input-number,
+.agent-flow-editor__env-array-value.ant-input-number {
+  width: 100%;
+}
+
+.agent-flow-editor__env-array-index.ant-typography {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 24px;
+  height: 32px;
+}
+
+.agent-flow-editor__env-value-json-editor {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 100%;
+}
+
 .agent-flow-editor__system-variables-header {
   display: flex;
   align-items: flex-start;

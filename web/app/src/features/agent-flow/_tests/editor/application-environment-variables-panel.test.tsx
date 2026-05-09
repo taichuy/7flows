@@ -2,6 +2,7 @@ import { fireEvent, render, screen } from '@testing-library/react';
 import { describe, expect, test, vi } from 'vitest';
 
 import { ApplicationEnvironmentVariablesPanel } from '../../components/editor/ApplicationEnvironmentVariablesPanel';
+import { EnvironmentVariableValueEditor } from '../../components/editor/environment-variables/EnvironmentVariableValueEditor';
 
 describe('ApplicationEnvironmentVariablesPanel', () => {
   test('switches the value editor when the variable type changes', async () => {
@@ -27,5 +28,43 @@ describe('ApplicationEnvironmentVariablesPanel', () => {
 
     expect(screen.getByText('true')).toBeInTheDocument();
     expect(screen.getByText('false')).toBeInTheDocument();
+  });
+
+  test('edits object values as field rows', () => {
+    const onChange = vi.fn();
+
+    render(
+      <EnvironmentVariableValueEditor
+        value={{ ApiBaseUrl: '' }}
+        valueType="object"
+        onChange={onChange}
+      />
+    );
+
+    fireEvent.change(screen.getByLabelText('对象值 1'), {
+      target: { value: 'https://api.example.com' }
+    });
+
+    expect(onChange).toHaveBeenLastCalledWith({
+      ApiBaseUrl: 'https://api.example.com'
+    });
+  });
+
+  test('edits array string values as item rows', () => {
+    const onChange = vi.fn();
+
+    render(
+      <EnvironmentVariableValueEditor
+        value={['first', '']}
+        valueType="array[string]"
+        onChange={onChange}
+      />
+    );
+
+    fireEvent.change(screen.getByLabelText('数组值 2'), {
+      target: { value: 'second' }
+    });
+
+    expect(onChange).toHaveBeenLastCalledWith(['first', 'second']);
   });
 });
