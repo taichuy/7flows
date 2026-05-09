@@ -12,6 +12,7 @@ describe('AppShellFrame', () => {
     useAuthStore.getState().setAuthenticated({
       csrfToken: 'csrf-token',
       actor: {
+        id: 'user-1',
         account: 'root',
         effective_display_role: 'root',
         current_workspace_id: 'workspace-1'
@@ -21,9 +22,11 @@ describe('AppShellFrame', () => {
         account: 'root',
         name: 'Root',
         nickname: 'Root',
-        email: null,
+        email: 'root@example.com',
+        phone: null,
+        avatar_url: null,
+        introduction: '',
         effective_display_role: 'root',
-        current_workspace_id: 'workspace-1',
         permissions: []
       }
     });
