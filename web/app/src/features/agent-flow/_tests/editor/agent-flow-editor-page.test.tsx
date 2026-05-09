@@ -305,6 +305,9 @@ describe('AgentFlowEditorShell', () => {
     const panel = screen.getByRole('region', { name: '系统变量' });
 
     expect(panel).toBeInTheDocument();
+    expect(
+      screen.getByTestId('agent-flow-editor-variables-dock')
+    ).toBeInTheDocument();
     expect(within(panel).getByText('sys.conversation_id')).toBeInTheDocument();
     expect(within(panel).getByText('sys.workflow_run_id')).toBeInTheDocument();
     expect(
@@ -335,6 +338,9 @@ describe('AgentFlowEditorShell', () => {
     const panel = screen.getByRole('region', { name: '环境变量' });
 
     expect(panel).toBeInTheDocument();
+    expect(
+      screen.getByTestId('agent-flow-editor-variables-dock')
+    ).toBeInTheDocument();
     expect(within(panel).getByText('env.ApiBaseUrl')).toBeInTheDocument();
     expect(
       within(panel).getByText('https://api.example.com')

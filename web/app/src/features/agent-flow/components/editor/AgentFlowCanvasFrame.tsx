@@ -78,6 +78,8 @@ import { SystemVariablesPanel } from './SystemVariablesPanel';
 const DEBUG_CONSOLE_DEFAULT_WIDTH = 420;
 const DEBUG_CONSOLE_MIN_WIDTH = 320;
 const DEBUG_CONSOLE_GAP = 12;
+const SYSTEM_VARIABLES_DOCK_WIDTH = 420;
+const ENVIRONMENT_VARIABLES_DOCK_WIDTH = 520;
 const VARIABLE_CACHE_DEFAULT_HEIGHT = 330;
 const VARIABLE_CACHE_MIN_HEIGHT = 180;
 const VARIABLE_CACHE_BOTTOM_GAP = 16;
@@ -391,8 +393,16 @@ export function AgentFlowCanvasFrame({
     Math.max(debugConsoleWidth, DEBUG_CONSOLE_MIN_WIDTH),
     maxDebugConsoleWidth
   );
-  const detailContainerWidth =
-    canvasFrameWidth - (debugConsoleOpen ? boundedDebugConsoleWidth : 0);
+  const variablesDockOpen = systemVariablesOpen || environmentVariablesOpen;
+  const variablesDockWidth = environmentVariablesOpen
+    ? ENVIRONMENT_VARIABLES_DOCK_WIDTH
+    : SYSTEM_VARIABLES_DOCK_WIDTH;
+  const sideDockOccupiedWidth = debugConsoleOpen
+    ? boundedDebugConsoleWidth + DEBUG_CONSOLE_GAP
+    : variablesDockOpen
+      ? variablesDockWidth + DEBUG_CONSOLE_GAP
+      : 0;
+  const detailContainerWidth = canvasFrameWidth - sideDockOccupiedWidth;
   const boundedNodeDetailWidth = clampNodeDetailWidth(
     nodeDetailWidth,
     detailContainerWidth
@@ -401,11 +411,8 @@ export function AgentFlowCanvasFrame({
   const nodeDetailOccupiedWidth = selectedNodeId
     ? boundedNodeDetailWidth + DEBUG_CONSOLE_GAP
     : 0;
-  const debugConsoleOccupiedWidth = debugConsoleOpen
-    ? boundedDebugConsoleWidth + DEBUG_CONSOLE_GAP
-    : 0;
   const variableCacheRightOffset =
-    16 + nodeDetailOccupiedWidth + debugConsoleOccupiedWidth;
+    16 + nodeDetailOccupiedWidth + sideDockOccupiedWidth;
   const variableCacheCenterLeft = Math.max(
     120,
     (canvasFrameWidth - variableCacheRightOffset) / 2
@@ -698,6 +705,27 @@ export function AgentFlowCanvasFrame({
     handleRunNode(selectedNodeId);
   }
 
+  function openDebugConsole() {
+    setEnvironmentVariablesOpen(false);
+    setSystemVariablesOpen(false);
+    setPanelState({
+      debugConsoleOpen: true,
+      debugConsoleWidth: debugConsoleWidth || DEBUG_CONSOLE_DEFAULT_WIDTH
+    });
+  }
+
+  function openEnvironmentVariables() {
+    setPanelState({ debugConsoleOpen: false });
+    setSystemVariablesOpen(false);
+    setEnvironmentVariablesOpen(true);
+  }
+
+  function openSystemVariables() {
+    setPanelState({ debugConsoleOpen: false });
+    setEnvironmentVariablesOpen(false);
+    setSystemVariablesOpen(true);
+  }
+
   return (
     <section
       aria-label={`${applicationName} editor`}
@@ -713,16 +741,11 @@ export function AgentFlowCanvasFrame({
         }}
         saveDisabled={autosaveStatus === 'saving'}
         saveLoading={autosaveStatus === 'saving'}
-        onOpenDebugConsole={() =>
-          setPanelState({
-            debugConsoleOpen: true,
-            debugConsoleWidth: debugConsoleWidth || DEBUG_CONSOLE_DEFAULT_WIDTH
-          })
-        }
+        onOpenDebugConsole={openDebugConsole}
         onOpenIssues={() => setPanelState({ issuesOpen: true })}
         onOpenHistory={() => setPanelState({ historyOpen: true })}
-        onOpenEnvironmentVariables={() => setEnvironmentVariablesOpen(true)}
-        onOpenSystemVariables={() => setSystemVariablesOpen(true)}
+        onOpenEnvironmentVariables={openEnvironmentVariables}
+        onOpenSystemVariables={openSystemVariables}
         onOpenPublish={() => undefined}
         publishDisabled={false}
       />
@@ -764,18 +787,27 @@ export function AgentFlowCanvasFrame({
         >
           查看缓存
         </Button>
-        {systemVariablesOpen ? (
-          <SystemVariablesPanel onClose={() => setSystemVariablesOpen(false)} />
-        ) : null}
-        {environmentVariablesOpen ? (
-          <ApplicationEnvironmentVariablesPanel
-            loading={environmentVariablesMutation.isPending}
-            variables={environmentVariables}
-            onClose={() => setEnvironmentVariablesOpen(false)}
-            onSave={(nextVariables) =>
-              environmentVariablesMutation.mutate(nextVariables)
-            }
-          />
+        {variablesDockOpen ? (
+          <div
+            className="agent-flow-editor__variables-dock"
+            data-testid="agent-flow-editor-variables-dock"
+            style={{ width: `${variablesDockWidth}px` }}
+          >
+            {systemVariablesOpen ? (
+              <SystemVariablesPanel
+                onClose={() => setSystemVariablesOpen(false)}
+              />
+            ) : (
+              <ApplicationEnvironmentVariablesPanel
+                loading={environmentVariablesMutation.isPending}
+                variables={environmentVariables}
+                onClose={() => setEnvironmentVariablesOpen(false)}
+                onSave={(nextVariables) =>
+                  environmentVariablesMutation.mutate(nextVariables)
+                }
+              />
+            )}
+          </div>
         ) : null}
         {selectedNodeId ? (
           <div
@@ -784,8 +816,8 @@ export function AgentFlowCanvasFrame({
             data-testid="agent-flow-editor-detail-dock"
             data-resizing={isResizingNodeDetail ? 'true' : 'false'}
             style={{
-              right: debugConsoleOpen
-                ? `${boundedDebugConsoleWidth + DEBUG_CONSOLE_GAP + 16}px`
+              right: sideDockOccupiedWidth
+                ? `${sideDockOccupiedWidth + 16}px`
                 : undefined,
               width: `${boundedNodeDetailWidth}px`
             }}
