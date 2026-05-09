@@ -1,7 +1,7 @@
 ---
 memory_type: project
 topic: application-public-api-decisions
-summary: 应用公开调用 API 方向确认：Key 只调用已发布版本；统一外部路由 `/api/1flowbase/runs`、OpenAI `/v1/chat/completions`、Anthropic `/v1/messages`；Key 绑定应用和创建人，用户仅看自己创建的 Key；Native payload 固定使用 `query/history` 表达当前轮与上下文，文件第一版以 `upload_file_id` 为主。
+summary: 应用公开调用 API 方向确认：Key 只调用已发布版本；统一外部路由 `/api/1flowbase/runs`、OpenAI `/v1/chat/completions`、Anthropic `/v1/messages`；Key 绑定应用和创建人，用户仅看自己创建的 Key；Native payload 固定使用 `query/model/history`，其中 `model` 是可选字符串且不做值校验。
 keywords:
   - application api
   - application api key
@@ -44,6 +44,7 @@ AgentFlow 已进入调试跑通阶段，下一阶段最重要业务是应用 API
 - 路由：Native 统一对外 `POST /api/1flowbase/runs`，所有应用类型共用；OpenAI 兼容 `/v1/chat/completions`；Anthropic 兼容 `/v1/messages`。
 - Native payload 不能只做 `inputs/response_mode/user/metadata`，必须重新设计，覆盖 query、文件图片、会话绑定、本地 agent 工具回调、流式、协议映射预留。
 - Native API 标准字段固定为 `query` 表达当前轮输入、`history` 表达外部上下文；OpenAI/Anthropic 兼容层都映射到这套 Native envelope，不在 Native API 里直接使用兼容协议的 `messages` 作为主结构。
+- Native API 增加与 `query` 同级的可选 `model` 字符串字段；平台只校验它是字符串，不校验值、不按它路由、不要求它匹配公开 serving id。后续节点怎么使用 `model` 由应用编排和 mapping 自己配置。
 - 文件输入第一版以 `upload_file_id` 为主；`url/base64` 作为协议预留，兼容层接到远程 URL 或 base64 时优先转换成内部 file record 后再进入 `attachments`。
 - 兼容协议第一版可以只支持 text chat，但需要为 tools / files / images 等下一步计划预留；不兼容功能必须在 API 文档中写明，调用方可基于 Native API 自己转换或通过插件扩展。
 - Streaming 是核心能力，第一版必须做。

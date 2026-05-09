@@ -104,6 +104,7 @@ Dify 可借鉴的不是路径命名本身，而是边界：
 17. 应用 API tab 直接复用文档组件，可分 tabs，不跳转全局 settings docs。
 18. 如果现有 API docs 组件抽象不够，需要抽成共享组件。
 19. 应用 API tab 可写入在线调试能力；前端不长期保存完整 Key。
+20. `model` 是 Native envelope 中与 `query` 同级的可选字符串字段；平台只校验字符串类型，不校验值、不按它路由、不要求它匹配公开 serving id，后续节点怎么使用由应用编排和 mapping 自己决定。
 
 ## 4. 设计原则
 
@@ -113,11 +114,12 @@ Dify 可借鉴的不是路径命名本身，而是边界：
 4. 发布版本快照必须不可变；编辑草稿、debug run 和 published run 分离。
 5. Native API 是第一等协议；兼容协议不能把第三方字段直接推进核心运行模型。
 6. `query` 是当前轮用户输入；`inputs` 是结构化业务变量；二者不能混用。
-7. `history` 是外部上下文，不替代服务端 conversation truth。
-8. 文件、图片、音频等输入统一进入 `attachments`；第一版稳定支持内部 `upload_file_id`。
-9. Streaming 默认只输出 assistant 文本增量；工作流公开事件需要显式开启。
-10. OpenAI / Anthropic 兼容接口要尽量模拟各自标准响应与错误结构，保障 SDK 体验。
-11. 应用 API 文档要面向当前应用和当前发布状态，而不是只展示全局 OpenAPI。
+7. `model` 是可选外部输入字段，只校验字符串类型；平台不把它当应用路由、provider model 或 serving id 校验源。
+8. `history` 是外部上下文，不替代服务端 conversation truth。
+9. 文件、图片、音频等输入统一进入 `attachments`；第一版稳定支持内部 `upload_file_id`。
+10. Streaming 默认只输出 assistant 文本增量；工作流公开事件需要显式开启。
+11. OpenAI / Anthropic 兼容接口要尽量模拟各自标准响应与错误结构，保障 SDK 体验。
+12. 应用 API 文档要面向当前应用和当前发布状态，而不是只展示全局 OpenAPI。
 
 ## 5. 范围
 
@@ -270,6 +272,7 @@ POST /api/1flowbase/files
 ```json
 {
   "query": "用户当前这一轮问题",
+  "model": "gpt-4o-mini",
   "inputs": {
     "customer_id": "c_123",
     "locale": "zh-CN"
@@ -325,6 +328,7 @@ POST /api/1flowbase/files
 | 字段 | 必填 | 语义 |
 |---|---:|---|
 | `query` | 是 | 当前这一轮用户输入，默认映射到 Start 主输入。 |
+| `model` | 否 | 可选字符串输入。平台只校验类型，不校验值、不参与路由、不要求匹配公开 serving id；节点后续怎么使用由应用编排和 mapping 决定。 |
 | `inputs` | 否 | 结构化业务变量，不放聊天正文。 |
 | `history` | 否 | 调用方传入的外部上下文。 |
 | `attachments` | 否 | 文件、图片、音频等输入资源。第一版稳定支持 `upload_file_id`。 |
@@ -476,7 +480,7 @@ Authorization: Bearer <application_api_key>
 | `stream` | `response_mode` |
 | `user` | `conversation.user` |
 | `metadata` | `metadata` |
-| `model` | 只做回显或日志，不参与路由 |
+| `model` | `model` |
 
 第一版不支持：
 
@@ -521,6 +525,7 @@ x-api-key: <application_api_key>
 | content blocks | `attachments` |
 | `stream` | `response_mode` |
 | `metadata.user_id` | `conversation.user` |
+| `model` | `model` |
 
 第一版不支持：
 
@@ -548,6 +553,7 @@ Streaming 输出模拟 Anthropic event stream。
 ```json
 {
   "input": {
+    "model_target": "start.model",
     "query_target": "start.query",
     "inputs_target": "start.inputs",
     "history_target": "start.history",
@@ -568,6 +574,7 @@ Streaming 输出模拟 Anthropic event stream。
 2. Mapping 保存到应用发布快照；公开运行使用 published mapping，不读编辑态 mapping。
 3. Mapping UI 在应用 API tab 内提供最小编辑能力。
 4. Mapping 配置错误会阻止发布，不能等到公开调用时才失败。
+5. `model_target` 可为空；为空时 Native `model` 只保留在 run request / metadata 中，不自动注入节点输入。
 
 ## 14. 应用详情 API Tab
 
@@ -749,6 +756,6 @@ cancelled
 1. 本设计没有把 `application_id` 放入外部调用 URL。
 2. 本设计固定 Key 调用已发布版本，不调用编辑草稿。
 3. 本设计没有把 OpenAI / Anthropic 字段直接作为核心运行模型。
-4. 本设计覆盖了 query、history、inputs、attachments、conversation、streaming、required action 和 mapping。
+4. 本设计覆盖了 query、model、history、inputs、attachments、conversation、streaming、required action 和 mapping。
 5. 本设计明确第一版 unsupported features 与后续扩展边界。
 6. 本设计保留 Root 通过其他方式查审计，不在应用 API Key 列表加特殊查看权限。
