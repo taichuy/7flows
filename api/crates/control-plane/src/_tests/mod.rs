@@ -1,4 +1,5 @@
 mod application;
+mod application_public_api;
 mod bootstrap_tests;
 mod capability_plugin_runtime_tests;
 mod data_source_service_tests;

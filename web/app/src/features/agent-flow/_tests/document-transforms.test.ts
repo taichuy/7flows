@@ -161,6 +161,11 @@ describe('agent flow document transforms', () => {
         description: 'User-facing model text'
       },
       {
+        key: 'usage',
+        title: '用量',
+        valueType: 'json'
+      },
+      {
         key: 'structured_output',
         title: '结构化输出',
         valueType: 'json'
@@ -182,6 +187,11 @@ describe('agent flow document transforms', () => {
         title: 'Final answer',
         valueType: 'string',
         description: 'User-facing model text'
+      },
+      {
+        key: 'usage',
+        title: '用量',
+        valueType: 'json'
       }
     ]);
   });

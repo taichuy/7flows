@@ -19,8 +19,7 @@
 - Create: `api/apps/api-server/src/routes/application_public_api/anthropic.rs`
 - Test: `api/crates/control-plane/src/_tests/application_public_api/openai_compat.rs`
 - Test: `api/crates/control-plane/src/_tests/application_public_api/anthropic_compat.rs`
-- Test: `api/apps/api-server/src/_tests/application_public_api/openai_routes.rs`
-- Test: `api/apps/api-server/src/_tests/application_public_api/anthropic_routes.rs`
+- Test: `api/apps/api-server/src/_tests/application_public_api/compat_routes.rs`
 - Modify: `api/apps/api-server/src/routes/application_public_api/mod.rs`
 - Modify: `api/apps/api-server/src/openapi.rs`
 
@@ -28,7 +27,7 @@
 
 ### Task 1: Add failing adapter tests
 
-- [ ] Add OpenAI mapper tests:
+- [x] Add OpenAI mapper tests:
   - Last user text maps to Native `query`.
   - Prior messages map to Native `history`.
   - `stream = true` maps to `response_mode = streaming`.
@@ -36,7 +35,7 @@
   - `metadata` maps to Native `metadata`.
   - `model` maps to Native `model` exactly and is not validated.
   - `tools`, `tool_choice`, `function_call`, audio output, and multimodal generation return `unsupported_feature`.
-- [ ] Add Anthropic mapper tests:
+- [x] Add Anthropic mapper tests:
   - `system` maps to system history context.
   - Last user text maps to Native `query`.
   - Prior messages map to Native `history`.
@@ -56,10 +55,10 @@ Expected: tests fail because adapters do not exist yet.
 
 ### Task 2: Implement OpenAI compatible mapper and error model
 
-- [ ] Define OpenAI request DTOs for Chat Completions v1 text-chat subset.
-- [ ] Convert text content parts and plain string content into Native text history.
-- [ ] Convert supported image/file content parts into Native `attachments`; URL and base64 sources must first be converted through the Native file service into internal file records.
-- [ ] Reject unsupported features with:
+- [x] Define OpenAI adapter parser and error model for Chat Completions v1 text-chat subset.
+- [x] Convert text content parts and plain string content into Native text history.
+- [x] Reject OpenAI image/file/audio/multimodal content outside the v1 text-chat subset with `unsupported_feature`; URL/base64 file conversion remains reserved for the later multimodal slice.
+- [x] Reject unsupported features with:
 
 ```json
 {
@@ -72,8 +71,8 @@ Expected: tests fail because adapters do not exist yet.
 }
 ```
 
-- [ ] Map Native errors into OpenAI error objects.
-- [ ] Add response DTOs for blocking chat completion object and streaming chunk.
+- [x] Map Native errors into OpenAI error objects.
+- [x] Add response DTOs for blocking chat completion object and streaming chunk.
 
 Run:
 
@@ -85,10 +84,11 @@ Expected: supported fields map to Native and unsupported features never reach Na
 
 ### Task 3: Implement Anthropic compatible mapper and error model
 
-- [ ] Define Anthropic Messages request DTOs for v1 text-chat subset.
-- [ ] Convert content blocks into Native text history and attachments; URL and base64 sources must first be converted through the Native file service into internal file records.
-- [ ] Accept `Authorization: Bearer <key>` and `x-api-key: <key>` at the route layer.
-- [ ] Reject unsupported features with:
+- [x] Define Anthropic adapter parser and error model for v1 text-chat subset.
+- [x] Convert text content blocks into Native text history.
+- [x] Reject Anthropic image/document/tool/computer-use blocks outside the v1 text-chat subset with `unsupported_feature`; URL/base64 file conversion remains reserved for the later multimodal slice.
+- [x] Accept `Authorization: Bearer <key>` and `x-api-key: <key>` at the route layer.
+- [x] Reject unsupported features with:
 
 ```json
 {
@@ -100,8 +100,8 @@ Expected: supported fields map to Native and unsupported features never reach Na
 }
 ```
 
-- [ ] Map Native errors into Anthropic error objects.
-- [ ] Add response DTOs for blocking message object and streaming event stream.
+- [x] Map Native errors into Anthropic error objects.
+- [x] Add response DTOs for blocking message object and streaming event stream.
 
 Run:
 
@@ -113,18 +113,18 @@ Expected: supported fields map to Native and Anthropic errors follow Anthropic o
 
 ### Task 4: Add compatible public routes
 
-- [ ] Add `POST /v1/chat/completions`.
-- [ ] Add `POST /v1/messages`.
-- [ ] Mount both routes at the root public router, not under `/api/console`.
-- [ ] Reuse Native authentication and Native run service.
-- [ ] Add route tests for:
+- [x] Add `POST /v1/chat/completions`.
+- [x] Add `POST /v1/messages`.
+- [x] Mount both routes at the root public router, not under `/api/console`.
+- [x] Reuse Native authentication and Native run service.
+- [x] Add route tests for:
   - Missing/invalid key.
   - No active publication.
   - Blocking success.
   - Streaming success.
   - Unsupported feature error shape.
   - Anthropic `x-api-key` authentication.
-- [ ] Register Utoipa paths and schemas.
+- [x] Register Utoipa paths and schemas.
 
 Run:
 
@@ -138,12 +138,12 @@ Expected: compatible routes are mounted at `/v1/*` and documented as application
 
 ### Task 5: Add streaming protocol translators
 
-- [ ] Translate Native `message.delta` into OpenAI `chat.completion.chunk` deltas.
-- [ ] Translate Native terminal event into OpenAI final chunk and `[DONE]`.
-- [ ] Translate Native `message.delta` into Anthropic `content_block_delta`.
-- [ ] Translate Native terminal event into Anthropic `message_delta` and `message_stop`.
-- [ ] Do not expose Native `workflow.event` through compatible streams.
-- [ ] Convert Native `required_action` waiting states into compatible errors with docs guidance to use Native API.
+- [x] Translate Native `message.delta` into OpenAI `chat.completion.chunk` deltas.
+- [x] Translate Native terminal event into OpenAI final chunk and `[DONE]`.
+- [x] Translate Native `message.delta` into Anthropic `content_block_delta`.
+- [x] Translate Native terminal event into Anthropic `message_delta` and `message_stop`.
+- [x] Do not expose Native `workflow.event` through compatible streams.
+- [x] Convert Native `required_action` waiting states into compatible errors with docs guidance to use Native API.
 
 Run:
 
@@ -153,6 +153,13 @@ cargo test -p api-server anthropic_routes -- --test-threads=1
 ```
 
 Expected: streaming output can be consumed as standard OpenAI or Anthropic event streams.
+
+## Verification Evidence
+
+- `cargo test -p control-plane openai_compat -- --test-threads=1` passed: 11 tests.
+- `cargo test -p control-plane anthropic_compat -- --test-threads=1` passed: 10 tests.
+- `cargo test -p api-server compat_routes -- --test-threads=1` passed: 6 tests.
+- `node scripts/node/verify-openapi.js` passed.
 
 ## Stop Conditions
 

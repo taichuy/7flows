@@ -24,7 +24,7 @@ pub use application::{
 };
 pub use audit::AuditLogRecord;
 pub use auth::{
-    ActorContext, ApiKeyDataModelAction, ApiKeyDataModelPermissionRecord, ApiKeyRecord,
+    ActorContext, ApiKeyDataModelAction, ApiKeyDataModelPermissionRecord, ApiKeyKind, ApiKeyRecord,
     AuthenticatorRecord, BoundRole, PermissionDefinition, RoleScopeKind, RoleTemplate,
     SessionRecord, UserAuthIdentity, UserRecord, UserStatus,
 };

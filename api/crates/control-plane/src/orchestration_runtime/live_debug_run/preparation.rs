@@ -147,6 +147,13 @@ where
             status: domain::FlowRunStatus::Queued,
             input_payload: command.input_payload,
             started_at: OffsetDateTime::now_utc(),
+            api_key_id: None,
+            publication_version_id: None,
+            external_user: None,
+            external_conversation_id: None,
+            external_trace_id: None,
+            compatibility_mode: None,
+            idempotency_key: None,
         })
         .await
 }

@@ -47,14 +47,14 @@
 
 ### Task 1: Add failing domain and storage tests
 
-- [ ] Add control-plane tests for `ApplicationApiKeyService`:
+- [x] Add control-plane tests for `ApplicationApiKeyService`:
   - Create returns an `apk_` token exactly once.
   - List only returns keys created by the current actor for the current application.
   - Revoke hides the key from list and makes it unusable.
   - Root does not get a special "view every user's key" list path.
   - Data Model `dmk_` keys still authenticate for Data Model runtime only.
-- [ ] Add storage tests proving `api_keys.key_kind` separates `data_model_api_key` and `application_api_key`.
-- [ ] Add publication tests:
+- [x] Add storage tests proving `api_keys.key_kind` separates `data_model_api_key` and `application_api_key`.
+- [x] Add publication tests:
   - Publishing creates an immutable `application_publication_versions` record.
   - Only one active publication exists per application.
   - Public lookup returns `application_not_published` when no active publication exists.
@@ -72,18 +72,18 @@ Expected: tests fail because the new types, tables, and services do not exist ye
 
 ### Task 2: Add migration for API key kind, mappings, and publications
 
-- [ ] Extend `api_keys` with:
+- [x] Extend `api_keys` with:
   - `key_kind text not null default 'data_model_api_key'`.
   - `application_id uuid null references applications(id) on delete cascade`.
   - Check constraint for `data_model_api_key` and `application_api_key`.
   - Check constraint requiring `application_id` when `key_kind = 'application_api_key'`.
   - Index `(application_id, creator_user_id, created_at desc, id desc)` for app key lists.
-- [ ] Add `application_api_mappings`:
+- [x] Add `application_api_mappings`:
   - `application_id uuid primary key references applications(id) on delete cascade`.
   - `mapping_config jsonb not null`.
   - `updated_by uuid not null references users(id)`.
   - `updated_at timestamptz not null default now()`.
-- [ ] Add `application_publication_versions`:
+- [x] Add `application_publication_versions`:
   - `id uuid primary key`.
   - `application_id`, `flow_id`, `flow_version_id`, `compiled_plan_id`.
   - `version_sequence bigint not null`.
@@ -93,7 +93,7 @@ Expected: tests fail because the new types, tables, and services do not exist ye
   - `created_by`, `created_at`.
   - Unique partial index `(application_id) where active`.
   - Unique index `(application_id, version_sequence)`.
-- [ ] Add `applications.api_enabled boolean not null default false`.
+- [x] Add `applications.api_enabled boolean not null default false`.
 
 Run:
 
@@ -105,13 +105,13 @@ Expected: migration applies cleanly and existing Data Model API key tests still 
 
 ### Task 3: Extend API key domain without changing Data Model runtime semantics
 
-- [ ] Add `domain::ApiKeyKind` with `DataModelApiKey` and `ApplicationApiKey`.
-- [ ] Extend `domain::ApiKeyRecord` with `key_kind` and `application_id`.
-- [ ] Extend `CreateApiKeyInput` with `key_kind` and `application_id`.
-- [ ] Keep `ApiKeyService::create_api_key` issuing `dmk_` Data Model keys and rejecting accidental `application_api_key` use through the old command.
-- [ ] Keep `ApiKeyService::authenticate_bearer_token` restricted to Data Model keys.
-- [ ] Add `ApplicationApiKeyService` that issues `apk_` tokens and authenticates application keys.
-- [ ] Add `ApplicationApiKeyActor` with:
+- [x] Add `domain::ApiKeyKind` with `DataModelApiKey` and `ApplicationApiKey`.
+- [x] Extend `domain::ApiKeyRecord` with `key_kind` and `application_id`.
+- [x] Extend `CreateApiKeyInput` with `key_kind` and `application_id`.
+- [x] Keep `ApiKeyService::create_api_key` issuing `dmk_` Data Model keys and rejecting accidental `application_api_key` use through the old command.
+- [x] Keep `ApiKeyService::authenticate_bearer_token` restricted to Data Model keys.
+- [x] Add `ApplicationApiKeyService` that issues `apk_` tokens and authenticates application keys.
+- [x] Add `ApplicationApiKeyActor` with:
   - `api_key_id`.
   - `application_id`.
   - `creator_user_id`.
@@ -129,7 +129,7 @@ Expected: Data Model API key tests still use `dmk_`; application key tests use `
 
 ### Task 4: Add application mapping and publication services
 
-- [ ] Add `ApplicationApiMappingConfig`:
+- [x] Add `ApplicationApiMappingConfig`:
   - `input.model_target: Option<String>`.
   - `input.query_target: String`.
   - `input.inputs_target: Option<String>`.
@@ -139,17 +139,17 @@ Expected: Data Model API key tests still use `dmk_`; application key tests use `
   - `output.usage_selector: Option<String>`.
   - `output.files_selector: Option<String>`.
   - `output.error_selector: Option<String>`.
-- [ ] Default mapping must use `query_target = "start.query"` and `model_target = null`.
-- [ ] Add selector validation that accepts dotted paths and `null`, rejects empty strings, wildcards, and array script syntax.
-- [ ] Add `ApplicationPublicationService::publish_active_version`:
+- [x] Default mapping must use `query_target = "start.query"` and `model_target = null`.
+- [x] Add selector validation that accepts dotted paths and `null`, rejects empty strings, wildcards, and array script syntax.
+- [x] Add `ApplicationPublicationService::publish_active_version`:
   - Loads the current flow editor state.
   - Freezes a protected flow version or creates one from current draft if needed.
   - Builds or reuses an immutable compiled plan for the document hash.
   - Validates mapping before publishing.
   - Deactivates previous publication and inserts the new active publication in one transaction.
   - Snapshots mapping, runtime profile metadata, output selector, document, and compiled plan id.
-- [ ] Add `ApplicationPublicationService::set_api_enabled`.
-- [ ] Add `ApplicationPublicationService::load_active_publication`.
+- [x] Add `ApplicationPublicationService::set_api_enabled`.
+- [x] Add `ApplicationPublicationService::load_active_publication`.
 
 Run:
 
@@ -161,7 +161,7 @@ Expected: active publication lookup is deterministic and mapping errors block pu
 
 ### Task 5: Add console routes for keys, mapping, and publishing
 
-- [ ] Add `api/apps/api-server/src/routes/applications/application_api.rs` with:
+- [x] Add `api/apps/api-server/src/routes/applications/application_api.rs` with:
   - `GET /api/console/applications/{application_id}/api-keys`.
   - `POST /api/console/applications/{application_id}/api-keys`.
   - `DELETE /api/console/applications/{application_id}/api-keys/{key_id}`.
@@ -170,10 +170,10 @@ Expected: active publication lookup is deterministic and mapping errors block pu
   - `GET /api/console/applications/{application_id}/api-publication`.
   - `POST /api/console/applications/{application_id}/api-publications`.
   - `PATCH /api/console/applications/{application_id}/api-status`.
-- [ ] Use session authentication and existing application permission checks for console management.
-- [ ] Return full key token only in create response.
-- [ ] Add route tests for same-user visibility, foreign-user invisibility, revoke, publish, and API enabled state.
-- [ ] Register routes in `routes/applications/mod.rs`, `routes/mod.rs`, `lib.rs`, and `openapi.rs`.
+- [x] Use session authentication and existing application permission checks for console management.
+- [x] Return full key token only in create response.
+- [x] Add route tests for same-user visibility, foreign-user invisibility, revoke, publish, and API enabled state.
+- [x] Register routes in `routes/applications/mod.rs`, `routes/mod.rs`, `lib.rs`, and `openapi.rs`.
 
 Run:
 
@@ -186,11 +186,11 @@ Expected: console routes are documented and do not change existing Data Model AP
 
 ### Task 6: Update application section status
 
-- [ ] Change application API section from planned-only status to active status when API keys, mapping, and active publication exist.
-- [ ] Keep `credential_kind = application_api_key`.
-- [ ] Keep `invoke_routing_mode = api_key_bound_application`.
-- [ ] Set `invoke_path_template` to `/api/1flowbase/runs`.
-- [ ] Add tests in application domain, mapper, and API route fixtures.
+- [x] Change application API section from planned-only status to active status when API keys, mapping, and active publication exist.
+- [x] Keep `credential_kind = application_api_key`.
+- [x] Keep `invoke_routing_mode = api_key_bound_application`.
+- [x] Set `invoke_path_template` to `/api/1flowbase/runs`.
+- [x] Add tests in application domain, mapper, and API route fixtures.
 
 Run:
 

@@ -1,4 +1,5 @@
 mod application;
+mod application_public_api;
 mod auth;
 mod data_source;
 mod file_management;
@@ -26,6 +27,7 @@ use time::OffsetDateTime;
 use uuid::Uuid;
 
 pub use application::*;
+pub use application_public_api::*;
 pub use auth::*;
 pub use data_source::*;
 pub use file_management::*;

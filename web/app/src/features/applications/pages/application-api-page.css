@@ -1,0 +1,90 @@
+.application-api-page {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  width: 100%;
+  min-width: 0;
+  gap: 20px;
+}
+
+.application-api-status,
+.application-api-panel {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: 8px;
+  padding: 20px;
+  overflow-wrap: anywhere;
+}
+
+.application-api-status .ant-alert {
+  max-width: 100%;
+}
+
+.application-api-status .ant-alert-description {
+  overflow-wrap: anywhere;
+}
+
+.application-api-status__main,
+.application-api-panel__stack,
+.application-api-docs-head,
+.application-api-token-modal {
+  width: 100%;
+  min-width: 0;
+}
+
+.application-api-status__endpoints {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  margin: 0;
+}
+
+.application-api-status__endpoint {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.application-api-status__endpoint dt {
+  color: var(--text-secondary);
+  font-size: 12px;
+}
+
+.application-api-status__endpoint dd {
+  margin: 0;
+  min-width: 0;
+  color: var(--text-primary);
+  font-family: var(--font-family-mono);
+  font-size: 13px;
+  overflow-wrap: anywhere;
+}
+
+.application-api-panel__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.application-api-mapping-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0 16px;
+}
+
+@media (max-width: 900px) {
+  .application-api-panel__header {
+    flex-direction: column;
+  }
+
+  .application-api-mapping-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .application-api-status__endpoints {
+    grid-template-columns: 1fr;
+  }
+}

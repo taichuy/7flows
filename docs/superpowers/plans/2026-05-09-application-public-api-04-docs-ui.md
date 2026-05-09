@@ -52,19 +52,19 @@
 
 ### Task 1: Add app-scoped public API docs routes
 
-- [ ] Add app-scoped docs builders in `api/apps/api-server/src/application_public_docs.rs`.
-- [ ] Add console docs routes under `api/apps/api-server/src/routes/applications/application_api.rs`:
+- [x] Add app-scoped docs builders in `api/apps/api-server/src/application_public_docs.rs`.
+- [x] Add console docs routes under `api/apps/api-server/src/routes/applications/application_api.rs`:
   - `GET /api/console/applications/{application_id}/api-docs/catalog`.
   - `GET /api/console/applications/{application_id}/api-docs/categories/{category_id}/operations`.
   - `GET /api/console/applications/{application_id}/api-docs/categories/{category_id}/openapi.json`.
   - `GET /api/console/applications/{application_id}/api-docs/operations/{operation_id}/openapi.json`.
-- [ ] Include categories:
+- [x] Include categories:
   - `Application Native API`.
   - `OpenAI Compatible API`.
   - `Anthropic Compatible API`.
-- [ ] Inject current application name, API enabled state, active publication version, mapping summary, and unsupported feature notes into app-scoped OpenAPI specs.
-- [ ] Keep public runtime paths as `/api/1flowbase/runs`, `/api/1flowbase/files`, `/v1/chat/completions`, and `/v1/messages`; do not include `application_id` in those docs paths.
-- [ ] Add route tests for permission checks, category filtering, operation specs, unsupported feature notes, and no public `application_id` path.
+- [x] Inject current application name, API enabled state, active publication version, mapping summary, and unsupported feature notes into app-scoped OpenAPI specs.
+- [x] Keep public runtime paths as `/api/1flowbase/runs`, `/api/1flowbase/files`, `/v1/chat/completions`, and `/v1/messages`; do not include `application_id` in those docs paths.
+- [x] Add route tests for permission checks, category filtering, operation specs, unsupported feature notes, and no public `application_id` path.
 
 Run:
 
@@ -75,9 +75,14 @@ node scripts/node/verify-openapi.js
 
 Expected: application-scoped docs are generated from the current app state and public operation paths stay application-id-free.
 
+Evidence:
+
+- `cargo test -p api-server application_api_docs_routes -- --test-threads=1` passed: 3 tests.
+- `node scripts/node/verify-openapi.js` passed.
+
 ### Task 2: Add API client DTOs and transport tests
 
-- [ ] Add DTOs and functions for:
+- [x] Add DTOs and functions for:
   - `listConsoleApplicationApiKeys`.
   - `createConsoleApplicationApiKey`.
   - `revokeConsoleApplicationApiKey`.
@@ -87,9 +92,9 @@ Expected: application-scoped docs are generated from the current app state and p
   - `publishConsoleApplicationApiVersion`.
   - `updateConsoleApplicationApiStatus`.
   - app-scoped docs catalog/category/operation spec.
-- [ ] Place new client code in `web/packages/api-client/src/application-public-api/index.ts` so the package root does not continue growing flat files.
-- [ ] Export the module from `web/packages/api-client/src/index.ts`.
-- [ ] Add transport tests proving paths include console `application_id` only for management/docs routes and never for public runtime examples.
+- [x] Place new client code in `web/packages/api-client/src/application-public-api/index.ts` so the package root does not continue growing flat files.
+- [x] Export the module from `web/packages/api-client/src/index.ts`.
+- [x] Add transport tests proving paths include console `application_id` only for management/docs routes and never for public runtime examples.
 
 Run:
 
@@ -99,19 +104,23 @@ pnpm --dir web/packages/api-client test -- application-public-api
 
 Expected: new client paths and payloads are covered.
 
+Evidence:
+
+- `pnpm --dir web/packages/api-client test -- application-public-api` passed.
+
 ### Task 3: Extract a reusable API docs explorer
 
-- [ ] Move the reusable viewer logic from `ApiDocsPanel.tsx` into `shared/ui/api-docs/ApiDocsExplorer.tsx`.
-- [ ] Make the explorer accept injected query keys and fetchers:
+- [x] Move the reusable viewer logic from `ApiDocsPanel.tsx` into `shared/ui/api-docs/ApiDocsExplorer.tsx`.
+- [x] Make the explorer accept injected query keys and fetchers:
   - catalog fetcher.
   - category operations fetcher.
   - operation spec fetcher.
   - base server URL.
   - authentication builder.
   - selected category/operation query-state adapter.
-- [ ] Keep Settings-specific session auth defaults in `features/settings/components/ApiDocsPanel.tsx`.
-- [ ] Move shared CSS to `shared/ui/api-docs/api-docs-explorer.css`; keep Settings-only wrapper CSS in Settings.
-- [ ] Preserve current Settings docs behavior and tests.
+- [x] Keep Settings-specific session auth defaults in `features/settings/components/ApiDocsPanel.tsx`.
+- [x] Move shared CSS to `shared/ui/api-docs/api-docs-explorer.css`; keep Settings-only wrapper CSS in Settings.
+- [x] Preserve current Settings docs behavior and tests.
 
 Run:
 
@@ -121,17 +130,22 @@ pnpm --dir web/app test -- api-docs-panel
 
 Expected: Settings docs still search categories/operations and render Scalar with session/csrf auth.
 
+Evidence:
+
+- `pnpm --dir web/app test -- api-docs-panel` is currently excluded by the app test wrapper and returned no files.
+- `cd web/app && node ../../scripts/node/run-frontend-vitest.js run src/features/settings/_tests/api-docs-panel.test.tsx` passed: 9 tests.
+
 ### Task 4: Add Application API page shell
 
-- [ ] Lazy-load `ApplicationApiPage` from `ApplicationDetailPage` when `requestedSectionKey === 'api'`.
-- [ ] Keep API section content width `wide`.
-- [ ] Add top status bar showing:
+- [x] Lazy-load `ApplicationApiPage` from `ApplicationDetailPage` when `requestedSectionKey === 'api'`.
+- [x] Keep API section content width `wide`.
+- [x] Add top status bar showing:
   - API enabled state.
   - active publication version.
   - Native path `/api/1flowbase/runs`.
   - compatible paths `/v1/chat/completions` and `/v1/messages`.
-- [ ] Add tabs `[API Keys] [Native API] [OpenAI Compatible] [Anthropic Compatible] [Mapping] [Debug]`.
-- [ ] When no active publication exists, show a blocking operational state and publish action, not a generic empty panel.
+- [x] Add tabs `[API Keys] [Native API] [OpenAI Compatible] [Anthropic Compatible] [Mapping] [Debug]`.
+- [x] When no active publication exists, show a blocking operational state and publish action, not a generic empty panel.
 
 Run:
 
@@ -141,14 +155,18 @@ pnpm --dir web/app test -- application-api-page
 
 Expected: Application detail API section no longer renders the planned fallback state.
 
+Evidence:
+
+- `cd web/app && node ../../scripts/node/run-frontend-vitest.js run src/features/applications/_tests/application-api-page.test.tsx` passed.
+
 ### Task 5: Add API keys panel
 
-- [ ] Render keys in an Ant Design table with name, prefix, created time, and revoke action.
-- [ ] Add create modal with key name.
-- [ ] Show full token once after creation in a modal.
-- [ ] Keep the created token in component memory only; do not write it to localStorage, URL, or persisted store.
-- [ ] Invalidate key list and application detail queries after create/revoke.
-- [ ] Add tests for one-time token display and no persisted token writes.
+- [x] Render keys in an Ant Design table with name, prefix, created time, and revoke action.
+- [x] Add create modal with key name.
+- [x] Show full token once after creation in a modal.
+- [x] Keep the created token in component memory only; do not write it to localStorage, URL, or persisted store.
+- [x] Invalidate key list and application detail queries after create/revoke.
+- [x] Add tests for one-time token display and no persisted token writes.
 
 Run:
 
@@ -158,14 +176,18 @@ pnpm --dir web/app test -- application-api-page
 
 Expected: key lifecycle works through query/mutation boundaries.
 
+Evidence:
+
+- `cd web/app && node ../../scripts/node/run-frontend-vitest.js run src/features/applications/_tests/application-api-page.test.tsx` passed.
+
 ### Task 6: Add docs tabs for Native, OpenAI, and Anthropic
 
-- [ ] Add `ApplicationApiDocsPanel` that wraps `ApiDocsExplorer` with app-scoped fetchers.
-- [ ] Set Native tab default category to `Application Native API`.
-- [ ] Set OpenAI tab default category to `OpenAI Compatible API`.
-- [ ] Set Anthropic tab default category to `Anthropic Compatible API`.
-- [ ] Show current app name, API status, active publication, and unsupported features above the docs explorer.
-- [ ] Ensure selecting docs inside the app updates only app-local query state and does not navigate to `/settings/docs`.
+- [x] Add `ApplicationApiDocsPanel` that wraps `ApiDocsExplorer` with app-scoped fetchers.
+- [x] Set Native tab default category to `Application Native API`.
+- [x] Set OpenAI tab default category to `OpenAI Compatible API`.
+- [x] Set Anthropic tab default category to `Anthropic Compatible API`.
+- [x] Show current app name, API status, active publication, and unsupported features above the docs explorer.
+- [x] Ensure selecting docs inside the app updates only app-local query state and does not navigate to `/settings/docs`.
 
 Run:
 
@@ -175,9 +197,13 @@ pnpm --dir web/app test -- application-api-docs api-docs-panel
 
 Expected: app docs render with injected data and no Settings route navigation.
 
+Evidence:
+
+- `cd web/app && node ../../scripts/node/run-frontend-vitest.js run src/features/applications/_tests/application-api-docs.test.tsx src/features/settings/_tests/api-docs-panel.test.tsx` passed.
+
 ### Task 7: Add mapping panel
 
-- [ ] Add editable fields for:
+- [x] Add editable fields for:
   - `model_target` nullable.
   - `query_target`.
   - `inputs_target`.
@@ -187,11 +213,11 @@ Expected: app docs render with injected data and no Settings route navigation.
   - `usage_selector`.
   - `files_selector`.
   - `error_selector`.
-- [ ] Make `model_target` optional and label it as "pass-through target".
-- [ ] Explain through concise field help that empty `model_target` keeps `model` in request metadata and does not inject node input.
-- [ ] Validate obvious empty/invalid selector strings in the form before submit.
-- [ ] Save mapping through `PUT /api/console/applications/{id}/api-mapping`.
-- [ ] Display publication warning when saved mapping differs from active published mapping.
+- [x] Make `model_target` optional and label it as "pass-through target".
+- [x] Explain through concise field help that empty `model_target` keeps `model` in request metadata and does not inject node input.
+- [x] Validate obvious empty/invalid selector strings in the form before submit.
+- [x] Save mapping through `PUT /api/console/applications/{id}/api-mapping`.
+- [x] Display publication warning when saved mapping differs from active published mapping.
 
 Run:
 
@@ -201,14 +227,18 @@ pnpm --dir web/app test -- application-api-page
 
 Expected: mapping edits preserve nullable `model_target` and invalid strings are blocked before mutation.
 
+Evidence:
+
+- Covered by component implementation and `application-api-page` compile/render test; detailed mapping mutation is included in 05 targeted frontend verification.
+
 ### Task 8: Add online debug panel
 
-- [ ] Add a segmented mode control for Native/OpenAI/Anthropic request examples.
-- [ ] Let users paste an API key or use the just-created in-memory token.
-- [ ] Add editable request body for Native `query`, `inputs`, `history`, `attachments`, and `response_mode`.
-- [ ] For compatible modes, show request examples and streaming examples rather than exposing unsupported feature controls.
-- [ ] Run requests against the public endpoints and render response/errors.
-- [ ] Clear in-memory token when the component unmounts or key modal closes without pinning it.
+- [x] Add a segmented mode control for Native/OpenAI/Anthropic request examples.
+- [x] Let users paste an API key or use the just-created in-memory token.
+- [x] Add editable request body for Native `query`, `inputs`, `history`, `attachments`, and `response_mode`.
+- [x] For compatible modes, show request examples and streaming examples rather than exposing unsupported feature controls.
+- [x] Run requests against the public endpoints and render response/errors.
+- [x] Clear in-memory token when the component unmounts or key modal closes without pinning it.
 
 Run:
 
@@ -217,6 +247,10 @@ pnpm --dir web/app test -- application-api-page
 ```
 
 Expected: debug panel can run Native blocking requests and does not persist full keys.
+
+Evidence:
+
+- `application-api-page` test verifies one-time token stays out of storage and URL; runtime request execution is included in 05 targeted frontend verification.
 
 ## Stop Conditions
 

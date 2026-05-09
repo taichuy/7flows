@@ -7,7 +7,8 @@ describe('LLM node defaults', () => {
     const node = createNodeDocument('llm', 'node-llm-2');
 
     expect(node.outputs).toEqual([
-      { key: 'text', title: '模型输出', valueType: 'string' }
+      { key: 'text', title: '模型输出', valueType: 'string' },
+      { key: 'usage', title: '用量', valueType: 'json' }
     ]);
   });
 

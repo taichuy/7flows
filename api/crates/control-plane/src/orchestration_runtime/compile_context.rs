@@ -8,7 +8,7 @@ use crate::{
     ports::{ModelProviderRepository, NodeContributionRepository, PluginRepository},
 };
 
-pub(super) async fn build_compile_context<R>(
+pub(crate) async fn build_compile_context<R>(
     repository: &R,
     workspace_id: Uuid,
 ) -> Result<orchestration_runtime::compiler::FlowCompileContext>

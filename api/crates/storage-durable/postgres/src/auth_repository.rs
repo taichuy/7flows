@@ -54,6 +54,8 @@ fn map_api_key_row(row: sqlx::postgres::PgRow) -> ApiKeyRecord {
         name: row.get("name"),
         token_hash: row.get("token_hash"),
         token_prefix: row.get("token_prefix"),
+        key_kind: domain::ApiKeyKind::from_db(row.get::<String, _>("key_kind").as_str()),
+        application_id: row.get("application_id"),
         creator_user_id: row.get("creator_user_id"),
         tenant_id: row.get("tenant_id"),
         scope_kind: domain::DataModelScopeKind::from_db(
@@ -742,11 +744,12 @@ impl ApiKeyRepository for PgControlPlaneStore {
             r#"
             insert into api_keys (
                 id, name, token_hash, token_prefix, creator_user_id, tenant_id,
-                scope_kind, scope_id, enabled, expires_at
+                scope_kind, scope_id, key_kind, application_id, enabled, expires_at
             )
-            values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+            values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
             returning id, name, token_hash, token_prefix, creator_user_id, tenant_id,
-                      scope_kind, scope_id, enabled, expires_at, created_at, updated_at
+                      scope_kind, scope_id, key_kind, application_id, enabled, expires_at,
+                      created_at, updated_at
             "#,
         )
         .bind(input.id)
@@ -757,6 +760,8 @@ impl ApiKeyRepository for PgControlPlaneStore {
         .bind(input.tenant_id)
         .bind(input.scope_kind.as_str())
         .bind(input.scope_id)
+        .bind(input.key_kind.as_str())
+        .bind(input.application_id)
         .bind(input.enabled)
         .bind(input.expires_at)
         .fetch_one(self.pool())
@@ -805,7 +810,8 @@ impl ApiKeyRepository for PgControlPlaneStore {
         let row = sqlx::query(
             r#"
             select id, name, token_hash, token_prefix, creator_user_id, tenant_id,
-                   scope_kind, scope_id, enabled, expires_at, created_at, updated_at
+                   scope_kind, scope_id, key_kind, application_id, enabled, expires_at,
+                   created_at, updated_at
             from api_keys
             where token_hash = $1
             "#,
@@ -815,6 +821,61 @@ impl ApiKeyRepository for PgControlPlaneStore {
         .await?;
 
         Ok(row.map(map_api_key_row))
+    }
+
+    async fn list_application_api_keys(
+        &self,
+        application_id: Uuid,
+        creator_user_id: Uuid,
+    ) -> Result<Vec<ApiKeyRecord>> {
+        let rows = sqlx::query(
+            r#"
+            select id, name, token_hash, token_prefix, creator_user_id, tenant_id,
+                   scope_kind, scope_id, key_kind, application_id, enabled, expires_at,
+                   created_at, updated_at
+            from api_keys
+            where key_kind = 'application_api_key'
+              and application_id = $1
+              and creator_user_id = $2
+              and enabled = true
+            order by created_at desc, id desc
+            "#,
+        )
+        .bind(application_id)
+        .bind(creator_user_id)
+        .fetch_all(self.pool())
+        .await?;
+
+        Ok(rows.into_iter().map(map_api_key_row).collect())
+    }
+
+    async fn revoke_application_api_key(
+        &self,
+        api_key_id: Uuid,
+        application_id: Uuid,
+        creator_user_id: Uuid,
+    ) -> Result<()> {
+        let result = sqlx::query(
+            r#"
+            update api_keys
+            set enabled = false,
+                updated_at = now()
+            where id = $1
+              and key_kind = 'application_api_key'
+              and application_id = $2
+              and creator_user_id = $3
+            "#,
+        )
+        .bind(api_key_id)
+        .bind(application_id)
+        .bind(creator_user_id)
+        .execute(self.pool())
+        .await?;
+        if result.rows_affected() == 0 {
+            return Err(anyhow!("application_api_key not found"));
+        }
+
+        Ok(())
     }
 
     async fn list_api_key_data_model_permissions(

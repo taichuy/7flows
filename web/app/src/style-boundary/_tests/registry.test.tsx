@@ -45,16 +45,24 @@ describe('style boundary registry', () => {
       'component.account-trigger',
       'page.home',
       'page.application-detail',
+      'page.application-api',
       'page.embedded-apps',
       'page.tools',
       'page.settings',
+      'page.settings-docs',
       'page.me'
     ]);
     expect(
       getSceneIdsForFiles([
         'web/app/src/shared/ui/section-page-layout/SectionPageLayout.tsx'
       ])
-    ).toEqual(['page.application-detail', 'page.settings', 'page.me']);
+    ).toEqual([
+      'page.application-detail',
+      'page.application-api',
+      'page.settings',
+      'page.settings-docs',
+      'page.me'
+    ]);
     expect(
       getSceneIdsForFiles(['web/app/src/features/me/pages/me-page.css'])
     ).toEqual(['page.me']);

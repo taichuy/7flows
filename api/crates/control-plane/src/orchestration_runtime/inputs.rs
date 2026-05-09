@@ -11,7 +11,7 @@ use crate::ports::{
 
 use super::payloads::persisted_node_output_payload;
 
-pub(super) fn build_compiled_plan_input(
+pub(crate) fn build_compiled_plan_input(
     actor_user_id: Uuid,
     editor_state: &domain::FlowEditorState,
     compiled_plan: &orchestration_runtime::compiled_plan::CompiledPlan,
@@ -38,12 +38,12 @@ pub(super) fn build_compiled_plan_input(
     })
 }
 
-pub(super) fn flow_document_hash(document: &serde_json::Value) -> String {
+pub(crate) fn flow_document_hash(document: &serde_json::Value) -> String {
     let bytes = serde_json::to_vec(document).unwrap_or_default();
     format!("sha256:{:x}", Sha256::digest(bytes))
 }
 
-pub(super) fn flow_document_schema_version(
+pub(crate) fn flow_document_schema_version(
     editor_state: &domain::FlowEditorState,
     document: &serde_json::Value,
 ) -> String {
@@ -77,6 +77,13 @@ pub(super) fn build_flow_run_input(
         status: domain::FlowRunStatus::Running,
         input_payload: command.input_payload.clone(),
         started_at,
+        api_key_id: None,
+        publication_version_id: None,
+        external_user: None,
+        external_conversation_id: None,
+        external_trace_id: None,
+        compatibility_mode: None,
+        idempotency_key: None,
     }
 }
 

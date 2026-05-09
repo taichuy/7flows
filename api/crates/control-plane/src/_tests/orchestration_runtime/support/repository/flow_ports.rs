@@ -241,6 +241,29 @@ impl FlowRepository for InMemoryOrchestrationRuntimeRepository {
         )
         .await
     }
+
+    async fn update_version_metadata(
+        &self,
+        workspace_id: Uuid,
+        application_id: Uuid,
+        actor_user_id: Uuid,
+        version_id: Uuid,
+        summary: Option<String>,
+        summary_is_custom: Option<bool>,
+        is_protected: Option<bool>,
+    ) -> Result<domain::FlowEditorState> {
+        FlowRepository::update_version_metadata(
+            &self.flow,
+            workspace_id,
+            application_id,
+            actor_user_id,
+            version_id,
+            summary,
+            summary_is_custom,
+            is_protected,
+        )
+        .await
+    }
 }
 
 #[async_trait]

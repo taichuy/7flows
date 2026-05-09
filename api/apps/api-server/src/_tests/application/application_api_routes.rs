@@ -1,0 +1,458 @@
+use crate::_tests::support::{
+    create_member, create_role, login_and_capture_cookie, replace_member_roles,
+    replace_role_permissions, test_app,
+};
+use axum::{
+    body::{to_bytes, Body},
+    http::{Request, StatusCode},
+    Router,
+};
+use serde_json::{json, Value};
+use tower::ServiceExt;
+use uuid::Uuid;
+
+async fn response_json(response: axum::response::Response) -> Value {
+    let body = to_bytes(response.into_body(), usize::MAX).await.unwrap();
+    serde_json::from_slice(&body).unwrap()
+}
+
+async fn create_application(app: &Router, cookie: &str, csrf: &str, name: &str) -> String {
+    let response = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/console/applications")
+                .header("cookie", cookie)
+                .header("x-csrf-token", csrf)
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    json!({
+                        "application_type": "agent_flow",
+                        "name": name,
+                        "description": "application public api test",
+                        "icon": null,
+                        "icon_type": null,
+                        "icon_background": null
+                    })
+                    .to_string(),
+                ))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+
+    assert_eq!(response.status(), StatusCode::CREATED);
+    let payload = response_json(response).await;
+    payload["data"]["id"].as_str().unwrap().to_string()
+}
+
+async fn create_member_with_permissions(
+    app: &Router,
+    root_cookie: &str,
+    root_csrf: &str,
+    permissions: &[&str],
+) -> (String, String) {
+    let suffix = Uuid::now_v7().to_string().replace('-', "");
+    let account = format!("app_api_member_{}", &suffix[..16]);
+    let role_code = format!("app_api_role_{}", &suffix[16..32]);
+    let member_id = create_member(app, root_cookie, root_csrf, &account, "temp-pass").await;
+    create_role(app, root_cookie, root_csrf, &role_code).await;
+    replace_role_permissions(app, root_cookie, root_csrf, &role_code, permissions).await;
+    replace_member_roles(app, root_cookie, root_csrf, &member_id, &[&role_code]).await;
+    login_and_capture_cookie(app, &account, "temp-pass").await
+}
+
+#[tokio::test]
+async fn application_api_key_routes_create_list_hide_token_filter_and_revoke() {
+    let app = test_app().await;
+    let (root_cookie, root_csrf) = login_and_capture_cookie(&app, "root", "change-me").await;
+    let application_id = create_application(&app, &root_cookie, &root_csrf, "API Key App").await;
+
+    let create = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri(format!(
+                    "/api/console/applications/{application_id}/api-keys"
+                ))
+                .header("cookie", &root_cookie)
+                .header("x-csrf-token", &root_csrf)
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    json!({
+                        "name": "Server key",
+                        "expires_at": null
+                    })
+                    .to_string(),
+                ))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+
+    assert_eq!(create.status(), StatusCode::CREATED);
+    let create_payload = response_json(create).await;
+    let key_id = create_payload["data"]["id"].as_str().unwrap().to_string();
+    let token = create_payload["data"]["token"].as_str().unwrap();
+    let token_prefix = create_payload["data"]["token_prefix"].as_str().unwrap();
+    assert!(token.starts_with("apk_"));
+    assert!(token.starts_with(token_prefix));
+
+    let list = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .uri(format!(
+                    "/api/console/applications/{application_id}/api-keys"
+                ))
+                .header("cookie", &root_cookie)
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(list.status(), StatusCode::OK);
+    let list_payload = response_json(list).await;
+    assert_eq!(list_payload["data"].as_array().unwrap().len(), 1);
+    assert_eq!(
+        list_payload["data"][0]["token_prefix"].as_str(),
+        Some(token_prefix)
+    );
+    assert!(list_payload["data"][0].get("token").is_none());
+
+    let (member_cookie, _) =
+        create_member_with_permissions(&app, &root_cookie, &root_csrf, &["application.view.all"])
+            .await;
+    let foreign_list = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .uri(format!(
+                    "/api/console/applications/{application_id}/api-keys"
+                ))
+                .header("cookie", &member_cookie)
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(foreign_list.status(), StatusCode::OK);
+    let foreign_payload = response_json(foreign_list).await;
+    assert_eq!(foreign_payload["data"].as_array().unwrap().len(), 0);
+
+    let (foreign_editor_cookie, foreign_editor_csrf) = create_member_with_permissions(
+        &app,
+        &root_cookie,
+        &root_csrf,
+        &["application.view.all", "application.edit.all"],
+    )
+    .await;
+    let foreign_revoke = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("DELETE")
+                .uri(format!(
+                    "/api/console/applications/{application_id}/api-keys/{key_id}"
+                ))
+                .header("cookie", &foreign_editor_cookie)
+                .header("x-csrf-token", &foreign_editor_csrf)
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(foreign_revoke.status(), StatusCode::NOT_FOUND);
+
+    let revoke = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("DELETE")
+                .uri(format!(
+                    "/api/console/applications/{application_id}/api-keys/{key_id}"
+                ))
+                .header("cookie", &root_cookie)
+                .header("x-csrf-token", &root_csrf)
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(revoke.status(), StatusCode::NO_CONTENT);
+
+    let list_after_revoke = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .uri(format!(
+                    "/api/console/applications/{application_id}/api-keys"
+                ))
+                .header("cookie", &root_cookie)
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(list_after_revoke.status(), StatusCode::OK);
+    let list_after_revoke_payload = response_json(list_after_revoke).await;
+    assert_eq!(
+        list_after_revoke_payload["data"].as_array().unwrap().len(),
+        0
+    );
+}
+
+#[tokio::test]
+async fn application_api_mapping_routes_get_and_replace_nullable_model_target() {
+    let app = test_app().await;
+    let (cookie, csrf) = login_and_capture_cookie(&app, "root", "change-me").await;
+    let application_id = create_application(&app, &cookie, &csrf, "Mapping App").await;
+
+    let default_mapping = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .uri(format!(
+                    "/api/console/applications/{application_id}/api-mapping"
+                ))
+                .header("cookie", &cookie)
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(default_mapping.status(), StatusCode::OK);
+    let default_payload = response_json(default_mapping).await;
+    assert_eq!(
+        default_payload["data"]["input"]["query_target"].as_str(),
+        Some("start.query")
+    );
+    assert!(default_payload["data"]["input"]["model_target"].is_null());
+
+    let replace = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("PUT")
+                .uri(format!(
+                    "/api/console/applications/{application_id}/api-mapping"
+                ))
+                .header("cookie", &cookie)
+                .header("x-csrf-token", &csrf)
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    json!({
+                        "input": {
+                            "query_target": "start.prompt",
+                            "model_target": null,
+                            "inputs_target": "start.inputs",
+                            "history_target": null,
+                            "attachments_target": "start.files"
+                        },
+                        "output": {
+                            "answer_selector": "end.answer",
+                            "usage_selector": null,
+                            "files_selector": "end.files",
+                            "error_selector": "end.error"
+                        }
+                    })
+                    .to_string(),
+                ))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(replace.status(), StatusCode::OK);
+    let replace_payload = response_json(replace).await;
+    assert_eq!(
+        replace_payload["data"]["input"]["query_target"].as_str(),
+        Some("start.prompt")
+    );
+    assert!(replace_payload["data"]["input"]["model_target"].is_null());
+    assert_eq!(
+        replace_payload["data"]["output"]["answer_selector"].as_str(),
+        Some("end.answer")
+    );
+}
+
+#[tokio::test]
+async fn application_api_publication_routes_publish_and_patch_api_enabled_state() {
+    let app = test_app().await;
+    let (cookie, csrf) = login_and_capture_cookie(&app, "root", "change-me").await;
+    let application_id = create_application(&app, &cookie, &csrf, "Publication App").await;
+
+    let mapping = json!({
+        "input": {
+            "query_target": "start.query",
+            "model_target": null,
+            "inputs_target": null,
+            "history_target": null,
+            "attachments_target": null
+        },
+        "output": {
+            "answer_selector": null,
+            "usage_selector": null,
+            "files_selector": null,
+            "error_selector": null
+        }
+    });
+
+    let create_key = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri(format!(
+                    "/api/console/applications/{application_id}/api-keys"
+                ))
+                .header("cookie", &cookie)
+                .header("x-csrf-token", &csrf)
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    json!({
+                        "name": "Publication key",
+                        "expires_at": null
+                    })
+                    .to_string(),
+                ))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(create_key.status(), StatusCode::CREATED);
+
+    let replace_mapping = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("PUT")
+                .uri(format!(
+                    "/api/console/applications/{application_id}/api-mapping"
+                ))
+                .header("cookie", &cookie)
+                .header("x-csrf-token", &csrf)
+                .header("content-type", "application/json")
+                .body(Body::from(mapping.to_string()))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(replace_mapping.status(), StatusCode::OK);
+
+    let publish = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri(format!(
+                    "/api/console/applications/{application_id}/api-publications"
+                ))
+                .header("cookie", &cookie)
+                .header("x-csrf-token", &csrf)
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    json!({
+                        "mapping": mapping,
+                        "api_enabled": true
+                    })
+                    .to_string(),
+                ))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(publish.status(), StatusCode::CREATED);
+    let publish_payload = response_json(publish).await;
+    assert_eq!(
+        publish_payload["data"]["application_id"].as_str(),
+        Some(application_id.as_str())
+    );
+    assert_eq!(
+        publish_payload["data"]["version_sequence"].as_i64(),
+        Some(1)
+    );
+    assert_eq!(publish_payload["data"]["active"].as_bool(), Some(true));
+    assert_eq!(publish_payload["data"]["api_enabled"].as_bool(), Some(true));
+    assert_eq!(
+        publish_payload["data"]["public_url"].as_str(),
+        Some("/api/1flowbase/runs")
+    );
+
+    let patch_status = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("PATCH")
+                .uri(format!(
+                    "/api/console/applications/{application_id}/api-status"
+                ))
+                .header("cookie", &cookie)
+                .header("x-csrf-token", &csrf)
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    json!({
+                        "api_enabled": false
+                    })
+                    .to_string(),
+                ))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(patch_status.status(), StatusCode::OK);
+    let patch_status_payload = response_json(patch_status).await;
+    assert_eq!(
+        patch_status_payload["data"]["api_enabled"].as_bool(),
+        Some(false)
+    );
+
+    let active_publication = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .uri(format!(
+                    "/api/console/applications/{application_id}/api-publication"
+                ))
+                .header("cookie", &cookie)
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(active_publication.status(), StatusCode::OK);
+    let active_payload = response_json(active_publication).await;
+    assert_eq!(active_payload["data"]["api_enabled"].as_bool(), Some(false));
+    assert_eq!(
+        active_payload["data"]["public_url"].as_str(),
+        Some("/api/1flowbase/runs")
+    );
+    assert!(active_payload["data"]["mapping_snapshot"]["input"]["model_target"].is_null());
+
+    let detail = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .uri(format!("/api/console/applications/{application_id}"))
+                .header("cookie", &cookie)
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(detail.status(), StatusCode::OK);
+    let detail_payload = response_json(detail).await;
+    assert_eq!(
+        detail_payload["data"]["sections"]["api"]["status"].as_str(),
+        Some("active")
+    );
+    assert_eq!(
+        detail_payload["data"]["sections"]["api"]["invoke_path_template"].as_str(),
+        Some("/api/1flowbase/runs")
+    );
+    assert_eq!(
+        detail_payload["data"]["sections"]["api"]["api_capability_status"].as_str(),
+        Some("disabled")
+    );
+}

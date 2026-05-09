@@ -7,6 +7,7 @@ use uuid::Uuid;
 pub enum FlowRunMode {
     DebugNodePreview,
     DebugFlowRun,
+    PublishedApiRun,
 }
 
 impl FlowRunMode {
@@ -14,6 +15,7 @@ impl FlowRunMode {
         match self {
             Self::DebugNodePreview => "debug_node_preview",
             Self::DebugFlowRun => "debug_flow_run",
+            Self::PublishedApiRun => "published_api_run",
         }
     }
 }
@@ -129,6 +131,13 @@ pub struct FlowRunRecord {
     pub output_payload: serde_json::Value,
     pub error_payload: Option<serde_json::Value>,
     pub created_by: Uuid,
+    pub api_key_id: Option<Uuid>,
+    pub publication_version_id: Option<Uuid>,
+    pub external_user: Option<String>,
+    pub external_conversation_id: Option<String>,
+    pub external_trace_id: Option<String>,
+    pub compatibility_mode: Option<String>,
+    pub idempotency_key: Option<String>,
     pub started_at: OffsetDateTime,
     pub finished_at: Option<OffsetDateTime>,
     pub created_at: OffsetDateTime,

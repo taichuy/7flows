@@ -67,7 +67,7 @@ describe('debug preview responsive layout CSS', () => {
 
   test('lets the preview shell expand inside the shared dock container', () => {
     expect(
-      cssBlock(shellCss, '.agent-flow-editor__debug-console')
+      cssBlock(shellCss, '.agent-flow-editor__dock-panel')
     ).toMatch(/flex:\s*1\b/);
   });
 

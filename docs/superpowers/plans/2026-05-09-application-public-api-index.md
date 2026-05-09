@@ -33,30 +33,61 @@ The plan was created after commit `b9ae568e Clarify public API model passthrough
 
 ## Child Plans
 
-- [ ] **01 Publication And API Key Core:** `docs/superpowers/plans/2026-05-09-application-public-api-01-publication-api-key-core.md`
+- [x] **01 Publication And API Key Core:** `docs/superpowers/plans/2026-05-09-application-public-api-01-publication-api-key-core.md`
   - Adds application API key storage and console management.
   - Adds active published version, API enabled state, and mapping snapshot boundaries.
   - Preserves Data Model API key behavior.
+  - [x] Task 1 RED tests added and verified failing against missing application public API core.
+  - [x] Task 2 migration added and storage migration tests verified.
+  - [x] Task 3 application API key domain/service added; publication/mapping tests remain red for Task 4.
+  - [x] Task 4 mapping and publication service boundary added; control-plane application_public_api tests pass.
+  - [x] Task 5 console application API routes added and route/OpenAPI checks passed.
+  - [x] Task 6 application API section status now reflects key + mapping + active publication state.
 
-- [ ] **02 Native Run Service And Public Routes:** `docs/superpowers/plans/2026-05-09-application-public-api-02-native-run-service-routes.md`
+- [x] **02 Native Run Service And Public Routes:** `docs/superpowers/plans/2026-05-09-application-public-api-02-native-run-service-routes.md`
   - Adds Native `/api/1flowbase/runs`, run read, resume, cancel, and file upload.
   - Adds published API run mode, conversation binding, audit metadata, and Native SSE.
   - Ensures `model` is type-only pass-through and only injected when `model_target` is configured.
+  - [x] Task 1 RED tests added for Native request contract and public route behavior.
+  - [x] Task 2 published run persistence state added with run metadata round-trip coverage.
+  - [x] Task 3 Native envelope types and input mapper added; model remains pass-through.
+  - [x] Task 4 published-flow execution, blocking result, idempotency, and terminal audit added.
+  - [x] Task 5 read/cancel/resume and conversation binding added; public resume route delegates to existing callback completion.
+  - [x] Task 6 public Native run/file routes mounted with Native error mapping and OpenAPI coverage.
+  - [x] Task 7 Native SSE maps runtime events to public event names and filters debug internals.
 
-- [ ] **03 OpenAI And Anthropic Compatible Adapters:** `docs/superpowers/plans/2026-05-09-application-public-api-03-compatible-adapters.md`
+- [x] **03 OpenAI And Anthropic Compatible Adapters:** `docs/superpowers/plans/2026-05-09-application-public-api-03-compatible-adapters.md`
   - Adds `/v1/chat/completions` and `/v1/messages`.
   - Converts compatible request/response/error/streaming shapes at the adapter boundary.
   - Keeps unsupported tools and waiting states out of compatible v1.
+  - [x] Task 1 OpenAI and Anthropic mapper RED tests added, then verified green after mapper implementation.
+  - [x] Task 2 OpenAI text-chat mapper, error model, blocking DTO, and streaming chunk translator added; multimodal/file inputs return `unsupported_feature` in this slice.
+  - [x] Task 3 Anthropic text-chat mapper, dual header auth, error model, blocking DTO, and streaming event translator added; multimodal/document/tool blocks return `unsupported_feature` in this slice.
+  - [x] Task 4 compatible public routes mounted at `/v1/*`, reuse Native run service, and are registered in OpenAPI.
+  - [x] Task 5 compatible streams translate public text/terminal/error events and hide Native workflow/debug internals.
 
-- [ ] **04 Application API Docs And UI:** `docs/superpowers/plans/2026-05-09-application-public-api-04-docs-ui.md`
+- [x] **04 Application API Docs And UI:** `docs/superpowers/plans/2026-05-09-application-public-api-04-docs-ui.md`
   - Abstracts the Settings API docs panel into a reusable docs explorer.
   - Adds Application API tab for keys, Native docs, OpenAI docs, Anthropic docs, mapping, and online debug.
   - Keeps full API keys in memory only after creation.
+  - [x] Task 1 app-scoped public API docs routes added with current application state, unsupported feature notes, and public paths without `application_id`.
+  - [x] Task 2 API client DTOs and transport tests added under `application-public-api`.
+  - [x] Task 3 Settings API docs viewer extracted to reusable `ApiDocsExplorer` with injected fetchers/auth/query-state.
+  - [x] Task 4 Application API page shell lazy-loaded from application detail with status bar, tabs, and publish action.
+  - [x] Task 5 API key table/create/revoke flow added; full token remains one-time in component memory.
+  - [x] Task 6 Native/OpenAI/Anthropic docs tabs use app-scoped docs fetchers and local query state.
+  - [x] Task 7 Mapping panel added with nullable `model_target` and selector validation.
+  - [x] Task 8 Debug panel added for Native/OpenAI/Anthropic public requests without persisted keys.
 
-- [ ] **05 QA And Delivery:** `docs/superpowers/plans/2026-05-09-application-public-api-05-qa-delivery.md`
+- [x] **05 QA And Delivery:** `docs/superpowers/plans/2026-05-09-application-public-api-05-qa-delivery.md`
   - Runs targeted backend, API, OpenAPI, frontend, and app-route evidence.
   - Uses `qa-evaluation` for the delivery review.
   - Defers heavy Rust consistency gates to GitHub Actions by pushing the branch.
+  - [x] Task 1 backend application public API, storage, migration, and route tests passed.
+  - [x] Task 2 OpenAPI and API client tests passed.
+  - [x] Task 3 targeted frontend and fast frontend gate passed.
+  - [x] Task 4 page-debug, mobile viewport, and target style-boundary checks passed; all-pages style-boundary remains limited by an existing application-detail scene timeout.
+  - [x] Task 5 QA review recorded verified and unverified gates.
 
 ## Required Execution Order
 

@@ -28,6 +28,10 @@ fn map_application_record(row: sqlx::postgres::PgRow) -> Result<domain::Applicat
         updated_at: row.get("updated_at"),
         current_flow_id: row.get("current_flow_id"),
         current_draft_id: row.get("current_draft_id"),
+        api_enabled: row.get("api_enabled"),
+        has_application_api_keys: row.get("has_application_api_keys"),
+        has_application_api_mapping: row.get("has_application_api_mapping"),
+        active_publication_id: row.get("active_publication_id"),
         tags: row.get("tags"),
     })
 }
@@ -69,8 +73,29 @@ impl ApplicationRepository for PgControlPlaneStore {
                 a.updated_at,
                 null::uuid as current_flow_id,
                 null::uuid as current_draft_id,
+                a.api_enabled,
+                exists(
+                    select 1
+                    from api_keys key
+                    where key.application_id = a.id
+                      and key.key_kind = 'application_api_key'
+                      and key.enabled = true
+                ) as has_application_api_keys,
+                exists(
+                    select 1
+                    from application_api_mappings mapping
+                    where mapping.application_id = a.id
+                ) as has_application_api_mapping,
+                active_publication.id as active_publication_id,
                 coalesce(tags.tags, '[]'::jsonb) as tags
             from applications a
+            left join lateral (
+                select publication.id
+                from application_publication_versions publication
+                where publication.application_id = a.id
+                  and publication.active = true
+                limit 1
+            ) active_publication on true
             left join lateral (
                 select jsonb_agg(
                     jsonb_build_object('id', tag.id, 'name', tag.name)
@@ -125,6 +150,10 @@ impl ApplicationRepository for PgControlPlaneStore {
                 updated_at,
                 null::uuid as current_flow_id,
                 null::uuid as current_draft_id,
+                api_enabled,
+                false as has_application_api_keys,
+                false as has_application_api_mapping,
+                null::uuid as active_publication_id,
                 '[]'::jsonb as tags
             "#,
         )
@@ -227,8 +256,29 @@ impl ApplicationRepository for PgControlPlaneStore {
                 a.updated_at,
                 null::uuid as current_flow_id,
                 null::uuid as current_draft_id,
+                a.api_enabled,
+                exists(
+                    select 1
+                    from api_keys key
+                    where key.application_id = a.id
+                      and key.key_kind = 'application_api_key'
+                      and key.enabled = true
+                ) as has_application_api_keys,
+                exists(
+                    select 1
+                    from application_api_mappings mapping
+                    where mapping.application_id = a.id
+                ) as has_application_api_mapping,
+                active_publication.id as active_publication_id,
                 coalesce(tags.tags, '[]'::jsonb) as tags
             from applications a
+            left join lateral (
+                select publication.id
+                from application_publication_versions publication
+                where publication.application_id = a.id
+                  and publication.active = true
+                limit 1
+            ) active_publication on true
             left join lateral (
                 select jsonb_agg(
                     jsonb_build_object('id', tag.id, 'name', tag.name)
@@ -307,10 +357,31 @@ impl ApplicationRepository for PgControlPlaneStore {
                 a.updated_at,
                 f.id as current_flow_id,
                 fd.id as current_draft_id,
+                a.api_enabled,
+                exists(
+                    select 1
+                    from api_keys key
+                    where key.application_id = a.id
+                      and key.key_kind = 'application_api_key'
+                      and key.enabled = true
+                ) as has_application_api_keys,
+                exists(
+                    select 1
+                    from application_api_mappings mapping
+                    where mapping.application_id = a.id
+                ) as has_application_api_mapping,
+                active_publication.id as active_publication_id,
                 coalesce(tags.tags, '[]'::jsonb) as tags
             from applications a
             left join flows f on f.application_id = a.id
             left join flow_drafts fd on fd.flow_id = f.id
+            left join lateral (
+                select publication.id
+                from application_publication_versions publication
+                where publication.application_id = a.id
+                  and publication.active = true
+                limit 1
+            ) active_publication on true
             left join lateral (
                 select jsonb_agg(
                     jsonb_build_object('id', tag.id, 'name', tag.name)

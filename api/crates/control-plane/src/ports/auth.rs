@@ -95,6 +95,8 @@ pub struct CreateApiKeyInput {
     pub name: String,
     pub token_hash: String,
     pub token_prefix: String,
+    pub key_kind: domain::ApiKeyKind,
+    pub application_id: Option<Uuid>,
     pub creator_user_id: Uuid,
     pub tenant_id: Uuid,
     pub scope_kind: DataModelScopeKind,
@@ -126,6 +128,17 @@ pub trait ApiKeyRepository: Send + Sync {
         &self,
         token_hash: &str,
     ) -> anyhow::Result<Option<ApiKeyRecord>>;
+    async fn list_application_api_keys(
+        &self,
+        application_id: Uuid,
+        creator_user_id: Uuid,
+    ) -> anyhow::Result<Vec<ApiKeyRecord>>;
+    async fn revoke_application_api_key(
+        &self,
+        api_key_id: Uuid,
+        application_id: Uuid,
+        creator_user_id: Uuid,
+    ) -> anyhow::Result<()>;
     async fn list_api_key_data_model_permissions(
         &self,
         api_key_id: Uuid,

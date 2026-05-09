@@ -136,6 +136,7 @@
     padding-top: 0;
   }
   .section-page-layout__content {
+    display: block;
     padding: 16px 0 24px;
   }
   .section-page-layout__shell {

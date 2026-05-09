@@ -40,11 +40,11 @@
 
 ### Task 1: Add failing tests for Native request contracts
 
-- [ ] Add tests proving `NativeRunRequest.model` accepts any string and rejects non-string JSON values.
-- [ ] Add tests proving `model_target = null` keeps `model` in run metadata but does not add it to node input payload.
-- [ ] Add tests for `query`, `inputs`, `history`, `attachments`, `conversation`, `response_mode`, `stream_options`, `execution`, and `metadata` validation.
-- [ ] Add tests for `409 application_not_published` when the key's application has no active publication.
-- [ ] Add tests for `403` when reading a run created by a different application API key.
+- [x] Add tests proving `NativeRunRequest.model` accepts any string and rejects non-string JSON values.
+- [x] Add tests proving `model_target = null` keeps `model` in run metadata but does not add it to node input payload.
+- [x] Add tests for `query`, `inputs`, `history`, `attachments`, `conversation`, `response_mode`, `stream_options`, `execution`, and `metadata` validation.
+- [x] Add tests for `409 application_not_published` when the key's application has no active publication.
+- [x] Add tests for `403` when reading a run created by a different application API key.
 
 Run:
 
@@ -57,9 +57,9 @@ Expected: tests fail because Native run service and routes do not exist yet.
 
 ### Task 2: Add published run persistence state
 
-- [ ] Extend `FlowRunMode` with `PublishedApiRun`.
-- [ ] Extend the `flow_runs_run_mode_check` constraint to include `published_api_run`.
-- [ ] Add nullable `flow_runs` metadata columns:
+- [x] Extend `FlowRunMode` with `PublishedApiRun`.
+- [x] Extend the `flow_runs_run_mode_check` constraint to include `published_api_run`.
+- [x] Add nullable `flow_runs` metadata columns:
   - `api_key_id uuid`.
   - `publication_version_id uuid`.
   - `external_user text`.
@@ -67,7 +67,7 @@ Expected: tests fail because Native run service and routes do not exist yet.
   - `external_trace_id text`.
   - `compatibility_mode text`.
   - `idempotency_key text`.
-- [ ] Add `application_public_conversations`:
+- [x] Add `application_public_conversations`:
   - `id uuid primary key`.
   - `application_id uuid not null`.
   - `api_key_id uuid not null`.
@@ -75,7 +75,7 @@ Expected: tests fail because Native run service and routes do not exist yet.
   - `external_conversation_id text not null`.
   - `created_at`, `updated_at`.
   - Unique `(application_id, api_key_id, external_user, external_conversation_id)`.
-- [ ] Update repository mappers to preserve the new run metadata.
+- [x] Update repository mappers to preserve the new run metadata.
 
 Run:
 
@@ -87,18 +87,18 @@ Expected: existing debug run persistence continues to pass and published run met
 
 ### Task 3: Add Native envelope domain types and mapper
 
-- [ ] Define `NativeRunRequest` and nested value types in `application_public_api/native.rs`.
-- [ ] Define `NativeRunResult`, `NativeRunStatus`, `NativeRequiredAction`, `NativeUsage`, and `NativeError`.
-- [ ] Define attachment source variants:
+- [x] Define `NativeRunRequest` and nested value types in `application_public_api/native.rs`.
+- [x] Define `NativeRunResult`, `NativeRunStatus`, `NativeRequiredAction`, `NativeUsage`, and `NativeError`.
+- [x] Define attachment source variants:
   - `upload_file_id`.
   - Reserved `url`.
   - Reserved `base64`.
-- [ ] Implement `NativeInputMapper`:
+- [x] Implement `NativeInputMapper`:
   - Writes `query` to `query_target`.
   - Writes `model` only when `model_target` is non-null.
   - Writes `inputs`, `history`, and `attachments` only when targets are configured.
   - Preserves original `model`, execution metadata, compatibility mode, and request metadata in run metadata.
-- [ ] Add tests for mapping collision and null-target behavior.
+- [x] Add tests for mapping collision and null-target behavior.
 
 Run:
 
@@ -110,17 +110,17 @@ Expected: mapper produces stable runtime input payloads and never validates `mod
 
 ### Task 4: Add published-flow run service
 
-- [ ] Add `ApplicationPublishedRunService::start_native_run`.
-- [ ] Authenticate `Authorization: Bearer <application_api_key>` through `ApplicationApiKeyService`.
-- [ ] Check application exists, `api_enabled = true`, and active publication exists.
-- [ ] Use the publication's immutable compiled plan and mapping snapshot.
-- [ ] Add `OrchestrationRuntimeService::start_published_flow_run` rather than reusing debug-only document snapshot entry points.
-- [ ] Create `published_api_run` flow runs with public metadata and `created_by = api_key.creator_user_id`.
-- [ ] Apply idempotency by `(application_id, api_key_id, idempotency_key)` when the request supplies `execution.idempotency_key`.
-- [ ] Append audit metadata for `api_key_id`, `application_id`, `publication_version_id`, `creator_user_id`, external user, conversation id, trace id, response mode, and compatibility mode.
-- [ ] Emit audit log events for public run started, succeeded, failed, cancelled, and denied.
-- [ ] Return blocking result when `response_mode = blocking`.
-- [ ] Return initial run metadata for streaming mode.
+- [x] Add `ApplicationPublishedRunService::start_native_run`.
+- [x] Authenticate `Authorization: Bearer <application_api_key>` through `ApplicationApiKeyService`.
+- [x] Check application exists, `api_enabled = true`, and active publication exists.
+- [x] Use the publication's immutable compiled plan and mapping snapshot.
+- [x] Add `OrchestrationRuntimeService::start_published_flow_run` rather than reusing debug-only document snapshot entry points.
+- [x] Create `published_api_run` flow runs with public metadata and `created_by = api_key.creator_user_id`.
+- [x] Apply idempotency by `(application_id, api_key_id, idempotency_key)` when the request supplies `execution.idempotency_key`.
+- [x] Append audit metadata for `api_key_id`, `application_id`, `publication_version_id`, `creator_user_id`, external user, conversation id, trace id, response mode, and compatibility mode.
+- [x] Emit audit log events for public run started, succeeded, failed, cancelled, and denied.
+- [x] Return blocking result when `response_mode = blocking`.
+- [x] Return initial run metadata for streaming mode.
 
 Run:
 
@@ -133,15 +133,15 @@ Expected: published runs execute from frozen publication state and never read ed
 
 ### Task 5: Add run read, cancel, resume, and conversation binding
 
-- [ ] Add `get_native_run` that verifies the run belongs to the key-bound application and key.
-- [ ] Add `cancel_native_run` that calls the existing cancellation path for `published_api_run`.
+- [x] Add `get_native_run` that verifies the run belongs to the key-bound application and key.
+- [x] Add `cancel_native_run` that calls the existing cancellation path for `published_api_run`.
 - [ ] Add `resume_native_run` for callback tasks:
-  - Accepts `callback_task_id`.
-  - Validates the callback task belongs to the run.
-  - Converts the resume payload into the existing callback completion command.
-  - Supports blocking and streaming response modes.
-- [ ] Bind conversations by `application_id + api_key_id + conversation.user + conversation.id`.
-- [ ] Auto-generate an external conversation id when not provided and return it in blocking and terminal events.
+  - [x] Accepts `callback_task_id`.
+  - [x] Validates the callback task belongs to the run.
+  - [x] Converts the resume payload into the existing callback completion command.
+  - [x] Supports blocking and streaming response modes.
+- [x] Bind conversations by `application_id + api_key_id + conversation.user + conversation.id`.
+- [x] Auto-generate an external conversation id when not provided and return it in blocking and terminal events.
 
 Run:
 
@@ -154,16 +154,16 @@ Expected: conversations cannot cross API keys and waiting callback resume return
 
 ### Task 6: Add public Native routes
 
-- [ ] Add public router with:
+- [x] Add public router with:
   - `POST /api/1flowbase/runs`.
   - `GET /api/1flowbase/runs/{run_id}`.
   - `POST /api/1flowbase/runs/{run_id}/resume`.
   - `POST /api/1flowbase/runs/{run_id}/cancel`.
   - `POST /api/1flowbase/files`.
-- [ ] Mount the public router without `/api/console`.
-- [ ] `POST /api/1flowbase/files` must authenticate application key and use the same file-management/object-storage boundary as console upload, but scope the file record to the key-bound application/workspace.
-- [ ] Add Utoipa schemas and paths.
-- [ ] Map control-plane errors to Native error objects.
+- [x] Mount the public router without `/api/console`.
+- [x] `POST /api/1flowbase/files` must authenticate application key and use the same file-management/object-storage boundary as console upload, but scope the file record to the key-bound application/workspace.
+- [x] Add Utoipa schemas and paths.
+- [x] Map control-plane errors to Native error objects.
 
 Run:
 
@@ -176,8 +176,8 @@ Expected: public Native routes are mounted and documented without `application_i
 
 ### Task 7: Add Native SSE streaming
 
-- [ ] Subscribe to `RuntimeEventStream` for `published_api_run`.
-- [ ] Convert runtime events to Native SSE event names:
+- [x] Subscribe to `RuntimeEventStream` for `published_api_run`.
+- [x] Convert runtime events to Native SSE event names:
   - `run.started`.
   - `message.delta`.
   - `workflow.event`.
@@ -186,10 +186,10 @@ Expected: public Native routes are mounted and documented without `application_i
   - `run.completed`.
   - `run.failed`.
   - `run.cancelled`.
-- [ ] Default `include_workflow_events` to `none`.
-- [ ] Emit only public workflow events when `include_workflow_events = public`.
-- [ ] Emit final terminal event with answer, conversation, usage, attachments, and run metadata.
-- [ ] Keep debug-only runtime payloads out of public SSE.
+- [x] Default `include_workflow_events` to `none`.
+- [x] Emit only public workflow events when `include_workflow_events = public`.
+- [x] Emit final terminal event with answer, conversation, usage, attachments, and run metadata.
+- [x] Keep debug-only runtime payloads out of public SSE.
 
 Run:
 

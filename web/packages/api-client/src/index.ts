@@ -1,3 +1,4 @@
+export * from './application-public-api';
 export * from './console-applications';
 export * from './console-api-docs';
 export * from './console-application-orchestration';

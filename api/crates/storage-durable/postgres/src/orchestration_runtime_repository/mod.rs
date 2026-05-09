@@ -1,6 +1,16 @@
 use anyhow::{anyhow, Result};
 use async_trait::async_trait;
 use control_plane::{
+    application_public_api::{
+        conversations::{
+            ApplicationPublicConversationRecord, ApplicationPublicConversationRepository,
+            BindApplicationPublicConversationInput,
+        },
+        run_service::{
+            ApplicationPublishedFlowRunRepository, ApplicationPublishedRunControlRepository,
+            CancelPublishedFlowRunInput,
+        },
+    },
     errors::ControlPlaneError,
     ports::{
         AppendBillingSessionInput, AppendCapabilityInvocationInput, AppendContextProjectionInput,
@@ -18,6 +28,7 @@ use control_plane::{
     },
 };
 use sqlx::{Postgres, QueryBuilder, Row};
+use time::OffsetDateTime;
 use uuid::Uuid;
 
 use crate::repositories::PgControlPlaneStore;
@@ -391,5 +402,156 @@ impl OrchestrationRuntimeRepository for PgControlPlaneStore {
         node_id: &str,
     ) -> Result<Option<domain::NodeLastRun>> {
         PgControlPlaneStore::get_latest_node_run(self, application_id, node_id).await
+    }
+}
+
+#[async_trait]
+impl ApplicationPublishedFlowRunRepository for PgControlPlaneStore {
+    async fn create_published_flow_run(
+        &self,
+        input: &CreateFlowRunInput,
+    ) -> Result<domain::FlowRunRecord> {
+        PgControlPlaneStore::create_flow_run(self, input).await
+    }
+
+    async fn find_published_flow_run_by_idempotency_key(
+        &self,
+        application_id: Uuid,
+        api_key_id: Uuid,
+        idempotency_key: &str,
+    ) -> Result<Option<domain::FlowRunRecord>> {
+        PgControlPlaneStore::find_published_flow_run_by_idempotency_key(
+            self,
+            application_id,
+            api_key_id,
+            idempotency_key,
+        )
+        .await
+    }
+
+    async fn append_published_run_event(
+        &self,
+        input: &AppendRunEventInput,
+    ) -> Result<domain::RunEventRecord> {
+        PgControlPlaneStore::append_run_event(self, input).await
+    }
+}
+
+#[async_trait]
+impl ApplicationPublishedRunControlRepository for PgControlPlaneStore {
+    async fn get_published_flow_run(
+        &self,
+        flow_run_id: Uuid,
+    ) -> Result<Option<domain::FlowRunRecord>> {
+        let row = sqlx::query(
+            r#"
+            select
+                id,
+                application_id,
+                flow_id,
+                flow_draft_id,
+                compiled_plan_id,
+                debug_session_id,
+                flow_schema_version,
+                document_hash,
+                run_mode,
+                target_node_id,
+                status,
+                input_payload,
+                output_payload,
+                error_payload,
+                created_by,
+                api_key_id,
+                publication_version_id,
+                external_user,
+                external_conversation_id,
+                external_trace_id,
+                compatibility_mode,
+                idempotency_key,
+                started_at,
+                finished_at,
+                created_at
+            from flow_runs
+            where id = $1
+              and run_mode = 'published_api_run'
+            "#,
+        )
+        .bind(flow_run_id)
+        .fetch_optional(self.pool())
+        .await?;
+
+        row.map(map_flow_run_record).transpose()
+    }
+
+    async fn cancel_published_flow_run(
+        &self,
+        input: &CancelPublishedFlowRunInput,
+    ) -> Result<Option<domain::FlowRunRecord>> {
+        PgControlPlaneStore::update_flow_run_if_status(
+            self,
+            &UpdateFlowRunInput {
+                flow_run_id: input.flow_run_id,
+                status: domain::FlowRunStatus::Cancelled,
+                output_payload: input.output_payload.clone(),
+                error_payload: input.error_payload.clone(),
+                finished_at: Some(input.finished_at),
+            },
+            input.from_status,
+        )
+        .await
+    }
+
+    async fn get_published_callback_task(
+        &self,
+        callback_task_id: Uuid,
+    ) -> Result<Option<domain::CallbackTaskRecord>> {
+        PgControlPlaneStore::get_callback_task(self, callback_task_id).await
+    }
+}
+
+#[async_trait]
+impl ApplicationPublicConversationRepository for PgControlPlaneStore {
+    async fn bind_application_public_conversation(
+        &self,
+        input: &BindApplicationPublicConversationInput,
+    ) -> Result<ApplicationPublicConversationRecord> {
+        let row = sqlx::query(
+            r#"
+            insert into application_public_conversations (
+                id,
+                application_id,
+                api_key_id,
+                external_user,
+                external_conversation_id
+            ) values ($1, $2, $3, $4, $5)
+            on conflict (application_id, api_key_id, external_user, external_conversation_id)
+            do update set updated_at = now()
+            returning
+                id,
+                application_id,
+                api_key_id,
+                external_user,
+                external_conversation_id,
+                created_at,
+                updated_at
+            "#,
+        )
+        .bind(Uuid::now_v7())
+        .bind(input.application_id)
+        .bind(input.api_key_id)
+        .bind(&input.external_user)
+        .bind(&input.external_conversation_id)
+        .fetch_one(self.pool())
+        .await?;
+
+        Ok(ApplicationPublicConversationRecord {
+            id: row.get("id"),
+            application_id: row.get("application_id"),
+            api_key_id: row.get("api_key_id"),
+            external_user: row.get("external_user"),
+            external_conversation_id: row.get("external_conversation_id"),
+            created_at: row.get::<OffsetDateTime, _>("created_at"),
+            updated_at: row.get::<OffsetDateTime, _>("updated_at"),
+        })
     }
 }

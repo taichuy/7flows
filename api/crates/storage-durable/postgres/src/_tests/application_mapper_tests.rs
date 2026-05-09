@@ -26,7 +26,7 @@ fn parse_application_type_rejects_unknown_storage_value() {
 }
 
 #[test]
-fn planned_sections_preserve_planned_contract_fields() {
+fn planned_sections_expose_public_api_template_before_configuration() {
     let sections = planned_sections(ApplicationType::Workflow);
 
     assert_eq!(sections.orchestration.status, "planned");
@@ -41,9 +41,12 @@ fn planned_sections_preserve_planned_contract_fields() {
         sections.api.invoke_routing_mode,
         "api_key_bound_application"
     );
-    assert_eq!(sections.api.invoke_path_template, None);
-    assert_eq!(sections.api.api_capability_status, "planned");
-    assert_eq!(sections.api.credentials_status, "planned");
+    assert_eq!(
+        sections.api.invoke_path_template.as_deref(),
+        Some("/api/1flowbase/runs")
+    );
+    assert_eq!(sections.api.api_capability_status, "not_published");
+    assert_eq!(sections.api.credentials_status, "missing");
 
     assert_eq!(sections.logs.status, "planned");
     assert_eq!(sections.logs.runs_capability_status, "planned");
@@ -81,6 +84,10 @@ fn application_mapper_maps_tags_type_and_ready_sections() {
         updated_at: OffsetDateTime::now_utc(),
         current_flow_id: Some(current_flow_id),
         current_draft_id: Some(current_draft_id),
+        api_enabled: false,
+        has_application_api_keys: false,
+        has_application_api_mapping: false,
+        active_publication_id: None,
         tags: json!([
             {
                 "id": tag_id,
@@ -113,6 +120,48 @@ fn application_mapper_maps_tags_type_and_ready_sections() {
     );
     assert_eq!(record.sections.logs.status, "ready");
     assert_eq!(record.sections.logs.runs_capability_status, "queryable");
+}
+
+#[test]
+fn application_mapper_marks_api_section_active_when_key_mapping_and_publication_exist() {
+    let application_id = Uuid::now_v7();
+    let current_flow_id = Uuid::now_v7();
+    let current_draft_id = Uuid::now_v7();
+    let publication_id = Uuid::now_v7();
+
+    let record = PgApplicationMapper::to_application_record(StoredApplicationRow {
+        id: application_id,
+        workspace_id: Uuid::now_v7(),
+        application_type: "agent_flow".into(),
+        name: "Support Agent".into(),
+        description: "Routes support requests".into(),
+        icon: None,
+        icon_type: None,
+        icon_background: None,
+        created_by: Uuid::now_v7(),
+        updated_at: OffsetDateTime::now_utc(),
+        current_flow_id: Some(current_flow_id),
+        current_draft_id: Some(current_draft_id),
+        api_enabled: true,
+        has_application_api_keys: true,
+        has_application_api_mapping: true,
+        active_publication_id: Some(publication_id),
+        tags: json!([]),
+    })
+    .unwrap();
+
+    assert_eq!(record.sections.api.status, "active");
+    assert_eq!(record.sections.api.credential_kind, "application_api_key");
+    assert_eq!(
+        record.sections.api.invoke_routing_mode,
+        "api_key_bound_application"
+    );
+    assert_eq!(
+        record.sections.api.invoke_path_template.as_deref(),
+        Some("/api/1flowbase/runs")
+    );
+    assert_eq!(record.sections.api.api_capability_status, "enabled");
+    assert_eq!(record.sections.api.credentials_status, "configured");
 }
 
 #[test]

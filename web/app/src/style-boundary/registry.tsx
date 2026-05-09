@@ -647,6 +647,201 @@ function seedStyleBoundaryApplicationFetch() {
       );
     }
 
+    if (
+      method.toUpperCase() === 'GET' &&
+      requestUrl.pathname === '/api/console/applications/app-1/api-keys'
+    ) {
+      return new Response(
+        JSON.stringify({
+          data: [
+            {
+              id: 'key-1',
+              name: 'Production client',
+              token_prefix: 'ofb_live_1234',
+              creator_user_id: 'user-1',
+              enabled: true,
+              expires_at: null,
+              created_at: '2026-05-09T10:00:00Z',
+              updated_at: '2026-05-09T10:00:00Z'
+            }
+          ],
+          meta: null
+        }),
+        {
+          status: 200,
+          headers: { 'content-type': 'application/json' }
+        }
+      );
+    }
+
+    if (
+      method.toUpperCase() === 'GET' &&
+      requestUrl.pathname === '/api/console/applications/app-1/api-mapping'
+    ) {
+      return new Response(
+        JSON.stringify({
+          data: {
+            input: {
+              query_target: 'start.query',
+              model_target: null,
+              inputs_target: null,
+              history_target: null,
+              attachments_target: null
+            },
+            output: {
+              answer_selector: 'answer',
+              usage_selector: null,
+              files_selector: null,
+              error_selector: null
+            }
+          },
+          meta: null
+        }),
+        {
+          status: 200,
+          headers: { 'content-type': 'application/json' }
+        }
+      );
+    }
+
+    if (
+      method.toUpperCase() === 'GET' &&
+      requestUrl.pathname === '/api/console/applications/app-1/api-publication'
+    ) {
+      return new Response(
+        JSON.stringify({
+          data: {
+            id: 'pub-1',
+            application_id: 'app-1',
+            flow_id: 'flow-1',
+            flow_version_id: 'version-1',
+            compiled_plan_id: 'compiled-1',
+            version_sequence: 3,
+            active: true,
+            api_enabled: true,
+            public_url: '/api/1flowbase/runs',
+            created_by: 'user-1',
+            created_at: '2026-05-09T10:00:00Z',
+            mapping_snapshot: {
+              input: {
+                query_target: 'start.query',
+                model_target: null,
+                inputs_target: null,
+                history_target: null,
+                attachments_target: null
+              },
+              output: {
+                answer_selector: 'answer',
+                usage_selector: null,
+                files_selector: null,
+                error_selector: null
+              }
+            }
+          },
+          meta: null
+        }),
+        {
+          status: 200,
+          headers: { 'content-type': 'application/json' }
+        }
+      );
+    }
+
+    if (
+      method.toUpperCase() === 'GET' &&
+      requestUrl.pathname === '/api/console/applications/app-1/api-docs/catalog'
+    ) {
+      return new Response(
+        JSON.stringify({
+          data: {
+            title: 'Support Agent API',
+            version: 'v3',
+            categories: [
+              {
+                id: 'application-native-api',
+                label: 'Application Native API',
+                operation_count: 1
+              },
+              {
+                id: 'openai-compatible-api',
+                label: 'OpenAI Compatible API',
+                operation_count: 1
+              }
+            ]
+          },
+          meta: null
+        }),
+        {
+          status: 200,
+          headers: { 'content-type': 'application/json' }
+        }
+      );
+    }
+
+    if (
+      method.toUpperCase() === 'GET' &&
+      requestUrl.pathname.includes(
+        '/api/console/applications/app-1/api-docs/categories/'
+      ) &&
+      requestUrl.pathname.endsWith('/operations')
+    ) {
+      return new Response(
+        JSON.stringify({
+          data: {
+            id: 'application-native-api',
+            label: 'Application Native API',
+            operations: [
+              {
+                id: 'applicationNativeRun',
+                method: 'POST',
+                path: '/api/1flowbase/runs',
+                summary: 'Run published application',
+                description: 'Run published application',
+                tags: ['application-public-api'],
+                group: 'application-native-api',
+                deprecated: false
+              }
+            ]
+          },
+          meta: null
+        }),
+        {
+          status: 200,
+          headers: { 'content-type': 'application/json' }
+        }
+      );
+    }
+
+    if (
+      method.toUpperCase() === 'GET' &&
+      requestUrl.pathname.includes(
+        '/api/console/applications/app-1/api-docs/operations/'
+      ) &&
+      requestUrl.pathname.endsWith('/openapi.json')
+    ) {
+      return new Response(
+        JSON.stringify({
+          openapi: '3.1.0',
+          info: { title: 'Support Agent API', version: 'v3' },
+          paths: {
+            '/api/1flowbase/runs': {
+              post: {
+                operationId: 'applicationNativeRun',
+                responses: {
+                  '200': { description: 'ok' }
+                }
+              }
+            }
+          },
+          components: {}
+        }),
+        {
+          status: 200,
+          headers: { 'content-type': 'application/json' }
+        }
+      );
+    }
+
     if (url.endsWith('/api/console/applications/catalog')) {
       return new Response(
         JSON.stringify({
@@ -792,12 +987,20 @@ const renderers: Record<string, StyleBoundaryRuntimeScene['render']> = {
     seedStyleBoundaryApplicationFetch();
     return renderRouterScene('/applications/app-1/orchestration');
   },
+  'page.application-api': () => {
+    seedStyleBoundaryApplicationFetch();
+    return renderRouterScene('/applications/app-1/api');
+  },
   'page.embedded-apps': () =>
     renderShellScene('/embedded-apps', <EmbeddedAppsPage />),
   'page.tools': () => renderShellScene('/tools', <ToolsPage />),
   'page.settings': () => {
     seedStyleBoundarySettingsFetch();
     return renderRouterScene('/settings/model-providers');
+  },
+  'page.settings-docs': () => {
+    seedStyleBoundarySettingsFetch();
+    return renderRouterScene('/settings/docs?category=console');
   },
   'page.me': () => renderRouterScene('/me/profile'),
   'page.sign-in': () => <SignInPage />

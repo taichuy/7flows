@@ -1,0 +1,684 @@
+use std::sync::Arc;
+
+use axum::{
+    extract::{Path, State},
+    http::{HeaderMap, StatusCode},
+    response::IntoResponse,
+    routing::{delete, get, post},
+    Json, Router,
+};
+use control_plane::{
+    application::ApplicationService,
+    application_public_api::{
+        api_keys::{
+            ApplicationApiKeyService, CreateApplicationApiKeyCommand,
+            ListApplicationApiKeysCommand, RevokeApplicationApiKeyCommand,
+        },
+        mapping::{
+            ApplicationApiMappingConfig, ApplicationApiMappingInput, ApplicationApiMappingOutput,
+            ApplicationApiMappingService, GetApplicationApiMappingCommand,
+            ReplaceApplicationApiMappingCommand,
+        },
+        publications::{
+            ApplicationPublicationService, ApplicationPublicationVersionRecord,
+            LoadActiveApplicationPublicationCommand, PublishApplicationCommand,
+            SetApplicationApiEnabledCommand,
+        },
+    },
+    errors::ControlPlaneError,
+};
+use serde::{Deserialize, Serialize};
+use serde_json::Value;
+use time::{format_description::well_known::Rfc3339, OffsetDateTime};
+use utoipa::ToSchema;
+use uuid::Uuid;
+
+use crate::{
+    app_state::ApiState,
+    application_public_docs::{
+        build_application_public_docs_catalog, build_application_public_docs_category_operations,
+        build_application_public_docs_category_spec, build_application_public_docs_operation_spec,
+        ApplicationPublicDocsContext,
+    },
+    error_response::ApiError,
+    middleware::{require_csrf::require_csrf, require_session::require_session},
+    openapi_docs::{DocsCatalog, DocsCatalogCategoryOperations},
+    response::ApiSuccess,
+};
+
+const PUBLIC_RUNS_PATH: &str = "/api/1flowbase/runs";
+
+#[derive(Debug, Deserialize, ToSchema)]
+pub struct CreateApplicationApiKeyBody {
+    pub name: String,
+    pub expires_at: Option<String>,
+}
+
+#[derive(Debug, Serialize, ToSchema)]
+pub struct ApplicationApiKeyResponse {
+    pub id: Uuid,
+    pub name: String,
+    pub token_prefix: String,
+    pub creator_user_id: Uuid,
+    pub enabled: bool,
+    pub expires_at: Option<String>,
+    pub created_at: String,
+    pub updated_at: String,
+}
+
+#[derive(Debug, Serialize, ToSchema)]
+pub struct CreatedApplicationApiKeyResponse {
+    pub id: Uuid,
+    pub name: String,
+    pub token: String,
+    pub token_prefix: String,
+    pub creator_user_id: Uuid,
+    pub enabled: bool,
+    pub expires_at: Option<String>,
+    pub created_at: String,
+    pub updated_at: String,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize, ToSchema)]
+pub struct ApplicationApiMappingInputBody {
+    pub query_target: String,
+    pub model_target: Option<String>,
+    pub inputs_target: Option<String>,
+    pub history_target: Option<String>,
+    pub attachments_target: Option<String>,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize, ToSchema)]
+pub struct ApplicationApiMappingOutputBody {
+    pub answer_selector: Option<String>,
+    pub usage_selector: Option<String>,
+    pub files_selector: Option<String>,
+    pub error_selector: Option<String>,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize, ToSchema)]
+pub struct ApplicationApiMappingBody {
+    pub input: ApplicationApiMappingInputBody,
+    pub output: ApplicationApiMappingOutputBody,
+}
+
+#[derive(Debug, Deserialize, ToSchema)]
+pub struct PublishApplicationApiBody {
+    pub mapping: ApplicationApiMappingBody,
+    pub api_enabled: bool,
+}
+
+#[derive(Debug, Deserialize, ToSchema)]
+pub struct PatchApplicationApiStatusBody {
+    pub api_enabled: bool,
+}
+
+#[derive(Debug, Serialize, ToSchema)]
+pub struct ApplicationApiStatusResponse {
+    pub application_id: Uuid,
+    pub api_enabled: bool,
+    pub public_url: String,
+}
+
+#[derive(Debug, Serialize, ToSchema)]
+pub struct ApplicationPublicationResponse {
+    pub id: Uuid,
+    pub application_id: Uuid,
+    pub flow_id: Uuid,
+    pub flow_version_id: Uuid,
+    pub compiled_plan_id: Uuid,
+    pub version_sequence: i64,
+    pub active: bool,
+    pub api_enabled: bool,
+    pub mapping_snapshot: ApplicationApiMappingBody,
+    pub public_url: String,
+    pub created_by: Uuid,
+    pub created_at: String,
+}
+
+pub fn router() -> Router<Arc<ApiState>> {
+    Router::new()
+        .route(
+            "/applications/:application_id/api-keys",
+            get(list_application_api_keys).post(create_application_api_key),
+        )
+        .route(
+            "/applications/:application_id/api-keys/:key_id",
+            delete(revoke_application_api_key),
+        )
+        .route(
+            "/applications/:application_id/api-mapping",
+            get(get_application_api_mapping).put(replace_application_api_mapping),
+        )
+        .route(
+            "/applications/:application_id/api-publication",
+            get(get_application_api_publication),
+        )
+        .route(
+            "/applications/:application_id/api-publications",
+            post(publish_application_api),
+        )
+        .route(
+            "/applications/:application_id/api-status",
+            axum::routing::patch(patch_application_api_status),
+        )
+        .route(
+            "/applications/:application_id/api-docs/catalog",
+            get(get_application_api_docs_catalog),
+        )
+        .route(
+            "/applications/:application_id/api-docs/categories/:category_id/operations",
+            get(get_application_api_docs_category_operations),
+        )
+        .route(
+            "/applications/:application_id/api-docs/categories/:category_id/openapi.json",
+            get(get_application_api_docs_category_openapi),
+        )
+        .route(
+            "/applications/:application_id/api-docs/operations/:operation_id/openapi.json",
+            get(get_application_api_docs_operation_openapi),
+        )
+}
+
+fn parse_expires_at(raw: Option<String>) -> Result<Option<OffsetDateTime>, ApiError> {
+    raw.map(|value| {
+        OffsetDateTime::parse(&value, &Rfc3339).map_err(|_| {
+            control_plane::errors::ControlPlaneError::InvalidInput("expires_at").into()
+        })
+    })
+    .transpose()
+}
+
+fn format_optional_time(value: Option<OffsetDateTime>) -> Option<String> {
+    value.map(|value| value.format(&Rfc3339).unwrap())
+}
+
+fn format_time(value: OffsetDateTime) -> String {
+    value.format(&Rfc3339).unwrap()
+}
+
+fn to_api_key_response(api_key: domain::ApiKeyRecord) -> ApplicationApiKeyResponse {
+    ApplicationApiKeyResponse {
+        id: api_key.id,
+        name: api_key.name,
+        token_prefix: api_key.token_prefix,
+        creator_user_id: api_key.creator_user_id,
+        enabled: api_key.enabled,
+        expires_at: format_optional_time(api_key.expires_at),
+        created_at: format_time(api_key.created_at),
+        updated_at: format_time(api_key.updated_at),
+    }
+}
+
+fn to_created_api_key_response(
+    api_key: domain::ApiKeyRecord,
+    token: String,
+) -> CreatedApplicationApiKeyResponse {
+    CreatedApplicationApiKeyResponse {
+        id: api_key.id,
+        name: api_key.name,
+        token,
+        token_prefix: api_key.token_prefix,
+        creator_user_id: api_key.creator_user_id,
+        enabled: api_key.enabled,
+        expires_at: format_optional_time(api_key.expires_at),
+        created_at: format_time(api_key.created_at),
+        updated_at: format_time(api_key.updated_at),
+    }
+}
+
+fn to_mapping_config(body: ApplicationApiMappingBody) -> ApplicationApiMappingConfig {
+    ApplicationApiMappingConfig {
+        input: ApplicationApiMappingInput {
+            query_target: body.input.query_target,
+            model_target: body.input.model_target,
+            inputs_target: body.input.inputs_target,
+            history_target: body.input.history_target,
+            attachments_target: body.input.attachments_target,
+        },
+        output: ApplicationApiMappingOutput {
+            answer_selector: body.output.answer_selector,
+            usage_selector: body.output.usage_selector,
+            files_selector: body.output.files_selector,
+            error_selector: body.output.error_selector,
+        },
+    }
+}
+
+fn to_mapping_body(mapping: ApplicationApiMappingConfig) -> ApplicationApiMappingBody {
+    ApplicationApiMappingBody {
+        input: ApplicationApiMappingInputBody {
+            query_target: mapping.input.query_target,
+            model_target: mapping.input.model_target,
+            inputs_target: mapping.input.inputs_target,
+            history_target: mapping.input.history_target,
+            attachments_target: mapping.input.attachments_target,
+        },
+        output: ApplicationApiMappingOutputBody {
+            answer_selector: mapping.output.answer_selector,
+            usage_selector: mapping.output.usage_selector,
+            files_selector: mapping.output.files_selector,
+            error_selector: mapping.output.error_selector,
+        },
+    }
+}
+
+fn to_publication_response(
+    publication: ApplicationPublicationVersionRecord,
+) -> ApplicationPublicationResponse {
+    ApplicationPublicationResponse {
+        id: publication.id,
+        application_id: publication.application_id,
+        flow_id: publication.flow_id,
+        flow_version_id: publication.flow_version_id,
+        compiled_plan_id: publication.compiled_plan_id,
+        version_sequence: publication.version_sequence,
+        active: publication.active,
+        api_enabled: publication.api_enabled,
+        mapping_snapshot: to_mapping_body(publication.mapping_snapshot),
+        public_url: PUBLIC_RUNS_PATH.to_string(),
+        created_by: publication.created_by,
+        created_at: format_time(publication.created_at),
+    }
+}
+
+fn map_publication_not_found(error: anyhow::Error) -> ApiError {
+    if error.to_string() == "application_not_published" {
+        return ControlPlaneError::NotFound("application_publication").into();
+    }
+    error.into()
+}
+
+fn map_application_api_key_not_found(error: anyhow::Error) -> ApiError {
+    if error.to_string() == "application_api_key not found" {
+        return ControlPlaneError::NotFound("application_api_key").into();
+    }
+    error.into()
+}
+
+async fn load_application_public_docs_context(
+    state: &ApiState,
+    headers: &HeaderMap,
+    application_id: Uuid,
+) -> Result<ApplicationPublicDocsContext, ApiError> {
+    let context = require_session(state, headers).await?;
+    let application = ApplicationService::new(state.store.clone())
+        .get_application(context.user.id, application_id)
+        .await?;
+    let active_publication = ApplicationPublicationService::new(state.store.clone())
+        .load_active_publication(LoadActiveApplicationPublicationCommand { application_id })
+        .await
+        .ok();
+
+    Ok(ApplicationPublicDocsContext {
+        application,
+        active_publication,
+    })
+}
+
+#[utoipa::path(
+    get,
+    path = "/api/console/applications/{application_id}/api-keys",
+    params(("application_id" = Uuid, Path, description = "Application id")),
+    responses(
+        (status = 200, body = [ApplicationApiKeyResponse]),
+        (status = 401, body = crate::error_response::ErrorBody),
+        (status = 403, body = crate::error_response::ErrorBody),
+        (status = 404, body = crate::error_response::ErrorBody)
+    )
+)]
+pub async fn list_application_api_keys(
+    State(state): State<Arc<ApiState>>,
+    headers: HeaderMap,
+    Path(application_id): Path<Uuid>,
+) -> Result<Json<ApiSuccess<Vec<ApplicationApiKeyResponse>>>, ApiError> {
+    let context = require_session(&state, &headers).await?;
+    let api_keys = ApplicationApiKeyService::new(state.store.clone())
+        .list_api_keys(ListApplicationApiKeysCommand {
+            actor_user_id: context.user.id,
+            application_id,
+        })
+        .await?;
+
+    Ok(Json(ApiSuccess::new(
+        api_keys.into_iter().map(to_api_key_response).collect(),
+    )))
+}
+
+#[utoipa::path(
+    post,
+    path = "/api/console/applications/{application_id}/api-keys",
+    params(("application_id" = Uuid, Path, description = "Application id")),
+    request_body = CreateApplicationApiKeyBody,
+    responses(
+        (status = 201, body = CreatedApplicationApiKeyResponse),
+        (status = 400, body = crate::error_response::ErrorBody),
+        (status = 401, body = crate::error_response::ErrorBody),
+        (status = 403, body = crate::error_response::ErrorBody),
+        (status = 404, body = crate::error_response::ErrorBody)
+    )
+)]
+pub async fn create_application_api_key(
+    State(state): State<Arc<ApiState>>,
+    headers: HeaderMap,
+    Path(application_id): Path<Uuid>,
+    Json(body): Json<CreateApplicationApiKeyBody>,
+) -> Result<
+    (
+        StatusCode,
+        Json<ApiSuccess<CreatedApplicationApiKeyResponse>>,
+    ),
+    ApiError,
+> {
+    let context = require_session(&state, &headers).await?;
+    require_csrf(&headers, &context.session)?;
+    let result = ApplicationApiKeyService::new(state.store.clone())
+        .create_api_key(CreateApplicationApiKeyCommand {
+            actor_user_id: context.user.id,
+            application_id,
+            name: body.name,
+            expires_at: parse_expires_at(body.expires_at)?,
+        })
+        .await?;
+
+    Ok((
+        StatusCode::CREATED,
+        Json(ApiSuccess::new(to_created_api_key_response(
+            result.api_key,
+            result.token,
+        ))),
+    ))
+}
+
+#[utoipa::path(
+    delete,
+    path = "/api/console/applications/{application_id}/api-keys/{key_id}",
+    params(
+        ("application_id" = Uuid, Path, description = "Application id"),
+        ("key_id" = Uuid, Path, description = "Application API key id")
+    ),
+    responses(
+        (status = 204),
+        (status = 401, body = crate::error_response::ErrorBody),
+        (status = 403, body = crate::error_response::ErrorBody),
+        (status = 404, body = crate::error_response::ErrorBody)
+    )
+)]
+pub async fn revoke_application_api_key(
+    State(state): State<Arc<ApiState>>,
+    headers: HeaderMap,
+    Path((application_id, key_id)): Path<(Uuid, Uuid)>,
+) -> Result<impl IntoResponse, ApiError> {
+    let context = require_session(&state, &headers).await?;
+    require_csrf(&headers, &context.session)?;
+    ApplicationApiKeyService::new(state.store.clone())
+        .revoke_api_key(RevokeApplicationApiKeyCommand {
+            actor_user_id: context.user.id,
+            application_id,
+            api_key_id: key_id,
+        })
+        .await
+        .map_err(map_application_api_key_not_found)?;
+
+    Ok(StatusCode::NO_CONTENT)
+}
+
+#[utoipa::path(
+    get,
+    path = "/api/console/applications/{application_id}/api-mapping",
+    params(("application_id" = Uuid, Path, description = "Application id")),
+    responses(
+        (status = 200, body = ApplicationApiMappingBody),
+        (status = 401, body = crate::error_response::ErrorBody),
+        (status = 403, body = crate::error_response::ErrorBody),
+        (status = 404, body = crate::error_response::ErrorBody)
+    )
+)]
+pub async fn get_application_api_mapping(
+    State(state): State<Arc<ApiState>>,
+    headers: HeaderMap,
+    Path(application_id): Path<Uuid>,
+) -> Result<Json<ApiSuccess<ApplicationApiMappingBody>>, ApiError> {
+    let context = require_session(&state, &headers).await?;
+    let mapping = ApplicationApiMappingService::new(state.store.clone())
+        .get_mapping(GetApplicationApiMappingCommand {
+            actor_user_id: context.user.id,
+            application_id,
+        })
+        .await?;
+
+    Ok(Json(ApiSuccess::new(to_mapping_body(mapping))))
+}
+
+#[utoipa::path(
+    put,
+    path = "/api/console/applications/{application_id}/api-mapping",
+    params(("application_id" = Uuid, Path, description = "Application id")),
+    request_body = ApplicationApiMappingBody,
+    responses(
+        (status = 200, body = ApplicationApiMappingBody),
+        (status = 400, body = crate::error_response::ErrorBody),
+        (status = 401, body = crate::error_response::ErrorBody),
+        (status = 403, body = crate::error_response::ErrorBody),
+        (status = 404, body = crate::error_response::ErrorBody)
+    )
+)]
+pub async fn replace_application_api_mapping(
+    State(state): State<Arc<ApiState>>,
+    headers: HeaderMap,
+    Path(application_id): Path<Uuid>,
+    Json(body): Json<ApplicationApiMappingBody>,
+) -> Result<Json<ApiSuccess<ApplicationApiMappingBody>>, ApiError> {
+    let context = require_session(&state, &headers).await?;
+    require_csrf(&headers, &context.session)?;
+    let mapping = ApplicationApiMappingService::new(state.store.clone())
+        .replace_mapping(ReplaceApplicationApiMappingCommand {
+            actor_user_id: context.user.id,
+            application_id,
+            mapping: to_mapping_config(body),
+        })
+        .await?;
+
+    Ok(Json(ApiSuccess::new(to_mapping_body(mapping))))
+}
+
+#[utoipa::path(
+    get,
+    path = "/api/console/applications/{application_id}/api-publication",
+    params(("application_id" = Uuid, Path, description = "Application id")),
+    responses(
+        (status = 200, body = ApplicationPublicationResponse),
+        (status = 401, body = crate::error_response::ErrorBody),
+        (status = 403, body = crate::error_response::ErrorBody),
+        (status = 404, body = crate::error_response::ErrorBody)
+    )
+)]
+pub async fn get_application_api_publication(
+    State(state): State<Arc<ApiState>>,
+    headers: HeaderMap,
+    Path(application_id): Path<Uuid>,
+) -> Result<Json<ApiSuccess<ApplicationPublicationResponse>>, ApiError> {
+    let context = require_session(&state, &headers).await?;
+    ApplicationService::new(state.store.clone())
+        .get_application(context.user.id, application_id)
+        .await?;
+    let publication = ApplicationPublicationService::new(state.store.clone())
+        .load_active_publication(LoadActiveApplicationPublicationCommand { application_id })
+        .await
+        .map_err(map_publication_not_found)?;
+
+    Ok(Json(ApiSuccess::new(to_publication_response(publication))))
+}
+
+#[utoipa::path(
+    post,
+    path = "/api/console/applications/{application_id}/api-publications",
+    params(("application_id" = Uuid, Path, description = "Application id")),
+    request_body = PublishApplicationApiBody,
+    responses(
+        (status = 201, body = ApplicationPublicationResponse),
+        (status = 400, body = crate::error_response::ErrorBody),
+        (status = 401, body = crate::error_response::ErrorBody),
+        (status = 403, body = crate::error_response::ErrorBody),
+        (status = 404, body = crate::error_response::ErrorBody)
+    )
+)]
+pub async fn publish_application_api(
+    State(state): State<Arc<ApiState>>,
+    headers: HeaderMap,
+    Path(application_id): Path<Uuid>,
+    Json(body): Json<PublishApplicationApiBody>,
+) -> Result<(StatusCode, Json<ApiSuccess<ApplicationPublicationResponse>>), ApiError> {
+    let context = require_session(&state, &headers).await?;
+    require_csrf(&headers, &context.session)?;
+    let publication = ApplicationPublicationService::new(state.store.clone())
+        .publish_active_version(PublishApplicationCommand {
+            actor_user_id: context.user.id,
+            application_id,
+            mapping: to_mapping_config(body.mapping),
+            api_enabled: body.api_enabled,
+        })
+        .await?;
+
+    Ok((
+        StatusCode::CREATED,
+        Json(ApiSuccess::new(to_publication_response(publication))),
+    ))
+}
+
+#[utoipa::path(
+    patch,
+    path = "/api/console/applications/{application_id}/api-status",
+    params(("application_id" = Uuid, Path, description = "Application id")),
+    request_body = PatchApplicationApiStatusBody,
+    responses(
+        (status = 200, body = ApplicationApiStatusResponse),
+        (status = 401, body = crate::error_response::ErrorBody),
+        (status = 403, body = crate::error_response::ErrorBody),
+        (status = 404, body = crate::error_response::ErrorBody)
+    )
+)]
+pub async fn patch_application_api_status(
+    State(state): State<Arc<ApiState>>,
+    headers: HeaderMap,
+    Path(application_id): Path<Uuid>,
+    Json(body): Json<PatchApplicationApiStatusBody>,
+) -> Result<Json<ApiSuccess<ApplicationApiStatusResponse>>, ApiError> {
+    let context = require_session(&state, &headers).await?;
+    require_csrf(&headers, &context.session)?;
+    ApplicationPublicationService::new(state.store.clone())
+        .set_api_enabled(SetApplicationApiEnabledCommand {
+            actor_user_id: context.user.id,
+            application_id,
+            api_enabled: body.api_enabled,
+        })
+        .await?;
+
+    Ok(Json(ApiSuccess::new(ApplicationApiStatusResponse {
+        application_id,
+        api_enabled: body.api_enabled,
+        public_url: PUBLIC_RUNS_PATH.to_string(),
+    })))
+}
+
+#[utoipa::path(
+    get,
+    path = "/api/console/applications/{application_id}/api-docs/catalog",
+    params(("application_id" = Uuid, Path, description = "Application id")),
+    responses(
+        (status = 200, body = DocsCatalog),
+        (status = 401, body = crate::error_response::ErrorBody),
+        (status = 403, body = crate::error_response::ErrorBody),
+        (status = 404, body = crate::error_response::ErrorBody)
+    )
+)]
+pub async fn get_application_api_docs_catalog(
+    State(state): State<Arc<ApiState>>,
+    headers: HeaderMap,
+    Path(application_id): Path<Uuid>,
+) -> Result<Json<ApiSuccess<DocsCatalog>>, ApiError> {
+    let context = load_application_public_docs_context(&state, &headers, application_id).await?;
+
+    Ok(Json(ApiSuccess::new(
+        build_application_public_docs_catalog(&context),
+    )))
+}
+
+#[utoipa::path(
+    get,
+    path = "/api/console/applications/{application_id}/api-docs/categories/{category_id}/operations",
+    params(
+        ("application_id" = Uuid, Path, description = "Application id"),
+        ("category_id" = String, Path, description = "Application public API docs category id")
+    ),
+    responses(
+        (status = 200, body = DocsCatalogCategoryOperations),
+        (status = 401, body = crate::error_response::ErrorBody),
+        (status = 403, body = crate::error_response::ErrorBody),
+        (status = 404, body = crate::error_response::ErrorBody)
+    )
+)]
+pub async fn get_application_api_docs_category_operations(
+    State(state): State<Arc<ApiState>>,
+    headers: HeaderMap,
+    Path((application_id, category_id)): Path<(Uuid, String)>,
+) -> Result<Json<ApiSuccess<DocsCatalogCategoryOperations>>, ApiError> {
+    let context = load_application_public_docs_context(&state, &headers, application_id).await?;
+    let operations = build_application_public_docs_category_operations(&context, &category_id)
+        .ok_or(ControlPlaneError::NotFound("application_api_docs_category"))?;
+
+    Ok(Json(ApiSuccess::new(operations)))
+}
+
+#[utoipa::path(
+    get,
+    path = "/api/console/applications/{application_id}/api-docs/categories/{category_id}/openapi.json",
+    params(
+        ("application_id" = Uuid, Path, description = "Application id"),
+        ("category_id" = String, Path, description = "Application public API docs category id")
+    ),
+    responses(
+        (status = 200, body = Value),
+        (status = 401, body = crate::error_response::ErrorBody),
+        (status = 403, body = crate::error_response::ErrorBody),
+        (status = 404, body = crate::error_response::ErrorBody)
+    )
+)]
+pub async fn get_application_api_docs_category_openapi(
+    State(state): State<Arc<ApiState>>,
+    headers: HeaderMap,
+    Path((application_id, category_id)): Path<(Uuid, String)>,
+) -> Result<Json<Value>, ApiError> {
+    let context = load_application_public_docs_context(&state, &headers, application_id).await?;
+    let spec = build_application_public_docs_category_spec(&context, &category_id)
+        .ok_or(ControlPlaneError::NotFound("application_api_docs_category"))?;
+
+    Ok(Json(spec))
+}
+
+#[utoipa::path(
+    get,
+    path = "/api/console/applications/{application_id}/api-docs/operations/{operation_id}/openapi.json",
+    params(
+        ("application_id" = Uuid, Path, description = "Application id"),
+        ("operation_id" = String, Path, description = "Application public API docs operation id")
+    ),
+    responses(
+        (status = 200, body = Value),
+        (status = 401, body = crate::error_response::ErrorBody),
+        (status = 403, body = crate::error_response::ErrorBody),
+        (status = 404, body = crate::error_response::ErrorBody)
+    )
+)]
+pub async fn get_application_api_docs_operation_openapi(
+    State(state): State<Arc<ApiState>>,
+    headers: HeaderMap,
+    Path((application_id, operation_id)): Path<(Uuid, String)>,
+) -> Result<Json<Value>, ApiError> {
+    let context = load_application_public_docs_context(&state, &headers, application_id).await?;
+    let spec = build_application_public_docs_operation_spec(&context, &operation_id).ok_or(
+        ControlPlaneError::NotFound("application_api_docs_operation"),
+    )?;
+
+    Ok(Json(spec))
+}

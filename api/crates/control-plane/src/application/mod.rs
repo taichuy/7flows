@@ -871,9 +871,9 @@ fn planned_sections(application_type: domain::ApplicationType) -> domain::Applic
             status: "planned".to_string(),
             credential_kind: "application_api_key".to_string(),
             invoke_routing_mode: "api_key_bound_application".to_string(),
-            invoke_path_template: None,
-            api_capability_status: "planned".to_string(),
-            credentials_status: "planned".to_string(),
+            invoke_path_template: Some("/api/1flowbase/runs".to_string()),
+            api_capability_status: "not_published".to_string(),
+            credentials_status: "missing".to_string(),
         },
         logs: domain::ApplicationLogsSection {
             status: "planned".to_string(),
