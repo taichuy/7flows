@@ -69,7 +69,7 @@ import {
 } from '../debug-console/variables/DebugVariablesPane';
 import { NodeDetailPanel } from '../detail/NodeDetailPanel';
 import { NodePreviewVariablesModal } from '../detail/NodePreviewVariablesModal';
-import { VersionHistoryDrawer } from '../history/VersionHistoryDrawer';
+import { VersionHistoryPanel } from '../history/VersionHistoryPanel';
 import { IssuesDrawer } from '../issues/IssuesDrawer';
 import { AgentFlowCanvas } from './AgentFlowCanvas';
 import { AgentFlowOverlay } from './AgentFlowOverlay';
@@ -83,6 +83,8 @@ const DEBUG_CONSOLE_GAP = 12;
 const SYSTEM_VARIABLES_DOCK_WIDTH = 420;
 const ENVIRONMENT_VARIABLES_DOCK_WIDTH = 520;
 const VARIABLES_DOCK_MIN_WIDTH = 360;
+const HISTORY_DOCK_WIDTH = 460;
+const HISTORY_DOCK_MIN_WIDTH = 360;
 const VARIABLE_CACHE_DEFAULT_HEIGHT = 330;
 const VARIABLE_CACHE_MIN_HEIGHT = 180;
 const VARIABLE_CACHE_BOTTOM_GAP = 16;
@@ -153,6 +155,7 @@ export function AgentFlowCanvasFrame({
   const stopNodeDetailResizeRef = useRef<(() => void) | null>(null);
   const stopDebugConsoleResizeRef = useRef<(() => void) | null>(null);
   const stopVariablesDockResizeRef = useRef<(() => void) | null>(null);
+  const stopHistoryDockResizeRef = useRef<(() => void) | null>(null);
   const stopVariableCacheResizeRef = useRef<(() => void) | null>(null);
   const stopVariableCacheSidebarResizeRef = useRef<(() => void) | null>(null);
   const [bodyWidth, setBodyWidth] = useState(0);
@@ -160,6 +163,7 @@ export function AgentFlowCanvasFrame({
   const [isResizingNodeDetail, setIsResizingNodeDetail] = useState(false);
   const [isResizingDebugConsole, setIsResizingDebugConsole] = useState(false);
   const [isResizingVariablesDock, setIsResizingVariablesDock] = useState(false);
+  const [isResizingHistoryDock, setIsResizingHistoryDock] = useState(false);
   const [pendingNodePreview, setPendingNodePreview] = useState<{
     nodeId: string;
     plan: NodeDebugPreviewPlan;
@@ -173,6 +177,7 @@ export function AgentFlowCanvasFrame({
   );
   const [environmentVariablesDockWidth, setEnvironmentVariablesDockWidth] =
     useState(ENVIRONMENT_VARIABLES_DOCK_WIDTH);
+  const [historyDockWidth, setHistoryDockWidth] = useState(HISTORY_DOCK_WIDTH);
   const [environmentVariables, setEnvironmentVariables] = useState<
     AgentFlowEnvironmentVariable[]
   >(initialEnvironmentVariables);
@@ -379,6 +384,7 @@ export function AgentFlowCanvasFrame({
       stopNodeDetailResizeRef.current?.();
       stopDebugConsoleResizeRef.current?.();
       stopVariablesDockResizeRef.current?.();
+      stopHistoryDockResizeRef.current?.();
       stopVariableCacheResizeRef.current?.();
       stopVariableCacheSidebarResizeRef.current?.();
     };
@@ -407,6 +413,14 @@ export function AgentFlowCanvasFrame({
 
     stopVariablesDockResizeRef.current?.();
   }, [environmentVariablesOpen, systemVariablesOpen]);
+
+  useEffect(() => {
+    if (historyOpen) {
+      return;
+    }
+
+    stopHistoryDockResizeRef.current?.();
+  }, [historyOpen]);
 
   useEffect(() => {
     if (variableCacheOpen) {
@@ -452,11 +466,23 @@ export function AgentFlowCanvasFrame({
     Math.max(rawVariablesDockWidth, VARIABLES_DOCK_MIN_WIDTH),
     maxVariablesDockWidth
   );
+  const maxHistoryDockWidth = Math.max(
+    canvasFrameWidth -
+      (selectedNodeId ? nodeDetailWidth : 0) -
+      NODE_DETAIL_MIN_CANVAS_WIDTH,
+    HISTORY_DOCK_MIN_WIDTH
+  );
+  const boundedHistoryDockWidth = Math.min(
+    Math.max(historyDockWidth, HISTORY_DOCK_MIN_WIDTH),
+    maxHistoryDockWidth
+  );
   const sideDockOccupiedWidth = debugConsoleOpen
     ? boundedDebugConsoleWidth + DEBUG_CONSOLE_GAP
     : variablesDockOpen
       ? boundedVariablesDockWidth + DEBUG_CONSOLE_GAP
-      : 0;
+      : historyOpen
+        ? boundedHistoryDockWidth + DEBUG_CONSOLE_GAP
+        : 0;
   const detailContainerWidth = canvasFrameWidth - sideDockOccupiedWidth;
   const boundedNodeDetailWidth = clampNodeDetailWidth(
     nodeDetailWidth,
@@ -626,6 +652,53 @@ export function AgentFlowCanvasFrame({
     };
 
     stopVariablesDockResizeRef.current = cleanup;
+    window.addEventListener('mousemove', handleMouseMove);
+    window.addEventListener('mouseup', cleanup);
+  }
+
+  function handleHistoryDockResizeStart(
+    event: ReactMouseEvent<HTMLDivElement>
+  ) {
+    event.preventDefault();
+
+    const startX = event.clientX;
+    const startWidth = boundedHistoryDockWidth;
+    const containerWidth = canvasFrameWidth;
+    const previousCursor = document.body.style.cursor;
+    const previousUserSelect = document.body.style.userSelect;
+
+    stopHistoryDockResizeRef.current?.();
+    setIsResizingHistoryDock(true);
+    document.body.style.cursor = 'col-resize';
+    document.body.style.userSelect = 'none';
+
+    const cleanup = () => {
+      window.removeEventListener('mousemove', handleMouseMove);
+      window.removeEventListener('mouseup', cleanup);
+      document.body.style.cursor = previousCursor;
+      document.body.style.userSelect = previousUserSelect;
+      setIsResizingHistoryDock(false);
+      stopHistoryDockResizeRef.current = null;
+    };
+
+    const handleMouseMove = (moveEvent: MouseEvent) => {
+      const nextWidth = Math.min(
+        Math.max(
+          startWidth - (moveEvent.clientX - startX),
+          HISTORY_DOCK_MIN_WIDTH
+        ),
+        Math.max(
+          containerWidth -
+            (selectedNodeId ? boundedNodeDetailWidth : 0) -
+            NODE_DETAIL_MIN_CANVAS_WIDTH,
+          HISTORY_DOCK_MIN_WIDTH
+        )
+      );
+
+      setHistoryDockWidth(nextWidth);
+    };
+
+    stopHistoryDockResizeRef.current = cleanup;
     window.addEventListener('mousemove', handleMouseMove);
     window.addEventListener('mouseup', cleanup);
   }
@@ -816,20 +889,27 @@ export function AgentFlowCanvasFrame({
     setSystemVariablesOpen(false);
     setPanelState({
       debugConsoleOpen: true,
-      debugConsoleWidth: debugConsoleWidth || DEBUG_CONSOLE_DEFAULT_WIDTH
+      debugConsoleWidth: debugConsoleWidth || DEBUG_CONSOLE_DEFAULT_WIDTH,
+      historyOpen: false
     });
   }
 
   function openEnvironmentVariables() {
-    setPanelState({ debugConsoleOpen: false });
+    setPanelState({ debugConsoleOpen: false, historyOpen: false });
     setSystemVariablesOpen(false);
     setEnvironmentVariablesOpen(true);
   }
 
   function openSystemVariables() {
-    setPanelState({ debugConsoleOpen: false });
+    setPanelState({ debugConsoleOpen: false, historyOpen: false });
     setEnvironmentVariablesOpen(false);
     setSystemVariablesOpen(true);
+  }
+
+  function openHistory() {
+    setEnvironmentVariablesOpen(false);
+    setSystemVariablesOpen(false);
+    setPanelState({ debugConsoleOpen: false, historyOpen: true });
   }
 
   return (
@@ -849,7 +929,7 @@ export function AgentFlowCanvasFrame({
         saveLoading={autosaveStatus === 'saving'}
         onOpenDebugConsole={openDebugConsole}
         onOpenIssues={() => setPanelState({ issuesOpen: true })}
-        onOpenHistory={() => setPanelState({ historyOpen: true })}
+        onOpenHistory={openHistory}
         onOpenEnvironmentVariables={openEnvironmentVariables}
         onOpenSystemVariables={openSystemVariables}
         onOpenPublish={() => undefined}
@@ -1066,6 +1146,31 @@ export function AgentFlowCanvasFrame({
             />
           </AgentFlowSideDock>
         ) : null}
+        {historyOpen ? (
+          <AgentFlowSideDock
+            className="agent-flow-editor__history-dock"
+            data-testid="agent-flow-editor-history-dock"
+            isResizing={isResizingHistoryDock}
+            resizeLabel="调整历史版本宽度"
+            width={boundedHistoryDockWidth}
+            onResizeStart={handleHistoryDockResizeStart}
+          >
+            <VersionHistoryPanel
+              versions={versions}
+              restoring={isRestoringVersion}
+              updatingVersionId={
+                versionMetadataMutation.isPending
+                  ? (versionMetadataMutation.variables?.versionId ?? null)
+                  : null
+              }
+              onClose={() => setPanelState({ historyOpen: false })}
+              onRestore={draftSync.restoreVersion}
+              onUpdate={(versionId, input) =>
+                versionMetadataMutation.mutateAsync({ versionId, input })
+              }
+            />
+          </AgentFlowSideDock>
+        ) : null}
       </div>
       {issues.some((issue) => issue.scope === 'global') ? (
         <Typography.Text type="danger">
@@ -1084,21 +1189,6 @@ export function AgentFlowCanvasFrame({
         issues={issues}
         onClose={() => setPanelState({ issuesOpen: false })}
         onSelectIssue={navigation.jumpToIssue}
-      />
-      <VersionHistoryDrawer
-        open={historyOpen}
-        versions={versions}
-        restoring={isRestoringVersion}
-        updatingVersionId={
-          versionMetadataMutation.isPending
-            ? (versionMetadataMutation.variables?.versionId ?? null)
-            : null
-        }
-        onClose={() => setPanelState({ historyOpen: false })}
-        onRestore={draftSync.restoreVersion}
-        onUpdate={(versionId, input) =>
-          versionMetadataMutation.mutateAsync({ versionId, input })
-        }
       />
     </section>
   );

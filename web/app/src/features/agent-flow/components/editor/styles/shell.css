@@ -306,7 +306,8 @@
 
 .agent-flow-editor__side-dock,
 .agent-flow-editor__debug-console-dock,
-.agent-flow-editor__variables-dock {
+.agent-flow-editor__variables-dock,
+.agent-flow-editor__history-dock {
   position: absolute;
   top: var(--agent-flow-secondary-top);
   right: 16px;
@@ -373,11 +374,13 @@
 .agent-flow-editor__debug-console-dock[data-resizing='true']
   .agent-flow-editor__side-dock-resize-handle::before,
 .agent-flow-editor__variables-dock[data-resizing='true']
+  .agent-flow-editor__side-dock-resize-handle::before,
+.agent-flow-editor__history-dock[data-resizing='true']
   .agent-flow-editor__side-dock-resize-handle::before {
   background: rgba(66, 121, 93, 0.38);
 }
 
-.agent-flow-editor__debug-console {
+.agent-flow-editor__dock-panel {
   display: flex;
   container-type: inline-size;
   flex: 1;
@@ -391,7 +394,7 @@
   box-shadow: 0 18px 48px rgba(15, 23, 42, 0.12);
 }
 
-.agent-flow-editor__debug-console-body {
+.agent-flow-editor__dock-panel-body {
   display: flex;
   flex-direction: column;
   min-height: 0;
@@ -399,7 +402,7 @@
   background: #f8fafd;
 }
 
-.agent-flow-editor__debug-console-header {
+.agent-flow-editor__dock-panel-header {
   display: flex;
   flex: 0 0 auto;
   align-items: center;
@@ -411,15 +414,24 @@
   background: #f8fafd;
 }
 
-.agent-flow-editor__debug-console-title {
+.agent-flow-editor__dock-panel-title {
   display: flex;
   min-width: 0;
   align-items: center;
   gap: 0.5rem;
 }
 
-.agent-flow-editor__debug-console-title .ant-typography {
+.agent-flow-editor__dock-panel-title .ant-typography {
   margin: 0;
+}
+
+.agent-flow-editor__history-panel-body {
+  overflow: auto;
+  padding: 12px;
+}
+
+.agent-flow-editor__history-list {
+  min-width: 0;
 }
 
 .agent-flow-editor__debug-console-tabs,

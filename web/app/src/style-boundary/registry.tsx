@@ -631,6 +631,22 @@ function seedStyleBoundaryApplicationFetch() {
       );
     }
 
+    if (
+      method.toUpperCase() === 'GET' &&
+      url.endsWith('/api/console/applications/app-1/environment-variables')
+    ) {
+      return new Response(
+        JSON.stringify({
+          data: [],
+          meta: null
+        }),
+        {
+          status: 200,
+          headers: { 'content-type': 'application/json' }
+        }
+      );
+    }
+
     if (url.endsWith('/api/console/applications/catalog')) {
       return new Response(
         JSON.stringify({

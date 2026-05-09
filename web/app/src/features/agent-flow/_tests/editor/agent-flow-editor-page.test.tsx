@@ -38,7 +38,7 @@ import * as orchestrationApi from '../../api/orchestration';
 import * as nodeContributionsApi from '../../api/node-contributions';
 import * as runtimeApi from '../../api/runtime';
 import * as applicationsApi from '../../../applications/api/applications';
-import { VersionHistoryDrawer } from '../../components/history/VersionHistoryDrawer';
+import { VersionHistoryPanel } from '../../components/history/VersionHistoryPanel';
 import { AgentFlowEditorShell } from '../../components/editor/AgentFlowEditorShell';
 import { NODE_DETAIL_DEFAULT_WIDTH } from '../../lib/detail-panel-width';
 import { AgentFlowEditorPage } from '../../pages/AgentFlowEditorPage';
@@ -368,6 +368,42 @@ describe('AgentFlowEditorShell', () => {
     ).toBeInTheDocument();
   }, 20_000);
 
+  test('opens history versions in the shared canvas dock shell', async () => {
+    renderShell(
+      <AgentFlowEditorShell
+        applicationId="app-1"
+        applicationName="Support Agent"
+        initialState={{
+          ...createInitialState(),
+          versions: [
+            {
+              id: 'version-1',
+              sequence: 1,
+              trigger: 'autosave',
+              change_kind: 'logical',
+              summary: '初始化默认草稿',
+              summary_is_custom: false,
+              is_protected: false,
+              created_at: '2026-04-15T09:00:00Z'
+            }
+          ]
+        }}
+      />
+    );
+
+    fireEvent.click(await screen.findByRole('button', { name: '历史版本' }));
+
+    const dock = screen.getByTestId('agent-flow-editor-history-dock');
+    const panel = within(dock).getByLabelText('历史版本');
+
+    expect(panel).toBeInTheDocument();
+    expect(
+      within(dock).getByRole('separator', { name: '调整历史版本宽度' })
+    ).toBeInTheDocument();
+    expect(within(panel).getByText('版本 1')).toBeInTheDocument();
+    expect(within(panel).getByText(/2026-04-15 09:00:00/)).toBeInTheDocument();
+  }, 20_000);
+
   test('resizes the docked environment variables panel by dragging its left handle', async () => {
     vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockImplementation(
       () =>
@@ -556,8 +592,7 @@ describe('AgentFlowEditorShell', () => {
     });
 
     render(
-      <VersionHistoryDrawer
-        open
+      <VersionHistoryPanel
         onClose={vi.fn()}
         versions={versions}
         restoring={false}
@@ -590,8 +625,7 @@ describe('AgentFlowEditorShell', () => {
     const updateVersion = vi.fn().mockResolvedValue(undefined);
 
     render(
-      <VersionHistoryDrawer
-        open
+      <VersionHistoryPanel
         onClose={vi.fn()}
         versions={versions}
         restoring={false}

@@ -11,10 +11,9 @@ import type {
   UpdateConsoleApplicationVersionInput
 } from '@1flowbase/api-client';
 
-import { SchemaDrawerPanel } from '../../../../shared/schema-ui/overlay-shell/SchemaDrawerPanel';
+import { AgentFlowDockPanel } from '../editor/AgentFlowDockPanel';
 
-interface VersionHistoryDrawerProps {
-  open: boolean;
+interface VersionHistoryPanelProps {
   onClose: () => void;
   versions: ConsoleFlowVersionSummary[];
   restoring: boolean;
@@ -25,14 +24,6 @@ interface VersionHistoryDrawerProps {
     input: UpdateConsoleApplicationVersionInput
   ) => Promise<unknown>;
 }
-
-const historyDrawerSchema = {
-  schemaVersion: '1.0.0',
-  shellType: 'drawer_panel',
-  title: '历史版本',
-  width: 420,
-  getContainer: false
-} as const;
 
 function formatVersionCreatedAt(value: string) {
   const isoMatch = value.match(/^(\d{4}-\d{2}-\d{2})T(\d{2}:\d{2}:\d{2})/);
@@ -61,15 +52,14 @@ function getVersionTitle(version: ConsoleFlowVersionSummary) {
     : `版本 ${version.sequence}`;
 }
 
-export function VersionHistoryDrawer({
-  open,
+export function VersionHistoryPanel({
   onClose,
   versions,
   restoring,
   updatingVersionId,
   onRestore,
   onUpdate
-}: VersionHistoryDrawerProps) {
+}: VersionHistoryPanelProps) {
   const [editingVersion, setEditingVersion] =
     useState<ConsoleFlowVersionSummary | null>(null);
   const [editingTitle, setEditingTitle] = useState('');
@@ -94,12 +84,15 @@ export function VersionHistoryDrawer({
   }
 
   return (
-    <SchemaDrawerPanel
-      open={open}
-      schema={historyDrawerSchema}
+    <AgentFlowDockPanel
+      bodyClassName="agent-flow-editor__history-panel-body"
+      className="agent-flow-editor__history-panel"
+      closeLabel="关闭历史版本"
+      title="历史版本"
       onClose={onClose}
     >
       <List
+        className="agent-flow-editor__history-list"
         dataSource={versions}
         locale={{ emptyText: '当前还没有可恢复的历史版本' }}
         renderItem={(version) => {
@@ -192,6 +185,6 @@ export function VersionHistoryDrawer({
           onChange={(event) => setEditingTitle(event.target.value)}
         />
       </Modal>
-    </SchemaDrawerPanel>
+    </AgentFlowDockPanel>
   );
 }

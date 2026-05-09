@@ -1,17 +1,13 @@
-import { SchemaDockPanel } from '../../../../shared/schema-ui/overlay-shell/SchemaDockPanel';
+import { ReloadOutlined } from '@ant-design/icons';
+import { Button } from 'antd';
+
 import type {
   AgentFlowDebugMessage,
   AgentFlowRunContext
 } from '../../api/runtime';
 import type { AgentFlowDebugSessionStatus } from '../../hooks/runtime/useAgentFlowDebugSession';
+import { AgentFlowDockPanel } from '../editor/AgentFlowDockPanel';
 import { DebugConversationPane } from './conversation/DebugConversationPane';
-import { DebugConsoleHeader } from './DebugConsoleHeader';
-
-const debugConsoleShellSchema = {
-  schemaVersion: '1.0.0',
-  shellType: 'dock_panel',
-  title: '预览'
-} as const;
 
 export function AgentFlowDebugConsole({
   messages,
@@ -29,7 +25,11 @@ export function AgentFlowDebugConsole({
   runContext: AgentFlowRunContext;
   status: AgentFlowDebugSessionStatus;
   stopping: boolean;
-  onChangeRunContextValue: (nodeId: string, key: string, value: unknown) => void;
+  onChangeRunContextValue: (
+    nodeId: string,
+    key: string,
+    value: unknown
+  ) => void;
   onClearSession: () => void;
   onClose: () => void;
   onLoadArtifact?: (artifactRef: string) => Promise<unknown>;
@@ -37,17 +37,23 @@ export function AgentFlowDebugConsole({
   onSubmitPrompt: () => void;
 }) {
   return (
-    <SchemaDockPanel
+    <AgentFlowDockPanel
+      actions={
+        <Button
+          aria-label="清空预览"
+          disabled={messages.length === 0}
+          icon={<ReloadOutlined />}
+          size="small"
+          type="text"
+          onClick={onClearSession}
+        />
+      }
       bodyClassName="agent-flow-editor__debug-console-body"
       className="agent-flow-editor__debug-console"
-      headerless
-      schema={debugConsoleShellSchema}
+      closeLabel="关闭预览"
+      title="预览"
+      onClose={onClose}
     >
-      <DebugConsoleHeader
-        clearDisabled={messages.length === 0}
-        onClear={onClearSession}
-        onClose={onClose}
-      />
       <DebugConversationPane
         messages={messages}
         runContext={runContext}
@@ -67,6 +73,6 @@ export function AgentFlowDebugConsole({
         onStopRun={onStopRun}
         onSubmitPrompt={onSubmitPrompt}
       />
-    </SchemaDockPanel>
+    </AgentFlowDockPanel>
   );
 }

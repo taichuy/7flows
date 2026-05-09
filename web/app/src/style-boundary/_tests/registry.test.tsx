@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 import { Grid } from 'antd';
 import { describe, expect, test, vi } from 'vitest';
 import { createDefaultAgentFlowDocument } from '@1flowbase/flow-schema';
@@ -38,7 +38,9 @@ describe('style boundary registry', () => {
     expect(
       getSceneIdsForFiles(['web/app/src/features/home/pages/HomePage.tsx'])
     ).toEqual(['page.home']);
-    expect(getSceneIdsForFiles(['web/app/src/app-shell/app-shell.css'])).toEqual([
+    expect(
+      getSceneIdsForFiles(['web/app/src/app-shell/app-shell.css'])
+    ).toEqual([
       'component.account-popup',
       'component.account-trigger',
       'page.home',
@@ -49,11 +51,13 @@ describe('style boundary registry', () => {
       'page.me'
     ]);
     expect(
-      getSceneIdsForFiles(['web/app/src/shared/ui/section-page-layout/SectionPageLayout.tsx'])
+      getSceneIdsForFiles([
+        'web/app/src/shared/ui/section-page-layout/SectionPageLayout.tsx'
+      ])
     ).toEqual(['page.application-detail', 'page.settings', 'page.me']);
-    expect(getSceneIdsForFiles(['web/app/src/features/me/pages/me-page.css'])).toEqual([
-      'page.me'
-    ]);
+    expect(
+      getSceneIdsForFiles(['web/app/src/features/me/pages/me-page.css'])
+    ).toEqual(['page.me']);
   });
 
   test('renders the home page scene inside the shared shell frame', async () => {
@@ -65,9 +69,13 @@ describe('style boundary registry', () => {
       </AppProviders>
     );
 
-    expect(await screen.findByRole('heading', { name: '1flowbase' })).toBeInTheDocument();
+    expect(
+      await screen.findByRole('heading', { name: '1flowbase' })
+    ).toBeInTheDocument();
     expect(await screen.findByText('Support Agent')).toBeInTheDocument();
-    expect(screen.getByRole('navigation', { name: 'Primary' })).toBeInTheDocument();
+    expect(
+      screen.getByRole('navigation', { name: 'Primary' })
+    ).toBeInTheDocument();
   }, 15_000);
 
   test('application detail scene save mock echoes the latest draft document', async () => {
@@ -110,15 +118,26 @@ describe('style boundary registry', () => {
   test('application detail scene reaches the editor shell instead of the error state', async () => {
     const scene = getRuntimeScene('page.application-detail');
     vi.spyOn(Grid, 'useBreakpoint').mockReturnValue({ lg: true } as never);
-    const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => undefined);
-    const consoleWarnSpy = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    const consoleErrorSpy = vi
+      .spyOn(console, 'error')
+      .mockImplementation(() => undefined);
+    const consoleWarnSpy = vi
+      .spyOn(console, 'warn')
+      .mockImplementation(() => undefined);
 
     renderReactFlowScene(<StyleBoundaryHarness scene={scene} />);
 
-    expect(
-      await screen.findByRole('button', { name: '历史版本' }, { timeout: 15_000 })
-    ).toBeInTheDocument();
-    expect(screen.getByTestId('agent-flow-editor-body')).toBeInTheDocument();
+    await waitFor(
+      () => {
+        expect(
+          screen.getByTestId('agent-flow-editor-body')
+        ).toBeInTheDocument();
+        expect(
+          screen.getByRole('button', { name: '历史版本' })
+        ).toBeInTheDocument();
+      },
+      { timeout: 15_000 }
+    );
     expect(screen.queryByText('编排加载失败')).not.toBeInTheDocument();
     expect(
       [...consoleErrorSpy.mock.calls, ...consoleWarnSpy.mock.calls]
@@ -127,65 +146,81 @@ describe('style boundary registry', () => {
     ).not.toContain('[React Flow]');
   }, 20_000);
 
-  test(
-    'renders the settings scene with canonical multi-provider contract data',
-    async () => {
-      const scene = getRuntimeScene('page.settings');
+  test('renders the settings scene with canonical multi-provider contract data', async () => {
+    const scene = getRuntimeScene('page.settings');
 
-      render(
-        <AppProviders>
-          <StyleBoundaryHarness scene={scene} />
-        </AppProviders>
-      );
+    render(
+      <AppProviders>
+        <StyleBoundaryHarness scene={scene} />
+      </AppProviders>
+    );
 
-      expect(
-        await screen.findByRole('heading', { name: '模型供应商', level: 5 }, { timeout: 5000 })
-      ).toBeInTheDocument();
-      expect(
-        await screen.findByRole('heading', { name: '已安装供应商', level: 5 }, { timeout: 5000 })
-      ).toBeInTheDocument();
-      expect(
-        await screen.findByRole('heading', { name: '模型供应商', level: 5 }, { timeout: 5000 })
-      ).toBeInTheDocument();
-      expect((await screen.findAllByText('OpenAI Compatible')).length).toBeGreaterThan(0);
-      expect(await screen.findByText('Anthropic Compatible')).toBeInTheDocument();
-      expect(
-        await screen.findByRole('button', { name: '当前已是最新版本' }, { timeout: 5000 })
-      ).toBeInTheDocument();
-    },
-    15000
-  );
+    expect(
+      await screen.findByRole(
+        'heading',
+        { name: '模型供应商', level: 5 },
+        { timeout: 5000 }
+      )
+    ).toBeInTheDocument();
+    expect(
+      await screen.findByRole(
+        'heading',
+        { name: '已安装供应商', level: 5 },
+        { timeout: 5000 }
+      )
+    ).toBeInTheDocument();
+    expect(
+      await screen.findByRole(
+        'heading',
+        { name: '模型供应商', level: 5 },
+        { timeout: 5000 }
+      )
+    ).toBeInTheDocument();
+    expect(
+      (await screen.findAllByText('OpenAI Compatible')).length
+    ).toBeGreaterThan(0);
+    expect(await screen.findByText('Anthropic Compatible')).toBeInTheDocument();
+    expect(
+      await screen.findByRole(
+        'button',
+        { name: '当前已是最新版本' },
+        { timeout: 5000 }
+      )
+    ).toBeInTheDocument();
+  }, 15000);
 
-  test(
-    'seeds model provider instances with enabled model ids instead of validation history',
-    async () => {
-      const scene = getRuntimeScene('page.settings');
+  test('seeds model provider instances with enabled model ids instead of validation history', async () => {
+    const scene = getRuntimeScene('page.settings');
 
-      render(
-        <AppProviders>
-          <StyleBoundaryHarness scene={scene} />
-        </AppProviders>
-      );
+    render(
+      <AppProviders>
+        <StyleBoundaryHarness scene={scene} />
+      </AppProviders>
+    );
 
-      expect(
-        await screen.findByRole('heading', { name: '模型供应商', level: 5 }, { timeout: 5000 })
-      ).toBeInTheDocument();
+    expect(
+      await screen.findByRole(
+        'heading',
+        { name: '模型供应商', level: 5 },
+        { timeout: 5000 }
+      )
+    ).toBeInTheDocument();
 
-      const response = await fetch('http://127.0.0.1:7800/api/console/model-providers');
-      const payload = await response.json();
-      const instance = payload.data[0] as Record<string, unknown>;
+    const response = await fetch(
+      'http://127.0.0.1:7800/api/console/model-providers'
+    );
+    const payload = await response.json();
+    const instance = payload.data[0] as Record<string, unknown>;
 
-      expect(instance).toEqual(
-        expect.objectContaining({
-          enabled_model_ids: expect.arrayContaining(['gpt-4o-mini']),
-          model_count: expect.any(Number)
-        })
-      );
-      expect(instance).not.toHaveProperty('validation_model_id');
-      expect(instance).not.toHaveProperty('last_validated_at');
-      expect(instance).not.toHaveProperty('last_validation_status');
-      expect(instance).not.toHaveProperty('last_validation_message');
-    },
-    15000
-  );
+    expect(instance).toEqual(
+      expect.objectContaining({
+        enabled_model_ids: expect.arrayContaining(['gpt-4o-mini']),
+        model_count: expect.any(Number)
+      })
+    );
+    expect(instance).not.toHaveProperty('validation_model_id');
+    expect(instance).not.toHaveProperty('last_validated_at');
+    expect(instance).not.toHaveProperty('last_validation_status');
+    expect(instance).not.toHaveProperty('last_validation_message');
+  }, 15000);
 });
