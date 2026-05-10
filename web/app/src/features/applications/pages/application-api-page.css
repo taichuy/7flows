@@ -34,33 +34,6 @@
   min-width: 0;
 }
 
-.application-api-status__endpoints {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 12px;
-  margin: 0;
-}
-
-.application-api-status__endpoint {
-  display: grid;
-  gap: 4px;
-  min-width: 0;
-}
-
-.application-api-status__endpoint dt {
-  color: var(--text-secondary);
-  font-size: 12px;
-}
-
-.application-api-status__endpoint dd {
-  margin: 0;
-  min-width: 0;
-  color: var(--text-primary);
-  font-family: var(--font-family-mono);
-  font-size: 13px;
-  overflow-wrap: anywhere;
-}
-
 .application-api-keys-embedded {
   width: 100%;
   min-width: 0;
@@ -91,7 +64,4 @@
     grid-template-columns: 1fr;
   }
 
-  .application-api-status__endpoints {
-    grid-template-columns: 1fr;
-  }
 }

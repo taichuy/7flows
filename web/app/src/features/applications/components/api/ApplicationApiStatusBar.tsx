@@ -4,25 +4,6 @@ import { Alert, Space, Switch, Typography } from 'antd';
 
 import type { ApplicationApiPublication } from '../../api/public-api';
 
-const publicEndpoints = [
-  { label: 'Native', path: '/api/1flowbase/runs' },
-  { label: 'OpenAI', path: '/v1/chat/completions' },
-  { label: 'Anthropic', path: '/v1/messages' }
-];
-
-function PublicEndpointList() {
-  return (
-    <dl className="application-api-status__endpoints">
-      {publicEndpoints.map((endpoint) => (
-        <div key={endpoint.label} className="application-api-status__endpoint">
-          <dt>{endpoint.label}</dt>
-          <dd>{endpoint.path}</dd>
-        </div>
-      ))}
-    </dl>
-  );
-}
-
 export function ApplicationApiStatusBar({
   publication,
   loading,
@@ -44,7 +25,6 @@ export function ApplicationApiStatusBar({
             message="当前应用还没有已发布的公开 API 版本"
             description="发布后，应用 API Key 会自动绑定当前 active publication；公开 URL 不包含 application_id。"
           />
-          <PublicEndpointList />
           {children}
         </Space>
       </section>
@@ -67,7 +47,6 @@ export function ApplicationApiStatusBar({
             active publication v{publication.version_sequence}
           </Typography.Text>
         </Space>
-        <PublicEndpointList />
         {children}
       </Space>
     </section>

@@ -135,7 +135,6 @@ describe('ApplicationApiPage', () => {
     renderWithProviders(<ApplicationApiPage application={application} />);
 
     expect(await screen.findByText('需要先发布公开 API')).toBeInTheDocument();
-    expect(screen.getByText('/api/1flowbase/runs')).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'API Keys' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: '创建 Key' })).toBeInTheDocument();
     expect(screen.queryByRole('tab', { name: 'API Keys' })).not.toBeInTheDocument();
@@ -145,6 +144,33 @@ describe('ApplicationApiPage', () => {
     expect(screen.getByRole('tab', { name: 'Mapping' })).toBeInTheDocument();
     expect(screen.getByRole('tab', { name: 'Debug' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: '发布当前版本' })).toBeInTheDocument();
+  });
+
+  test('does not duplicate endpoint summaries above the API tabs', async () => {
+    publicApi.fetchApplicationApiPublication.mockResolvedValue({
+      id: 'publication-1',
+      version_sequence: 1,
+      api_enabled: true,
+      mapping_snapshot: mapping,
+      created_at: '2026-05-09T00:00:00Z',
+      updated_at: '2026-05-09T00:00:00Z'
+    });
+
+    const { container } = renderWithProviders(<ApplicationApiPage application={application} />);
+
+    const statusCard = await waitFor(() => {
+      const node = container.querySelector('.application-api-status');
+      expect(node).toBeTruthy();
+      return node as HTMLElement;
+    });
+
+    expect(within(statusCard).queryByText('Native')).not.toBeInTheDocument();
+    expect(within(statusCard).queryByText('OpenAI')).not.toBeInTheDocument();
+    expect(within(statusCard).queryByText('Anthropic')).not.toBeInTheDocument();
+    expect(within(statusCard).queryByText('/api/1flowbase/runs')).not.toBeInTheDocument();
+    expect(screen.getByRole('tab', { name: 'Native API' })).toBeInTheDocument();
+    expect(screen.getByRole('tab', { name: 'OpenAI Compatible' })).toBeInTheDocument();
+    expect(screen.getByRole('tab', { name: 'Anthropic Compatible' })).toBeInTheDocument();
   });
 
   test('keeps API Keys inside the public API header card when published', async () => {
