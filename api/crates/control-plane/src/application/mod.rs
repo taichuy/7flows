@@ -12,8 +12,9 @@ use crate::{
     audit::audit_log,
     errors::ControlPlaneError,
     ports::{
-        ApplicationRepository, ApplicationVisibility, CreateApplicationInput,
-        CreateApplicationTagInput, DeleteApplicationInput, UpdateApplicationInput,
+        ApplicationEnvironmentVariableInput, ApplicationRepository, ApplicationVisibility,
+        CreateApplicationInput, CreateApplicationTagInput, DeleteApplicationInput,
+        ReplaceApplicationEnvironmentVariablesInput, UpdateApplicationInput,
     },
 };
 
@@ -43,6 +44,12 @@ pub struct DeleteApplicationCommand {
 pub struct CreateApplicationTagCommand {
     pub actor_user_id: Uuid,
     pub name: String,
+}
+
+pub struct ReplaceApplicationEnvironmentVariablesCommand {
+    pub actor_user_id: Uuid,
+    pub application_id: Uuid,
+    pub variables: Vec<ApplicationEnvironmentVariableInput>,
 }
 
 pub struct ApplicationService<R> {
@@ -270,6 +277,91 @@ where
 
         Ok(application)
     }
+
+    pub async fn list_application_environment_variables(
+        &self,
+        actor_user_id: Uuid,
+        application_id: Uuid,
+    ) -> Result<Vec<domain::ApplicationEnvironmentVariable>> {
+        let actor = self
+            .repository
+            .load_actor_context_for_user(actor_user_id)
+            .await?;
+        let application = self
+            .load_visible_application(&actor, actor_user_id, application_id)
+            .await?;
+
+        self.repository
+            .list_application_environment_variables(actor.current_workspace_id, application.id)
+            .await
+    }
+
+    pub async fn replace_application_environment_variables(
+        &self,
+        command: ReplaceApplicationEnvironmentVariablesCommand,
+    ) -> Result<Vec<domain::ApplicationEnvironmentVariable>> {
+        let actor = self
+            .repository
+            .load_actor_context_for_user(command.actor_user_id)
+            .await?;
+        let application = self
+            .repository
+            .get_application(actor.current_workspace_id, command.application_id)
+            .await?
+            .ok_or(ControlPlaneError::NotFound("application"))?;
+
+        ensure_application_edit_permission(&actor, &application)?;
+
+        let variables = normalize_environment_variables(command.variables)?;
+        let replaced = self
+            .repository
+            .replace_application_environment_variables(
+                &ReplaceApplicationEnvironmentVariablesInput {
+                    actor_user_id: command.actor_user_id,
+                    workspace_id: actor.current_workspace_id,
+                    application_id: command.application_id,
+                    variables,
+                },
+            )
+            .await?;
+
+        self.repository
+            .append_audit_log(&audit_log(
+                Some(actor.current_workspace_id),
+                Some(command.actor_user_id),
+                "application",
+                Some(command.application_id),
+                "application.environment_variables_replaced",
+                serde_json::json!({
+                    "variable_count": replaced.len(),
+                }),
+            ))
+            .await?;
+
+        Ok(replaced)
+    }
+
+    async fn load_visible_application(
+        &self,
+        actor: &domain::ActorContext,
+        actor_user_id: Uuid,
+        application_id: Uuid,
+    ) -> Result<domain::ApplicationRecord> {
+        let visibility = resolve_application_visibility(actor)?;
+        let application = self
+            .repository
+            .get_application(actor.current_workspace_id, application_id)
+            .await?
+            .ok_or(ControlPlaneError::NotFound("application"))?;
+
+        if matches!(visibility, ApplicationVisibility::Own)
+            && application.created_by != actor_user_id
+        {
+            return Err(ControlPlaneError::PermissionDenied("permission_denied").into());
+        }
+
+        Ok(application)
+    }
 }
 
 fn resolve_application_visibility(
@@ -344,9 +436,105 @@ fn dedupe_tag_ids(tag_ids: Vec<Uuid>) -> Vec<Uuid> {
     deduped
 }
 
+fn normalize_environment_variables(
+    variables: Vec<ApplicationEnvironmentVariableInput>,
+) -> Result<Vec<ApplicationEnvironmentVariableInput>, ControlPlaneError> {
+    let mut seen = HashSet::new();
+    let mut normalized = Vec::with_capacity(variables.len());
+
+    for variable in variables {
+        let name = normalize_environment_variable_name(&variable.name)?;
+        if !seen.insert(name.clone()) {
+            return Err(ControlPlaneError::InvalidInput("environment_variable.name"));
+        }
+
+        let value_type = normalize_environment_variable_value_type(&variable.value_type)?;
+        ensure_environment_variable_value_matches_type(&value_type, &variable.value)?;
+        normalized.push(ApplicationEnvironmentVariableInput {
+            name,
+            value_type,
+            value: variable.value,
+            description: variable.description.trim().to_string(),
+        });
+    }
+
+    Ok(normalized)
+}
+
+fn normalize_environment_variable_name(value: &str) -> Result<String, ControlPlaneError> {
+    let name = value.trim();
+    let mut chars = name.chars();
+
+    if !chars.next().is_some_and(|ch| ch.is_ascii_alphabetic()) {
+        return Err(ControlPlaneError::InvalidInput("environment_variable.name"));
+    }
+
+    if !chars.all(|ch| ch.is_ascii_alphanumeric()) {
+        return Err(ControlPlaneError::InvalidInput("environment_variable.name"));
+    }
+
+    Ok(name.to_string())
+}
+
+fn normalize_environment_variable_value_type(value: &str) -> Result<String, ControlPlaneError> {
+    let value_type = value.trim();
+    let allowed = [
+        "string",
+        "number",
+        "boolean",
+        "object",
+        "array[string]",
+        "array[number]",
+        "array[boolean]",
+        "array[object]",
+    ];
+
+    if allowed.contains(&value_type) {
+        Ok(value_type.to_string())
+    } else {
+        Err(ControlPlaneError::InvalidInput(
+            "environment_variable.value_type",
+        ))
+    }
+}
+
+fn ensure_environment_variable_value_matches_type(
+    value_type: &str,
+    value: &serde_json::Value,
+) -> Result<(), ControlPlaneError> {
+    let valid = match value_type {
+        "string" => value.is_string(),
+        "number" => value.is_number(),
+        "boolean" => value.is_boolean(),
+        "object" => value.is_object(),
+        "array[string]" => value
+            .as_array()
+            .is_some_and(|items| items.iter().all(serde_json::Value::is_string)),
+        "array[number]" => value
+            .as_array()
+            .is_some_and(|items| items.iter().all(serde_json::Value::is_number)),
+        "array[boolean]" => value
+            .as_array()
+            .is_some_and(|items| items.iter().all(serde_json::Value::is_boolean)),
+        "array[object]" => value
+            .as_array()
+            .is_some_and(|items| items.iter().all(serde_json::Value::is_object)),
+        _ => false,
+    };
+
+    if valid {
+        Ok(())
+    } else {
+        Err(ControlPlaneError::InvalidInput(
+            "environment_variable.value",
+        ))
+    }
+}
+
 #[derive(Default)]
 struct InMemoryApplicationRepositoryInner {
     applications: HashMap<Uuid, domain::ApplicationRecord>,
+    environment_variables: HashMap<Uuid, Vec<domain::ApplicationEnvironmentVariable>>,
     tags: HashMap<Uuid, domain::ApplicationTagCatalogEntry>,
     permissions: Vec<String>,
     workspace_id: Uuid,
@@ -364,6 +552,7 @@ impl InMemoryApplicationRepository {
         Self {
             inner: Arc::new(Mutex::new(InMemoryApplicationRepositoryInner {
                 applications: HashMap::new(),
+                environment_variables: HashMap::new(),
                 tags: HashMap::new(),
                 permissions: permissions.into_iter().map(str::to_string).collect(),
                 workspace_id: Uuid::nil(),
@@ -580,6 +769,68 @@ impl ApplicationRepository for InMemoryApplicationRepository {
         Ok(tag)
     }
 
+    async fn list_application_environment_variables(
+        &self,
+        workspace_id: Uuid,
+        application_id: Uuid,
+    ) -> Result<Vec<domain::ApplicationEnvironmentVariable>> {
+        let inner = self
+            .inner
+            .lock()
+            .expect("in-memory app repo mutex poisoned");
+        let application = inner
+            .applications
+            .get(&application_id)
+            .filter(|application| application.workspace_id == workspace_id);
+
+        if application.is_none() {
+            return Err(ControlPlaneError::NotFound("application").into());
+        }
+
+        Ok(inner
+            .environment_variables
+            .get(&application_id)
+            .cloned()
+            .unwrap_or_default())
+    }
+
+    async fn replace_application_environment_variables(
+        &self,
+        input: &ReplaceApplicationEnvironmentVariablesInput,
+    ) -> Result<Vec<domain::ApplicationEnvironmentVariable>> {
+        let mut inner = self
+            .inner
+            .lock()
+            .expect("in-memory app repo mutex poisoned");
+        let application = inner
+            .applications
+            .get(&input.application_id)
+            .filter(|application| application.workspace_id == input.workspace_id);
+
+        if application.is_none() {
+            return Err(ControlPlaneError::NotFound("application").into());
+        }
+
+        let updated_at = time::OffsetDateTime::now_utc();
+        let variables = input
+            .variables
+            .iter()
+            .map(|variable| domain::ApplicationEnvironmentVariable {
+                application_id: input.application_id,
+                name: variable.name.clone(),
+                value_type: variable.value_type.clone(),
+                value: variable.value.clone(),
+                description: variable.description.clone(),
+                updated_at,
+            })
+            .collect::<Vec<_>>();
+        inner
+            .environment_variables
+            .insert(input.application_id, variables.clone());
+
+        Ok(variables)
+    }
+
     async fn append_audit_log(&self, event: &domain::AuditLogRecord) -> Result<()> {
         self.inner
             .lock()
@@ -620,9 +871,9 @@ fn planned_sections(application_type: domain::ApplicationType) -> domain::Applic
             status: "planned".to_string(),
             credential_kind: "application_api_key".to_string(),
             invoke_routing_mode: "api_key_bound_application".to_string(),
-            invoke_path_template: None,
-            api_capability_status: "planned".to_string(),
-            credentials_status: "planned".to_string(),
+            invoke_path_template: Some("/api/1flowbase/runs".to_string()),
+            api_capability_status: "not_published".to_string(),
+            credentials_status: "missing".to_string(),
         },
         logs: domain::ApplicationLogsSection {
             status: "planned".to_string(),

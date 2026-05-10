@@ -2,7 +2,9 @@ import {
   getConsoleApplicationOrchestration,
   restoreConsoleApplicationVersion,
   saveConsoleApplicationDraft,
-  type SaveConsoleApplicationDraftInput
+  updateConsoleApplicationVersion,
+  type SaveConsoleApplicationDraftInput,
+  type UpdateConsoleApplicationVersionInput
 } from '@1flowbase/api-client';
 
 import { getApplicationsApiBaseUrl } from '../../applications/api/applications';
@@ -38,6 +40,21 @@ export function restoreVersion(
   return restoreConsoleApplicationVersion(
     applicationId,
     versionId,
+    csrfToken,
+    getApplicationsApiBaseUrl()
+  );
+}
+
+export function updateVersion(
+  applicationId: string,
+  versionId: string,
+  input: UpdateConsoleApplicationVersionInput,
+  csrfToken: string
+) {
+  return updateConsoleApplicationVersion(
+    applicationId,
+    versionId,
+    input,
     csrfToken,
     getApplicationsApiBaseUrl()
   );

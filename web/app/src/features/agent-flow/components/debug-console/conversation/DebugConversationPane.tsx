@@ -15,17 +15,21 @@ function getQueryField(runContext: AgentFlowRunContext) {
 
 export function DebugConversationPane({
   status,
+  stopping,
   runContext,
   messages,
   onChangeQuery,
   onLoadArtifact,
+  onStopRun,
   onSubmitPrompt
 }: {
   status: AgentFlowDebugSessionStatus;
+  stopping: boolean;
   runContext: AgentFlowRunContext;
   messages: AgentFlowDebugMessage[];
   onChangeQuery: (value: string) => void;
   onLoadArtifact?: (artifactRef: string) => Promise<unknown>;
+  onStopRun: () => void;
   onSubmitPrompt: () => void;
 }) {
   const messagesRef = useRef<HTMLDivElement | null>(null);
@@ -36,6 +40,10 @@ export function DebugConversationPane({
   const queryField = getQueryField(runContext);
   const composerDisabled =
     !queryField ||
+    status === 'running' ||
+    status === 'waiting_human' ||
+    status === 'waiting_callback';
+  const stopAvailable =
     status === 'running' ||
     status === 'waiting_human' ||
     status === 'waiting_callback';
@@ -142,9 +150,11 @@ export function DebugConversationPane({
       </div>
       <DebugComposer
         disabled={composerDisabled}
-        submitting={status === 'running'}
+        submitting={stopAvailable}
+        stopping={stopping}
         value={typeof queryField?.value === 'string' ? queryField.value : ''}
         onChange={onChangeQuery}
+        onStop={onStopRun}
         onSubmit={onSubmitPrompt}
       />
     </div>

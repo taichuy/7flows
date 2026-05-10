@@ -1,0 +1,90 @@
+.application-api-page {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  width: 100%;
+  min-width: 0;
+  gap: 20px;
+}
+
+.application-api-panel {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: 8px;
+  padding: 20px;
+  overflow-wrap: anywhere;
+}
+
+.application-api-status {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+  padding: 10px 16px;
+  overflow-wrap: anywhere;
+}
+
+.application-api-status .ant-alert {
+  max-width: 100%;
+}
+
+.application-api-status .ant-alert-description {
+  overflow-wrap: anywhere;
+}
+
+.application-api-status__main,
+.application-api-panel__stack,
+.application-api-token-modal,
+.application-api-key-list-modal {
+  width: 100%;
+  min-width: 0;
+}
+
+.application-api-status__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  width: 100%;
+  min-width: 0;
+}
+
+.application-api-status__actions {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex: 0 0 auto;
+}
+
+.application-api-panel__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.application-api-mapping-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0 16px;
+}
+
+@media (max-width: 900px) {
+  .application-api-panel__header {
+    flex-direction: column;
+  }
+
+  .application-api-status__header {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .application-api-mapping-grid {
+    grid-template-columns: 1fr;
+  }
+}

@@ -144,6 +144,46 @@ impl FlowRepository for PgControlPlaneStore {
         tx.commit().await?;
         Ok(updated)
     }
+
+    async fn update_version_metadata(
+        &self,
+        workspace_id: Uuid,
+        application_id: Uuid,
+        actor_user_id: Uuid,
+        version_id: Uuid,
+        summary: Option<String>,
+        summary_is_custom: Option<bool>,
+        is_protected: Option<bool>,
+    ) -> Result<domain::FlowEditorState> {
+        let mut tx = self.pool().begin().await?;
+        ensure_application_exists(&mut tx, workspace_id, application_id).await?;
+        let state = ensure_editor_state(&mut tx, application_id, actor_user_id).await?;
+        let updated = sqlx::query_scalar::<_, Uuid>(
+            r#"
+            update flow_versions
+            set summary = coalesce($3, summary),
+                summary_is_custom = coalesce($4, summary_is_custom),
+                is_protected = coalesce($5, is_protected)
+            where flow_id = $1 and id = $2
+            returning id
+            "#,
+        )
+        .bind(state.flow.id)
+        .bind(version_id)
+        .bind(summary)
+        .bind(summary_is_custom)
+        .bind(is_protected)
+        .fetch_optional(&mut *tx)
+        .await?;
+
+        if updated.is_none() {
+            return Err(ControlPlaneError::NotFound("flow_version").into());
+        }
+
+        let updated = fetch_editor_state(&mut tx, state.flow.id).await?;
+        tx.commit().await?;
+        Ok(updated)
+    }
 }
 
 async fn ensure_application_exists(
@@ -339,10 +379,10 @@ async fn list_versions(
 ) -> Result<Vec<domain::FlowVersionRecord>> {
     let rows = sqlx::query(
         r#"
-        select id, flow_id, sequence, trigger, change_kind, summary, document, created_at
+        select id, flow_id, sequence, trigger, change_kind, summary, summary_is_custom, is_protected, document, created_at
         from flow_versions
         where flow_id = $1
-        order by sequence asc
+        order by is_protected desc, sequence asc
         "#,
     )
     .bind(flow_id)
@@ -359,7 +399,7 @@ async fn fetch_version(
 ) -> Result<Option<domain::FlowVersionRecord>> {
     let row = sqlx::query(
         r#"
-        select id, flow_id, sequence, trigger, change_kind, summary, document, created_at
+        select id, flow_id, sequence, trigger, change_kind, summary, summary_is_custom, is_protected, document, created_at
         from flow_versions
         where flow_id = $1 and id = $2
         "#,
@@ -396,9 +436,11 @@ async fn insert_version(
             trigger,
             change_kind,
             summary,
+            summary_is_custom,
+            is_protected,
             document,
             created_by
-        ) values ($1, $2, $3, $4, 'logical', $5, $6, $7)
+        ) values ($1, $2, $3, $4, 'logical', $5, false, false, $6, $7)
         "#,
     )
     .bind(Uuid::now_v7())
@@ -421,7 +463,7 @@ async fn trim_versions(tx: &mut Transaction<'_, Postgres>, flow_id: Uuid) -> Res
         where id in (
             select id
             from flow_versions
-            where flow_id = $1
+            where flow_id = $1 and is_protected = false
             order by sequence desc
             offset $2
         )
@@ -462,6 +504,8 @@ fn map_version_row(row: sqlx::postgres::PgRow) -> Result<domain::FlowVersionReco
         trigger: row.get("trigger"),
         change_kind: row.get("change_kind"),
         summary: row.get("summary"),
+        summary_is_custom: row.get("summary_is_custom"),
+        is_protected: row.get("is_protected"),
         document: row.get("document"),
         created_at: row.get("created_at"),
     })

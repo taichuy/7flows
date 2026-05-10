@@ -52,7 +52,7 @@ async fn list_applications_uses_own_scope_when_actor_lacks_all_scope() {
 }
 
 #[tokio::test]
-async fn get_application_detail_returns_planned_future_hooks() {
+async fn get_application_detail_returns_public_api_template_before_configuration() {
     let service = ApplicationService::for_tests();
     let created = service
         .create_application(CreateApplicationCommand {
@@ -73,7 +73,12 @@ async fn get_application_detail_returns_planned_future_hooks() {
         .unwrap();
 
     assert_eq!(detail.sections.orchestration.subject_kind, "agent_flow");
-    assert_eq!(detail.sections.api.credentials_status, "planned");
+    assert_eq!(
+        detail.sections.api.invoke_path_template.as_deref(),
+        Some("/api/1flowbase/runs")
+    );
+    assert_eq!(detail.sections.api.api_capability_status, "not_published");
+    assert_eq!(detail.sections.api.credentials_status, "missing");
     assert_eq!(detail.sections.logs.run_object_kind, "application_run");
     assert_eq!(
         detail.sections.monitoring.metrics_object_kind,

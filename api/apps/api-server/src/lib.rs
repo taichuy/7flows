@@ -1,6 +1,7 @@
 extern crate self as api_server;
 
 pub mod app_state;
+pub mod application_public_docs;
 pub mod config;
 pub mod error_response;
 pub mod host_extension_boot;
@@ -130,7 +131,10 @@ pub fn app_with_state(state: Arc<ApiState>) -> Router {
 
 fn console_router(state: Arc<ApiState>) -> Router {
     Router::new()
+        .merge(routes::application_public_api::compatible_router())
+        .nest("/api/1flowbase", routes::application_public_api::router())
         .nest("/api/console", routes::applications::router())
+        .nest("/api/console", routes::application_api::router())
         .nest("/api/console", routes::application_orchestration::router())
         .nest("/api/console", routes::application_runtime::router())
         .nest("/api/console", routes::docs::router())

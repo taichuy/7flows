@@ -209,8 +209,10 @@ where
         .iter()
         .any(|event| is_terminal_runtime_event(&event.event_type));
     let events = std::mem::take(batch);
-    if let Err(error) =
-        control_plane::orchestration_runtime::persist_debug_stream_events(repository, events).await
+    if let Err(error) = control_plane::orchestration_runtime::persist_runtime_debug_stream_events(
+        repository, events,
+    )
+    .await
     {
         warn!(
             flow_run_id = %run_id,
@@ -245,6 +247,7 @@ pub struct DebugRunStreamQuery {
 #[derive(Debug, Deserialize)]
 pub struct DebugVariableSnapshotQuery {
     pub debug_session_id: Option<String>,
+    pub run_id: Option<Uuid>,
 }
 
 #[derive(Debug, Deserialize, ToSchema)]
@@ -1140,6 +1143,7 @@ pub async fn get_debug_variable_snapshot(
         context.actor.current_workspace_id,
         context.actor.user_id,
         query.debug_session_id,
+        query.run_id,
         &editor_state,
     )
     .await?;

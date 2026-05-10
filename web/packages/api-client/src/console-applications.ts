@@ -68,6 +68,14 @@ export interface ConsoleApplicationDetail extends ConsoleApplicationSummary {
   sections: ConsoleApplicationSections;
 }
 
+export interface ConsoleApplicationEnvironmentVariable {
+  name: string;
+  value_type: string;
+  value: unknown;
+  description: string;
+  updated_at: string;
+}
+
 export interface CreateConsoleApplicationInput {
   application_type: ConsoleApplicationType;
   name: string;
@@ -87,7 +95,18 @@ export interface CreateConsoleApplicationTagInput {
   name: string;
 }
 
-export function listConsoleApplications(baseUrl?: string): Promise<ConsoleApplicationSummary[]> {
+export interface ReplaceConsoleApplicationEnvironmentVariablesInput {
+  variables: Array<{
+    name: string;
+    value_type: string;
+    value: unknown;
+    description: string;
+  }>;
+}
+
+export function listConsoleApplications(
+  baseUrl?: string
+): Promise<ConsoleApplicationSummary[]> {
   return apiFetch<ConsoleApplicationSummary[]>({
     path: '/api/console/applications',
     baseUrl
@@ -150,6 +169,31 @@ export function deleteConsoleApplication(
   return apiFetchVoid({
     path: `/api/console/applications/${applicationId}`,
     method: 'DELETE',
+    csrfToken,
+    baseUrl
+  });
+}
+
+export function listConsoleApplicationEnvironmentVariables(
+  applicationId: string,
+  baseUrl?: string
+): Promise<ConsoleApplicationEnvironmentVariable[]> {
+  return apiFetch<ConsoleApplicationEnvironmentVariable[]>({
+    path: `/api/console/applications/${applicationId}/environment-variables`,
+    baseUrl
+  });
+}
+
+export function replaceConsoleApplicationEnvironmentVariables(
+  applicationId: string,
+  input: ReplaceConsoleApplicationEnvironmentVariablesInput,
+  csrfToken: string,
+  baseUrl?: string
+): Promise<ConsoleApplicationEnvironmentVariable[]> {
+  return apiFetch<ConsoleApplicationEnvironmentVariable[]>({
+    path: `/api/console/applications/${applicationId}/environment-variables`,
+    method: 'PUT',
+    body: input,
     csrfToken,
     baseUrl
   });

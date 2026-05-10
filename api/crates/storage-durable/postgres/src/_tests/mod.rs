@@ -1,4 +1,5 @@
 mod application_mapper_tests;
+mod application_public_api_repository_tests;
 mod application_repository_tests;
 mod crate_smoke_tests;
 mod data_source_repository_tests;

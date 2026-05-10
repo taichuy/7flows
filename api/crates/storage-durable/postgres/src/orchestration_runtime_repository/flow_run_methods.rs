@@ -86,9 +86,20 @@ impl PgControlPlaneStore {
                 target_node_id,
                 status,
                 input_payload,
+                api_key_id,
+                publication_version_id,
+                external_user,
+                external_conversation_id,
+                external_trace_id,
+                compatibility_mode,
+                idempotency_key,
                 created_by,
                 started_at
-            ) values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
+            ) values (
+                $1, $2, $3, $4, $5, $6, $7, $8, $9, $10,
+                $11, $12, $13, $14, $15, $16, $17, $18, $19,
+                $20, $21
+            )
             returning
                 id,
                 application_id,
@@ -105,6 +116,13 @@ impl PgControlPlaneStore {
                 output_payload,
                 error_payload,
                 created_by,
+                api_key_id,
+                publication_version_id,
+                external_user,
+                external_conversation_id,
+                external_trace_id,
+                compatibility_mode,
+                idempotency_key,
                 started_at,
                 finished_at,
                 created_at
@@ -122,6 +140,13 @@ impl PgControlPlaneStore {
         .bind(input.target_node_id.as_deref())
         .bind(input.status.as_str())
         .bind(&input.input_payload)
+        .bind(input.api_key_id)
+        .bind(input.publication_version_id)
+        .bind(input.external_user.as_deref())
+        .bind(input.external_conversation_id.as_deref())
+        .bind(input.external_trace_id.as_deref())
+        .bind(input.compatibility_mode.as_deref())
+        .bind(input.idempotency_key.as_deref())
         .bind(input.actor_user_id)
         .bind(input.started_at)
         .fetch_one(self.pool())
@@ -149,9 +174,20 @@ impl PgControlPlaneStore {
                 target_node_id,
                 status,
                 input_payload,
+                api_key_id,
+                publication_version_id,
+                external_user,
+                external_conversation_id,
+                external_trace_id,
+                compatibility_mode,
+                idempotency_key,
                 created_by,
                 started_at
-            ) values ($1, $2, $3, $4, null, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+            ) values (
+                $1, $2, $3, $4, null, $5, $6, $7, $8, $9,
+                $10, $11, $12, $13, $14, $15, $16, $17, $18,
+                $19, $20
+            )
             returning
                 id,
                 application_id,
@@ -168,6 +204,13 @@ impl PgControlPlaneStore {
                 output_payload,
                 error_payload,
                 created_by,
+                api_key_id,
+                publication_version_id,
+                external_user,
+                external_conversation_id,
+                external_trace_id,
+                compatibility_mode,
+                idempotency_key,
                 started_at,
                 finished_at,
                 created_at
@@ -184,6 +227,13 @@ impl PgControlPlaneStore {
         .bind(input.target_node_id.as_deref())
         .bind(input.status.as_str())
         .bind(&input.input_payload)
+        .bind(input.api_key_id)
+        .bind(input.publication_version_id)
+        .bind(input.external_user.as_deref())
+        .bind(input.external_conversation_id.as_deref())
+        .bind(input.external_trace_id.as_deref())
+        .bind(input.compatibility_mode.as_deref())
+        .bind(input.idempotency_key.as_deref())
         .bind(input.actor_user_id)
         .bind(input.started_at)
         .fetch_one(self.pool())
@@ -228,6 +278,13 @@ impl PgControlPlaneStore {
                 flow_runs.output_payload,
                 flow_runs.error_payload,
                 flow_runs.created_by,
+                flow_runs.api_key_id,
+                flow_runs.publication_version_id,
+                flow_runs.external_user,
+                flow_runs.external_conversation_id,
+                flow_runs.external_trace_id,
+                flow_runs.compatibility_mode,
+                flow_runs.idempotency_key,
                 flow_runs.started_at,
                 flow_runs.finished_at,
                 flow_runs.created_at
@@ -275,6 +332,13 @@ impl PgControlPlaneStore {
                 output_payload,
                 error_payload,
                 created_by,
+                api_key_id,
+                publication_version_id,
+                external_user,
+                external_conversation_id,
+                external_trace_id,
+                compatibility_mode,
+                idempotency_key,
                 started_at,
                 finished_at,
                 created_at
@@ -296,6 +360,58 @@ impl PgControlPlaneStore {
         flow_run_id: Uuid,
     ) -> Result<Option<domain::FlowRunRecord>> {
         fetch_flow_run_for_application(self, application_id, flow_run_id).await
+    }
+
+    async fn find_published_flow_run_by_idempotency_key(
+        &self,
+        application_id: Uuid,
+        api_key_id: Uuid,
+        idempotency_key: &str,
+    ) -> Result<Option<domain::FlowRunRecord>> {
+        let row = sqlx::query(
+            r#"
+            select
+                id,
+                application_id,
+                flow_id,
+                flow_draft_id,
+                compiled_plan_id,
+                debug_session_id,
+                flow_schema_version,
+                document_hash,
+                run_mode,
+                target_node_id,
+                status,
+                input_payload,
+                output_payload,
+                error_payload,
+                created_by,
+                api_key_id,
+                publication_version_id,
+                external_user,
+                external_conversation_id,
+                external_trace_id,
+                compatibility_mode,
+                idempotency_key,
+                started_at,
+                finished_at,
+                created_at
+            from flow_runs
+            where application_id = $1
+              and api_key_id = $2
+              and idempotency_key = $3
+              and run_mode = 'published_api_run'
+            order by created_at asc, id asc
+            limit 1
+            "#,
+        )
+        .bind(application_id)
+        .bind(api_key_id)
+        .bind(idempotency_key)
+        .fetch_optional(self.pool())
+        .await?;
+
+        row.map(map_flow_run_record).transpose()
     }
 
     async fn create_node_run(&self, input: &CreateNodeRunInput) -> Result<domain::NodeRunRecord> {
@@ -424,6 +540,13 @@ impl PgControlPlaneStore {
                 output_payload,
                 error_payload,
                 created_by,
+                api_key_id,
+                publication_version_id,
+                external_user,
+                external_conversation_id,
+                external_trace_id,
+                compatibility_mode,
+                idempotency_key,
                 started_at,
                 finished_at,
                 created_at
@@ -470,6 +593,13 @@ impl PgControlPlaneStore {
                 output_payload,
                 error_payload,
                 created_by,
+                api_key_id,
+                publication_version_id,
+                external_user,
+                external_conversation_id,
+                external_trace_id,
+                compatibility_mode,
+                idempotency_key,
                 started_at,
                 finished_at,
                 created_at

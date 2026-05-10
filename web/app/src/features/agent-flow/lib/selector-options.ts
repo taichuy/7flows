@@ -1,6 +1,15 @@
 import type { FlowAuthoringDocument } from '@1flowbase/flow-schema';
 
 import { getNodeVariableOutputs } from './start-node-variables';
+import {
+  agentFlowSystemVariables,
+  systemVariableNodeId
+} from './system-variables';
+import {
+  environmentVariableNodeId,
+  formatEnvironmentVariableTitle,
+  type AgentFlowEnvironmentVariable
+} from './application-environment-variables';
 import { formatNodeVariableLabel } from './variable-labels';
 
 export interface FlowSelectorOption {
@@ -41,11 +50,28 @@ function collectUpstreamNodeIds(
 
 export function listVisibleSelectorOptions(
   document: FlowAuthoringDocument,
-  nodeId: string
+  nodeId: string,
+  environmentVariables: AgentFlowEnvironmentVariable[] = []
 ): FlowSelectorOption[] {
   const visibleNodeIds = collectUpstreamNodeIds(document, nodeId);
+  const systemOptions = agentFlowSystemVariables.map((variable) => ({
+    nodeId: systemVariableNodeId,
+    nodeLabel: '系统变量',
+    outputKey: variable.key,
+    outputLabel: variable.title,
+    value: [systemVariableNodeId, variable.key],
+    displayLabel: variable.title
+  }));
+  const environmentOptions = environmentVariables.map((variable) => ({
+    nodeId: environmentVariableNodeId,
+    nodeLabel: '环境变量',
+    outputKey: variable.name,
+    outputLabel: formatEnvironmentVariableTitle(variable.name),
+    value: [environmentVariableNodeId, variable.name],
+    displayLabel: formatEnvironmentVariableTitle(variable.name)
+  }));
 
-  return document.graph.nodes
+  const nodeOptions = document.graph.nodes
     .filter((node) => visibleNodeIds.has(node.id))
     .flatMap((node) =>
       getNodeVariableOutputs(node).map((output) => ({
@@ -57,6 +83,8 @@ export function listVisibleSelectorOptions(
         displayLabel: formatNodeVariableLabel(node.alias, output.key)
       }))
     );
+
+  return [...systemOptions, ...environmentOptions, ...nodeOptions];
 }
 
 export function toCascaderSelectorOptions(options: FlowSelectorOption[]) {
@@ -90,13 +118,18 @@ export function toCascaderSelectorOptions(options: FlowSelectorOption[]) {
 export function isSelectorVisible(
   document: FlowAuthoringDocument,
   nodeId: string,
-  selector: string[]
+  selector: string[],
+  environmentVariables: AgentFlowEnvironmentVariable[] = []
 ): boolean {
   if (selector.length < 2) {
     return false;
   }
 
-  return listVisibleSelectorOptions(document, nodeId).some(
+  return listVisibleSelectorOptions(
+    document,
+    nodeId,
+    environmentVariables
+  ).some(
     (option) =>
       option.value.length === selector.length &&
       option.value.every((segment, index) => segment === selector[index])

@@ -15,7 +15,17 @@ vi.mock('@1flowbase/api-client', () => ({
     types: [],
     tags: []
   }),
+  listConsoleApplicationEnvironmentVariables: vi.fn().mockResolvedValue([]),
   listConsoleApplications: vi.fn().mockResolvedValue([]),
+  replaceConsoleApplicationEnvironmentVariables: vi.fn().mockResolvedValue([
+    {
+      name: 'ApiBaseUrl',
+      value_type: 'string',
+      value: 'https://api.example.com',
+      description: '当前应用 API 地址',
+      updated_at: '2026-05-09T09:30:00Z'
+    }
+  ]),
   updateConsoleApplication: vi.fn().mockResolvedValue({
     id: 'app-1'
   }),
@@ -29,7 +39,9 @@ import {
   getConsoleApplication,
   getConsoleApplicationCatalog,
   getDefaultApiBaseUrl,
+  listConsoleApplicationEnvironmentVariables,
   listConsoleApplications,
+  replaceConsoleApplicationEnvironmentVariables,
   updateConsoleApplication
 } from '@1flowbase/api-client';
 
@@ -39,8 +51,10 @@ import {
   deleteApplication,
   fetchApplicationCatalog,
   fetchApplicationDetail,
+  fetchApplicationEnvironmentVariables,
   fetchApplications,
   getApplicationsApiBaseUrl,
+  replaceApplicationEnvironmentVariables,
   updateApplication
 } from '../api/applications';
 
@@ -53,9 +67,9 @@ describe('applications api', () => {
   test('prefers VITE_API_BASE_URL when it is present', () => {
     vi.stubEnv('VITE_API_BASE_URL', 'https://api.flowbase.test');
 
-    expect(getApplicationsApiBaseUrl({ protocol: 'http:', hostname: 'ignored-host' })).toBe(
-      'https://api.flowbase.test'
-    );
+    expect(
+      getApplicationsApiBaseUrl({ protocol: 'http:', hostname: 'ignored-host' })
+    ).toBe('https://api.flowbase.test');
     expect(getDefaultApiBaseUrl).not.toHaveBeenCalled();
   });
 
@@ -81,6 +95,19 @@ describe('applications api', () => {
     await fetchApplicationDetail('app-1');
     await createApplication(input, 'csrf-123');
     await deleteApplication('app-1', 'csrf-123');
+    await fetchApplicationEnvironmentVariables('app-1');
+    await replaceApplicationEnvironmentVariables(
+      'app-1',
+      [
+        {
+          name: 'ApiBaseUrl',
+          value_type: 'string',
+          value: 'https://api.example.com',
+          description: '当前应用 API 地址'
+        }
+      ],
+      'csrf-123'
+    );
     await updateApplication(
       'app-1',
       {
@@ -92,9 +119,16 @@ describe('applications api', () => {
     );
     await createApplicationTag({ name: '客服' }, 'csrf-123');
 
-    expect(listConsoleApplications).toHaveBeenCalledWith('http://127.0.0.1:7800');
-    expect(getConsoleApplicationCatalog).toHaveBeenCalledWith('http://127.0.0.1:7800');
-    expect(getConsoleApplication).toHaveBeenCalledWith('app-1', 'http://127.0.0.1:7800');
+    expect(listConsoleApplications).toHaveBeenCalledWith(
+      'http://127.0.0.1:7800'
+    );
+    expect(getConsoleApplicationCatalog).toHaveBeenCalledWith(
+      'http://127.0.0.1:7800'
+    );
+    expect(getConsoleApplication).toHaveBeenCalledWith(
+      'app-1',
+      'http://127.0.0.1:7800'
+    );
     expect(createConsoleApplication).toHaveBeenCalledWith(
       input,
       'csrf-123',
@@ -102,6 +136,25 @@ describe('applications api', () => {
     );
     expect(deleteConsoleApplication).toHaveBeenCalledWith(
       'app-1',
+      'csrf-123',
+      'http://127.0.0.1:7800'
+    );
+    expect(listConsoleApplicationEnvironmentVariables).toHaveBeenCalledWith(
+      'app-1',
+      'http://127.0.0.1:7800'
+    );
+    expect(replaceConsoleApplicationEnvironmentVariables).toHaveBeenCalledWith(
+      'app-1',
+      {
+        variables: [
+          {
+            name: 'ApiBaseUrl',
+            value_type: 'string',
+            value: 'https://api.example.com',
+            description: '当前应用 API 地址'
+          }
+        ]
+      },
       'csrf-123',
       'http://127.0.0.1:7800'
     );

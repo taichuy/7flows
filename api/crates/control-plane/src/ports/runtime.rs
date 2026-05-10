@@ -35,6 +35,13 @@ pub struct CreateFlowRunInput {
     pub status: domain::FlowRunStatus,
     pub input_payload: serde_json::Value,
     pub started_at: OffsetDateTime,
+    pub api_key_id: Option<Uuid>,
+    pub publication_version_id: Option<Uuid>,
+    pub external_user: Option<String>,
+    pub external_conversation_id: Option<String>,
+    pub external_trace_id: Option<String>,
+    pub compatibility_mode: Option<String>,
+    pub idempotency_key: Option<String>,
 }
 
 #[derive(Debug, Clone)]
@@ -51,6 +58,13 @@ pub struct CreateFlowRunShellInput {
     pub status: domain::FlowRunStatus,
     pub input_payload: serde_json::Value,
     pub started_at: OffsetDateTime,
+    pub api_key_id: Option<Uuid>,
+    pub publication_version_id: Option<Uuid>,
+    pub external_user: Option<String>,
+    pub external_conversation_id: Option<String>,
+    pub external_trace_id: Option<String>,
+    pub compatibility_mode: Option<String>,
+    pub idempotency_key: Option<String>,
 }
 
 #[derive(Debug, Clone)]

@@ -9,9 +9,11 @@ use axum::{
 use control_plane::{
     application::{
         ApplicationService, CreateApplicationCommand, CreateApplicationTagCommand,
-        DeleteApplicationCommand, UpdateApplicationCommand,
+        DeleteApplicationCommand, ReplaceApplicationEnvironmentVariablesCommand,
+        UpdateApplicationCommand,
     },
     errors::ControlPlaneError,
+    ports::ApplicationEnvironmentVariableInput,
 };
 use serde::{Deserialize, Serialize};
 use time::format_description::well_known::Rfc3339;
@@ -48,10 +50,32 @@ pub struct CreateApplicationTagBody {
     pub name: String,
 }
 
+#[derive(Debug, Deserialize, ToSchema)]
+pub struct ApplicationEnvironmentVariableBody {
+    pub name: String,
+    pub value_type: String,
+    pub value: serde_json::Value,
+    pub description: String,
+}
+
+#[derive(Debug, Deserialize, ToSchema)]
+pub struct ReplaceApplicationEnvironmentVariablesBody {
+    pub variables: Vec<ApplicationEnvironmentVariableBody>,
+}
+
 #[derive(Debug, Serialize, ToSchema)]
 pub struct ApplicationTagResponse {
     pub id: String,
     pub name: String,
+}
+
+#[derive(Debug, Serialize, ToSchema)]
+pub struct ApplicationEnvironmentVariableResponse {
+    pub name: String,
+    pub value_type: String,
+    pub value: serde_json::Value,
+    pub description: String,
+    pub updated_at: String,
 }
 
 #[derive(Debug, Serialize, ToSchema)]
@@ -159,6 +183,11 @@ pub fn router() -> Router<Arc<ApiState>> {
                 .patch(patch_application)
                 .delete(delete_application),
         )
+        .route(
+            "/applications/:id/environment-variables",
+            get(list_application_environment_variables)
+                .put(replace_application_environment_variables),
+        )
 }
 
 fn to_application_tag(tag: domain::ApplicationTag) -> ApplicationTagResponse {
@@ -175,6 +204,18 @@ fn to_application_tag_catalog_entry(
         id: tag.id.to_string(),
         name: tag.name,
         application_count: tag.application_count,
+    }
+}
+
+fn to_application_environment_variable(
+    variable: domain::ApplicationEnvironmentVariable,
+) -> ApplicationEnvironmentVariableResponse {
+    ApplicationEnvironmentVariableResponse {
+        name: variable.name,
+        value_type: variable.value_type,
+        value: variable.value,
+        description: variable.description,
+        updated_at: variable.updated_at.format(&Rfc3339).unwrap(),
     }
 }
 
@@ -422,6 +463,87 @@ pub async fn get_application(
         .await?;
 
     Ok(Json(ApiSuccess::new(to_application_detail(application))))
+}
+
+#[utoipa::path(
+    get,
+    path = "/api/console/applications/{id}/environment-variables",
+    params(
+        ("id" = String, Path, description = "Application id")
+    ),
+    responses(
+        (status = 200, body = [ApplicationEnvironmentVariableResponse]),
+        (status = 401, body = crate::error_response::ErrorBody),
+        (status = 403, body = crate::error_response::ErrorBody),
+        (status = 404, body = crate::error_response::ErrorBody)
+    )
+)]
+pub async fn list_application_environment_variables(
+    State(state): State<Arc<ApiState>>,
+    headers: HeaderMap,
+    Path(id): Path<Uuid>,
+) -> Result<Json<ApiSuccess<Vec<ApplicationEnvironmentVariableResponse>>>, ApiError> {
+    let context = require_session(&state, &headers).await?;
+    let variables = ApplicationService::new(state.store.clone())
+        .list_application_environment_variables(context.user.id, id)
+        .await?;
+
+    Ok(Json(ApiSuccess::new(
+        variables
+            .into_iter()
+            .map(to_application_environment_variable)
+            .collect(),
+    )))
+}
+
+#[utoipa::path(
+    put,
+    path = "/api/console/applications/{id}/environment-variables",
+    params(
+        ("id" = String, Path, description = "Application id")
+    ),
+    request_body = ReplaceApplicationEnvironmentVariablesBody,
+    responses(
+        (status = 200, body = [ApplicationEnvironmentVariableResponse]),
+        (status = 400, body = crate::error_response::ErrorBody),
+        (status = 401, body = crate::error_response::ErrorBody),
+        (status = 403, body = crate::error_response::ErrorBody),
+        (status = 404, body = crate::error_response::ErrorBody)
+    )
+)]
+pub async fn replace_application_environment_variables(
+    State(state): State<Arc<ApiState>>,
+    headers: HeaderMap,
+    Path(id): Path<Uuid>,
+    Json(body): Json<ReplaceApplicationEnvironmentVariablesBody>,
+) -> Result<Json<ApiSuccess<Vec<ApplicationEnvironmentVariableResponse>>>, ApiError> {
+    let context = require_session(&state, &headers).await?;
+    require_csrf(&headers, &context.session)?;
+
+    let variables = body
+        .variables
+        .into_iter()
+        .map(|variable| ApplicationEnvironmentVariableInput {
+            name: variable.name,
+            value_type: variable.value_type,
+            value: variable.value,
+            description: variable.description,
+        })
+        .collect();
+    let replaced = ApplicationService::new(state.store.clone())
+        .replace_application_environment_variables(ReplaceApplicationEnvironmentVariablesCommand {
+            actor_user_id: context.user.id,
+            application_id: id,
+            variables,
+        })
+        .await?;
+
+    Ok(Json(ApiSuccess::new(
+        replaced
+            .into_iter()
+            .map(to_application_environment_variable)
+            .collect(),
+    )))
 }
 
 #[utoipa::path(

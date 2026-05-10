@@ -1,14 +1,23 @@
-import type { FlowAuthoringDocument, FlowNodeDocument } from '@1flowbase/flow-schema';
+import type {
+  FlowAuthoringDocument,
+  FlowNodeDocument
+} from '@1flowbase/flow-schema';
 
-import { replaceNodeOutputs, updateNodeField } from '../lib/document/transforms/node';
+import {
+  replaceNodeOutputs,
+  updateNodeField
+} from '../lib/document/transforms/node';
 import { getDirectDownstreamNodes } from '../lib/document/relations';
 import { listVisibleSelectorOptions } from '../lib/selector-options';
 import { getNodeDefinitionMeta } from '../lib/node-definitions';
+import type { AgentFlowEnvironmentVariable } from '../lib/application-environment-variables';
 
 import type { SchemaAdapter } from '../../../shared/schema-ui/registry/create-renderer-registry';
 
 function getNode(document: FlowAuthoringDocument, nodeId: string) {
-  const node = document.graph.nodes.find((candidate) => candidate.id === nodeId);
+  const node = document.graph.nodes.find(
+    (candidate) => candidate.id === nodeId
+  );
 
   if (!node) {
     throw new Error(`Missing agent-flow node: ${nodeId}`);
@@ -42,10 +51,12 @@ export function createAgentFlowNodeSchemaAdapter({
   document,
   nodeId,
   setWorkingDocument,
-  dispatch
+  dispatch,
+  environmentVariables = []
 }: {
   document: FlowAuthoringDocument;
   nodeId: string;
+  environmentVariables?: AgentFlowEnvironmentVariable[];
   setWorkingDocument: (
     update:
       | FlowAuthoringDocument
@@ -70,8 +81,9 @@ export function createAgentFlowNodeSchemaAdapter({
       }
 
       if (path.startsWith('outputs.')) {
-        return node.outputs.find((output) => output.key === path.slice('outputs.'.length))
-          ?.title;
+        return node.outputs.find(
+          (output) => output.key === path.slice('outputs.'.length)
+        )?.title;
       }
 
       if (path.startsWith('config.')) {
@@ -87,7 +99,11 @@ export function createAgentFlowNodeSchemaAdapter({
     setValue(path: string, value: unknown) {
       if (path === 'config.output_contract' && Array.isArray(value)) {
         setWorkingDocument((currentDocument) => {
-          const nextDocument = replaceNodeOutputs(currentDocument, nodeId, value);
+          const nextDocument = replaceNodeOutputs(
+            currentDocument,
+            nodeId,
+            value
+          );
 
           return {
             ...nextDocument,
@@ -130,7 +146,11 @@ export function createAgentFlowNodeSchemaAdapter({
       }
 
       if (key === 'selectorOptions') {
-        return listVisibleSelectorOptions(document, nodeId);
+        return listVisibleSelectorOptions(
+          document,
+          nodeId,
+          environmentVariables
+        );
       }
 
       if (key === 'downstreamNodes') {

@@ -21,6 +21,7 @@ struct InMemoryOrchestrationRuntimeState {
         HashMap<(Uuid, String), domain::DataModelSideEffectReceiptRecord>,
     audit_hashes_by_flow_run_id: HashMap<Uuid, Vec<domain::AuditHashRecord>>,
     capability_invocations_by_flow_run_id: HashMap<Uuid, Vec<domain::CapabilityInvocationRecord>>,
+    application_environment_variables: HashMap<Uuid, Vec<domain::ApplicationEnvironmentVariable>>,
     installations_by_id: HashMap<Uuid, domain::PluginInstallationRecord>,
     assignments_by_workspace: HashMap<Uuid, Vec<domain::PluginAssignmentRecord>>,
     node_contributions_by_workspace: HashMap<Uuid, Vec<domain::NodeContributionRegistryEntry>>,

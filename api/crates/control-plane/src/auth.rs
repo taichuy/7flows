@@ -170,6 +170,8 @@ where
                 name: command.name,
                 token_hash,
                 token_prefix,
+                key_kind: domain::ApiKeyKind::DataModelApiKey,
+                application_id: None,
                 creator_user_id: command.actor_user_id,
                 tenant_id: actor.tenant_id,
                 scope_kind,
@@ -214,6 +216,11 @@ where
             .await?
             .ok_or(ControlPlaneError::NotAuthenticated)?;
         if !api_key.enabled {
+            return Err(ControlPlaneError::NotAuthenticated.into());
+        }
+        if api_key.key_kind != domain::ApiKeyKind::DataModelApiKey
+            || api_key.application_id.is_some()
+        {
             return Err(ControlPlaneError::NotAuthenticated.into());
         }
         if api_key

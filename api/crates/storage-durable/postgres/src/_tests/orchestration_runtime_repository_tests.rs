@@ -212,10 +212,50 @@ async fn seed_flow_run_with_mode(
             status: FlowRunStatus::Running,
             input_payload: json!({ "node-start": { "query": "总结退款政策" } }),
             started_at,
+            api_key_id: None,
+            publication_version_id: None,
+            external_user: None,
+            external_conversation_id: None,
+            external_trace_id: None,
+            compatibility_mode: None,
+            idempotency_key: None,
         },
     )
     .await
     .unwrap()
+}
+
+async fn seed_application_api_key(store: &PgControlPlaneStore, seeded: &RuntimeSeedState) -> Uuid {
+    let api_key_id = Uuid::now_v7();
+    sqlx::query(
+        r#"
+        insert into api_keys (
+            id,
+            name,
+            token_hash,
+            token_prefix,
+            creator_user_id,
+            tenant_id,
+            scope_kind,
+            scope_id,
+            key_kind,
+            application_id
+        ) values ($1, $2, $3, $4, $5, $6, 'workspace', $7, 'application_api_key', $8)
+        "#,
+    )
+    .bind(api_key_id)
+    .bind("application api key")
+    .bind(format!("hash-{}", api_key_id.simple()))
+    .bind("fb_test")
+    .bind(seeded.actor_user_id)
+    .bind(root_tenant_id(store).await)
+    .bind(seeded.workspace_id)
+    .bind(seeded.application_id)
+    .execute(store.pool())
+    .await
+    .unwrap();
+
+    api_key_id
 }
 
 async fn seed_node_run(
@@ -259,6 +299,104 @@ async fn seed_node_run_for(
     )
     .await
     .unwrap()
+}
+
+#[tokio::test]
+async fn orchestration_runtime_repository_round_trips_published_public_run_metadata() {
+    let pool = connect(&isolated_database_url().await).await.unwrap();
+    run_migrations(&pool).await.unwrap();
+    let store = PgControlPlaneStore::new(pool);
+    let seeded = seed_runtime_base(&store).await;
+    let compiled = seed_compiled_plan(&store, &seeded).await;
+    let api_key_id = seed_application_api_key(&store, &seeded).await;
+    let publication_version_id = Uuid::now_v7();
+    let started_at = datetime!(2026-05-09 23:55:00 UTC);
+
+    let created = <PgControlPlaneStore as OrchestrationRuntimeRepository>::create_flow_run(
+        &store,
+        &CreateFlowRunInput {
+            actor_user_id: seeded.actor_user_id,
+            application_id: seeded.application_id,
+            flow_id: seeded.flow_id,
+            flow_draft_id: seeded.draft_id,
+            compiled_plan_id: compiled.id,
+            debug_session_id: "published-public-run".to_string(),
+            flow_schema_version: compiled.schema_version.clone(),
+            document_hash: compiled.document_hash.clone(),
+            run_mode: FlowRunMode::PublishedApiRun,
+            target_node_id: None,
+            status: FlowRunStatus::Running,
+            input_payload: json!({ "message": "hello" }),
+            started_at,
+            api_key_id: Some(api_key_id),
+            publication_version_id: Some(publication_version_id),
+            external_user: Some("external-user-1".to_string()),
+            external_conversation_id: Some("conversation-1".to_string()),
+            external_trace_id: Some("trace-1".to_string()),
+            compatibility_mode: Some("native-v1".to_string()),
+            idempotency_key: Some("idem-1".to_string()),
+        },
+    )
+    .await
+    .unwrap();
+
+    assert_eq!(created.run_mode, FlowRunMode::PublishedApiRun);
+    assert_eq!(created.run_mode.as_str(), "published_api_run");
+    assert_eq!(created.api_key_id, Some(api_key_id));
+    assert_eq!(created.publication_version_id, Some(publication_version_id));
+    assert_eq!(created.external_user.as_deref(), Some("external-user-1"));
+    assert_eq!(
+        created.external_conversation_id.as_deref(),
+        Some("conversation-1")
+    );
+    assert_eq!(created.external_trace_id.as_deref(), Some("trace-1"));
+    assert_eq!(created.compatibility_mode.as_deref(), Some("native-v1"));
+    assert_eq!(created.idempotency_key.as_deref(), Some("idem-1"));
+
+    let fetched = <PgControlPlaneStore as OrchestrationRuntimeRepository>::get_flow_run(
+        &store,
+        seeded.application_id,
+        created.id,
+    )
+    .await
+    .unwrap()
+    .unwrap();
+    assert_eq!(fetched.api_key_id, Some(api_key_id));
+    assert_eq!(fetched.publication_version_id, Some(publication_version_id));
+    assert_eq!(fetched.external_user.as_deref(), Some("external-user-1"));
+    assert_eq!(
+        fetched.external_conversation_id.as_deref(),
+        Some("conversation-1")
+    );
+    assert_eq!(fetched.external_trace_id.as_deref(), Some("trace-1"));
+    assert_eq!(fetched.compatibility_mode.as_deref(), Some("native-v1"));
+    assert_eq!(fetched.idempotency_key.as_deref(), Some("idem-1"));
+
+    let completed = <PgControlPlaneStore as OrchestrationRuntimeRepository>::update_flow_run(
+        &store,
+        &UpdateFlowRunInput {
+            flow_run_id: created.id,
+            status: FlowRunStatus::Succeeded,
+            output_payload: json!({ "ok": true }),
+            error_payload: None,
+            finished_at: Some(started_at + Duration::seconds(3)),
+        },
+    )
+    .await
+    .unwrap();
+    assert_eq!(completed.api_key_id, Some(api_key_id));
+    assert_eq!(
+        completed.publication_version_id,
+        Some(publication_version_id)
+    );
+    assert_eq!(completed.external_user.as_deref(), Some("external-user-1"));
+    assert_eq!(
+        completed.external_conversation_id.as_deref(),
+        Some("conversation-1")
+    );
+    assert_eq!(completed.external_trace_id.as_deref(), Some("trace-1"));
+    assert_eq!(completed.compatibility_mode.as_deref(), Some("native-v1"));
+    assert_eq!(completed.idempotency_key.as_deref(), Some("idem-1"));
 }
 
 #[tokio::test]
@@ -643,6 +781,13 @@ async fn creates_flow_run_shell_and_attaches_compiled_plan() {
             status: FlowRunStatus::Queued,
             input_payload: json!({ "node-start": { "query": "hello" } }),
             started_at: OffsetDateTime::now_utc(),
+            api_key_id: None,
+            publication_version_id: None,
+            external_user: None,
+            external_conversation_id: None,
+            external_trace_id: None,
+            compatibility_mode: None,
+            idempotency_key: None,
         },
     )
     .await
@@ -745,6 +890,13 @@ async fn compiled_plan_rows_are_immutable_per_compile_and_attach_checks_document
             status: FlowRunStatus::Queued,
             input_payload: json!({ "node-start": { "query": "hello" } }),
             started_at: OffsetDateTime::now_utc(),
+            api_key_id: None,
+            publication_version_id: None,
+            external_user: None,
+            external_conversation_id: None,
+            external_trace_id: None,
+            compatibility_mode: None,
+            idempotency_key: None,
         },
     )
     .await
@@ -791,6 +943,13 @@ async fn creates_flow_run_shell_and_attaches_compiled_plan_rejects_already_attac
             status: FlowRunStatus::Queued,
             input_payload: json!({ "node-start": { "query": "hello" } }),
             started_at: OffsetDateTime::now_utc(),
+            api_key_id: None,
+            publication_version_id: None,
+            external_user: None,
+            external_conversation_id: None,
+            external_trace_id: None,
+            compatibility_mode: None,
+            idempotency_key: None,
         },
     )
     .await
@@ -862,6 +1021,13 @@ async fn creates_flow_run_shell_and_attaches_compiled_plan_rejects_mismatched_co
             status: FlowRunStatus::Queued,
             input_payload: json!({ "node-start": { "query": "hello" } }),
             started_at: OffsetDateTime::now_utc(),
+            api_key_id: None,
+            publication_version_id: None,
+            external_user: None,
+            external_conversation_id: None,
+            external_trace_id: None,
+            compatibility_mode: None,
+            idempotency_key: None,
         },
     )
     .await

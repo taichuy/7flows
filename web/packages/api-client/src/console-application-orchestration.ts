@@ -8,6 +8,8 @@ export interface ConsoleFlowVersionSummary {
   trigger: 'autosave' | 'restore';
   change_kind: 'logical';
   summary: string;
+  summary_is_custom?: boolean;
+  is_protected?: boolean;
   created_at: string;
 }
 
@@ -29,6 +31,12 @@ export interface SaveConsoleApplicationDraftInput {
   document: FlowAuthoringDocument;
   change_kind: 'layout' | 'logical';
   summary: string;
+}
+
+export interface UpdateConsoleApplicationVersionInput {
+  summary?: string;
+  summary_is_custom?: boolean;
+  is_protected?: boolean;
 }
 
 export function getConsoleApplicationOrchestration(
@@ -65,6 +73,22 @@ export function restoreConsoleApplicationVersion(
   return apiFetch<ConsoleApplicationOrchestrationState>({
     path: `/api/console/applications/${applicationId}/orchestration/versions/${versionId}/restore`,
     method: 'POST',
+    csrfToken,
+    baseUrl
+  });
+}
+
+export function updateConsoleApplicationVersion(
+  applicationId: string,
+  versionId: string,
+  input: UpdateConsoleApplicationVersionInput,
+  csrfToken: string,
+  baseUrl?: string
+): Promise<ConsoleApplicationOrchestrationState> {
+  return apiFetch<ConsoleApplicationOrchestrationState>({
+    path: `/api/console/applications/${applicationId}/orchestration/versions/${versionId}`,
+    method: 'PATCH',
+    body: input,
     csrfToken,
     baseUrl
   });

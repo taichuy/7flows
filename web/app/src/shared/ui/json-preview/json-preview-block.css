@@ -1,0 +1,102 @@
+.json-preview-block {
+  position: relative;
+  overflow: hidden;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background: var(--ant-color-fill-quaternary);
+}
+
+.json-preview-block__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 32px;
+  padding: 4px 8px 4px 12px;
+}
+
+.json-preview-block__toggle {
+  display: inline-flex;
+  min-width: 0;
+  align-items: center;
+  gap: 6px;
+  border: 0;
+  background: transparent;
+  padding: 0;
+  cursor: pointer;
+  text-align: left;
+}
+
+.json-preview-block__toggle:not([aria-expanded]) {
+  cursor: default;
+}
+
+.json-preview-block__toggle-icon {
+  flex: 0 0 auto;
+  color: var(--ant-color-text-tertiary);
+  font-size: 10px;
+  transition: transform 120ms ease;
+}
+
+.json-preview-block__toggle[aria-expanded='false']
+  .json-preview-block__toggle-icon {
+  transform: rotate(-90deg);
+}
+
+.json-preview-block__title {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--ant-color-text-heading);
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 20px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.json-preview-block__actions {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 2px;
+}
+
+.json-preview-block__editor {
+  border-top: 1px solid var(--ant-color-border-secondary);
+}
+
+.json-preview-block__loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--ant-color-text-tertiary);
+  font-size: 12px;
+}
+
+.json-preview-block__editor .monaco-editor,
+.json-preview-block__editor .monaco-editor-background,
+.json-preview-block__editor .monaco-editor .margin,
+.json-preview-block-modal__editor .monaco-editor,
+.json-preview-block-modal__editor .monaco-editor-background,
+.json-preview-block-modal__editor .monaco-editor .margin {
+  background-color: transparent !important;
+}
+
+.json-preview-block-modal__editor {
+  overflow: hidden;
+  border: 1px solid var(--ant-color-border-secondary);
+  border-radius: 8px;
+  background: var(--ant-color-fill-quaternary);
+}
+
+.json-preview-block__a11y {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  border: 0;
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  white-space: pre-wrap;
+}

@@ -3,12 +3,12 @@ use std::sync::Arc;
 use axum::{
     extract::{Path, State},
     http::HeaderMap,
-    routing::{get, post, put},
+    routing::{get, patch, post, put},
     Json, Router,
 };
 use control_plane::{
     errors::ControlPlaneError,
-    flow::{FlowService, SaveFlowDraftCommand},
+    flow::{FlowService, SaveFlowDraftCommand, UpdateFlowVersionMetadataCommand},
 };
 use serde::{Deserialize, Serialize};
 use time::format_description::well_known::Rfc3339;
@@ -29,6 +29,13 @@ pub struct SaveDraftBody {
     pub summary: String,
 }
 
+#[derive(Debug, Deserialize, ToSchema)]
+pub struct UpdateVersionBody {
+    pub summary: Option<String>,
+    pub summary_is_custom: Option<bool>,
+    pub is_protected: Option<bool>,
+}
+
 #[derive(Debug, Serialize, ToSchema)]
 pub struct FlowVersionResponse {
     pub id: String,
@@ -36,6 +43,8 @@ pub struct FlowVersionResponse {
     pub trigger: String,
     pub change_kind: String,
     pub summary: String,
+    pub summary_is_custom: bool,
+    pub is_protected: bool,
     pub created_at: String,
 }
 
@@ -63,6 +72,10 @@ pub fn router() -> Router<Arc<ApiState>> {
             "/applications/:id/orchestration/versions/:version_id/restore",
             post(restore_version),
         )
+        .route(
+            "/applications/:id/orchestration/versions/:version_id",
+            patch(update_version),
+        )
 }
 
 fn to_response(state: domain::FlowEditorState) -> OrchestrationStateResponse {
@@ -83,6 +96,8 @@ fn to_response(state: domain::FlowEditorState) -> OrchestrationStateResponse {
                 trigger: version.trigger.as_str().to_string(),
                 change_kind: version.change_kind.as_str().to_string(),
                 summary: version.summary,
+                summary_is_custom: version.summary_is_custom,
+                is_protected: version.is_protected,
                 created_at: version.created_at.format(&Rfc3339).unwrap(),
             })
             .collect(),
@@ -185,6 +200,45 @@ pub async fn restore_version(
 
     let flow_state = FlowService::new(state.store.clone())
         .restore_version(context.user.id, id, version_id)
+        .await?;
+
+    Ok(Json(ApiSuccess::new(to_response(flow_state))))
+}
+
+#[utoipa::path(
+    patch,
+    path = "/api/console/applications/{id}/orchestration/versions/{version_id}",
+    request_body = UpdateVersionBody,
+    params(
+        ("id" = String, Path, description = "Application id"),
+        ("version_id" = String, Path, description = "Flow version id")
+    ),
+    responses(
+        (status = 200, body = OrchestrationStateResponse),
+        (status = 400, body = crate::error_response::ErrorBody),
+        (status = 401, body = crate::error_response::ErrorBody),
+        (status = 403, body = crate::error_response::ErrorBody),
+        (status = 404, body = crate::error_response::ErrorBody)
+    )
+)]
+pub async fn update_version(
+    State(state): State<Arc<ApiState>>,
+    headers: HeaderMap,
+    Path((id, version_id)): Path<(Uuid, Uuid)>,
+    Json(body): Json<UpdateVersionBody>,
+) -> Result<Json<ApiSuccess<OrchestrationStateResponse>>, ApiError> {
+    let context = require_session(&state, &headers).await?;
+    require_csrf(&headers, &context.session)?;
+
+    let flow_state = FlowService::new(state.store.clone())
+        .update_version_metadata(UpdateFlowVersionMetadataCommand {
+            actor_user_id: context.user.id,
+            application_id: id,
+            version_id,
+            summary: body.summary,
+            summary_is_custom: body.summary_is_custom,
+            is_protected: body.is_protected,
+        })
         .await?;
 
     Ok(Json(ApiSuccess::new(to_response(flow_state))))

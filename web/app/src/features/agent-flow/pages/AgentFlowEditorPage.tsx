@@ -4,6 +4,10 @@ import { Result } from 'antd';
 import { ApiClientError } from '@1flowbase/api-client';
 import { PermissionDeniedState } from '../../../shared/ui/PermissionDeniedState';
 import {
+  applicationEnvironmentVariablesQueryKey,
+  fetchApplicationEnvironmentVariables
+} from '../../applications/api/applications';
+import {
   fetchNodeContributions,
   nodeContributionsQueryKey
 } from '../api/node-contributions';
@@ -28,15 +32,29 @@ export function AgentFlowEditorPage({
     queryKey: nodeContributionsQueryKey(applicationId),
     queryFn: () => fetchNodeContributions(applicationId)
   });
+  const environmentVariablesQuery = useQuery({
+    queryKey: applicationEnvironmentVariablesQueryKey(applicationId),
+    queryFn: () => fetchApplicationEnvironmentVariables(applicationId)
+  });
 
-  if (orchestrationQuery.isPending || nodeContributionsQuery.isPending) {
+  if (
+    orchestrationQuery.isPending ||
+    nodeContributionsQuery.isPending ||
+    environmentVariablesQuery.isPending
+  ) {
     return <Result status="info" title="正在加载编排" />;
   }
 
-  if (orchestrationQuery.isError || nodeContributionsQuery.isError) {
+  if (
+    orchestrationQuery.isError ||
+    nodeContributionsQuery.isError ||
+    environmentVariablesQuery.isError
+  ) {
     const error = orchestrationQuery.isError
       ? orchestrationQuery.error
-      : nodeContributionsQuery.error;
+      : nodeContributionsQuery.isError
+        ? nodeContributionsQuery.error
+        : environmentVariablesQuery.error;
 
     if (error instanceof ApiClientError && error.status === 403) {
       return <PermissionDeniedState />;
@@ -57,6 +75,7 @@ export function AgentFlowEditorPage({
       applicationId={applicationId}
       applicationName={applicationName}
       initialState={state}
+      initialEnvironmentVariables={environmentVariablesQuery.data}
       nodeContributions={nodeContributions}
     />
   );

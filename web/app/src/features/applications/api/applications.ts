@@ -5,11 +5,14 @@ import {
   getConsoleApplication,
   getConsoleApplicationCatalog,
   getDefaultApiBaseUrl,
+  listConsoleApplicationEnvironmentVariables,
   listConsoleApplications,
+  replaceConsoleApplicationEnvironmentVariables,
   updateConsoleApplication,
   type ApiBaseUrlLocation,
   type ConsoleApplicationCatalog,
   type ConsoleApplicationDetail,
+  type ConsoleApplicationEnvironmentVariable,
   type ConsoleApplicationSummary,
   type ConsoleApplicationTagCatalogEntry,
   type CreateConsoleApplicationInput
@@ -18,6 +21,14 @@ import {
 export type Application = ConsoleApplicationSummary;
 export type ApplicationDetail = ConsoleApplicationDetail;
 export type ApplicationCatalog = ConsoleApplicationCatalog;
+export type ApplicationEnvironmentVariable =
+  ConsoleApplicationEnvironmentVariable;
+export interface ApplicationEnvironmentVariableInput {
+  name: string;
+  value_type: string;
+  value: unknown;
+  description: string;
+}
 export type ApplicationTagCatalogEntry = ConsoleApplicationTagCatalogEntry;
 export type CreateApplicationInput = CreateConsoleApplicationInput;
 export interface UpdateApplicationInput {
@@ -33,12 +44,18 @@ export const applicationsQueryKey = ['applications'] as const;
 export const applicationCatalogQueryKey = ['applications', 'catalog'] as const;
 export const applicationDetailQueryKey = (applicationId: string) =>
   ['applications', applicationId] as const;
+export const applicationEnvironmentVariablesQueryKey = (
+  applicationId: string
+) => ['applications', applicationId, 'environment-variables'] as const;
 
 export function getApplicationsApiBaseUrl(
-  locationLike: ApiBaseUrlLocation | undefined =
-    typeof window !== 'undefined' ? window.location : undefined
+  locationLike: ApiBaseUrlLocation | undefined = typeof window !== 'undefined'
+    ? window.location
+    : undefined
 ): string {
-  return import.meta.env.VITE_API_BASE_URL ?? getDefaultApiBaseUrl(locationLike);
+  return (
+    import.meta.env.VITE_API_BASE_URL ?? getDefaultApiBaseUrl(locationLike)
+  );
 }
 
 export function fetchApplications(): Promise<Application[]> {
@@ -49,12 +66,21 @@ export function fetchApplicationCatalog(): Promise<ApplicationCatalog> {
   return getConsoleApplicationCatalog(getApplicationsApiBaseUrl());
 }
 
-export function fetchApplicationDetail(applicationId: string): Promise<ApplicationDetail> {
+export function fetchApplicationDetail(
+  applicationId: string
+): Promise<ApplicationDetail> {
   return getConsoleApplication(applicationId, getApplicationsApiBaseUrl());
 }
 
-export function createApplication(input: CreateApplicationInput, csrfToken: string) {
-  return createConsoleApplication(input, csrfToken, getApplicationsApiBaseUrl());
+export function createApplication(
+  input: CreateApplicationInput,
+  csrfToken: string
+) {
+  return createConsoleApplication(
+    input,
+    csrfToken,
+    getApplicationsApiBaseUrl()
+  );
 }
 
 export function updateApplication(
@@ -62,13 +88,58 @@ export function updateApplication(
   input: UpdateApplicationInput,
   csrfToken: string
 ) {
-  return updateConsoleApplication(applicationId, input, csrfToken, getApplicationsApiBaseUrl());
+  return updateConsoleApplication(
+    applicationId,
+    input,
+    csrfToken,
+    getApplicationsApiBaseUrl()
+  );
 }
 
 export function deleteApplication(applicationId: string, csrfToken: string) {
-  return deleteConsoleApplication(applicationId, csrfToken, getApplicationsApiBaseUrl());
+  return deleteConsoleApplication(
+    applicationId,
+    csrfToken,
+    getApplicationsApiBaseUrl()
+  );
 }
 
-export function createApplicationTag(input: CreateApplicationTagInput, csrfToken: string) {
-  return createConsoleApplicationTag(input, csrfToken, getApplicationsApiBaseUrl());
+export function fetchApplicationEnvironmentVariables(
+  applicationId: string
+): Promise<ApplicationEnvironmentVariable[]> {
+  return listConsoleApplicationEnvironmentVariables(
+    applicationId,
+    getApplicationsApiBaseUrl()
+  );
+}
+
+export function replaceApplicationEnvironmentVariables(
+  applicationId: string,
+  variables: ApplicationEnvironmentVariableInput[],
+  csrfToken: string
+) {
+  return replaceConsoleApplicationEnvironmentVariables(
+    applicationId,
+    {
+      variables: variables.map(({ name, value_type, value, description }) => ({
+        name,
+        value_type,
+        value,
+        description
+      }))
+    },
+    csrfToken,
+    getApplicationsApiBaseUrl()
+  );
+}
+
+export function createApplicationTag(
+  input: CreateApplicationTagInput,
+  csrfToken: string
+) {
+  return createConsoleApplicationTag(
+    input,
+    csrfToken,
+    getApplicationsApiBaseUrl()
+  );
 }

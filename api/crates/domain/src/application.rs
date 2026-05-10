@@ -74,6 +74,16 @@ pub struct ApplicationTagCatalogEntry {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ApplicationEnvironmentVariable {
+    pub application_id: Uuid,
+    pub name: String,
+    pub value_type: String,
+    pub value: serde_json::Value,
+    pub description: String,
+    pub updated_at: OffsetDateTime,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ApplicationRecord {
     pub id: Uuid,
     pub workspace_id: Uuid,

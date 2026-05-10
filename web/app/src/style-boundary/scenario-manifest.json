@@ -190,7 +190,7 @@
       "web/app/src/features/agent-flow/components/detail/last-run/NodeRunSummaryCard.tsx",
       "web/app/src/features/agent-flow/components/detail/last-run/NodeRunIOCard.tsx",
       "web/app/src/features/agent-flow/components/detail/last-run/NodeRunMetadataCard.tsx",
-      "web/app/src/features/agent-flow/components/history/VersionHistoryDrawer.tsx",
+      "web/app/src/features/agent-flow/components/history/VersionHistoryPanel.tsx",
       "web/app/src/features/agent-flow/components/inspector/NodeInspector.tsx",
       "web/app/src/features/agent-flow/components/nodes/AgentFlowNodeCard.tsx",
       "web/app/src/features/agent-flow/components/canvas/custom-edge.tsx",
@@ -208,8 +208,8 @@
       "web/app/src/features/agent-flow/components/editor/styles/shell.css",
       "web/app/src/features/agent-flow/api/runtime.ts",
       "web/app/src/features/agent-flow/hooks/runtime/useAgentFlowDebugSession.ts",
+      "web/app/src/features/agent-flow/components/editor/AgentFlowDockPanel.tsx",
       "web/app/src/features/agent-flow/components/debug-console/AgentFlowDebugConsole.tsx",
-      "web/app/src/features/agent-flow/components/debug-console/DebugConsoleHeader.tsx",
       "web/app/src/features/agent-flow/components/debug-console/RunContextPanel.tsx",
       "web/app/src/features/agent-flow/components/debug-console/conversation/DebugConversationPane.tsx",
       "web/app/src/features/agent-flow/components/debug-console/conversation/DebugComposer.tsx",
@@ -268,6 +268,92 @@
             "expected": "column"
           }
         ]
+      }
+    ]
+  },
+  {
+    "id": "page.application-api",
+    "kind": "page",
+    "title": "Application API Page",
+    "impactFiles": [
+      "web/app/src/styles/tokens.css",
+      "web/app/src/styles/globals.css",
+      "web/app/src/app-shell/app-shell.css",
+      "web/packages/ui/src/index.tsx",
+      "web/app/src/app-shell/AppShellFrame.tsx",
+      "web/app/src/app-shell/Navigation.tsx",
+      "web/app/src/app-shell/AccountMenu.tsx",
+      "web/app/src/app-shell/account-menu-items.tsx",
+      "web/app/src/shared/ui/section-page-layout/SectionPageLayout.tsx",
+      "web/app/src/shared/ui/section-page-layout/SectionSidebarNav.tsx",
+      "web/app/src/shared/ui/section-page-layout/section-page-layout.css",
+      "web/app/src/features/applications/pages/ApplicationDetailPage.tsx",
+      "web/app/src/features/applications/pages/ApplicationApiPage.tsx",
+      "web/app/src/features/applications/pages/application-api-page.css",
+      "web/app/src/features/applications/components/api/ApplicationApiStatusBar.tsx",
+      "web/app/src/features/applications/components/api/ApplicationApiKeysPanel.tsx",
+      "web/app/src/features/applications/components/api/ApplicationApiDocsPanel.tsx",
+      "web/app/src/features/applications/components/api/ApplicationApiMappingPanel.tsx",
+      "web/app/src/features/applications/api/public-api.ts",
+      "web/app/src/shared/ui/api-docs/ApiDocsExplorer.tsx",
+      "web/app/src/shared/ui/api-docs/api-docs-explorer.css",
+      "web/packages/api-client/src/application-public-api/index.ts",
+      "web/app/src/app/router.tsx",
+      "web/app/src/style-boundary/registry.tsx"
+    ],
+    "boundaryNodes": [
+      {
+        "id": "shell-header",
+        "selector": ".app-shell-header",
+        "propertyAssertions": [
+          {
+            "property": "display",
+            "expected": "flex"
+          }
+        ]
+      },
+      {
+        "id": "section-shell",
+        "selector": ".section-page-layout__shell",
+        "propertyAssertions": [
+          {
+            "property": "display",
+            "expected": "flex"
+          }
+        ]
+      },
+      {
+        "id": "application-api-page",
+        "selector": ".application-api-page",
+        "propertyAssertions": [
+          {
+            "property": "display",
+            "expected": "grid"
+          }
+        ]
+      },
+      {
+        "id": "application-api-header",
+        "selector": ".application-api-status__header",
+        "propertyAssertions": [
+          {
+            "property": "display",
+            "expected": "flex"
+          }
+        ]
+      }
+    ],
+    "relationshipAssertions": [
+      {
+        "id": "application-api-panel-within-shell",
+        "type": "within_container",
+        "subjectSelector": ".application-api-page",
+        "containerSelector": ".section-page-layout__content"
+      },
+      {
+        "id": "application-api-create-key-visible",
+        "type": "fully_visible",
+        "subjectSelector": ".application-api-status__actions .ant-btn"
       }
     ]
   },
@@ -471,6 +557,97 @@
         "id": "model-provider-actions-fully-visible",
         "type": "fully_visible",
         "subjectSelector": ".model-provider-panel__catalog-table .model-provider-panel__catalog-actions"
+      }
+    ]
+  },
+  {
+    "id": "page.settings-docs",
+    "kind": "page",
+    "title": "Settings API Docs Page",
+    "impactFiles": [
+      "web/app/src/styles/tokens.css",
+      "web/app/src/styles/globals.css",
+      "web/app/src/app-shell/app-shell.css",
+      "web/packages/ui/src/index.tsx",
+      "web/app/src/app-shell/AppShellFrame.tsx",
+      "web/app/src/app-shell/Navigation.tsx",
+      "web/app/src/app-shell/AccountMenu.tsx",
+      "web/app/src/app-shell/account-menu-items.tsx",
+      "web/app/src/shared/ui/section-page-layout/SectionPageLayout.tsx",
+      "web/app/src/shared/ui/section-page-layout/SectionSidebarNav.tsx",
+      "web/app/src/shared/ui/section-page-layout/section-page-layout.css",
+      "web/app/src/features/settings/pages/SettingsPage.tsx",
+      "web/app/src/features/settings/components/ApiDocsPanel.tsx",
+      "web/app/src/features/settings/components/api-docs-panel.css",
+      "web/app/src/shared/ui/api-docs/ApiDocsExplorer.tsx",
+      "web/app/src/shared/ui/api-docs/api-docs-explorer.css",
+      "web/app/src/features/settings/api/api-docs.ts",
+      "web/app/src/app/router.tsx",
+      "web/app/src/style-boundary/registry.tsx"
+    ],
+    "boundaryNodes": [
+      {
+        "id": "shell-header",
+        "selector": ".app-shell-header",
+        "propertyAssertions": [
+          {
+            "property": "display",
+            "expected": "flex"
+          }
+        ]
+      },
+      {
+        "id": "section-shell",
+        "selector": ".section-page-layout__shell",
+        "propertyAssertions": [
+          {
+            "property": "display",
+            "expected": "flex"
+          }
+        ]
+      },
+      {
+        "id": "api-docs-panel",
+        "selector": ".api-docs-panel",
+        "propertyAssertions": [
+          {
+            "property": "display",
+            "expected": "grid"
+          }
+        ]
+      },
+      {
+        "id": "api-docs-toolbar",
+        "selector": ".api-docs-panel__toolbar",
+        "propertyAssertions": [
+          {
+            "property": "display",
+            "expected": "flex"
+          }
+        ]
+      },
+      {
+        "id": "api-docs-workspace",
+        "selector": ".api-docs-panel__workspace",
+        "propertyAssertions": [
+          {
+            "property": "display",
+            "expected": "grid"
+          }
+        ]
+      }
+    ],
+    "relationshipAssertions": [
+      {
+        "id": "api-docs-workspace-within-content",
+        "type": "within_container",
+        "subjectSelector": ".api-docs-panel__workspace",
+        "containerSelector": ".section-page-layout__content"
+      },
+      {
+        "id": "api-docs-category-select-visible",
+        "type": "fully_visible",
+        "subjectSelector": ".api-docs-panel__category-select"
       }
     ]
   },

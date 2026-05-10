@@ -18,13 +18,13 @@ pub mod runtime_observability;
 pub mod scope;
 
 pub use application::{
-    ApplicationApiSection, ApplicationLogsSection, ApplicationMonitoringSection,
-    ApplicationOrchestrationSection, ApplicationRecord, ApplicationSections, ApplicationTag,
-    ApplicationTagCatalogEntry, ApplicationType,
+    ApplicationApiSection, ApplicationEnvironmentVariable, ApplicationLogsSection,
+    ApplicationMonitoringSection, ApplicationOrchestrationSection, ApplicationRecord,
+    ApplicationSections, ApplicationTag, ApplicationTagCatalogEntry, ApplicationType,
 };
 pub use audit::AuditLogRecord;
 pub use auth::{
-    ActorContext, ApiKeyDataModelAction, ApiKeyDataModelPermissionRecord, ApiKeyRecord,
+    ActorContext, ApiKeyDataModelAction, ApiKeyDataModelPermissionRecord, ApiKeyKind, ApiKeyRecord,
     AuthenticatorRecord, BoundRole, PermissionDefinition, RoleScopeKind, RoleTemplate,
     SessionRecord, UserAuthIdentity, UserRecord, UserStatus,
 };

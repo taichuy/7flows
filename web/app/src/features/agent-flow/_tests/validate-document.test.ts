@@ -2,9 +2,7 @@ import { describe, expect, test } from 'vitest';
 
 import { createDefaultAgentFlowDocument } from '@1flowbase/flow-schema';
 
-import {
-  modelProviderOptionsContract
-} from '../../../test/model-provider-contract-fixtures';
+import { modelProviderOptionsContract } from '../../../test/model-provider-contract-fixtures';
 import { createNodeDocument } from '../lib/document/node-factory';
 import { listLlmProviderOptions } from '../lib/model-options';
 import { validateDocument } from '../lib/validate-document';
@@ -26,7 +24,12 @@ function createCodeDocumentWithOutputs(
   document.graph.nodes = document.graph.nodes.map((node) =>
     node.id === 'node-llm'
       ? {
-          ...createNodeDocument('code', 'node-code', node.position.x, node.position.y),
+          ...createNodeDocument(
+            'code',
+            'node-code',
+            node.position.x,
+            node.position.y
+          ),
           outputs
         }
       : node
@@ -43,33 +46,30 @@ function createCodeDocumentWithOutputs(
 }
 
 describe('validateDocument', () => {
-  test.each(['__trace'])(
-    'flags internal output selector key %s',
-    (key) => {
-      const document = createDefaultAgentFlowDocument({ flowId: 'flow-1' });
-      const answerNode = document.graph.nodes.find(
-        (node) => node.id === 'node-answer'
-      );
+  test.each(['__trace'])('flags internal output selector key %s', (key) => {
+    const document = createDefaultAgentFlowDocument({ flowId: 'flow-1' });
+    const answerNode = document.graph.nodes.find(
+      (node) => node.id === 'node-answer'
+    );
 
-      if (!answerNode) {
-        throw new Error('expected default Answer node');
-      }
+    if (!answerNode) {
+      throw new Error('expected default Answer node');
+    }
 
-      answerNode.outputs = [{ key, title: key, valueType: 'json' }];
+    answerNode.outputs = [{ key, title: key, valueType: 'json' }];
 
-      const issues = validateDocument(document);
+    const issues = validateDocument(document);
 
-      expect(issues).toEqual(
-        expect.arrayContaining([
-          expect.objectContaining({
+    expect(issues).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
           nodeId: 'node-answer',
           fieldKey: 'config.output_contract',
           title: '输出变量名保留'
-          })
-        ])
-      );
-    }
-  );
+        })
+      ])
+    );
+  });
 
   test('flags unknown v1-only LLM outputs in text mode', () => {
     const document = createDefaultAgentFlowDocument({ flowId: 'flow-1' });
@@ -131,7 +131,9 @@ describe('validateDocument', () => {
   });
 
   test('accepts structured LLM output only when response format enables JSON', () => {
-    const textDocument = createDefaultAgentFlowDocument({ flowId: 'flow-text' });
+    const textDocument = createDefaultAgentFlowDocument({
+      flowId: 'flow-text'
+    });
     const textLlmNode = textDocument.graph.nodes.find(
       (node) => node.id === 'node-llm'
     );
@@ -157,7 +159,9 @@ describe('validateDocument', () => {
       ])
     );
 
-    const jsonDocument = createDefaultAgentFlowDocument({ flowId: 'flow-json' });
+    const jsonDocument = createDefaultAgentFlowDocument({
+      flowId: 'flow-json'
+    });
     const jsonLlmNode = jsonDocument.graph.nodes.find(
       (node) => node.id === 'node-llm'
     );
@@ -226,9 +230,13 @@ describe('validateDocument', () => {
       contribution_checksum: 'checksum',
       compiled_contribution_hash: 'compiled-hash',
       output_schema_snapshot: {
-        outputs: [{ key: 'custom_payload', title: 'Custom Payload', valueType: 'json' }]
+        outputs: [
+          { key: 'custom_payload', title: 'Custom Payload', valueType: 'json' }
+        ]
       },
-      outputs: [{ key: 'custom_payload', title: 'Custom Payload', valueType: 'json' }]
+      outputs: [
+        { key: 'custom_payload', title: 'Custom Payload', valueType: 'json' }
+      ]
     });
 
     const issues = validateDocument(document);
@@ -257,7 +265,9 @@ describe('validateDocument', () => {
       contribution_checksum: 'checksum',
       compiled_contribution_hash: 'compiled-hash',
       output_schema_snapshot: {
-        outputs: [{ key: 'custom_payload', title: 'Custom Payload', valueType: 'json' }]
+        outputs: [
+          { key: 'custom_payload', title: 'Custom Payload', valueType: 'json' }
+        ]
       },
       outputs: [
         { key: 'custom_payload', title: 'Custom Payload', valueType: 'json' },
@@ -291,9 +301,13 @@ describe('validateDocument', () => {
       contribution_checksum: 'checksum',
       compiled_contribution_hash: 'compiled-hash',
       output_schema_snapshot: {
-        outputs: [{ key: 'custom_payload', title: 'Custom Payload', valueType: 'json' }]
+        outputs: [
+          { key: 'custom_payload', title: 'Custom Payload', valueType: 'json' }
+        ]
       },
-      outputs: [{ key: 'custom_payload', title: 'Custom Payload', valueType: 'json' }]
+      outputs: [
+        { key: 'custom_payload', title: 'Custom Payload', valueType: 'json' }
+      ]
     });
 
     const issues = validateDocument(document);
@@ -373,15 +387,17 @@ describe('validateDocument', () => {
     };
 
     expect(
-      listLlmProviderOptions(options as typeof modelProviderOptionsContract)[0]?.models.map(
-        (model) => model.value
-      )
+      listLlmProviderOptions(
+        options as typeof modelProviderOptionsContract
+      )[0]?.models.map((model) => model.value)
     ).toEqual(['gpt-4o-mini', 'gpt-4o', 'manual-enabled-model']);
   });
 
   test('returns field, node, and global issues', () => {
     const broken = createDefaultAgentFlowDocument({ flowId: 'flow-1' });
-    broken.graph.nodes = broken.graph.nodes.filter((node) => node.id !== 'node-answer');
+    broken.graph.nodes = broken.graph.nodes.filter(
+      (node) => node.id !== 'node-answer'
+    );
 
     const issues = validateDocument(broken);
 
@@ -406,13 +422,46 @@ describe('validateDocument', () => {
     const issues = validateDocument(broken);
 
     expect(
-      issues.some((issue) =>
-        issue.scope === 'field' &&
-        issue.nodeId === 'node-llm' &&
-        issue.fieldKey === 'bindings.user_prompt' &&
-        issue.message === '当前 binding 引用了未接入上游链路的输出。'
+      issues.some(
+        (issue) =>
+          issue.scope === 'field' &&
+          issue.nodeId === 'node-llm' &&
+          issue.fieldKey === 'bindings.user_prompt' &&
+          issue.message === '当前 binding 引用了未接入上游链路的输出。'
       )
     ).toBe(true);
+  });
+
+  test('accepts templated bindings that reference application environment variables', () => {
+    const document = createDefaultAgentFlowDocument({ flowId: 'flow-1' });
+    const llmNode = document.graph.nodes.find((node) => node.id === 'node-llm');
+
+    if (!llmNode) {
+      throw new Error('expected default LLM node');
+    }
+
+    llmNode.bindings.user_prompt = {
+      kind: 'templated_text',
+      value: '请调用 {{env.ApiBaseUrl}} 处理请求'
+    };
+
+    const issues = validateDocument(document, null, [
+      {
+        name: 'ApiBaseUrl',
+        value_type: 'string',
+        value: 'https://api.example.com',
+        description: '当前应用 API 地址'
+      }
+    ]);
+
+    expect(
+      issues.some(
+        (issue) =>
+          issue.nodeId === 'node-llm' &&
+          issue.fieldKey === 'bindings.user_prompt' &&
+          issue.message === '当前 binding 引用了未接入上游链路的输出。'
+      )
+    ).toBe(false);
   });
 
   test('flags duplicate code output keys in the editable output contract', () => {

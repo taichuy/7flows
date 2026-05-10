@@ -114,7 +114,7 @@ function appendUsageSnapshotToTrace(
   event: {
     node_run_id?: string | null;
     node_id: string;
-    usage: Record<string, unknown>;
+    usage: unknown;
   }
 ) {
   const eventKey = event.node_run_id ?? event.node_id;
@@ -136,7 +136,7 @@ function appendUsageSnapshotToTrace(
       ...item,
       outputPayload: {
         ...outputPayload,
-        usage: event.usage
+        usage: isRecord(event.usage) ? event.usage : { value: event.usage }
       }
     };
   });

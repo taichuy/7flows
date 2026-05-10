@@ -226,6 +226,56 @@ async fn save_draft_only_appends_history_for_logical_changes() {
         logical_state.versions[1].change_kind,
         FlowChangeKind::Logical
     );
+
+    let protected_version_id = logical_state.versions[0].id;
+    let protected_state = <PgControlPlaneStore as FlowRepository>::update_version_metadata(
+        &store,
+        workspace_id,
+        application.id,
+        actor_user_id,
+        protected_version_id,
+        Some("stable baseline".to_string()),
+        Some(true),
+        Some(true),
+    )
+    .await
+    .unwrap();
+
+    assert_eq!(protected_state.versions[0].summary, "stable baseline");
+    assert!(protected_state.versions[0].summary_is_custom);
+    assert!(protected_state.versions[0].is_protected);
+
+    let mut current_document = protected_state.draft.document.clone();
+    let mut current_state = protected_state;
+
+    for index in 0..=domain::FLOW_HISTORY_LIMIT {
+        current_document["graph"]["nodes"][1]["bindings"]["prompt_messages"]["value"][0]
+            ["content"]["value"] = json!(format!("Prompt {index}"));
+        current_state = <PgControlPlaneStore as FlowRepository>::save_draft(
+            &store,
+            workspace_id,
+            application.id,
+            actor_user_id,
+            current_document.clone(),
+            FlowChangeKind::Logical,
+            &format!("update {index}"),
+        )
+        .await
+        .unwrap();
+    }
+
+    assert!(current_state
+        .versions
+        .iter()
+        .any(|version| version.id == protected_version_id && version.is_protected));
+    assert!(
+        current_state
+            .versions
+            .iter()
+            .filter(|version| !version.is_protected)
+            .count()
+            <= domain::FLOW_HISTORY_LIMIT
+    );
 }
 
 #[tokio::test]

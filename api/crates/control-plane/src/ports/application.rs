@@ -42,6 +42,22 @@ pub struct CreateApplicationTagInput {
     pub name: String,
 }
 
+#[derive(Debug, Clone)]
+pub struct ApplicationEnvironmentVariableInput {
+    pub name: String,
+    pub value_type: String,
+    pub value: serde_json::Value,
+    pub description: String,
+}
+
+#[derive(Debug, Clone)]
+pub struct ReplaceApplicationEnvironmentVariablesInput {
+    pub actor_user_id: Uuid,
+    pub workspace_id: Uuid,
+    pub application_id: Uuid,
+    pub variables: Vec<ApplicationEnvironmentVariableInput>,
+}
+
 #[async_trait]
 pub trait ApplicationRepository: Send + Sync {
     async fn load_actor_context_for_user(
@@ -78,5 +94,20 @@ pub trait ApplicationRepository: Send + Sync {
         &self,
         input: &CreateApplicationTagInput,
     ) -> anyhow::Result<domain::ApplicationTagCatalogEntry>;
+    async fn list_application_environment_variables(
+        &self,
+        workspace_id: Uuid,
+        application_id: Uuid,
+    ) -> anyhow::Result<Vec<domain::ApplicationEnvironmentVariable>> {
+        let _ = (workspace_id, application_id);
+        anyhow::bail!("list_application_environment_variables not implemented")
+    }
+    async fn replace_application_environment_variables(
+        &self,
+        input: &ReplaceApplicationEnvironmentVariablesInput,
+    ) -> anyhow::Result<Vec<domain::ApplicationEnvironmentVariable>> {
+        let _ = input;
+        anyhow::bail!("replace_application_environment_variables not implemented")
+    }
     async fn append_audit_log(&self, event: &domain::AuditLogRecord) -> anyhow::Result<()>;
 }

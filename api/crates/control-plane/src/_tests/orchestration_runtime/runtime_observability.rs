@@ -19,7 +19,7 @@ fn runtime_event_folds_to_debug_stream_part_with_trust_level() {
         parent_span_id: None,
         sequence: 1,
         event_type: "text_delta".into(),
-        layer: domain::RuntimeEventLayer::ProviderRaw,
+        layer: domain::RuntimeEventLayer::RuntimeItem,
         source: domain::RuntimeEventSource::Host,
         trust_level: domain::RuntimeTrustLevel::HostFact,
         item_id: None,
@@ -39,6 +39,66 @@ fn runtime_event_folds_to_debug_stream_part_with_trust_level() {
     assert_eq!(part.part_type, "text");
     assert_eq!(part.trust_level, domain::RuntimeTrustLevel::HostFact);
     assert_eq!(part.payload["payload"]["delta"], serde_json::json!("hello"));
+}
+
+#[test]
+fn debug_read_model_maps_cancelled_terminal_event_to_status_part() {
+    let run_id = Uuid::now_v7();
+    let event = domain::RuntimeEventRecord {
+        id: Uuid::now_v7(),
+        flow_run_id: run_id,
+        node_run_id: None,
+        span_id: None,
+        parent_span_id: None,
+        sequence: 1,
+        event_type: "flow_cancelled".to_string(),
+        layer: domain::RuntimeEventLayer::AgentTransition,
+        source: domain::RuntimeEventSource::Host,
+        trust_level: domain::RuntimeTrustLevel::HostFact,
+        item_id: None,
+        ledger_ref: None,
+        payload: serde_json::json!({ "status": "cancelled", "reason": "manual_stop" }),
+        visibility: domain::RuntimeEventVisibility::Workspace,
+        durability: domain::RuntimeEventDurability::Durable,
+        created_at: OffsetDateTime::now_utc(),
+    };
+
+    let part = control_plane::runtime_observability::debug_read_model::fold_event_to_debug_part(
+        run_id, &event,
+    )
+    .expect("flow_cancelled should fold to a debug part");
+
+    assert_eq!(part.part_type, "status");
+    assert_eq!(part.payload["event_type"], "flow_cancelled");
+}
+
+#[test]
+fn debug_read_model_excludes_provider_raw_by_default() {
+    let run_id = Uuid::now_v7();
+    let event = domain::RuntimeEventRecord {
+        id: Uuid::now_v7(),
+        flow_run_id: run_id,
+        node_run_id: None,
+        span_id: None,
+        parent_span_id: None,
+        sequence: 1,
+        event_type: "text_delta".to_string(),
+        layer: domain::RuntimeEventLayer::ProviderRaw,
+        source: domain::RuntimeEventSource::Host,
+        trust_level: domain::RuntimeTrustLevel::HostFact,
+        item_id: None,
+        ledger_ref: None,
+        payload: serde_json::json!({ "delta": "raw" }),
+        visibility: domain::RuntimeEventVisibility::Workspace,
+        durability: domain::RuntimeEventDurability::Durable,
+        created_at: OffsetDateTime::now_utc(),
+    };
+
+    let part = control_plane::runtime_observability::debug_read_model::fold_event_to_debug_part(
+        run_id, &event,
+    );
+
+    assert!(part.is_none());
 }
 
 #[tokio::test]

@@ -45,39 +45,6 @@ fn preview_output_cache_payload(output_payload: &serde_json::Value) -> Option<se
     }
 }
 
-#[derive(Debug, Clone)]
-struct PublicNodeOutputSelector {
-    key: String,
-    selector: Vec<String>,
-}
-
-fn collect_node_output_selectors(node: &serde_json::Value) -> Vec<PublicNodeOutputSelector> {
-    node.get("outputs")
-        .and_then(|value| value.as_array())
-        .into_iter()
-        .flatten()
-        .filter_map(|output| {
-            let key = output
-                .get("key")
-                .and_then(|value| value.as_str())
-                .map(str::to_string)?;
-            let selector = output
-                .get("selector")
-                .and_then(|value| value.as_array())
-                .map(|segments| {
-                    segments
-                        .iter()
-                        .filter_map(|segment| segment.as_str().map(str::to_string))
-                        .collect::<Vec<_>>()
-                })
-                .filter(|segments| !segments.is_empty())
-                .unwrap_or_else(|| vec![key.clone()]);
-
-            Some(PublicNodeOutputSelector { key, selector })
-        })
-        .collect()
-}
-
 fn collect_start_public_input_keys(
     document: &serde_json::Value,
 ) -> HashMap<String, HashSet<String>> {
@@ -120,49 +87,6 @@ fn collect_start_public_input_keys(
     }
 
     public_inputs
-}
-
-fn collect_public_node_output_keys(
-    document: &serde_json::Value,
-) -> HashMap<String, Vec<PublicNodeOutputSelector>> {
-    let mut public_outputs = HashMap::new();
-    let Some(nodes) = document
-        .get("graph")
-        .and_then(|graph| graph.get("nodes"))
-        .and_then(|nodes| nodes.as_array())
-    else {
-        return public_outputs;
-    };
-
-    for node in nodes {
-        if node.get("type").and_then(|value| value.as_str()) == Some("start") {
-            continue;
-        }
-        let Some(node_id) = node
-            .get("id")
-            .and_then(|value| value.as_str())
-            .map(str::to_string)
-        else {
-            continue;
-        };
-        public_outputs.insert(node_id, collect_node_output_selectors(node));
-    }
-
-    public_outputs
-}
-
-fn read_output_selector<'a>(
-    output_payload: &'a serde_json::Map<String, serde_json::Value>,
-    selector: &[String],
-) -> Option<&'a serde_json::Value> {
-    let (first, rest) = selector.split_first()?;
-    let mut current = output_payload.get(first)?;
-
-    for segment in rest {
-        current = current.as_object()?.get(segment)?;
-    }
-
-    Some(current)
 }
 
 fn insert_variable_value(
@@ -230,18 +154,14 @@ fn is_snapshot_public_node_status(status: domain::NodeRunStatus) -> bool {
     matches!(status, domain::NodeRunStatus::Succeeded)
 }
 
-fn merge_public_node_outputs(
+fn merge_node_output_payload(
     variable_cache: &mut serde_json::Map<String, serde_json::Value>,
     source_node_run_ids: &mut serde_json::Map<String, serde_json::Value>,
     node_run: &domain::NodeRunRecord,
-    public_output_keys: &HashMap<String, Vec<PublicNodeOutputSelector>>,
 ) {
     if !is_snapshot_public_node_status(node_run.status) {
         return;
     }
-    let Some(output_selectors) = public_output_keys.get(&node_run.node_id) else {
-        return;
-    };
     let Some(output_payload) = preview_output_cache_payload(&node_run.output_payload) else {
         return;
     };
@@ -249,17 +169,9 @@ fn merge_public_node_outputs(
         return;
     };
 
-    for output in output_selectors {
-        let Some(value) = read_output_selector(output_payload, &output.selector) else {
-            continue;
-        };
-        insert_variable_value(variable_cache, &node_run.node_id, &output.key, value);
-        insert_source_id(
-            source_node_run_ids,
-            &node_run.node_id,
-            &output.key,
-            node_run.id,
-        );
+    for (key, value) in output_payload {
+        insert_variable_value(variable_cache, &node_run.node_id, key, value);
+        insert_source_id(source_node_run_ids, &node_run.node_id, key, node_run.id);
     }
 }
 
@@ -329,12 +241,51 @@ pub(super) async fn build_debug_variable_snapshot(
     workspace_id: Uuid,
     actor_user_id: Uuid,
     debug_session_id: Option<String>,
+    run_id: Option<Uuid>,
     editor_state: &domain::FlowEditorState,
 ) -> Result<DebugVariableSnapshotResponse, ApiError> {
     let public_start_keys = collect_start_public_input_keys(&editor_state.draft.document);
-    let public_output_keys = collect_public_node_output_keys(&editor_state.draft.document);
     let document_hash = debug_snapshot_document_hash(&editor_state.draft.document);
     let flow_schema_version = debug_snapshot_flow_schema_version(editor_state);
+    if let Some(run_id) = run_id {
+        let detail =
+            <MainDurableStore as OrchestrationRuntimeRepository>::get_application_run_detail(
+                store,
+                application_id,
+                run_id,
+            )
+            .await?
+            .ok_or(control_plane::errors::ControlPlaneError::NotFound("flow_run"))?;
+        let mut variable_cache = serde_json::Map::new();
+        let mut source_flow_run_ids = serde_json::Map::new();
+        let mut source_node_run_ids = serde_json::Map::new();
+
+        merge_start_public_inputs(
+            &mut variable_cache,
+            &mut source_flow_run_ids,
+            &detail.flow_run.input_payload,
+            &public_start_keys,
+            detail.flow_run.id,
+        );
+        for node_run in &detail.node_runs {
+            merge_node_output_payload(&mut variable_cache, &mut source_node_run_ids, node_run);
+        }
+
+        return Ok(DebugVariableSnapshotResponse {
+            snapshot_schema_version: DEBUG_VARIABLE_SNAPSHOT_SCHEMA_VERSION.to_string(),
+            workspace_id: workspace_id.to_string(),
+            actor_user_id: actor_user_id.to_string(),
+            draft_id: editor_state.draft.id.to_string(),
+            flow_schema_version,
+            document_hash,
+            debug_session_id: detail.flow_run.debug_session_id.clone(),
+            latest_run_scope: Some(to_debug_snapshot_run_scope(&detail.flow_run)),
+            snapshot_completeness: debug_snapshot_completeness(detail.flow_run.status).to_string(),
+            source_flow_run_ids: serde_json::Value::Object(source_flow_run_ids),
+            source_node_run_ids: serde_json::Value::Object(source_node_run_ids),
+            variable_cache: serde_json::Value::Object(variable_cache),
+        });
+    }
     let Some(debug_session_id) = normalize_debug_session_id(debug_session_id) else {
         return Ok(DebugVariableSnapshotResponse {
             snapshot_schema_version: DEBUG_VARIABLE_SNAPSHOT_SCHEMA_VERSION.to_string(),
@@ -395,12 +346,7 @@ pub(super) async fn build_debug_variable_snapshot(
             detail.flow_run.id,
         );
         for node_run in &detail.node_runs {
-            merge_public_node_outputs(
-                &mut variable_cache,
-                &mut source_node_run_ids,
-                node_run,
-                &public_output_keys,
-            );
+            merge_node_output_payload(&mut variable_cache, &mut source_node_run_ids, node_run);
         }
         break;
     }

@@ -206,12 +206,37 @@ impl ApiKeyDataModelAction {
     }
 }
 
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Hash)]
+#[serde(rename_all = "snake_case")]
+pub enum ApiKeyKind {
+    DataModelApiKey,
+    ApplicationApiKey,
+}
+
+impl ApiKeyKind {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::DataModelApiKey => "data_model_api_key",
+            Self::ApplicationApiKey => "application_api_key",
+        }
+    }
+
+    pub fn from_db(value: &str) -> Self {
+        match value {
+            "application_api_key" => Self::ApplicationApiKey,
+            _ => Self::DataModelApiKey,
+        }
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct ApiKeyRecord {
     pub id: Uuid,
     pub name: String,
     pub token_hash: String,
     pub token_prefix: String,
+    pub key_kind: ApiKeyKind,
+    pub application_id: Option<Uuid>,
     pub creator_user_id: Uuid,
     pub tenant_id: Uuid,
     pub scope_kind: crate::DataModelScopeKind,

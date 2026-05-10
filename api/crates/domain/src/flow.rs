@@ -64,6 +64,8 @@ pub struct FlowVersionRecord {
     pub trigger: FlowVersionTrigger,
     pub change_kind: FlowChangeKind,
     pub summary: String,
+    pub summary_is_custom: bool,
+    pub is_protected: bool,
     pub document: serde_json::Value,
     pub created_at: OffsetDateTime,
 }

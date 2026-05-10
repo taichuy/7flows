@@ -75,6 +75,51 @@ async fn application_orchestration_routes_bootstrap_save_and_restore() {
     assert_eq!(start_node["outputs"], json!([]));
     assert_eq!(start_node["config"]["input_fields"], json!([]));
 
+    let update_version = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("PATCH")
+                .uri(format!(
+                    "/api/console/applications/{application_id}/orchestration/versions/{version_id}"
+                ))
+                .header("cookie", &cookie)
+                .header("x-csrf-token", &csrf)
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    json!({
+                        "summary": "stable baseline",
+                        "summary_is_custom": true,
+                        "is_protected": true
+                    })
+                    .to_string(),
+                ))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+
+    assert_eq!(update_version.status(), StatusCode::OK);
+
+    let update_version_body: Value = serde_json::from_slice(
+        &to_bytes(update_version.into_body(), usize::MAX)
+            .await
+            .unwrap(),
+    )
+    .unwrap();
+    assert_eq!(
+        update_version_body["data"]["versions"][0]["summary"],
+        json!("stable baseline")
+    );
+    assert_eq!(
+        update_version_body["data"]["versions"][0]["summary_is_custom"],
+        json!(true)
+    );
+    assert_eq!(
+        update_version_body["data"]["versions"][0]["is_protected"],
+        json!(true)
+    );
+
     document["graph"]["nodes"][1]["bindings"]["prompt_messages"]["value"][0]["content"]["value"] =
         json!("You are a support agent.");
 

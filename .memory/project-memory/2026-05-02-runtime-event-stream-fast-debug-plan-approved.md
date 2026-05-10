@@ -18,8 +18,8 @@ match_when:
   - 设计 RuntimeEventStream、LocalRuntimeEventStream、Redis Streams provider 或缓存类 HostExtension
   - 执行 docs/superpowers/plans/2026-05-02-runtime-event-stream-fast-debug.md
 created_at: 2026-05-02 08
-updated_at: 2026-05-02 21
-last_verified_at: 2026-05-02 21
+updated_at: 2026-05-08 22
+last_verified_at: 2026-05-08 22
 decision_policy: verify_before_decision
 scope:
   - api/crates/control-plane
@@ -60,10 +60,13 @@ Dify 预览体验的关键不是所有状态都先落库，而是先建立实时
 - `reasoning_delta` / thought 是模型生成的一部分，不应被过滤掉；调试流应参考 Dify 的 `agent_thought` 独立区域，把思考内容单独展示，同时像 `text_delta` 一样进入 RuntimeEventStream、短期缓存和 durable debug event 持久化。
 - 复制正式输出默认只复制 answer/content，不把 reasoning 混入最终答案；reasoning 作为独立生成内容可单独展示和恢复。
 - 执行方式上，同一时间只运行一个独立 agent / 子 agent，防止系统资源不足；每完成一个任务必须更新计划状态。
+- 2026-05-08 补充确认：Agent Flow Debug Stream 历史恢复以 `runtime_events` 为唯一真相源，`flow_run_events` 不再作为新调试流正文或历史恢复来源。
+- 2026-05-08 补充确认：`RuntimeEventStream` 只是运行期 best-effort 传输和 SSE source，进程内缓存丢失可接受，能写多少写多少；长期缓存/中间件能力后续由 HostExtension provider 扩展，不在技术底座内继续补强。
+- 2026-05-08 补充确认：该能力仍处于开发初期，不为旧 debug stream 逻辑保留兼容 merge path。
 
 ## 截止日期
 
-无固定截止日期；当前目标是把本地单机阶段按已批准计划持续做到完成。进入 Redis Streams 或等价外部 provider 属于后续阶段，不在当前实现计划内。
+无固定截止日期；本地单机阶段已在 2026-05-08 按 `docs/specs/2026-05-08-agent-flow-debug-stream-runtime-events-spec.md` 与 `docs/plans/2026-05-08-agent-flow-debug-stream-runtime-events-plan.md` 完成一次 debug stream 历史真值收敛。进入 Redis Streams 或等价外部 provider 属于后续 HostExtension provider 扩展阶段，不在当前技术底座实现计划内。
 
 ## 决策背后动机
 

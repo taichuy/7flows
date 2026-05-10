@@ -121,6 +121,13 @@ impl PgControlPlaneStore {
                 output_payload,
                 error_payload,
                 created_by,
+                api_key_id,
+                publication_version_id,
+                external_user,
+                external_conversation_id,
+                external_trace_id,
+                compatibility_mode,
+                idempotency_key,
                 started_at,
                 finished_at,
                 created_at

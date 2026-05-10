@@ -111,6 +111,18 @@ function sampleNodeLastRun() {
   };
 }
 
+function sampleRunDetail() {
+  const lastRun = sampleNodeLastRun();
+
+  return {
+    flow_run: lastRun.flow_run,
+    node_runs: [lastRun.node_run],
+    checkpoints: lastRun.checkpoints,
+    callback_tasks: [],
+    events: lastRun.events
+  };
+}
+
 async function selectLlmNode() {
   fireEvent.click(
     await screen.findByText('LLM', { selector: '.agent-flow-node-card__title' })
@@ -152,6 +164,9 @@ describe('node last run runtime', () => {
       .spyOn(runtimeApi, 'fetchNodeLastRun')
       .mockResolvedValueOnce(null)
       .mockResolvedValue(sampleNodeLastRun());
+    vi
+      .spyOn(runtimeApi, 'fetchApplicationRunDetail')
+      .mockResolvedValue(sampleRunDetail());
     vi.spyOn(runtimeApi, 'startNodeDebugPreview').mockResolvedValue(sampleNodeLastRun());
   });
 
@@ -228,6 +243,7 @@ describe('node last run runtime', () => {
       'agent-flow-editor-variable-cache-sidebar'
     );
     expect(within(variableSidebar).getByText('Start/query')).toBeInTheDocument();
+    expect(within(variableSidebar).getByText('LLM/text')).toBeInTheDocument();
   }, 30_000);
 
   test('asks for referenced variables before running when cache is empty', async () => {

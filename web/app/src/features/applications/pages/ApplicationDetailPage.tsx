@@ -23,6 +23,11 @@ const ApplicationLogsPage = lazy(() =>
     default: module.ApplicationLogsPage
   }))
 );
+const ApplicationApiPage = lazy(() =>
+  import('./ApplicationApiPage').then((module) => ({
+    default: module.ApplicationApiPage
+  }))
+);
 
 function ApplicationSectionFallback() {
   return <LoadingState compact />;
@@ -74,6 +79,10 @@ export function ApplicationDetailPage({
     ) : requestedSectionKey === 'logs' ? (
       <ApplicationSectionBoundary>
         <ApplicationLogsPage applicationId={applicationId} />
+      </ApplicationSectionBoundary>
+    ) : requestedSectionKey === 'api' ? (
+      <ApplicationSectionBoundary>
+        <ApplicationApiPage application={application} />
       </ApplicationSectionBoundary>
     ) : (
       <ApplicationSectionState

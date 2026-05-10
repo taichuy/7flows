@@ -1,4 +1,10 @@
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import {
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+  within
+} from '@testing-library/react';
 import type { ReactElement, ReactNode } from 'react';
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 
@@ -11,9 +17,9 @@ const schemaRuntimeSpies = vi.hoisted(() => ({
 }));
 
 vi.mock('../../schema/node-schema-registry', async () => {
-  const actual = await vi.importActual<typeof import('../../schema/node-schema-registry')>(
-    '../../schema/node-schema-registry'
-  );
+  const actual = await vi.importActual<
+    typeof import('../../schema/node-schema-registry')
+  >('../../schema/node-schema-registry');
 
   return {
     ...actual,
@@ -31,7 +37,8 @@ vi.mock('../../../../shared/schema-ui/overlay-shell/SchemaDrawerPanel', () => ({
 import * as orchestrationApi from '../../api/orchestration';
 import * as nodeContributionsApi from '../../api/node-contributions';
 import * as runtimeApi from '../../api/runtime';
-import { VersionHistoryDrawer } from '../../components/history/VersionHistoryDrawer';
+import * as applicationsApi from '../../../applications/api/applications';
+import { VersionHistoryPanel } from '../../components/history/VersionHistoryPanel';
 import { AgentFlowEditorShell } from '../../components/editor/AgentFlowEditorShell';
 import { NODE_DETAIL_DEFAULT_WIDTH } from '../../lib/detail-panel-width';
 import { AgentFlowEditorPage } from '../../pages/AgentFlowEditorPage';
@@ -143,7 +150,13 @@ beforeEach(() => {
     }
   });
   vi.spyOn(runtimeApi, 'fetchNodeLastRun').mockResolvedValue(null);
-  vi.spyOn(nodeContributionsApi, 'fetchNodeContributions').mockResolvedValue([]);
+  vi.spyOn(
+    applicationsApi,
+    'fetchApplicationEnvironmentVariables'
+  ).mockResolvedValue([]);
+  vi.spyOn(nodeContributionsApi, 'fetchNodeContributions').mockResolvedValue(
+    []
+  );
   vi.spyOn(runtimeApi, 'buildNodeDebugPreviewInput').mockReturnValue({
     input_payload: {}
   });
@@ -230,7 +243,6 @@ beforeEach(() => {
 
 describe('AgentFlowEditorShell', () => {
   test('renders node cards through node schema card blocks and keeps debug overlay actions', async () => {
-
     renderShell(
       <AgentFlowEditorShell
         applicationId="app-1"
@@ -240,10 +252,14 @@ describe('AgentFlowEditorShell', () => {
     );
 
     expect(
-      await screen.findByText('Start', { selector: '.agent-flow-node-card__title' })
+      await screen.findByText('Start', {
+        selector: '.agent-flow-node-card__title'
+      })
     ).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: '历史版本' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: '调试整流' })).toBeInTheDocument();
+    expect(
+      screen.getByRole('button', { name: '历史版本' })
+    ).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: '预览' })).toBeInTheDocument();
   }, 20_000);
 
   test('renders the default three nodes and overlay controls', async () => {
@@ -256,7 +272,9 @@ describe('AgentFlowEditorShell', () => {
     );
 
     expect(
-      await screen.findByText('Start', { selector: '.agent-flow-node-card__title' })
+      await screen.findByText('Start', {
+        selector: '.agent-flow-node-card__title'
+      })
     ).toBeInTheDocument();
     expect(
       screen.getByText('LLM', { selector: '.agent-flow-node-card__title' })
@@ -266,9 +284,166 @@ describe('AgentFlowEditorShell', () => {
       screen.getByText('Answer', { selector: '.agent-flow-node-card__title' })
     ).toBeInTheDocument();
     expect(screen.getByRole('button', { name: '保存' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: '历史版本' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: '调试整流' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: '发布配置' })).toBeInTheDocument();
+    expect(
+      screen.getByRole('button', { name: '历史版本' })
+    ).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: '预览' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: '发布' })).toBeInTheDocument();
+    expect(
+      within(document.querySelector('.agent-flow-editor__overlay')!)
+        .getAllByRole('button')
+        .map(
+          (button) => button.getAttribute('aria-label') ?? button.textContent
+        )
+    ).toEqual([
+      '预览',
+      'Issues',
+      '系统变量',
+      '环境变量',
+      '保存',
+      '发布',
+      '历史版本'
+    ]);
+  }, 20_000);
+
+  test('opens readonly system variables from the canvas overlay', async () => {
+    renderShell(
+      <AgentFlowEditorShell
+        applicationId="app-1"
+        applicationName="Support Agent"
+        initialState={createInitialState()}
+      />
+    );
+
+    fireEvent.click(await screen.findByRole('button', { name: '系统变量' }));
+
+    const panel = screen.getByRole('region', { name: '系统变量' });
+
+    expect(panel).toBeInTheDocument();
+    expect(
+      screen.getByTestId('agent-flow-editor-variables-dock')
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole('separator', { name: '调整系统变量宽度' })
+    ).toBeInTheDocument();
+    expect(within(panel).getByText('sys.conversation_id')).toBeInTheDocument();
+    expect(within(panel).getByText('sys.workflow_run_id')).toBeInTheDocument();
+    expect(
+      within(panel).getByText(/可被画布内任意节点引用/)
+    ).toBeInTheDocument();
+  }, 20_000);
+
+  test('opens application environment variables from the canvas overlay', async () => {
+    renderShell(
+      <AgentFlowEditorShell
+        applicationId="app-1"
+        applicationName="Support Agent"
+        initialEnvironmentVariables={[
+          {
+            name: 'ApiBaseUrl',
+            value_type: 'string',
+            value: 'https://api.example.com',
+            description: '当前应用 API 地址',
+            updated_at: '2026-05-09T09:30:00Z'
+          }
+        ]}
+        initialState={createInitialState()}
+      />
+    );
+
+    fireEvent.click(await screen.findByRole('button', { name: '环境变量' }));
+
+    const panel = screen.getByRole('region', { name: '环境变量' });
+
+    expect(panel).toBeInTheDocument();
+    expect(
+      screen.getByTestId('agent-flow-editor-variables-dock')
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole('separator', { name: '调整环境变量宽度' })
+    ).toBeInTheDocument();
+    expect(within(panel).getByText('env.ApiBaseUrl')).toBeInTheDocument();
+    expect(
+      within(panel).getByText('https://api.example.com')
+    ).toBeInTheDocument();
+  }, 20_000);
+
+  test('opens history versions in the shared canvas dock shell', async () => {
+    renderShell(
+      <AgentFlowEditorShell
+        applicationId="app-1"
+        applicationName="Support Agent"
+        initialState={{
+          ...createInitialState(),
+          versions: [
+            {
+              id: 'version-1',
+              sequence: 1,
+              trigger: 'autosave',
+              change_kind: 'logical',
+              summary: '初始化默认草稿',
+              summary_is_custom: false,
+              is_protected: false,
+              created_at: '2026-04-15T09:00:00Z'
+            }
+          ]
+        }}
+      />
+    );
+
+    fireEvent.click(await screen.findByRole('button', { name: '历史版本' }));
+
+    const dock = screen.getByTestId('agent-flow-editor-history-dock');
+    const panel = within(dock).getByLabelText('历史版本');
+
+    expect(panel).toBeInTheDocument();
+    expect(
+      within(dock).getByRole('separator', { name: '调整历史版本宽度' })
+    ).toBeInTheDocument();
+    expect(within(panel).getByText('版本 1')).toBeInTheDocument();
+    expect(within(panel).getByText(/2026-04-15 09:00:00/)).toBeInTheDocument();
+  }, 20_000);
+
+  test('resizes the docked environment variables panel by dragging its left handle', async () => {
+    vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockImplementation(
+      () =>
+        ({
+          x: 0,
+          y: 0,
+          width: 1280,
+          height: 720,
+          top: 0,
+          right: 1280,
+          bottom: 720,
+          left: 0,
+          toJSON: () => ({})
+        }) as DOMRect
+    );
+
+    renderShell(
+      <AgentFlowEditorShell
+        applicationId="app-1"
+        applicationName="Support Agent"
+        initialState={createInitialState()}
+      />
+    );
+
+    fireEvent.click(await screen.findByRole('button', { name: '环境变量' }));
+
+    const variablesDock = screen.getByTestId(
+      'agent-flow-editor-variables-dock'
+    );
+
+    expect(variablesDock).toHaveStyle('width: 520px');
+
+    fireEvent.mouseDown(
+      screen.getByRole('separator', { name: '调整环境变量宽度' }),
+      { clientX: 760 }
+    );
+    fireEvent.mouseMove(window, { clientX: 700 });
+    fireEvent.mouseUp(window);
+
+    expect(variablesDock).toHaveStyle('width: 580px');
   }, 20_000);
 
   test('opens preview from overlay action and starts the run from composer', async () => {
@@ -282,7 +457,7 @@ describe('AgentFlowEditorShell', () => {
       />
     );
 
-    fireEvent.click(await screen.findByRole('button', { name: '调试整流' }));
+    fireEvent.click(await screen.findByRole('button', { name: '预览' }));
 
     expect(runtimeApi.startFlowDebugRun).not.toHaveBeenCalled();
     expect(
@@ -297,10 +472,11 @@ describe('AgentFlowEditorShell', () => {
     await waitFor(() => {
       expect(runtimeApi.startFlowDebugRun).toHaveBeenCalledWith(
         'app-1',
-        {
+        expect.objectContaining({
           document: initialState.draft.document,
-          input_payload: { 'node-start': { query: '请总结退款政策' } }
-        },
+          input_payload: { 'node-start': { query: '请总结退款政策' } },
+          debug_session_id: expect.stringMatching(/^app-1:draft-1:/)
+        }),
         'csrf-123'
       );
     });
@@ -369,6 +545,8 @@ describe('AgentFlowEditorShell', () => {
               trigger: 'autosave',
               change_kind: 'logical',
               summary: '初始化默认草稿',
+              summary_is_custom: false,
+              is_protected: false,
               created_at: '2026-04-15T09:00:00Z'
             }
           ]
@@ -396,6 +574,8 @@ describe('AgentFlowEditorShell', () => {
         trigger: 'autosave' as const,
         change_kind: 'logical' as const,
         summary: '初始化默认草稿',
+        summary_is_custom: false,
+        is_protected: false,
         created_at: '2026-04-15T09:00:00Z'
       }
     ];
@@ -412,29 +592,75 @@ describe('AgentFlowEditorShell', () => {
     });
 
     render(
-      <VersionHistoryDrawer
-        open
+      <VersionHistoryPanel
         onClose={vi.fn()}
         versions={versions}
         restoring={false}
         onRestore={restoreVersion}
+        onUpdate={vi.fn()}
       />
     );
 
     expect(screen.getByText('版本 1')).toBeInTheDocument();
-    expect(screen.getByText(/初始化默认草稿/)).toBeInTheDocument();
+    expect(screen.queryByText(/初始化默认草稿/)).not.toBeInTheDocument();
+    expect(screen.getByText(/2026-04-15 09:00:00/)).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: '恢复版本 1' }));
 
     expect(restoreVersion).toHaveBeenCalledWith('version-1');
+  });
+
+  test('edits and protects history versions', async () => {
+    const versions = [
+      {
+        id: 'version-1',
+        sequence: 1,
+        trigger: 'autosave' as const,
+        change_kind: 'logical' as const,
+        summary: '初始化默认草稿',
+        summary_is_custom: false,
+        is_protected: false,
+        created_at: '2026-04-15T09:00:00Z'
+      }
+    ];
+    const updateVersion = vi.fn().mockResolvedValue(undefined);
+
+    render(
+      <VersionHistoryPanel
+        onClose={vi.fn()}
+        versions={versions}
+        restoring={false}
+        onRestore={vi.fn()}
+        onUpdate={updateVersion}
+      />
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: '编辑标题 版本 1' }));
+    fireEvent.change(screen.getByLabelText('版本标题'), {
+      target: { value: '上线前稳定版本' }
+    });
+    fireEvent.click(screen.getByRole('button', { name: '保存版本标题' }));
+
+    await waitFor(() => {
+      expect(updateVersion).toHaveBeenCalledWith('version-1', {
+        summary: '上线前稳定版本',
+        summary_is_custom: true
+      });
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: '置顶保护 版本 1' }));
+
+    expect(updateVersion).toHaveBeenLastCalledWith('version-1', {
+      is_protected: true
+    });
   });
 
   test('renders editor chrome on small screens', async () => {
     vi.spyOn(orchestrationApi, 'fetchOrchestrationState').mockResolvedValueOnce(
       createInitialState()
     );
-    vi.mocked(nodeContributionsApi.fetchNodeContributions).mockResolvedValueOnce([
-      readyContribution
-    ]);
+    vi.mocked(
+      nodeContributionsApi.fetchNodeContributions
+    ).mockResolvedValueOnce([readyContribution]);
 
     renderShell(
       <AgentFlowEditorPage
@@ -443,18 +669,22 @@ describe('AgentFlowEditorShell', () => {
       />
     );
 
-    expect(await screen.findByRole('button', { name: '历史版本' })).toBeInTheDocument();
+    expect(
+      await screen.findByRole('button', { name: '历史版本' })
+    ).toBeInTheDocument();
     expect(screen.queryByText('请使用桌面端编辑')).not.toBeInTheDocument();
-    expect(nodeContributionsApi.fetchNodeContributions).toHaveBeenCalledWith('app-1');
+    expect(nodeContributionsApi.fetchNodeContributions).toHaveBeenCalledWith(
+      'app-1'
+    );
   });
 
   test('renders provider-backed editor chrome on desktop', async () => {
     vi.spyOn(orchestrationApi, 'fetchOrchestrationState').mockResolvedValueOnce(
       createInitialState()
     );
-    vi.mocked(nodeContributionsApi.fetchNodeContributions).mockResolvedValueOnce([
-      readyContribution
-    ]);
+    vi.mocked(
+      nodeContributionsApi.fetchNodeContributions
+    ).mockResolvedValueOnce([readyContribution]);
 
     renderShell(
       <AgentFlowEditorPage
@@ -463,7 +693,9 @@ describe('AgentFlowEditorShell', () => {
       />
     );
 
-    expect(await screen.findByRole('button', { name: '历史版本' })).toBeInTheDocument();
+    expect(
+      await screen.findByRole('button', { name: '历史版本' })
+    ).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Issues' })).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: '在 LLM 后新增节点' }));
     fireEvent.click(await screen.findByRole('tab', { name: '扩展' }));
@@ -471,7 +703,9 @@ describe('AgentFlowEditorShell', () => {
       await screen.findByRole('menuitem', { name: /OpenAI Prompt/i })
     ).toBeInTheDocument();
     expect(screen.queryByText('请使用桌面端编辑')).not.toBeInTheDocument();
-    expect(nodeContributionsApi.fetchNodeContributions).toHaveBeenCalledWith('app-1');
+    expect(nodeContributionsApi.fetchNodeContributions).toHaveBeenCalledWith(
+      'app-1'
+    );
   }, 20_000);
 
   test('renders node detail inside a docked overlay panel on orchestration page', async () => {
@@ -509,7 +743,9 @@ describe('AgentFlowEditorShell', () => {
 
     fireEvent.click(screen.getByRole('tab', { name: '上次运行' }));
 
-    expect(await screen.findByText('当前节点还没有运行记录')).toBeInTheDocument();
+    expect(
+      await screen.findByText('当前节点还没有运行记录')
+    ).toBeInTheDocument();
     expect(detailDock).toBeInTheDocument();
     expect(within(detailDock).getByLabelText('节点详情')).toBeInTheDocument();
     expect(screen.queryByText('请使用桌面端编辑')).not.toBeInTheDocument();

@@ -116,7 +116,7 @@ describe('debug console shell', () => {
       />
     );
 
-    fireEvent.click(await screen.findByRole('button', { name: '调试整流' }));
+    fireEvent.click(await screen.findByRole('button', { name: '预览' }));
 
     expect(runtimeApi.startFlowDebugRun).not.toHaveBeenCalled();
     expect(

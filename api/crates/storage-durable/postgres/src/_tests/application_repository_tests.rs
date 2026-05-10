@@ -177,7 +177,12 @@ async fn get_application_returns_section_hooks_with_null_runtime_targets() {
         detail.sections.api.invoke_routing_mode,
         "api_key_bound_application"
     );
-    assert_eq!(detail.sections.api.invoke_path_template, None);
+    assert_eq!(
+        detail.sections.api.invoke_path_template.as_deref(),
+        Some("/api/1flowbase/runs")
+    );
+    assert_eq!(detail.sections.api.api_capability_status, "not_published");
+    assert_eq!(detail.sections.api.credentials_status, "missing");
     assert_eq!(detail.sections.logs.status, "planned");
     assert_eq!(detail.sections.logs.runs_capability_status, "planned");
     assert_eq!(detail.sections.orchestration.current_draft_id, None);

@@ -2,16 +2,16 @@ use anyhow::Result;
 use serde_json::{json, Value};
 use uuid::Uuid;
 
-use crate::ports::{AppendRunEventInput, OrchestrationRuntimeRepository, RuntimeEventEnvelope};
+use crate::ports::{AppendRuntimeEventInput, OrchestrationRuntimeRepository, RuntimeEventEnvelope};
 
-pub async fn persist_debug_stream_events<R>(
+pub async fn persist_runtime_debug_stream_events<R>(
     repository: &R,
     events: Vec<RuntimeEventEnvelope>,
 ) -> Result<()>
 where
     R: OrchestrationRuntimeRepository,
 {
-    let mut run_events = Vec::new();
+    let mut runtime_events = Vec::new();
     let mut pending_delta: Option<PendingStreamDelta> = None;
 
     for event in events {
@@ -24,18 +24,8 @@ where
             let text = event
                 .text
                 .as_deref()
-                .or_else(|| {
-                    event
-                        .payload
-                        .get("text")
-                        .and_then(serde_json::Value::as_str)
-                })
-                .or_else(|| {
-                    event
-                        .payload
-                        .get("delta")
-                        .and_then(serde_json::Value::as_str)
-                })
+                .or_else(|| event.payload.get("text").and_then(Value::as_str))
+                .or_else(|| event.payload.get("delta").and_then(Value::as_str))
                 .unwrap_or_default();
 
             match &mut pending_delta {
@@ -50,17 +40,16 @@ where
                     pending.event_ids.push(event.event_id);
                 }
                 _ => {
-                    flush_pending_delta(&mut run_events, pending_delta.take());
-                    let event_type = event.event_type.clone();
-                    let content_type = event.content_type.clone();
+                    flush_pending_delta(&mut runtime_events, pending_delta.take());
                     let mut next_pending = PendingStreamDelta {
                         run_id: event.run_id,
                         node_run_id,
                         sequence_start: event.sequence,
                         sequence_end: event.sequence,
                         event_ids: vec![event.event_id.clone()],
-                        event_type,
-                        content_type,
+                        event_type: event.event_type.clone(),
+                        content_type: event.content_type.clone(),
+                        source: event.source,
                         text: text.to_string(),
                         content_refs: Vec::new(),
                         artifact_refs: Vec::new(),
@@ -75,18 +64,19 @@ where
             continue;
         }
 
-        flush_pending_delta(&mut run_events, pending_delta.take());
-        run_events.push(AppendRunEventInput {
-            flow_run_id: event.run_id,
-            node_run_id: None,
-            event_type: event.event_type,
-            payload: event.payload,
-        });
+        flush_pending_delta(&mut runtime_events, pending_delta.take());
+        runtime_events.push(build_runtime_event_input(
+            event.run_id,
+            event.node_run_id,
+            event.event_type,
+            event.source,
+            event.payload,
+        ));
     }
 
-    flush_pending_delta(&mut run_events, pending_delta.take());
-    if !run_events.is_empty() {
-        repository.append_run_events(&run_events).await?;
+    flush_pending_delta(&mut runtime_events, pending_delta.take());
+    if !runtime_events.is_empty() {
+        repository.append_runtime_events(&runtime_events).await?;
     }
 
     Ok(())
@@ -104,6 +94,7 @@ struct PendingStreamDelta {
     event_ids: Vec<String>,
     event_type: String,
     content_type: Option<String>,
+    source: crate::ports::RuntimeEventSource,
     text: String,
     content_refs: Vec<String>,
     artifact_refs: Vec<String>,
@@ -169,7 +160,7 @@ impl PendingStreamDelta {
 }
 
 fn flush_pending_delta(
-    run_events: &mut Vec<AppendRunEventInput>,
+    runtime_events: &mut Vec<AppendRuntimeEventInput>,
     pending_delta: Option<PendingStreamDelta>,
 ) {
     let Some(pending) = pending_delta else {
@@ -182,11 +173,12 @@ fn flush_pending_delta(
     let content_refs = pending.content_refs;
     let artifact_refs = pending.artifact_refs;
 
-    run_events.push(AppendRunEventInput {
-        flow_run_id: pending.run_id,
-        node_run_id: pending.node_run_id,
-        event_type: event_type.clone(),
-        payload: json!({
+    runtime_events.push(build_runtime_event_input(
+        pending.run_id,
+        pending.node_run_id,
+        event_type.clone(),
+        pending.source,
+        json!({
             "type": event_type.clone(),
             "event_type": event_type,
             "node_run_id": node_run_id,
@@ -209,7 +201,70 @@ fn flush_pending_delta(
                 "artifacts": artifact_refs,
             },
         }),
-    });
+    ));
+}
+
+fn build_runtime_event_input(
+    flow_run_id: Uuid,
+    node_run_id: Option<Uuid>,
+    event_type: String,
+    source: crate::ports::RuntimeEventSource,
+    payload: Value,
+) -> AppendRuntimeEventInput {
+    let (layer, source, trust_level, visibility, durability) = classify_event(&event_type, source);
+
+    AppendRuntimeEventInput {
+        flow_run_id,
+        node_run_id,
+        span_id: None,
+        parent_span_id: None,
+        event_type,
+        layer,
+        source,
+        trust_level,
+        item_id: None,
+        ledger_ref: None,
+        payload,
+        visibility,
+        durability,
+    }
+}
+
+fn classify_event(
+    event_type: &str,
+    source: crate::ports::RuntimeEventSource,
+) -> (
+    domain::RuntimeEventLayer,
+    domain::RuntimeEventSource,
+    domain::RuntimeTrustLevel,
+    domain::RuntimeEventVisibility,
+    domain::RuntimeEventDurability,
+) {
+    let layer = match event_type {
+        "flow_started" | "flow_finished" | "flow_failed" | "flow_cancelled" | "waiting_human"
+        | "waiting_callback" => domain::RuntimeEventLayer::AgentTransition,
+        "tool_call_commit"
+        | "tool_result_appended"
+        | "capability_call_requested"
+        | "capability_call_finished" => domain::RuntimeEventLayer::Capability,
+        "usage_snapshot" | "usage_recorded" | "cost_recorded" => domain::RuntimeEventLayer::Ledger,
+        "error" | "run_failed" | "llm_turn_failed" => domain::RuntimeEventLayer::Diagnostic,
+        _ => domain::RuntimeEventLayer::RuntimeItem,
+    };
+    let source = match source {
+        crate::ports::RuntimeEventSource::Runtime
+        | crate::ports::RuntimeEventSource::Provider
+        | crate::ports::RuntimeEventSource::Persister
+        | crate::ports::RuntimeEventSource::System => domain::RuntimeEventSource::Host,
+    };
+
+    (
+        layer,
+        source,
+        domain::RuntimeTrustLevel::HostFact,
+        domain::RuntimeEventVisibility::Workspace,
+        domain::RuntimeEventDurability::Durable,
+    )
 }
 
 fn collect_string_field(payload: &Value, key: &str, output: &mut Vec<String>) {

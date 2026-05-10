@@ -13,6 +13,7 @@ use tokio::sync::mpsc;
 use uuid::Uuid;
 
 use crate::{
+    audit::audit_log,
     capability_plugin_runtime::{CapabilityPluginRuntimePort, ExecuteCapabilityNodeInput},
     errors::ControlPlaneError,
     flow::FlowService,
@@ -27,15 +28,15 @@ use crate::{
     state_transition::{ensure_flow_run_transition, ensure_node_run_transition},
 };
 
-mod compile_context;
+pub(crate) mod compile_context;
 mod data_model_runtime;
 pub mod debug_artifacts;
-mod debug_event_persister;
 pub mod debug_stream_events;
-mod inputs;
+pub(crate) mod inputs;
 mod live_debug_run;
 mod payloads;
 mod persistence;
+mod runtime_event_persister;
 
 use self::{
     compile_context::{build_compile_context, ensure_compiled_plan_runnable},
@@ -81,6 +82,11 @@ pub struct ContinueFlowDebugRunCommand {
     pub application_id: Uuid,
     pub flow_run_id: Uuid,
     pub workspace_id: Uuid,
+}
+
+pub struct StartPublishedFlowRunCommand {
+    pub application_id: Uuid,
+    pub flow_run_id: Uuid,
 }
 
 #[derive(Debug, Clone)]
@@ -158,14 +164,14 @@ fn ensure_data_model_side_effect_confirmation_metadata(
     Ok(())
 }
 
-pub async fn persist_debug_stream_events<R>(
+pub async fn persist_runtime_debug_stream_events<R>(
     repository: &R,
     events: Vec<RuntimeEventEnvelope>,
 ) -> Result<()>
 where
     R: OrchestrationRuntimeRepository,
 {
-    debug_event_persister::persist_debug_stream_events(repository, events).await
+    runtime_event_persister::persist_runtime_debug_stream_events(repository, events).await
 }
 
 #[derive(Clone)]
@@ -410,6 +416,109 @@ where
         command: ContinueFlowDebugRunCommand,
     ) -> Result<domain::ApplicationRunDetail> {
         live_debug_run::continue_flow_debug_run(self, command).await
+    }
+
+    pub async fn start_published_flow_run(
+        &self,
+        command: StartPublishedFlowRunCommand,
+    ) -> Result<domain::ApplicationRunDetail> {
+        let flow_run = self
+            .repository
+            .get_flow_run(command.application_id, command.flow_run_id)
+            .await?
+            .ok_or_else(|| anyhow!("flow run not found"))?;
+        if flow_run.run_mode != domain::FlowRunMode::PublishedApiRun {
+            return Err(ControlPlaneError::InvalidInput("run_mode").into());
+        }
+        let actor = ApplicationRepository::load_actor_context_for_user(
+            &self.repository,
+            flow_run.created_by,
+        )
+        .await?;
+        let application = self
+            .repository
+            .get_application(actor.current_workspace_id, command.application_id)
+            .await?
+            .ok_or(ControlPlaneError::NotFound("application"))?;
+
+        let running = match flow_run.status {
+            domain::FlowRunStatus::Queued => {
+                ensure_flow_run_transition(
+                    domain::FlowRunStatus::Queued,
+                    domain::FlowRunStatus::Running,
+                    "start_published_flow_run",
+                )?;
+                self.repository
+                    .update_flow_run_if_status(
+                        &UpdateFlowRunInput {
+                            flow_run_id: flow_run.id,
+                            status: domain::FlowRunStatus::Running,
+                            output_payload: flow_run.output_payload.clone(),
+                            error_payload: flow_run.error_payload.clone(),
+                            finished_at: None,
+                        },
+                        domain::FlowRunStatus::Queued,
+                    )
+                    .await?
+            }
+            domain::FlowRunStatus::Running => Some(flow_run.clone()),
+            _ => None,
+        };
+        let Some(running) = running else {
+            return self
+                .repository
+                .get_application_run_detail(command.application_id, flow_run.id)
+                .await?
+                .ok_or_else(|| anyhow!("flow run detail not found"));
+        };
+
+        self.repository
+            .append_run_event(&AppendRunEventInput {
+                flow_run_id: running.id,
+                node_run_id: None,
+                event_type: "public_run_execution_started".to_string(),
+                payload: json!({
+                    "api_key_id": running.api_key_id,
+                    "application_id": running.application_id,
+                    "publication_version_id": running.publication_version_id,
+                    "creator_user_id": running.created_by,
+                    "external_user": running.external_user,
+                    "external_conversation_id": running.external_conversation_id,
+                    "external_trace_id": running.external_trace_id,
+                    "compatibility_mode": running.compatibility_mode,
+                }),
+            })
+            .await?;
+        if let Some(stream) = &self.runtime_event_stream {
+            let _ = stream
+                .append(running.id, debug_stream_events::flow_started(running.id))
+                .await;
+        }
+
+        let result = self
+            .continue_flow_debug_run(ContinueFlowDebugRunCommand {
+                application_id: command.application_id,
+                flow_run_id: running.id,
+                workspace_id: application.workspace_id,
+            })
+            .await;
+        let detail = match result {
+            Ok(detail) => detail,
+            Err(error) => {
+                if let Ok(Some(failed)) = self
+                    .repository
+                    .get_flow_run(command.application_id, running.id)
+                    .await
+                {
+                    self.append_published_terminal_audit(&application, &failed)
+                        .await;
+                }
+                return Err(error);
+            }
+        };
+        self.append_published_terminal_audit(&application, &detail.flow_run)
+            .await;
+        Ok(detail)
     }
 
     pub async fn continue_flow_debug_run_with_live_provider_events(
@@ -776,6 +885,62 @@ where
         input: PersistFlowDebugOutcomeInput<'_>,
     ) -> Result<domain::ApplicationRunDetail> {
         persist_flow_debug_outcome(&self.repository, input).await
+    }
+
+    async fn append_published_terminal_audit(
+        &self,
+        application: &domain::ApplicationRecord,
+        flow_run: &domain::FlowRunRecord,
+    ) {
+        if flow_run.run_mode != domain::FlowRunMode::PublishedApiRun {
+            return;
+        }
+        let (event_type, audit_action) = match flow_run.status {
+            domain::FlowRunStatus::Succeeded => (
+                "public_run_succeeded",
+                "application_public_api.run_succeeded",
+            ),
+            domain::FlowRunStatus::Failed => {
+                ("public_run_failed", "application_public_api.run_failed")
+            }
+            domain::FlowRunStatus::Cancelled => (
+                "public_run_cancelled",
+                "application_public_api.run_cancelled",
+            ),
+            _ => return,
+        };
+        let payload = json!({
+            "api_key_id": flow_run.api_key_id,
+            "application_id": flow_run.application_id,
+            "publication_version_id": flow_run.publication_version_id,
+            "creator_user_id": flow_run.created_by,
+            "external_user": flow_run.external_user,
+            "external_conversation_id": flow_run.external_conversation_id,
+            "external_trace_id": flow_run.external_trace_id,
+            "compatibility_mode": flow_run.compatibility_mode,
+            "status": flow_run.status.as_str(),
+        });
+        let _ = self
+            .repository
+            .append_run_event(&AppendRunEventInput {
+                flow_run_id: flow_run.id,
+                node_run_id: None,
+                event_type: event_type.to_string(),
+                payload: payload.clone(),
+            })
+            .await;
+        let _ = ApplicationRepository::append_audit_log(
+            &self.repository,
+            &audit_log(
+                Some(application.workspace_id),
+                Some(flow_run.created_by),
+                "application_public_api_run",
+                Some(flow_run.id),
+                audit_action,
+                payload,
+            ),
+        )
+        .await;
     }
 }
 

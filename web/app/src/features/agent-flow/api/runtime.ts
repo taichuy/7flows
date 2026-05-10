@@ -14,6 +14,7 @@ import {
   getConsoleNodeLastRun,
   startConsoleNodeDebugPreview,
   type ConsoleApplicationRunDetail,
+  type ConsoleDebugVariableSnapshot,
   type ConsoleFlowDebugStreamEvent,
   type ConsoleFlowDebugStreamCursor,
   type ConsoleFlowDebugStreamHandlers,
@@ -34,7 +35,7 @@ import {
 export type NodeLastRun = ConsoleNodeLastRun;
 export type FlowDebugRunDetail = ConsoleApplicationRunDetail;
 export type RuntimeDebugArtifactPreview = ConsoleRuntimeDebugArtifactPreview;
-export type DebugVariableSnapshot = {
+export type DebugVariableSnapshot = ConsoleDebugVariableSnapshot & {
   variable_cache: NodeDebugPreviewVariableCache;
 };
 export type FlowDebugRunStreamEvent = ConsoleFlowDebugStreamEvent;
@@ -142,13 +143,28 @@ export function fetchNodeLastRun(applicationId: string, nodeId: string) {
 
 export function fetchDebugVariableSnapshot(
   applicationId: string,
-  debugSessionId?: string
+  options?: {
+    debugSessionId?: string;
+    runId?: string;
+  }
 ) {
   return getConsoleDebugVariableSnapshot(
     applicationId,
-    debugSessionId,
+    options,
     getApplicationsApiBaseUrl()
   );
+}
+
+export function nodeLastRunToFlowDebugRunDetail(
+  lastRun: ConsoleNodeLastRun
+): FlowDebugRunDetail {
+  return {
+    flow_run: lastRun.flow_run,
+    node_runs: [lastRun.node_run],
+    checkpoints: lastRun.checkpoints,
+    callback_tasks: [],
+    events: lastRun.events
+  };
 }
 
 export function startNodeDebugPreview(
@@ -176,7 +192,7 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 
 export function extractNodePreviewVariableOutput(
   lastRun: ConsoleNodeLastRun,
-  outputs?: FlowNodeOutputDocument[]
+  _outputs?: FlowNodeOutputDocument[]
 ): Record<string, unknown> {
   const outputPayload = lastRun.node_run.output_payload;
 
@@ -184,29 +200,7 @@ export function extractNodePreviewVariableOutput(
     return {};
   }
 
-  if (!outputs?.length) {
-    return outputPayload;
-  }
-
-  return Object.fromEntries(
-    outputs.flatMap((output) => {
-      const selector = output.selector?.length ? output.selector : [output.key];
-      let current: unknown = outputPayload;
-
-      for (const segment of selector) {
-        if (
-          !isRecord(current) ||
-          !Object.prototype.hasOwnProperty.call(current, segment)
-        ) {
-          return [];
-        }
-
-        current = current[segment];
-      }
-
-      return [[output.key, current]];
-    })
-  );
+  return outputPayload;
 }
 
 export function buildFlowDebugRunInput(
@@ -216,20 +210,7 @@ export function buildFlowDebugRunInput(
   const startNode = document.graph.nodes.find((node) => node.type === 'start');
   const startPayload: Record<string, unknown> = {};
 
-  const explicitInputKeys = new Set(Object.keys(inputValues ?? {}));
-  const customInputKeys = new Set(
-    getStartInputFields(startNode).map((field) => field.key)
-  );
-
   for (const output of startNode ? getNodeVariableOutputs(startNode) : []) {
-    if (
-      output.key === 'files' &&
-      !explicitInputKeys.has('files') &&
-      !customInputKeys.has('files')
-    ) {
-      continue;
-    }
-
     startPayload[output.key] =
       inputValues &&
       Object.prototype.hasOwnProperty.call(inputValues, output.key)
@@ -390,6 +371,39 @@ function findNodeOutput(node: FlowNodeDocument | undefined, outputKey: string) {
     : undefined;
 }
 
+function readCachedOutputValue(
+  payload: Record<string, unknown> | undefined,
+  output: FlowNodeOutputDocument | undefined,
+  outputKey: string
+): { found: true; value: unknown } | { found: false } {
+  if (!payload) {
+    return { found: false };
+  }
+
+  if (Object.prototype.hasOwnProperty.call(payload, outputKey)) {
+    return { found: true, value: payload[outputKey] };
+  }
+
+  if (!output?.selector?.length) {
+    return { found: false };
+  }
+
+  let current: unknown = payload;
+
+  for (const segment of output.selector) {
+    if (
+      !isRecord(current) ||
+      !Object.prototype.hasOwnProperty.call(current, segment)
+    ) {
+      return { found: false };
+    }
+
+    current = current[segment];
+  }
+
+  return { found: true, value: current };
+}
+
 function buildMissingPreviewField(
   document: FlowAuthoringDocument,
   nodeId: string,
@@ -408,11 +422,24 @@ function buildMissingPreviewField(
   };
 }
 
+function isRequiredStartPreviewKey(node: FlowNodeDocument, outputKey: string) {
+  if (outputKey === 'query') {
+    return true;
+  }
+
+  return getStartInputFields(node).some(
+    (field) => field.key === outputKey && field.required
+  );
+}
+
 function buildStringPreviewValue(
   node: FlowNodeDocument | undefined,
   outputKey: string
 ) {
-  if (node?.type === 'start' && outputKey === 'query') {
+  if (
+    node?.type === 'start' &&
+    (outputKey === 'query' || outputKey === 'model')
+  ) {
     return '';
   }
 
@@ -440,13 +467,15 @@ function buildPreviewValue(
     ? getNodeVariableOutputs(node).find((entry) => entry.key === outputKey)
     : undefined;
 
+  if (output?.valueType.startsWith('array')) {
+    return [];
+  }
+
   switch (output?.valueType) {
     case 'number':
       return 1;
     case 'boolean':
       return true;
-    case 'array':
-      return [];
     case 'json':
     case 'unknown':
       return {};
@@ -499,6 +528,41 @@ export function buildNodeDebugPreviewPlan(
     return { input_payload: inputPayload, missing_fields: missingFields };
   }
 
+  if (node.type === 'start') {
+    const visitedStartKeys = new Set<string>();
+
+    for (const output of getNodeVariableOutputs(node)) {
+      if (visitedStartKeys.has(output.key)) {
+        continue;
+      }
+
+      visitedStartKeys.add(output.key);
+
+      const cachedOutput = readCachedOutputValue(
+        variableCache[node.id],
+        output,
+        output.key
+      );
+
+      if (cachedOutput.found && hasPreviewVariableValue(cachedOutput.value)) {
+        inputPayload[node.id] ??= {};
+        inputPayload[node.id][output.key] = cachedOutput.value;
+        continue;
+      }
+
+      inputPayload[node.id] ??= {};
+      inputPayload[node.id][output.key] = buildPreviewValue(node, output.key);
+
+      if (isRequiredStartPreviewKey(node, output.key)) {
+        missingFields.push(
+          buildMissingPreviewField(document, node.id, output.key)
+        );
+      }
+    }
+
+    return { input_payload: inputPayload, missing_fields: missingFields };
+  }
+
   const selectors = getActiveNodeBindings(node).flatMap(([, binding]) =>
     extractSelectors(binding)
   );
@@ -506,6 +570,15 @@ export function buildNodeDebugPreviewPlan(
 
   for (const [sourceNodeId, outputKey] of selectors) {
     const cacheKey = `${sourceNodeId}.${outputKey}`;
+    const sourceNode = document.graph.nodes.find(
+      (entry) => entry.id === sourceNodeId
+    );
+    const sourceOutput = findNodeOutput(sourceNode, outputKey);
+    const cachedOutput = readCachedOutputValue(
+      variableCache[sourceNodeId],
+      sourceOutput,
+      outputKey
+    );
 
     if (visited.has(cacheKey)) {
       continue;
@@ -513,16 +586,9 @@ export function buildNodeDebugPreviewPlan(
 
     visited.add(cacheKey);
 
-    if (
-      Object.prototype.hasOwnProperty.call(
-        variableCache[sourceNodeId] ?? {},
-        outputKey
-      ) &&
-      hasPreviewVariableValue(variableCache[sourceNodeId]?.[outputKey])
-    ) {
+    if (cachedOutput.found && hasPreviewVariableValue(cachedOutput.value)) {
       inputPayload[sourceNodeId] ??= {};
-      inputPayload[sourceNodeId][outputKey] =
-        variableCache[sourceNodeId]?.[outputKey];
+      inputPayload[sourceNodeId][outputKey] = cachedOutput.value;
       continue;
     }
 

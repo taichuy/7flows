@@ -25,6 +25,15 @@ pub struct SaveFlowDraftCommand {
     pub summary: String,
 }
 
+pub struct UpdateFlowVersionMetadataCommand {
+    pub actor_user_id: Uuid,
+    pub application_id: Uuid,
+    pub version_id: Uuid,
+    pub summary: Option<String>,
+    pub summary_is_custom: Option<bool>,
+    pub is_protected: Option<bool>,
+}
+
 pub struct FlowService<R> {
     repository: R,
 }
@@ -99,6 +108,31 @@ where
                 application_id,
                 actor_user_id,
                 version_id,
+            )
+            .await
+    }
+
+    pub async fn update_version_metadata(
+        &self,
+        command: UpdateFlowVersionMetadataCommand,
+    ) -> Result<domain::FlowEditorState> {
+        ApplicationService::new(self.repository.clone())
+            .get_application(command.actor_user_id, command.application_id)
+            .await?;
+        let actor = self
+            .repository
+            .load_actor_context_for_user(command.actor_user_id)
+            .await?;
+
+        self.repository
+            .update_version_metadata(
+                actor.current_workspace_id,
+                command.application_id,
+                command.actor_user_id,
+                command.version_id,
+                command.summary,
+                command.summary_is_custom,
+                command.is_protected,
             )
             .await
     }
@@ -279,6 +313,8 @@ impl FlowRepository for InMemoryFlowRepository {
                 trigger: domain::FlowVersionTrigger::Autosave,
                 change_kind: domain::FlowChangeKind::Logical,
                 summary: summary.to_string(),
+                summary_is_custom: false,
+                is_protected: false,
                 document,
                 created_at: OffsetDateTime::now_utc(),
             });
@@ -325,10 +361,58 @@ impl FlowRepository for InMemoryFlowRepository {
             trigger: domain::FlowVersionTrigger::Restore,
             change_kind: domain::FlowChangeKind::Logical,
             summary: format!("恢复版本 {}", restored.sequence),
+            summary_is_custom: false,
+            is_protected: false,
             document: restored.document,
             created_at: OffsetDateTime::now_utc(),
         });
         trim_versions(&mut state.versions);
+
+        Ok(state.clone())
+    }
+
+    async fn update_version_metadata(
+        &self,
+        _workspace_id: Uuid,
+        application_id: Uuid,
+        actor_user_id: Uuid,
+        version_id: Uuid,
+        summary: Option<String>,
+        summary_is_custom: Option<bool>,
+        is_protected: Option<bool>,
+    ) -> Result<domain::FlowEditorState> {
+        let mut inner = self
+            .inner
+            .lock()
+            .expect("in-memory flow repo mutex poisoned");
+        let state = inner
+            .editor_state_by_application_id
+            .entry(application_id)
+            .or_insert_with(|| bootstrap_editor_state(application_id, actor_user_id));
+        let version = state
+            .versions
+            .iter_mut()
+            .find(|version| version.id == version_id)
+            .ok_or(ControlPlaneError::NotFound("flow_version"))?;
+
+        if let Some(summary) = summary {
+            version.summary = summary;
+        }
+
+        if let Some(summary_is_custom) = summary_is_custom {
+            version.summary_is_custom = summary_is_custom;
+        }
+
+        if let Some(is_protected) = is_protected {
+            version.is_protected = is_protected;
+        }
+
+        state.versions.sort_by(|left, right| {
+            right
+                .is_protected
+                .cmp(&left.is_protected)
+                .then_with(|| left.sequence.cmp(&right.sequence))
+        });
 
         Ok(state.clone())
     }
@@ -359,6 +443,8 @@ fn bootstrap_editor_state(application_id: Uuid, actor_user_id: Uuid) -> domain::
             trigger: domain::FlowVersionTrigger::Autosave,
             change_kind: domain::FlowChangeKind::Logical,
             summary: "初始化默认草稿".to_string(),
+            summary_is_custom: false,
+            is_protected: false,
             document,
             created_at: OffsetDateTime::now_utc(),
         }],
@@ -374,10 +460,31 @@ fn document_schema_version(document: &serde_json::Value) -> &str {
 }
 
 fn trim_versions(versions: &mut Vec<domain::FlowVersionRecord>) {
-    if versions.len() > domain::FLOW_HISTORY_LIMIT {
-        let overflow = versions.len() - domain::FLOW_HISTORY_LIMIT;
-        versions.drain(..overflow);
+    let unprotected_count = versions
+        .iter()
+        .filter(|version| !version.is_protected)
+        .count();
+
+    if unprotected_count > domain::FLOW_HISTORY_LIMIT {
+        let overflow = unprotected_count - domain::FLOW_HISTORY_LIMIT;
+        let mut removed = 0;
+
+        versions.retain(|version| {
+            if !version.is_protected && removed < overflow {
+                removed += 1;
+                false
+            } else {
+                true
+            }
+        });
     }
+
+    versions.sort_by(|left, right| {
+        right
+            .is_protected
+            .cmp(&left.is_protected)
+            .then_with(|| left.sequence.cmp(&right.sequence))
+    });
 }
 
 impl FlowService<InMemoryFlowRepository> {

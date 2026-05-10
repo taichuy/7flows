@@ -24,4 +24,14 @@ pub trait FlowRepository: Send + Sync {
         actor_user_id: Uuid,
         version_id: Uuid,
     ) -> anyhow::Result<domain::FlowEditorState>;
+    async fn update_version_metadata(
+        &self,
+        workspace_id: Uuid,
+        application_id: Uuid,
+        actor_user_id: Uuid,
+        version_id: Uuid,
+        summary: Option<String>,
+        summary_is_custom: Option<bool>,
+        is_protected: Option<bool>,
+    ) -> anyhow::Result<domain::FlowEditorState>;
 }

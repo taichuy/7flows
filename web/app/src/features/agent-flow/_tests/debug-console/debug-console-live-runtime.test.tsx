@@ -280,4 +280,49 @@ describe('debug console live runtime', () => {
     expect(fetchApplicationRunDetailSpy).not.toHaveBeenCalled();
     expect(result.current.messages.at(-1)?.status).toBe('cancelled');
   });
+
+  test('guards duplicate stop requests while cancellation is in flight', async () => {
+    const queryClient = createQueryClient();
+    vi.spyOn(runtimeApi, 'startFlowDebugRun').mockResolvedValue(createRunningRunDetail());
+    const cancelFlowDebugRunSpy = vi
+      .spyOn(runtimeApi, 'cancelFlowDebugRun')
+      .mockImplementation(
+        () =>
+          new Promise((resolve) => {
+            setTimeout(() => resolve(createCancelledRunDetail()), 50);
+          })
+      );
+    const document = createDefaultAgentFlowDocument({ flowId: 'flow-1' });
+
+    const { result } = renderHook(
+      () =>
+        useAgentFlowDebugSession({
+          applicationId: 'app-1',
+          draftId: 'draft-1',
+          document
+        }),
+      { wrapper: createWrapper(queryClient) }
+    );
+
+    await act(async () => {
+      await result.current.submitPrompt('请总结退款政策');
+    });
+
+    expect(result.current.status).toBe('running');
+
+    act(() => {
+      void result.current.stopRun();
+      void result.current.stopRun();
+    });
+
+    expect(result.current.stopping).toBe(true);
+    expect(cancelFlowDebugRunSpy).toHaveBeenCalledTimes(1);
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(50);
+    });
+
+    expect(result.current.stopping).toBe(false);
+    expect(result.current.status).toBe('cancelled');
+  });
 });

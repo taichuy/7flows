@@ -23,6 +23,10 @@ pub struct StoredApplicationRow {
     pub updated_at: OffsetDateTime,
     pub current_flow_id: Option<Uuid>,
     pub current_draft_id: Option<Uuid>,
+    pub api_enabled: bool,
+    pub has_application_api_keys: bool,
+    pub has_application_api_mapping: bool,
+    pub active_publication_id: Option<Uuid>,
     pub tags: Value,
 }
 
@@ -44,8 +48,37 @@ impl PgApplicationMapper {
             created_by: row.created_by,
             updated_at: row.updated_at,
             tags: serde_json::from_value::<Vec<ApplicationTag>>(row.tags)?,
-            sections: flow_sections(application_type, row.current_flow_id, row.current_draft_id),
+            sections: application_sections(
+                application_type,
+                row.current_flow_id,
+                row.current_draft_id,
+                ApplicationApiSectionState {
+                    api_enabled: row.api_enabled,
+                    has_application_api_keys: row.has_application_api_keys,
+                    has_application_api_mapping: row.has_application_api_mapping,
+                    active_publication_id: row.active_publication_id,
+                },
+            ),
         })
+    }
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct ApplicationApiSectionState {
+    pub api_enabled: bool,
+    pub has_application_api_keys: bool,
+    pub has_application_api_mapping: bool,
+    pub active_publication_id: Option<Uuid>,
+}
+
+impl ApplicationApiSectionState {
+    pub fn planned() -> Self {
+        Self {
+            api_enabled: false,
+            has_application_api_keys: false,
+            has_application_api_mapping: false,
+            active_publication_id: None,
+        }
     }
 }
 
@@ -58,6 +91,51 @@ pub fn parse_application_type(value: &str) -> Result<ApplicationType> {
 }
 
 pub fn planned_sections(application_type: ApplicationType) -> ApplicationSections {
+    application_sections(
+        application_type,
+        None,
+        None,
+        ApplicationApiSectionState::planned(),
+    )
+}
+
+pub fn application_sections(
+    application_type: ApplicationType,
+    current_flow_id: Option<Uuid>,
+    current_draft_id: Option<Uuid>,
+    api_state: ApplicationApiSectionState,
+) -> ApplicationSections {
+    let mut sections = flow_sections(application_type, current_flow_id, current_draft_id);
+    let has_active_publication = api_state.active_publication_id.is_some();
+    let api_ready = api_state.has_application_api_keys
+        && api_state.has_application_api_mapping
+        && has_active_publication;
+    sections.api = ApplicationApiSection {
+        status: if api_ready { "active" } else { "planned" }.to_string(),
+        credential_kind: "application_api_key".to_string(),
+        invoke_routing_mode: "api_key_bound_application".to_string(),
+        invoke_path_template: Some("/api/1flowbase/runs".to_string()),
+        api_capability_status: if has_active_publication {
+            if api_state.api_enabled {
+                "enabled"
+            } else {
+                "disabled"
+            }
+        } else {
+            "not_published"
+        }
+        .to_string(),
+        credentials_status: if api_state.has_application_api_keys {
+            "configured"
+        } else {
+            "missing"
+        }
+        .to_string(),
+    };
+    sections
+}
+
+pub fn legacy_planned_sections(application_type: ApplicationType) -> ApplicationSections {
     ApplicationSections {
         orchestration: flow_sections(application_type, None, None).orchestration,
         api: ApplicationApiSection {

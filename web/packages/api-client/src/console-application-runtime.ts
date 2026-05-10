@@ -20,6 +20,7 @@ export interface ConsoleFlowRunDetail {
   flow_id: string;
   draft_id: string;
   compiled_plan_id: string | null;
+  debug_session_id?: string;
   run_mode: ConsoleFlowRunMode;
   status: string;
   target_node_id: string | null;
@@ -293,6 +294,22 @@ export interface ConsoleNodeLastRun {
 }
 
 export interface ConsoleDebugVariableSnapshot {
+  snapshot_schema_version?: string;
+  workspace_id?: string;
+  actor_user_id?: string;
+  draft_id?: string;
+  flow_schema_version?: string;
+  document_hash?: string;
+  debug_session_id?: string;
+  latest_run_scope?: {
+    flow_run_id: string;
+    run_mode: string;
+    status: string;
+    target_node_id: string | null;
+  } | null;
+  snapshot_completeness?: string;
+  source_flow_run_ids?: Record<string, unknown>;
+  source_node_run_ids?: Record<string, unknown>;
   variable_cache: Record<string, Record<string, unknown>>;
 }
 
@@ -925,12 +942,20 @@ export function getConsoleRuntimeDebugStream(
 
 export function getConsoleDebugVariableSnapshot(
   applicationId: string,
-  debugSessionId?: string,
+  options?: {
+    debugSessionId?: string;
+    runId?: string;
+  },
   baseUrl?: string
 ) {
-  const query = debugSessionId
-    ? `?debug_session_id=${encodeURIComponent(debugSessionId)}`
-    : '';
+  const params = new URLSearchParams();
+  if (options?.debugSessionId) {
+    params.set('debug_session_id', options.debugSessionId);
+  }
+  if (options?.runId) {
+    params.set('run_id', options.runId);
+  }
+  const query = params.size > 0 ? `?${params.toString()}` : '';
   return apiFetch<ConsoleDebugVariableSnapshot>({
     path: `/api/console/applications/${applicationId}/orchestration/debug-variable-snapshot${query}`,
     baseUrl

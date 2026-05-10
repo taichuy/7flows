@@ -279,8 +279,10 @@ async fn openapi_contains_application_console_routes() {
     for route in [
         "/api/console/applications",
         "/api/console/applications/{id}",
+        "/api/console/applications/{id}/environment-variables",
         "/api/console/applications/{id}/orchestration",
         "/api/console/applications/{id}/orchestration/draft",
+        "/api/console/applications/{id}/orchestration/versions/{version_id}",
         "/api/console/applications/{id}/orchestration/versions/{version_id}/restore",
         "/api/console/applications/{id}/orchestration/nodes/{node_id}/debug-runs",
         "/api/console/applications/{id}/orchestration/nodes/{node_id}/last-run",

@@ -69,7 +69,7 @@ fn runtime_reasoning_delta(run_id: Uuid, node_run_id: Uuid, text: &str) -> Runti
 }
 
 #[tokio::test]
-async fn debug_event_persister_coalesces_text_delta_run_events() {
+async fn runtime_event_persister_coalesces_text_delta_runtime_events() {
     let repository =
         crate::orchestration_runtime::test_support::InMemoryOrchestrationRuntimeRepository::with_permissions(vec![]);
     let run_id = Uuid::now_v7();
@@ -80,18 +80,34 @@ async fn debug_event_persister_coalesces_text_delta_run_events() {
         runtime_text_delta(run_id, node_run_id, "摘要"),
     ];
 
-    control_plane::orchestration_runtime::persist_debug_stream_events(&repository, events)
+    control_plane::orchestration_runtime::persist_runtime_debug_stream_events(&repository, events)
         .await
         .unwrap();
 
+    let runtime_events = repository.list_runtime_events(run_id, 0).await.unwrap();
+    assert_eq!(runtime_events.len(), 1);
+    assert_eq!(runtime_events[0].event_type, "text_delta");
+    assert_eq!(runtime_events[0].node_run_id, Some(node_run_id));
+    assert_eq!(
+        runtime_events[0].layer,
+        domain::RuntimeEventLayer::RuntimeItem
+    );
+    assert_eq!(runtime_events[0].source, domain::RuntimeEventSource::Host);
+    assert_eq!(
+        runtime_events[0].visibility,
+        domain::RuntimeEventVisibility::Workspace
+    );
+    assert_eq!(
+        runtime_events[0].durability,
+        domain::RuntimeEventDurability::Durable
+    );
+    assert_eq!(runtime_events[0].payload["text"], "退款摘要");
     let run_events = repository.events_for_flow_run(run_id);
-    assert_eq!(run_events.len(), 1);
-    assert_eq!(run_events[0].event_type, "text_delta");
-    assert_eq!(run_events[0].payload["text"], "退款摘要");
+    assert!(run_events.is_empty());
 }
 
 #[tokio::test]
-async fn debug_event_persister_persists_delta_cursor_and_artifact_metadata() {
+async fn runtime_event_persister_persists_delta_cursor_and_artifact_metadata() {
     let repository =
         crate::orchestration_runtime::test_support::InMemoryOrchestrationRuntimeRepository::with_permissions(vec![]);
     let run_id = Uuid::now_v7();
@@ -126,13 +142,13 @@ async fn debug_event_persister_persists_delta_cursor_and_artifact_metadata() {
         ),
     ];
 
-    control_plane::orchestration_runtime::persist_debug_stream_events(&repository, events)
+    control_plane::orchestration_runtime::persist_runtime_debug_stream_events(&repository, events)
         .await
         .unwrap();
 
-    let run_events = repository.events_for_flow_run(run_id);
-    assert_eq!(run_events.len(), 1);
-    let event = &run_events[0];
+    let runtime_events = repository.list_runtime_events(run_id, 0).await.unwrap();
+    assert_eq!(runtime_events.len(), 1);
+    let event = &runtime_events[0];
     assert_eq!(event.node_run_id, Some(node_run_id));
     assert_eq!(event.event_type, "text_delta");
     assert_eq!(event.payload["event_type"], "text_delta");
@@ -161,7 +177,7 @@ async fn debug_event_persister_persists_delta_cursor_and_artifact_metadata() {
 }
 
 #[tokio::test]
-async fn debug_event_persister_coalesces_reasoning_delta_separately_from_text() {
+async fn runtime_event_persister_coalesces_reasoning_delta_separately_from_text() {
     let repository =
         crate::orchestration_runtime::test_support::InMemoryOrchestrationRuntimeRepository::with_permissions(vec![]);
     let run_id = Uuid::now_v7();
@@ -173,16 +189,80 @@ async fn debug_event_persister_coalesces_reasoning_delta_separately_from_text() 
         runtime_text_delta(run_id, node_run_id, "果"),
     ];
 
-    control_plane::orchestration_runtime::persist_debug_stream_events(&repository, events)
+    control_plane::orchestration_runtime::persist_runtime_debug_stream_events(&repository, events)
         .await
         .unwrap();
 
-    let run_events = repository.events_for_flow_run(run_id);
-    assert_eq!(run_events.len(), 2);
-    assert_eq!(run_events[0].event_type, "reasoning_delta");
-    assert_eq!(run_events[0].payload["text"], "先分析");
-    assert_eq!(run_events[1].event_type, "text_delta");
-    assert_eq!(run_events[1].payload["text"], "结果");
+    let runtime_events = repository.list_runtime_events(run_id, 0).await.unwrap();
+    assert_eq!(runtime_events.len(), 2);
+    assert_eq!(runtime_events[0].event_type, "reasoning_delta");
+    assert_eq!(runtime_events[0].payload["text"], "先分析");
+    assert_eq!(runtime_events[1].event_type, "text_delta");
+    assert_eq!(runtime_events[1].payload["text"], "结果");
+}
+
+#[tokio::test]
+async fn runtime_event_persister_flushes_pending_delta_before_cancelled_terminal_event() {
+    let repository =
+        crate::orchestration_runtime::test_support::InMemoryOrchestrationRuntimeRepository::with_permissions(vec![]);
+    let run_id = Uuid::now_v7();
+    let node_run_id = Uuid::now_v7();
+    let terminal = RuntimeEventEnvelope::new(
+        run_id,
+        9,
+        RuntimeEventPayload {
+            event_type: "flow_cancelled".to_string(),
+            source: RuntimeEventSource::Runtime,
+            durability: RuntimeEventDurability::DurableRequired,
+            persist_required: true,
+            trace_visible: true,
+            payload: json!({
+                "type": "flow_cancelled",
+                "run_id": run_id,
+                "status": "cancelled",
+                "reason": "manual_stop"
+            }),
+        },
+    );
+
+    control_plane::orchestration_runtime::persist_runtime_debug_stream_events(
+        &repository,
+        vec![
+            runtime_text_delta_with_payload(
+                run_id,
+                7,
+                json!({
+                    "type": "text_delta",
+                    "node_run_id": node_run_id,
+                    "node_id": "node-llm",
+                    "text": "正在"
+                }),
+            ),
+            runtime_text_delta_with_payload(
+                run_id,
+                8,
+                json!({
+                    "type": "text_delta",
+                    "node_run_id": node_run_id,
+                    "node_id": "node-llm",
+                    "text": "回答"
+                }),
+            ),
+            terminal,
+        ],
+    )
+    .await
+    .unwrap();
+
+    let runtime_events = repository.list_runtime_events(run_id, 0).await.unwrap();
+    assert_eq!(runtime_events.len(), 2);
+    assert_eq!(runtime_events[0].event_type, "text_delta");
+    assert_eq!(runtime_events[0].payload["text"], "正在回答");
+    assert_eq!(runtime_events[1].event_type, "flow_cancelled");
+    assert_eq!(
+        runtime_events[1].layer,
+        domain::RuntimeEventLayer::AgentTransition
+    );
 }
 
 #[tokio::test]
@@ -457,6 +537,107 @@ async fn live_provider_delta_is_appended_to_runtime_event_stream() {
         .events()
         .iter()
         .any(|event| event.event_type == "text_delta"));
+}
+
+#[tokio::test]
+async fn flow_debug_run_resolves_system_variables_from_run_context() {
+    let service = OrchestrationRuntimeService::for_tests();
+    let seeded = service.seed_application_with_flow("Support Agent").await;
+    let editor_state = service
+        .editor_state_for_tests(seeded.application_id, seeded.actor_user_id)
+        .await;
+    let mut document = editor_state.draft.document.clone();
+
+    document["graph"]["nodes"][1]["bindings"]["prompt_messages"]["value"][0]["content"]["value"] =
+        json!("{{sys.user_id}}/{{sys.app_id}}/{{sys.workflow_id}}/{{sys.workflow_run_id}}");
+
+    let detail = service
+        .start_flow_debug_run(StartFlowDebugRunCommand {
+            actor_user_id: seeded.actor_user_id,
+            application_id: seeded.application_id,
+            input_payload: json!({ "node-start": { "query": "hello" } }),
+            document_snapshot: Some(document),
+            debug_session_id: None,
+        })
+        .await
+        .unwrap();
+
+    let completed = service
+        .continue_flow_debug_run(ContinueFlowDebugRunCommand {
+            application_id: seeded.application_id,
+            flow_run_id: detail.flow_run.id,
+            workspace_id: Uuid::nil(),
+        })
+        .await
+        .unwrap();
+    let llm_run = completed
+        .node_runs
+        .iter()
+        .find(|run| run.node_id == "node-llm")
+        .expect("llm node run");
+    let content = llm_run.input_payload["prompt_messages"][0]["content"]
+        .as_str()
+        .expect("rendered prompt content");
+
+    assert!(content.contains(&seeded.actor_user_id.to_string()));
+    assert!(content.contains(&seeded.application_id.to_string()));
+    assert!(content.contains(&seeded.flow_id.to_string()));
+    assert!(content.contains(&detail.flow_run.id.to_string()));
+}
+
+#[tokio::test]
+async fn flow_debug_run_resolves_application_environment_variables() {
+    let service = OrchestrationRuntimeService::for_tests();
+    let seeded = service.seed_application_with_flow("Support Agent").await;
+    service
+        .replace_application_environment_variables_for_tests(
+            seeded.actor_user_id,
+            seeded.application_id,
+            vec![control_plane::ports::ApplicationEnvironmentVariableInput {
+                name: "ApiBaseUrl".to_string(),
+                value_type: "string".to_string(),
+                value: json!("https://api.example.com"),
+                description: "当前应用 API 地址".to_string(),
+            }],
+        )
+        .await;
+    let editor_state = service
+        .editor_state_for_tests(seeded.application_id, seeded.actor_user_id)
+        .await;
+    let mut document = editor_state.draft.document.clone();
+
+    document["graph"]["nodes"][1]["bindings"]["prompt_messages"]["value"][0]["content"]["value"] =
+        json!("call {{env.ApiBaseUrl}}");
+
+    let detail = service
+        .start_flow_debug_run(StartFlowDebugRunCommand {
+            actor_user_id: seeded.actor_user_id,
+            application_id: seeded.application_id,
+            input_payload: json!({ "node-start": { "query": "hello" } }),
+            document_snapshot: Some(document),
+            debug_session_id: None,
+        })
+        .await
+        .unwrap();
+
+    let completed = service
+        .continue_flow_debug_run(ContinueFlowDebugRunCommand {
+            application_id: seeded.application_id,
+            flow_run_id: detail.flow_run.id,
+            workspace_id: Uuid::nil(),
+        })
+        .await
+        .unwrap();
+    let llm_run = completed
+        .node_runs
+        .iter()
+        .find(|run| run.node_id == "node-llm")
+        .expect("llm node run");
+
+    assert_eq!(
+        llm_run.input_payload["prompt_messages"][0]["content"].as_str(),
+        Some("call https://api.example.com")
+    );
 }
 
 #[tokio::test]

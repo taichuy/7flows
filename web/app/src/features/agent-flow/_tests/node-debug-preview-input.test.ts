@@ -8,6 +8,52 @@ import {
 } from '../api/runtime';
 
 describe('node debug preview input', () => {
+  test('asks for required start input when previewing the start node without cache', () => {
+    const document = createDefaultAgentFlowDocument({ flowId: 'flow-1' });
+
+    expect(buildNodeDebugPreviewPlan(document, 'node-start')).toEqual({
+      input_payload: {
+        'node-start': {
+          query: '',
+          model: '',
+          history: [],
+          files: []
+        }
+      },
+      missing_fields: [
+        expect.objectContaining({
+          nodeId: 'node-start',
+          key: 'query',
+          title: 'userinput.query',
+          valueType: 'string'
+        })
+      ]
+    });
+  });
+
+  test('uses cached start input as node preview input when previewing the start node', () => {
+    const document = createDefaultAgentFlowDocument({ flowId: 'flow-1' });
+
+    expect(
+      buildNodeDebugPreviewPlan(document, 'node-start', {
+        'node-start': {
+          query: '请总结退款政策',
+          files: [{ filename: 'policy.pdf' }]
+        }
+      })
+    ).toEqual({
+      input_payload: {
+        'node-start': {
+          query: '请总结退款政策',
+          model: '',
+          history: [],
+          files: [{ filename: 'policy.pdf' }]
+        }
+      },
+      missing_fields: []
+    });
+  });
+
   test('builds node preview input from cached referenced variables', () => {
     const document = createDefaultAgentFlowDocument({ flowId: 'flow-1' });
 
@@ -43,20 +89,14 @@ describe('node debug preview input', () => {
     });
   });
 
-  test('extracts actual node output from node preview envelope for downstream previews', () => {
+  test('extracts API-provided node output for downstream previews', () => {
     const document = createDefaultAgentFlowDocument({ flowId: 'flow-1' });
     const llmOutput = extractNodePreviewVariableOutput({
       flow_run: {} as never,
       node_run: {
         output_payload: {
-          target_node_id: 'node-llm',
-          node_output: {
-            text: '退款政策摘要',
-            finish_reason: 'stop'
-          },
-          resolved_inputs: {
-            user_prompt: '请总结退款政策'
-          }
+          text: '退款政策摘要',
+          finish_reason: 'stop'
         }
       } as never,
       checkpoints: [],
@@ -75,6 +115,60 @@ describe('node debug preview input', () => {
       input_payload: {
         'node-llm': {
           text: '退款政策摘要'
+        }
+      },
+      missing_fields: []
+    });
+  });
+
+  test('builds node preview input from full cached node output using output selector', () => {
+    const document = createDefaultAgentFlowDocument({ flowId: 'flow-1' });
+    const answerNode = document.graph.nodes.find(
+      (node) => node.id === 'node-answer'
+    );
+
+    if (!answerNode) {
+      throw new Error('default document is missing answer node');
+    }
+
+    document.graph.nodes.push({
+      id: 'node-tool',
+      type: 'plugin_node',
+      alias: 'Tool',
+      description: '',
+      containerId: null,
+      position: { x: 420, y: 220 },
+      configVersion: 1,
+      config: {},
+      bindings: {},
+      outputs: [
+        {
+          key: 'result',
+          title: 'Result',
+          valueType: 'string',
+          selector: ['message', 'content']
+        }
+      ]
+    });
+    answerNode.bindings = {
+      answer_template: {
+        kind: 'selector',
+        value: ['node-tool', 'result']
+      }
+    };
+
+    expect(
+      buildNodeDebugPreviewPlan(document, 'node-answer', {
+        'node-tool': {
+          message: { content: '退款政策摘要' },
+          usage: { total_tokens: 128 },
+          raw_response: { id: 'chatcmpl-1' }
+        }
+      })
+    ).toEqual({
+      input_payload: {
+        'node-tool': {
+          result: '退款政策摘要'
         }
       },
       missing_fields: []

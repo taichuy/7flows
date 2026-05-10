@@ -13,11 +13,15 @@ import {
 } from './data-model-query-binding';
 import { getLlmModelProvider } from './llm-node-config';
 import { getBuiltinNodeRuntimeContract } from './node-definitions/contracts';
-import type { InspectorSectionKey, NodeDefinitionField } from './node-definitions';
+import type {
+  InspectorSectionKey,
+  NodeDefinitionField
+} from './node-definitions';
 import { findInspectorSectionKey, nodeDefinitions } from './node-definitions';
 import { hasPluginContributionRef } from './plugin-node-definitions';
 import { isSelectorVisible } from './selector-options';
 import { parseTemplateSelectorTokens } from './template-binding';
+import type { AgentFlowEnvironmentVariable } from './application-environment-variables';
 
 export interface AgentFlowIssue {
   id: string;
@@ -171,7 +175,9 @@ function collectBindingSelectors(binding: FlowBinding): string[][] {
         return selectors;
       });
     case 'state_write':
-      return binding.value.flatMap((entry) => (entry.source ? [entry.source] : []));
+      return binding.value.flatMap((entry) =>
+        entry.source ? [entry.source] : []
+      );
     case 'data_model_query':
       return extractDataModelQuerySelectors(binding.value);
   }
@@ -223,14 +229,22 @@ function getAllowedPublicOutputKeysForNode(
 
 export function validateDocument(
   document: FlowAuthoringDocument,
-  providerOptions?: AgentFlowModelProviderOptions | null
+  providerOptions?: AgentFlowModelProviderOptions | null,
+  environmentVariables: AgentFlowEnvironmentVariable[] = []
 ): AgentFlowIssue[] {
   const issues: AgentFlowIssue[] = [];
   const nodeIds = new Set(document.graph.nodes.map((node) => node.id));
-  const startNodes = document.graph.nodes.filter((node) => node.type === 'start');
-  const answerNodes = document.graph.nodes.filter((node) => node.type === 'answer');
+  const startNodes = document.graph.nodes.filter(
+    (node) => node.type === 'start'
+  );
+  const answerNodes = document.graph.nodes.filter(
+    (node) => node.type === 'answer'
+  );
   const providerMap = new Map(
-    (providerOptions?.providers ?? []).map((provider) => [provider.provider_code, provider])
+    (providerOptions?.providers ?? []).map((provider) => [
+      provider.provider_code,
+      provider
+    ])
   );
 
   if (startNodes.length !== 1) {
@@ -291,7 +305,8 @@ export function validateDocument(
           ) {
             if (node.type === 'llm' && field.key === 'config.model_provider') {
               const modelProvider = getLlmModelProvider(node.config);
-              const providerMissing = modelProvider.provider_code.trim().length === 0;
+              const providerMissing =
+                modelProvider.provider_code.trim().length === 0;
               const sourceInstanceMissing =
                 modelProvider.source_instance_id.trim().length === 0;
 
@@ -361,13 +376,13 @@ export function validateDocument(
             model.length > 0 &&
             !modelGroup.models.some((entry) => entry.model_id === model)
           ) {
-          pushFieldIssue(
-            issues,
-            node,
-            'config.model_provider',
-            'LLM 模型不可用',
-            '当前模型不属于所选模型来源实例。'
-          );
+            pushFieldIssue(
+              issues,
+              node,
+              'config.model_provider',
+              'LLM 模型不可用',
+              '当前模型不属于所选模型来源实例。'
+            );
           }
         }
       }
@@ -391,7 +406,10 @@ export function validateDocument(
       const selectors = collectBindingSelectors(bindingValue);
 
       for (const selector of selectors) {
-        if (selector.length === 0 || isSelectorVisible(document, node.id, selector)) {
+        if (
+          selector.length === 0 ||
+          isSelectorVisible(document, node.id, selector, environmentVariables)
+        ) {
           continue;
         }
 
@@ -448,10 +466,7 @@ export function validateDocument(
         continue;
       }
 
-      if (
-        allowedPublicOutputKeys &&
-        !allowedPublicOutputKeys.has(outputKey)
-      ) {
+      if (allowedPublicOutputKeys && !allowedPublicOutputKeys.has(outputKey)) {
         pushFieldIssue(
           issues,
           node,

@@ -124,6 +124,64 @@ impl ApplicationRepository for InMemoryOrchestrationRuntimeRepository {
         ApplicationRepository::create_application_tag(&self.flow, input).await
     }
 
+    async fn list_application_environment_variables(
+        &self,
+        workspace_id: Uuid,
+        application_id: Uuid,
+    ) -> Result<Vec<domain::ApplicationEnvironmentVariable>> {
+        let application =
+            ApplicationRepository::get_application(&self.flow, workspace_id, application_id)
+                .await?;
+        if application.is_none() {
+            return Err(ControlPlaneError::NotFound("application").into());
+        }
+
+        Ok(self
+            .inner
+            .lock()
+            .expect("runtime repository mutex poisoned")
+            .application_environment_variables
+            .get(&application_id)
+            .cloned()
+            .unwrap_or_default())
+    }
+
+    async fn replace_application_environment_variables(
+        &self,
+        input: &ReplaceApplicationEnvironmentVariablesInput,
+    ) -> Result<Vec<domain::ApplicationEnvironmentVariable>> {
+        let application = ApplicationRepository::get_application(
+            &self.flow,
+            input.workspace_id,
+            input.application_id,
+        )
+        .await?;
+        if application.is_none() {
+            return Err(ControlPlaneError::NotFound("application").into());
+        }
+
+        let updated_at = OffsetDateTime::now_utc();
+        let variables = input
+            .variables
+            .iter()
+            .map(|variable| domain::ApplicationEnvironmentVariable {
+                application_id: input.application_id,
+                name: variable.name.clone(),
+                value_type: variable.value_type.clone(),
+                value: variable.value.clone(),
+                description: variable.description.clone(),
+                updated_at,
+            })
+            .collect::<Vec<_>>();
+        self.inner
+            .lock()
+            .expect("runtime repository mutex poisoned")
+            .application_environment_variables
+            .insert(input.application_id, variables.clone());
+
+        Ok(variables)
+    }
+
     async fn append_audit_log(&self, event: &domain::AuditLogRecord) -> Result<()> {
         ApplicationRepository::append_audit_log(&self.flow, event).await
     }
@@ -180,6 +238,29 @@ impl FlowRepository for InMemoryOrchestrationRuntimeRepository {
             application_id,
             actor_user_id,
             version_id,
+        )
+        .await
+    }
+
+    async fn update_version_metadata(
+        &self,
+        workspace_id: Uuid,
+        application_id: Uuid,
+        actor_user_id: Uuid,
+        version_id: Uuid,
+        summary: Option<String>,
+        summary_is_custom: Option<bool>,
+        is_protected: Option<bool>,
+    ) -> Result<domain::FlowEditorState> {
+        FlowRepository::update_version_metadata(
+            &self.flow,
+            workspace_id,
+            application_id,
+            actor_user_id,
+            version_id,
+            summary,
+            summary_is_custom,
+            is_protected,
         )
         .await
     }

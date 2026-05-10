@@ -29,8 +29,6 @@ export function NodeOutputContractCard({
 
   // Use a customized title for the start node
   const title = selectedNode.type === 'start' ? '输入字段' : '输出变量';
-  const subtitle =
-    selectedNode.type === 'start' ? '设置的输入可在工作流程中使用' : null;
   const outputs =
     (adapter?.getValue('config.output_contract') as
       | FlowNodeDocument['outputs']
@@ -47,15 +45,6 @@ export function NodeOutputContractCard({
         </Typography.Title>
         <Button type="text" icon={<PlusOutlined />} size="small" />
       </div>
-      {subtitle ? (
-        <Typography.Text
-          className="agent-flow-node-detail__section-subtitle"
-          style={{ display: 'block', textAlign: 'center', marginBottom: 16 }}
-        >
-          {subtitle}
-        </Typography.Text>
-      ) : null}
-
       {outputs.length > 0 ? (
         <div className="agent-flow-node-detail__list">
           {outputs.map((output) => (

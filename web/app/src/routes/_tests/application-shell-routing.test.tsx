@@ -230,9 +230,9 @@ describe('application shell routing', () => {
       renderApplicationRouter();
 
       expect(
-        await screen.findByText('30 秒自动保存', undefined, ROUTE_EDITOR_WAIT_OPTIONS)
+        await screen.findByRole('button', { name: '保存' }, ROUTE_EDITOR_WAIT_OPTIONS)
       ).toBeInTheDocument();
-      expect(screen.getByRole('button', { name: '保存' })).toBeInTheDocument();
+      expect(screen.queryByText('30 秒自动保存')).not.toBeInTheDocument();
       expect(screen.getByRole('button', { name: 'Issues' })).toBeInTheDocument();
     } finally {
       desktopBreakpoints.mockRestore();

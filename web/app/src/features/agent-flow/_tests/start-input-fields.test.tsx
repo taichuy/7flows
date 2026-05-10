@@ -6,7 +6,8 @@ import {
   within
 } from '@testing-library/react';
 import { useEffect, type ReactNode } from 'react';
-import { describe, expect, test } from 'vitest';
+import copyToClipboard from 'copy-to-clipboard';
+import { beforeEach, describe, expect, test, vi } from 'vitest';
 
 import { createDefaultAgentFlowDocument } from '@1flowbase/flow-schema';
 import { AppProviders } from '../../../app/AppProviders';
@@ -15,6 +16,10 @@ import { NodeConfigTab } from '../components/detail/tabs/NodeConfigTab';
 import { AgentFlowEditorStoreProvider } from '../store/editor/AgentFlowEditorStoreProvider';
 import { useAgentFlowEditorStore } from '../store/editor/provider';
 import { selectWorkingDocument } from '../store/editor/selectors';
+
+vi.mock('copy-to-clipboard', () => ({
+  default: vi.fn(() => true)
+}));
 
 function createInitialState() {
   return {
@@ -64,6 +69,10 @@ function DocumentObserver({
 }
 
 describe('start input fields', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
   test('edits start input fields and keeps system variables readonly', async () => {
     let latestDocument = createDefaultAgentFlowDocument({ flowId: 'flow-1' });
 
@@ -79,9 +88,41 @@ describe('start input fields', () => {
       </AgentFlowEditorStoreProvider>
     );
 
-    expect(await screen.findAllByText('输入字段')).toHaveLength(2);
+    expect(await screen.findAllByText('输入字段')).toHaveLength(1);
     expect(screen.getByText('userinput.query')).toBeInTheDocument();
+    expect(screen.getByText('userinput.model')).toBeInTheDocument();
+    expect(screen.getByText('userinput.history')).toBeInTheDocument();
     expect(screen.getByText('userinput.files')).toBeInTheDocument();
+    expect(screen.getAllByText('array[object]')).toHaveLength(2);
+    expect(screen.queryByText('上一轮用户消息')).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: /userinput\.history/ }));
+
+    expect(screen.getByText(/上一轮用户消息/)).toBeInTheDocument();
+    fireEvent.click(
+      screen.getByRole('button', { name: '复制userinput.history JSON' })
+    );
+    expect(copyToClipboard).toHaveBeenCalledWith(
+      JSON.stringify(
+        [
+          {
+            role: 'user',
+            content: '上一轮用户消息'
+          },
+          {
+            role: 'assistant',
+            content: '上一轮助手回复'
+          }
+        ],
+        null,
+        2
+      )
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: /userinput\.files/ }));
+
+    expect(screen.getByText(/example\.pdf/)).toBeInTheDocument();
+    expect(screen.getByText(/files\.example\.com/)).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: '新增输入字段' }));
 
@@ -118,7 +159,7 @@ describe('start input fields', () => {
         key: 'customer_name',
         label: '客户姓名',
         inputType: 'file_list',
-        valueType: 'array'
+        valueType: 'array[object]'
       })
     ]);
   });

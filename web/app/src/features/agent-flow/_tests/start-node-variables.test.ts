@@ -67,7 +67,7 @@ describe('start node variables', () => {
         key: 'attachments',
         label: '附件',
         inputType: 'file_list',
-        valueType: 'array',
+        valueType: 'array[object]',
         required: false
       }
     ];
@@ -88,7 +88,64 @@ describe('start node variables', () => {
           label: 'Start/attachments'
         },
         { value: ['node-start', 'query'], label: 'Start/query' },
+        { value: ['node-start', 'model'], label: 'Start/model' },
+        { value: ['node-start', 'history'], label: 'Start/history' },
         { value: ['node-start', 'files'], label: 'Start/files' }
+      ])
+    );
+  });
+
+  test('exposes system variables to any node without upstream edges', () => {
+    const document = createDefaultAgentFlowDocument({ flowId: 'flow-1' });
+
+    document.graph.edges = document.graph.edges.filter(
+      (edge) => edge.target !== 'node-answer'
+    );
+
+    expect(
+      listVisibleSelectorOptions(document, 'node-answer').map((option) => ({
+        value: option.value,
+        label: option.displayLabel
+      }))
+    ).toEqual(
+      expect.arrayContaining([
+        {
+          value: ['sys', 'conversation_id'],
+          label: 'sys.conversation_id'
+        },
+        {
+          value: ['sys', 'workflow_run_id'],
+          label: 'sys.workflow_run_id'
+        }
+      ])
+    );
+  });
+
+  test('exposes application environment variables to any node', () => {
+    const document = createDefaultAgentFlowDocument({ flowId: 'flow-1' });
+
+    document.graph.edges = document.graph.edges.filter(
+      (edge) => edge.target !== 'node-answer'
+    );
+
+    expect(
+      listVisibleSelectorOptions(document, 'node-answer', [
+        {
+          name: 'ApiBaseUrl',
+          value_type: 'string',
+          value: 'https://api.example.com',
+          description: '当前应用 API 地址'
+        }
+      ]).map((option) => ({
+        value: option.value,
+        label: option.displayLabel
+      }))
+    ).toEqual(
+      expect.arrayContaining([
+        {
+          value: ['env', 'ApiBaseUrl'],
+          label: 'env.ApiBaseUrl'
+        }
       ])
     );
   });
@@ -107,9 +164,10 @@ describe('start node variables', () => {
       { key: 'usage', title: 'Token 使用', valueType: 'json' }
     ];
 
-    const selectorLabels = listVisibleSelectorOptions(document, 'node-answer').map(
-      (option) => option.displayLabel
-    );
+    const selectorLabels = listVisibleSelectorOptions(
+      document,
+      'node-answer'
+    ).map((option) => option.displayLabel);
 
     const options = listVisibleSelectorOptions(document, 'node-answer');
     const textOutput = options.find(
@@ -119,6 +177,8 @@ describe('start node variables', () => {
     expect(selectorLabels).toEqual(
       expect.arrayContaining([
         'Start/query',
+        'Start/model',
+        'Start/history',
         'Start/files',
         'LLM/text',
         'LLM/usage'
@@ -197,7 +257,7 @@ describe('start node variables', () => {
         key: 'files',
         label: '附件',
         inputType: 'file_list',
-        valueType: 'array',
+        valueType: 'array[object]',
         required: false
       }
     ];
@@ -208,6 +268,8 @@ describe('start node variables', () => {
           customer_name: 'Start customer_name 调试值',
           age: 1,
           files: [],
+          model: '',
+          history: [],
           query: ''
         }
       }
@@ -249,6 +311,9 @@ describe('start node variables', () => {
         'node-start': {
           priority: '低',
           confirmed: false,
+          model: '',
+          history: [],
+          files: [],
           query: ''
         }
       }

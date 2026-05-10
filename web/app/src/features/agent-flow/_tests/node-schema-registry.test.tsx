@@ -442,7 +442,8 @@ describe('agent-flow node schema registry', () => {
       ]
     });
     expect(nextContract?.defaults.outputs).toEqual([
-      { key: 'text', title: '模型输出', valueType: 'string' }
+      { key: 'text', title: '模型输出', valueType: 'string' },
+      { key: 'usage', title: '用量', valueType: 'json' }
     ]);
   });
 

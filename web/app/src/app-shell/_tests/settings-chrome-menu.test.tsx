@@ -7,23 +7,26 @@ import { describe, expect, test } from 'vitest';
 import { settingsSectionDefinitions } from '../../features/settings/lib/settings-sections';
 import { createSettingsChromeMenuItems } from '../settings-chrome-menu-items';
 
-function isReactElementWithProps(value: unknown): value is ReactElement<Record<string, unknown>> {
+function isReactElementWithProps(
+  value: unknown
+): value is ReactElement<Record<string, unknown>> {
   return Boolean(
     value &&
-      typeof value === 'object' &&
-      'props' in value &&
-      value.props &&
-      typeof value.props === 'object'
+    typeof value === 'object' &&
+    'props' in value &&
+    value.props &&
+    typeof value.props === 'object'
   );
 }
 
 function getSettingsItem() {
-  const items = createSettingsChromeMenuItems({
-    pathname: '/settings/data-models',
-    useRouterLinks: false,
-    isRoot: true,
-    permissions: []
-  }) ?? [];
+  const items =
+    createSettingsChromeMenuItems({
+      pathname: '/settings/data-models',
+      useRouterLinks: false,
+      isRoot: true,
+      permissions: []
+    }) ?? [];
 
   return items[0];
 }
@@ -44,9 +47,11 @@ describe('createSettingsChromeMenuItems', () => {
       popupClassName: 'app-shell-settings-popup'
     });
     expect(children).toHaveLength(settingsSectionDefinitions.length);
-    expect(children.map((item) => (typeof item === 'object' && item ? item.key : null))).toEqual(
-      settingsSectionDefinitions.map((section) => section.key)
-    );
+    expect(
+      children.map((item) =>
+        typeof item === 'object' && item ? item.key : null
+      )
+    ).toEqual(settingsSectionDefinitions.map((section) => section.key));
     expect(
       children.some(
         (item) =>
@@ -62,12 +67,15 @@ describe('createSettingsChromeMenuItems', () => {
   test('renders the settings trigger as an accessible Ant icon', () => {
     const settingsItem = getSettingsItem();
     const label =
-      settingsItem && typeof settingsItem === 'object' && 'label' in settingsItem
+      settingsItem &&
+      typeof settingsItem === 'object' &&
+      'label' in settingsItem
         ? settingsItem.label
         : null;
 
+    expect(isReactElementWithProps(label)).toBe(true);
     if (!isReactElementWithProps(label)) {
-      throw new Error('Expected settings item label to be a React element');
+      throw new Error('Expected settings menu label to be a React element');
     }
 
     expect(label.props['aria-label']).toBe('设置');

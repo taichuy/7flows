@@ -209,3 +209,133 @@ async fn application_routes_support_catalog_tags_and_patching_metadata() {
         Some("客服")
     );
 }
+
+#[tokio::test]
+async fn application_routes_manage_plain_environment_variables() {
+    let app = test_app().await;
+    let (cookie, csrf) = login_and_capture_cookie(&app, "root", "change-me").await;
+
+    let create = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/console/applications")
+                .header("cookie", &cookie)
+                .header("x-csrf-token", &csrf)
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    json!({
+                        "application_type": "agent_flow",
+                        "name": "Agent Support",
+                        "description": "support app",
+                        "icon": "RobotOutlined",
+                        "icon_type": "iconfont",
+                        "icon_background": "#E6F7F2"
+                    })
+                    .to_string(),
+                ))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(create.status(), StatusCode::CREATED);
+    let create_body = to_bytes(create.into_body(), usize::MAX).await.unwrap();
+    let create_payload: Value = serde_json::from_slice(&create_body).unwrap();
+    let application_id = create_payload["data"]["id"].as_str().unwrap().to_string();
+
+    let replace = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("PUT")
+                .uri(format!(
+                    "/api/console/applications/{application_id}/environment-variables"
+                ))
+                .header("cookie", &cookie)
+                .header("x-csrf-token", &csrf)
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    json!({
+                        "variables": [
+                            {
+                                "name": "ApiBaseUrl",
+                                "value_type": "string",
+                                "value": "https://api.example.com",
+                                "description": "当前应用 API 地址"
+                            },
+                            {
+                                "name": "MaxRetry3",
+                                "value_type": "number",
+                                "value": 3,
+                                "description": ""
+                            }
+                        ]
+                    })
+                    .to_string(),
+                ))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(replace.status(), StatusCode::OK);
+    let replace_body = to_bytes(replace.into_body(), usize::MAX).await.unwrap();
+    let replace_payload: Value = serde_json::from_slice(&replace_body).unwrap();
+    assert_eq!(
+        replace_payload["data"][0]["name"].as_str(),
+        Some("ApiBaseUrl")
+    );
+    assert_eq!(
+        replace_payload["data"][0]["value"].as_str(),
+        Some("https://api.example.com")
+    );
+    assert_eq!(replace_payload["data"][1]["value"].as_i64(), Some(3));
+
+    let list = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .uri(format!(
+                    "/api/console/applications/{application_id}/environment-variables"
+                ))
+                .header("cookie", &cookie)
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(list.status(), StatusCode::OK);
+    let list_body = to_bytes(list.into_body(), usize::MAX).await.unwrap();
+    let list_payload: Value = serde_json::from_slice(&list_body).unwrap();
+    assert_eq!(list_payload["data"].as_array().unwrap().len(), 2);
+
+    let invalid = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("PUT")
+                .uri(format!(
+                    "/api/console/applications/{application_id}/environment-variables"
+                ))
+                .header("cookie", &cookie)
+                .header("x-csrf-token", &csrf)
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    json!({
+                        "variables": [
+                            {
+                                "name": "API_KEY",
+                                "value_type": "string",
+                                "value": "not allowed",
+                                "description": ""
+                            }
+                        ]
+                    })
+                    .to_string(),
+                ))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(invalid.status(), StatusCode::BAD_REQUEST);
+}

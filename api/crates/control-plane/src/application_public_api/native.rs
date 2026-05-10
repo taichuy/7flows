@@ -1,0 +1,623 @@
+use anyhow::Result;
+use async_trait::async_trait;
+use serde::{de, Deserialize, Deserializer, Serialize};
+use serde_json::{json, Map, Value};
+use time::OffsetDateTime;
+use uuid::Uuid;
+
+use super::{
+    api_keys::ApplicationApiKeyService,
+    conversations::ApplicationPublicConversationRepository,
+    mapping::ApplicationApiMappingConfig,
+    run_service::{
+        ApplicationPublishedFlowRunRepository, ApplicationPublishedRunControlRepository,
+        ApplicationPublishedRunService,
+    },
+};
+use crate::ports::{
+    ApiKeyRepository, ApplicationCompiledPlanRepository, ApplicationPublicationRepository,
+    ApplicationRepository, AuthRepository,
+};
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct NativeRunRequest {
+    pub query: String,
+    #[serde(default, deserialize_with = "deserialize_optional_string_reject_null")]
+    pub model: Option<String>,
+    #[serde(default, deserialize_with = "deserialize_native_object")]
+    pub inputs: NativeObject,
+    #[serde(default)]
+    pub history: Vec<Value>,
+    #[serde(default)]
+    pub attachments: Vec<Value>,
+    #[serde(default, deserialize_with = "deserialize_native_object")]
+    pub conversation: NativeObject,
+    #[serde(default, deserialize_with = "deserialize_optional_string_reject_null")]
+    pub response_mode: Option<String>,
+    #[serde(default, deserialize_with = "deserialize_native_object")]
+    pub stream_options: NativeObject,
+    #[serde(default, deserialize_with = "deserialize_native_object")]
+    pub execution: NativeObject,
+    #[serde(default, deserialize_with = "deserialize_native_object")]
+    pub metadata: NativeObject,
+    #[serde(default, deserialize_with = "deserialize_optional_string_reject_null")]
+    pub compatibility_mode: Option<String>,
+}
+
+#[derive(Debug, Clone, Default, PartialEq, Serialize)]
+pub struct NativeObject(Map<String, Value>);
+
+impl NativeObject {
+    pub fn into_value(self) -> Value {
+        Value::Object(self.0)
+    }
+
+    pub fn as_value(&self) -> Value {
+        Value::Object(self.0.clone())
+    }
+
+    pub fn get(&self, key: &str) -> Option<&Value> {
+        self.0.get(key)
+    }
+
+    pub fn string(&self, key: &str) -> Option<String> {
+        string_field(self, key)
+    }
+
+    pub fn insert_string(&mut self, key: impl Into<String>, value: impl Into<String>) {
+        self.0.insert(key.into(), Value::String(value.into()));
+    }
+}
+
+impl std::ops::Index<&str> for NativeObject {
+    type Output = Value;
+
+    fn index(&self, index: &str) -> &Self::Output {
+        self.0.index(index)
+    }
+}
+
+impl<'de> Deserialize<'de> for NativeObject {
+    fn deserialize<D>(deserializer: D) -> std::result::Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        let value = Value::deserialize(deserializer)?;
+        match value {
+            Value::Object(object) => Ok(Self(object)),
+            Value::Null => Err(de::Error::custom("expected object, found null")),
+            _ => Err(de::Error::custom("expected object")),
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum NativeAttachmentSource {
+    UploadFileId,
+    Url,
+    Base64,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct NativeAttachment {
+    pub source: NativeAttachmentSource,
+    pub value: String,
+    #[serde(default)]
+    pub name: Option<String>,
+    #[serde(default)]
+    pub mime_type: Option<String>,
+    #[serde(default)]
+    pub metadata: Value,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct NativeRunResult {
+    pub id: Uuid,
+    pub application_id: Uuid,
+    pub api_key_id: Uuid,
+    pub publication_version_id: Uuid,
+    pub status: NativeRunStatus,
+    pub node_input_payload: Value,
+    pub metadata: Value,
+    #[serde(default)]
+    pub answer: Option<String>,
+    #[serde(default)]
+    pub required_action: Option<NativeRequiredAction>,
+    #[serde(default)]
+    pub usage: Option<NativeUsage>,
+    #[serde(default)]
+    pub error: Option<NativeError>,
+    pub created_at: OffsetDateTime,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum NativeRunStatus {
+    Created,
+    Queued,
+    Running,
+    Waiting,
+    Succeeded,
+    Failed,
+    Cancelled,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct NativeRequiredAction {
+    pub action_type: String,
+    #[serde(default)]
+    pub payload: Value,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct NativeUsage {
+    #[serde(default)]
+    pub prompt_tokens: Option<u64>,
+    #[serde(default)]
+    pub completion_tokens: Option<u64>,
+    #[serde(default)]
+    pub total_tokens: Option<u64>,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct NativeError {
+    pub code: String,
+    pub message: String,
+    #[serde(default)]
+    pub details: Value,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct NativeMappedInput {
+    pub node_input_payload: Value,
+    pub metadata: Value,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum NativeInputMappingError {
+    SelectorCollision { selector: String },
+    InvalidSelector { selector: String },
+}
+
+pub struct NativeInputMapper;
+
+impl NativeInputMapper {
+    pub fn map(
+        request: &NativeRunRequest,
+        mapping: &ApplicationApiMappingConfig,
+    ) -> std::result::Result<NativeMappedInput, NativeInputMappingError> {
+        let mut node_input_payload = Value::Object(Map::new());
+        let input = &mapping.input;
+
+        write_selector(
+            &mut node_input_payload,
+            &input.query_target,
+            Value::String(request.query.clone()),
+        )?;
+        if let (Some(model), Some(model_target)) = (&request.model, &input.model_target) {
+            write_selector(
+                &mut node_input_payload,
+                model_target,
+                Value::String(model.clone()),
+            )?;
+        }
+        write_optional_selector(
+            &mut node_input_payload,
+            input.inputs_target.as_deref(),
+            request.inputs.as_value(),
+        )?;
+        write_optional_selector(
+            &mut node_input_payload,
+            input.history_target.as_deref(),
+            Value::Array(request.history.clone()),
+        )?;
+        write_optional_selector(
+            &mut node_input_payload,
+            input.attachments_target.as_deref(),
+            Value::Array(request.attachments.clone()),
+        )?;
+
+        Ok(NativeMappedInput {
+            node_input_payload,
+            metadata: build_run_metadata(request),
+        })
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct CreateNativeRunCommand {
+    pub bearer_token: String,
+    pub request: NativeRunRequest,
+}
+
+#[derive(Debug, Clone)]
+pub struct GetNativeRunCommand {
+    pub bearer_token: String,
+    pub run_id: Uuid,
+}
+
+#[derive(Debug, Clone)]
+pub struct CancelNativeRunCommand {
+    pub bearer_token: String,
+    pub run_id: Uuid,
+}
+
+#[derive(Debug, Clone)]
+pub struct ResumeNativeRunCommand {
+    pub bearer_token: String,
+    pub run_id: Uuid,
+    pub callback_task_id: Uuid,
+    pub response_payload: Value,
+    pub response_mode: Option<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum NativeRunValidationError {
+    NotAuthenticated,
+    ApplicationNotPublished,
+    Forbidden,
+    NotFound,
+    InvalidMapping,
+    InvalidState,
+    ResumeContinuationNotImplemented,
+}
+
+pub struct ApplicationNativeRunService<R> {
+    repository: R,
+}
+
+impl<R> ApplicationNativeRunService<R>
+where
+    R: ApplicationRepository
+        + ApiKeyRepository
+        + AuthRepository
+        + ApplicationPublicationRepository
+        + ApplicationCompiledPlanRepository
+        + ApplicationPublishedFlowRunRepository
+        + ApplicationPublishedRunControlRepository
+        + ApplicationPublicConversationRepository
+        + Clone,
+{
+    pub fn new(repository: R) -> Self {
+        Self { repository }
+    }
+
+    pub async fn create_native_run(
+        &self,
+        command: CreateNativeRunCommand,
+    ) -> std::result::Result<NativeRunResult, NativeRunValidationError> {
+        let run = ApplicationPublishedRunService::new(self.repository.clone())
+            .start_native_run(command)
+            .await?;
+
+        Ok(run)
+    }
+
+    pub async fn get_native_run(
+        &self,
+        command: GetNativeRunCommand,
+    ) -> std::result::Result<NativeRunResult, NativeRunValidationError> {
+        let actor = ApplicationApiKeyService::new(self.repository.clone())
+            .authenticate_bearer_token(&command.bearer_token)
+            .await
+            .map_err(|_| NativeRunValidationError::NotAuthenticated)?;
+        let flow_run = self
+            .repository
+            .get_published_flow_run(command.run_id)
+            .await
+            .map_err(|_| NativeRunValidationError::NotFound)?
+            .ok_or(NativeRunValidationError::NotFound)?;
+
+        if !published_run_belongs_to_actor(&flow_run, actor.application_id, actor.api_key_id) {
+            return Err(NativeRunValidationError::Forbidden);
+        }
+
+        Ok(super::run_service::native_result_from_flow_run(
+            &flow_run,
+            durable_metadata_from_flow_run(&flow_run),
+        ))
+    }
+
+    pub async fn cancel_native_run(
+        &self,
+        command: CancelNativeRunCommand,
+    ) -> std::result::Result<NativeRunResult, NativeRunValidationError> {
+        let actor = ApplicationApiKeyService::new(self.repository.clone())
+            .authenticate_bearer_token(&command.bearer_token)
+            .await
+            .map_err(|_| NativeRunValidationError::NotAuthenticated)?;
+
+        let flow_run = self
+            .repository
+            .get_published_flow_run(command.run_id)
+            .await
+            .map_err(|_| NativeRunValidationError::NotFound)?
+            .ok_or(NativeRunValidationError::NotFound)?;
+        if !published_run_belongs_to_actor(&flow_run, actor.application_id, actor.api_key_id) {
+            return Err(NativeRunValidationError::Forbidden);
+        }
+
+        let cancelled = ApplicationPublishedRunService::new(self.repository.clone())
+            .cancel_published_run(&actor, &flow_run)
+            .await?;
+
+        Ok(super::run_service::native_result_from_flow_run(
+            &cancelled,
+            durable_metadata_from_flow_run(&cancelled),
+        ))
+    }
+
+    pub async fn resume_native_run(
+        &self,
+        command: ResumeNativeRunCommand,
+    ) -> std::result::Result<NativeRunResult, NativeRunValidationError> {
+        let actor = ApplicationApiKeyService::new(self.repository.clone())
+            .authenticate_bearer_token(&command.bearer_token)
+            .await
+            .map_err(|_| NativeRunValidationError::NotAuthenticated)?;
+        let flow_run = self
+            .repository
+            .get_published_flow_run(command.run_id)
+            .await
+            .map_err(|_| NativeRunValidationError::NotFound)?
+            .ok_or(NativeRunValidationError::NotFound)?;
+        if !published_run_belongs_to_actor(&flow_run, actor.application_id, actor.api_key_id) {
+            return Err(NativeRunValidationError::Forbidden);
+        }
+
+        let callback_task = self
+            .repository
+            .get_published_callback_task(command.callback_task_id)
+            .await
+            .map_err(|_| NativeRunValidationError::NotFound)?
+            .ok_or(NativeRunValidationError::NotFound)?;
+        if callback_task.flow_run_id != flow_run.id {
+            return Err(NativeRunValidationError::Forbidden);
+        }
+        if callback_task.status != domain::CallbackTaskStatus::Pending {
+            return Err(NativeRunValidationError::InvalidState);
+        }
+
+        self.repository
+            .append_published_run_event(&crate::ports::AppendRunEventInput {
+                flow_run_id: flow_run.id,
+                node_run_id: Some(callback_task.node_run_id),
+                event_type: "public_run_resume_requested".to_string(),
+                payload: json!({
+                    "callback_task_id": callback_task.id,
+                    "response_mode": command.response_mode,
+                    "response_payload": command.response_payload,
+                    "todo": "wire published_api_run callback continuation through OrchestrationRuntimeService",
+                }),
+            })
+            .await
+            .map_err(|_| NativeRunValidationError::InvalidMapping)?;
+
+        Err(NativeRunValidationError::ResumeContinuationNotImplemented)
+    }
+}
+
+#[async_trait]
+pub trait NativeRunRepository: Send + Sync {
+    async fn create_native_run_result(&self, run: &NativeRunResult) -> Result<NativeRunResult>;
+    async fn get_native_run_result(&self, run_id: Uuid) -> Result<Option<NativeRunResult>>;
+}
+
+fn deserialize_native_object<'de, D>(deserializer: D) -> std::result::Result<NativeObject, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    NativeObject::deserialize(deserializer)
+}
+
+fn deserialize_optional_string_reject_null<'de, D>(
+    deserializer: D,
+) -> std::result::Result<Option<String>, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    let value = Value::deserialize(deserializer)?;
+    match value {
+        Value::String(value) => Ok(Some(value)),
+        Value::Null => Err(de::Error::custom("expected string, found null")),
+        _ => Err(de::Error::custom("expected string")),
+    }
+}
+
+fn build_run_metadata(request: &NativeRunRequest) -> Value {
+    let compatibility_mode = request
+        .compatibility_mode
+        .clone()
+        .or_else(|| string_field(&request.execution, "compatibility_mode"))
+        .or_else(|| string_field(&request.metadata, "compatibility_mode"));
+    let idempotency_key = string_field(&request.execution, "idempotency_key");
+    let external_user = string_field(&request.conversation, "user");
+    let external_conversation_id = string_field(&request.conversation, "id");
+    let external_trace_id = string_field(&request.metadata, "trace_id");
+
+    json!({
+        "model": request.model,
+        "execution": request.execution.as_value(),
+        "metadata": request.metadata.as_value(),
+        "compatibility_mode": compatibility_mode,
+        "idempotency_key": idempotency_key,
+        "external_user": external_user,
+        "external_conversation_id": external_conversation_id,
+        "external_trace_id": external_trace_id,
+        "request": {
+            "conversation": request.conversation.as_value(),
+            "response_mode": request.response_mode,
+            "stream_options": request.stream_options.as_value()
+        }
+    })
+}
+
+fn durable_metadata_from_flow_run(flow_run: &domain::FlowRunRecord) -> Value {
+    json!({
+        "external_user": flow_run.external_user,
+        "external_conversation_id": flow_run.external_conversation_id,
+        "external_trace_id": flow_run.external_trace_id,
+        "compatibility_mode": flow_run.compatibility_mode,
+        "idempotency_key": flow_run.idempotency_key,
+        "request": {
+            "conversation": {
+                "id": flow_run.external_conversation_id,
+                "user": flow_run.external_user,
+            }
+        }
+    })
+}
+
+fn published_run_belongs_to_actor(
+    flow_run: &domain::FlowRunRecord,
+    application_id: Uuid,
+    api_key_id: Uuid,
+) -> bool {
+    flow_run.run_mode == domain::FlowRunMode::PublishedApiRun
+        && flow_run.application_id == application_id
+        && flow_run.api_key_id == Some(api_key_id)
+}
+
+fn string_field(object: &NativeObject, key: &str) -> Option<String> {
+    object
+        .get(key)
+        .and_then(Value::as_str)
+        .map(ToOwned::to_owned)
+}
+
+fn write_optional_selector(
+    root: &mut Value,
+    selector: Option<&str>,
+    value: Value,
+) -> std::result::Result<(), NativeInputMappingError> {
+    let Some(selector) = selector else {
+        return Ok(());
+    };
+    write_selector(root, selector, value)
+}
+
+fn write_selector(
+    root: &mut Value,
+    selector: &str,
+    value: Value,
+) -> std::result::Result<(), NativeInputMappingError> {
+    let parts = selector.split('.').collect::<Vec<_>>();
+    if parts.is_empty() || parts.iter().any(|part| part.is_empty()) {
+        return Err(NativeInputMappingError::InvalidSelector {
+            selector: selector.to_string(),
+        });
+    }
+
+    let mut cursor = root;
+    for part in parts.iter().take(parts.len() - 1) {
+        let object =
+            cursor
+                .as_object_mut()
+                .ok_or_else(|| NativeInputMappingError::SelectorCollision {
+                    selector: selector.to_string(),
+                })?;
+        cursor = object
+            .entry((*part).to_string())
+            .or_insert_with(|| Value::Object(Map::new()));
+    }
+
+    let leaf = parts[parts.len() - 1];
+    let object =
+        cursor
+            .as_object_mut()
+            .ok_or_else(|| NativeInputMappingError::SelectorCollision {
+                selector: selector.to_string(),
+            })?;
+    if let Some(existing) = object.get_mut(leaf) {
+        if let (Some(existing), Value::Object(next)) = (existing.as_object_mut(), value) {
+            for (key, value) in next {
+                if existing.contains_key(&key) {
+                    return Err(NativeInputMappingError::SelectorCollision {
+                        selector: format!("{selector}.{key}"),
+                    });
+                }
+                existing.insert(key, value);
+            }
+            return Ok(());
+        }
+
+        return Err(NativeInputMappingError::SelectorCollision {
+            selector: selector.to_string(),
+        });
+    }
+    object.insert(leaf.to_string(), value);
+    Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use serde_json::json;
+
+    use super::*;
+    use crate::application_public_api::mapping::{
+        ApplicationApiMappingInput, ApplicationApiMappingOutput,
+    };
+
+    fn request_with_model(model: &str) -> NativeRunRequest {
+        serde_json::from_value(json!({
+            "query": "hello",
+            "model": model,
+            "execution": {
+                "compatibility_mode": "native-v1",
+                "idempotency_key": "idem-1"
+            },
+            "metadata": {
+                "trace_id": "trace-1"
+            }
+        }))
+        .unwrap()
+    }
+
+    #[test]
+    fn mapper_rejects_selector_collisions() {
+        let mapping = ApplicationApiMappingConfig {
+            input: ApplicationApiMappingInput {
+                query_target: "start.query".into(),
+                model_target: Some("start.query".into()),
+                inputs_target: None,
+                history_target: None,
+                attachments_target: None,
+            },
+            output: ApplicationApiMappingOutput::default(),
+        };
+
+        let error =
+            NativeInputMapper::map(&request_with_model("any/provider"), &mapping).unwrap_err();
+
+        assert_eq!(
+            error,
+            NativeInputMappingError::SelectorCollision {
+                selector: "start.query".into()
+            }
+        );
+    }
+
+    #[test]
+    fn mapper_preserves_model_metadata_when_model_target_is_null() {
+        let mapping = ApplicationApiMappingConfig {
+            input: ApplicationApiMappingInput {
+                query_target: "start.query".into(),
+                model_target: None,
+                inputs_target: None,
+                history_target: None,
+                attachments_target: None,
+            },
+            output: ApplicationApiMappingOutput::default(),
+        };
+
+        let mapped =
+            NativeInputMapper::map(&request_with_model("unlisted-model"), &mapping).unwrap();
+
+        assert!(mapped.node_input_payload["start"].get("model").is_none());
+        assert_eq!(mapped.metadata["model"], json!("unlisted-model"));
+        assert_eq!(mapped.metadata["compatibility_mode"], json!("native-v1"));
+        assert_eq!(mapped.metadata["idempotency_key"], json!("idem-1"));
+        assert_eq!(mapped.metadata["external_trace_id"], json!("trace-1"));
+    }
+}

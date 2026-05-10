@@ -75,7 +75,11 @@ function createSucceededRunDetail() {
         node_alias: 'LLM',
         status: 'succeeded',
         input_payload: { user_prompt: '请总结退款政策' },
-        output_payload: { text: '退款政策摘要' },
+        output_payload: {
+          text: '退款政策摘要',
+          usage: { total_tokens: 128 },
+          raw_response: { id: 'chatcmpl-1' }
+        },
         error_payload: null,
         metrics_payload: { total_tokens: 128 },
         started_at: '2026-04-25T10:00:00Z',
@@ -243,15 +247,15 @@ describe('useAgentFlowDebugSession', () => {
     const fetchSnapshotSpy = vi
       .spyOn(runtimeApi, 'fetchDebugVariableSnapshot')
       .mockResolvedValue({
-      variable_cache: {
-        'node-start': {
-          query: '沿用 durable 输入'
-        },
-        'node-llm': {
-          text: '沿用 durable 输出'
+        variable_cache: {
+          'node-start': {
+            query: '沿用 durable 输入'
+          },
+          'node-llm': {
+            text: '沿用 durable 输出'
+          }
         }
-      }
-    });
+      });
 
     const { result } = renderHook(
       () =>
@@ -277,13 +281,65 @@ describe('useAgentFlowDebugSession', () => {
     });
     expect(result.current.variableGroups[0]).toEqual(
       expect.objectContaining({
-        title: 'Variable Cache'
+        title: 'Start',
+        items: expect.arrayContaining([
+          expect.objectContaining({
+            key: 'node-start.query',
+            value: '沿用 durable 输入'
+          })
+        ])
       })
     );
     expect(fetchSnapshotSpy).toHaveBeenCalledWith(
       'app-1',
-      expect.stringMatching(/^app-1:draft-1:/)
+      {
+        debugSessionId: expect.stringMatching(/^app-1:draft-1:/)
+      }
     );
+  });
+
+  test('reuses persisted debug session id when the editor remounts', async () => {
+    const queryClient = createQueryClient();
+    const document = createDefaultAgentFlowDocument({ flowId: 'flow-1' });
+    const fetchSnapshotSpy = vi
+      .spyOn(runtimeApi, 'fetchDebugVariableSnapshot')
+      .mockResolvedValue({ variable_cache: {} });
+
+    const firstRender = renderHook(
+      () =>
+        useAgentFlowDebugSession({
+          applicationId: 'app-1',
+          draftId: 'draft-1',
+          document
+        }),
+      { wrapper: createWrapper(queryClient) }
+    );
+
+    await waitFor(() => {
+      expect(fetchSnapshotSpy).toHaveBeenCalledTimes(1);
+    });
+    const firstSessionId = firstRender.result.current.debugSessionId;
+
+    firstRender.unmount();
+
+    const secondRender = renderHook(
+      () =>
+        useAgentFlowDebugSession({
+          applicationId: 'app-1',
+          draftId: 'draft-1',
+          document
+        }),
+      { wrapper: createWrapper(queryClient) }
+    );
+
+    await waitFor(() => {
+      expect(fetchSnapshotSpy).toHaveBeenCalledTimes(2);
+    });
+
+    expect(secondRender.result.current.debugSessionId).toBe(firstSessionId);
+    expect(fetchSnapshotSpy).toHaveBeenLastCalledWith('app-1', {
+      debugSessionId: firstSessionId
+    });
   });
 
   test('ignores a delayed durable snapshot after resetting variable cache', async () => {
@@ -295,7 +351,7 @@ describe('useAgentFlowDebugSession', () => {
     vi.spyOn(runtimeApi, 'fetchDebugVariableSnapshot')
       .mockReturnValueOnce(
         new Promise<runtimeApi.DebugVariableSnapshot>((resolve) => {
-        resolveSnapshot = resolve;
+          resolveSnapshot = resolve;
         })
       )
       .mockResolvedValue({ variable_cache: {} });
@@ -323,7 +379,9 @@ describe('useAgentFlowDebugSession', () => {
       });
     });
 
-    expect(result.current.getNodePreviewVariableCache()['node-llm']).toBeUndefined();
+    expect(
+      result.current.getNodePreviewVariableCache()['node-llm']
+    ).toBeUndefined();
   });
 
   test('creates user and assistant messages after a debug run succeeds', async () => {
@@ -358,7 +416,12 @@ describe('useAgentFlowDebugSession', () => {
         document,
         debug_session_id: expect.stringMatching(/^app-1:draft-1:/),
         input_payload: {
-          'node-start': { files: undefined, query: '请总结退款政策' }
+          'node-start': {
+            files: [],
+            history: [],
+            model: '',
+            query: '请总结退款政策'
+          }
         }
       },
       'csrf-123'
@@ -389,8 +452,25 @@ describe('useAgentFlowDebugSession', () => {
       expect.arrayContaining([
         'Input Variables',
         'Node Outputs',
+        'System Variables',
         'Conversation / Session',
         'Environment'
+      ])
+    );
+    const systemVariablesGroup = result.current.variableGroups.find(
+      (group) => group.title === 'System Variables'
+    );
+
+    expect(systemVariablesGroup?.items).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          key: 'sys.user_id',
+          value: 'user-1'
+        }),
+        expect.objectContaining({
+          key: 'sys.workflow_run_id',
+          value: 'flow-run-1'
+        })
       ])
     );
     const inputVariablesGroup = result.current.variableGroups.find(
@@ -409,13 +489,15 @@ describe('useAgentFlowDebugSession', () => {
           query: '请总结退款政策'
         }),
         'node-llm': expect.objectContaining({
-          text: '退款政策摘要'
+          text: '退款政策摘要',
+          usage: { total_tokens: 128 },
+          raw_response: { id: 'chatcmpl-1' }
         })
       })
     );
-    expect(result.current.getNodePreviewVariableCache()['node-llm']).not.toHaveProperty(
-      'user_prompt'
-    );
+    expect(
+      result.current.getNodePreviewVariableCache()['node-llm']
+    ).not.toHaveProperty('user_prompt');
     expect(
       result.current.getNodePreviewVariableCache()['node-answer']
     ).not.toHaveProperty('answer_template');

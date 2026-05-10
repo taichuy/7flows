@@ -1,53 +1,64 @@
-import { SchemaDockPanel } from '../../../../shared/schema-ui/overlay-shell/SchemaDockPanel';
+import { ReloadOutlined } from '@ant-design/icons';
+import { Button } from 'antd';
+
 import type {
   AgentFlowDebugMessage,
   AgentFlowRunContext
 } from '../../api/runtime';
 import type { AgentFlowDebugSessionStatus } from '../../hooks/runtime/useAgentFlowDebugSession';
+import { AgentFlowDockPanel } from '../editor/AgentFlowDockPanel';
 import { DebugConversationPane } from './conversation/DebugConversationPane';
-import { DebugConsoleHeader } from './DebugConsoleHeader';
-
-const debugConsoleShellSchema = {
-  schemaVersion: '1.0.0',
-  shellType: 'dock_panel',
-  title: '预览'
-} as const;
 
 export function AgentFlowDebugConsole({
   messages,
   runContext,
   status,
+  stopping,
   onChangeRunContextValue,
   onClearSession,
   onClose,
   onLoadArtifact,
+  onStopRun,
   onSubmitPrompt
 }: {
   messages: AgentFlowDebugMessage[];
   runContext: AgentFlowRunContext;
   status: AgentFlowDebugSessionStatus;
-  onChangeRunContextValue: (nodeId: string, key: string, value: unknown) => void;
+  stopping: boolean;
+  onChangeRunContextValue: (
+    nodeId: string,
+    key: string,
+    value: unknown
+  ) => void;
   onClearSession: () => void;
   onClose: () => void;
   onLoadArtifact?: (artifactRef: string) => Promise<unknown>;
+  onStopRun: () => void;
   onSubmitPrompt: () => void;
 }) {
   return (
-    <SchemaDockPanel
+    <AgentFlowDockPanel
+      actions={
+        <Button
+          aria-label="清空预览"
+          disabled={messages.length === 0}
+          icon={<ReloadOutlined />}
+          size="small"
+          type="text"
+          onClick={onClearSession}
+        />
+      }
       bodyClassName="agent-flow-editor__debug-console-body"
       className="agent-flow-editor__debug-console"
-      headerless
-      schema={debugConsoleShellSchema}
+      closeLabel="关闭预览"
+      title="预览"
+      onClose={onClose}
     >
-      <DebugConsoleHeader
-        clearDisabled={messages.length === 0}
-        onClear={onClearSession}
-        onClose={onClose}
-      />
       <DebugConversationPane
         messages={messages}
         runContext={runContext}
         status={status}
+        stopping={stopping}
         onLoadArtifact={onLoadArtifact}
         onChangeQuery={(value) => {
           const queryField =
@@ -59,8 +70,9 @@ export function AgentFlowDebugConsole({
 
           onChangeRunContextValue(queryField.nodeId, queryField.key, value);
         }}
+        onStopRun={onStopRun}
         onSubmitPrompt={onSubmitPrompt}
       />
-    </SchemaDockPanel>
+    </AgentFlowDockPanel>
   );
 }

@@ -434,6 +434,21 @@ impl OrchestrationRuntimeService<InMemoryOrchestrationRuntimeRepository, InMemor
         self.repository.default_provider_instance_id()
     }
 
+    pub async fn editor_state_for_tests(
+        &self,
+        application_id: Uuid,
+        actor_user_id: Uuid,
+    ) -> domain::FlowEditorState {
+        FlowRepository::get_or_create_editor_state(
+            &self.repository,
+            Uuid::nil(),
+            application_id,
+            actor_user_id,
+        )
+        .await
+        .expect("load editor state")
+    }
+
     pub fn seed_provider_instance(
         &self,
         provider_code: &str,
@@ -716,6 +731,25 @@ impl OrchestrationRuntimeService<InMemoryOrchestrationRuntimeRepository, InMemor
         .await
         .expect("application run detail query should succeed")
         .expect("application run detail should exist")
+    }
+
+    pub async fn replace_application_environment_variables_for_tests(
+        &self,
+        actor_user_id: Uuid,
+        application_id: Uuid,
+        variables: Vec<ApplicationEnvironmentVariableInput>,
+    ) {
+        ApplicationRepository::replace_application_environment_variables(
+            &self.repository,
+            &ReplaceApplicationEnvironmentVariablesInput {
+                actor_user_id,
+                workspace_id: Uuid::nil(),
+                application_id,
+                variables,
+            },
+        )
+        .await
+        .expect("replace application environment variables should succeed");
     }
 }
 

@@ -40,7 +40,9 @@ function renderPane(messages: AgentFlowDebugMessage[]) {
       messages={messages}
       runContext={runContext}
       status="running"
+      stopping={false}
       onChangeQuery={vi.fn()}
+      onStopRun={vi.fn()}
       onSubmitPrompt={vi.fn()}
     />
   );
@@ -75,7 +77,9 @@ describe('DebugConversationPane auto scroll', () => {
         messages={[assistantMessage('你好，正在输出更多内容')]}
         runContext={runContext}
         status="running"
+        stopping={false}
         onChangeQuery={vi.fn()}
+        onStopRun={vi.fn()}
         onSubmitPrompt={vi.fn()}
       />
     );
@@ -90,7 +94,9 @@ describe('DebugConversationPane auto scroll', () => {
         messages={[assistantMessage('你好，正在输出更多内容，继续追加')]}
         runContext={runContext}
         status="running"
+        stopping={false}
         onChangeQuery={vi.fn()}
+        onStopRun={vi.fn()}
         onSubmitPrompt={vi.fn()}
       />
     );
@@ -104,7 +110,9 @@ describe('DebugConversationPane auto scroll', () => {
         messages={[assistantMessage('你好，正在输出更多内容，继续追加')]}
         runContext={runContext}
         status="running"
+        stopping={false}
         onChangeQuery={vi.fn()}
+        onStopRun={vi.fn()}
         onSubmitPrompt={vi.fn()}
       />
     );
