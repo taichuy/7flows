@@ -9,8 +9,7 @@ import {
   type AgentFlowRunContext,
   type AgentFlowVariableGroup,
   type AgentFlowVariableItem,
-  type FlowDebugRunDetail,
-  type NodeDebugPreviewVariableCache
+  type FlowDebugRunDetail
 } from '../../api/runtime';
 import {
   agentFlowSystemVariables,
@@ -29,6 +28,14 @@ export interface NodeVariableDisplayMeta {
   nodeType?: string;
   outputs?: FlowNodeOutputDocument[];
 }
+
+export type NodePreviewDisplayVariableCache = Record<
+  string,
+  {
+    input?: Record<string, unknown>;
+    output?: Record<string, unknown>;
+  }
+>;
 
 interface SystemVariableContext {
   applicationId: string;
@@ -360,32 +367,54 @@ export function mapRunContextToVariableGroups(
   ];
 }
 
-export function mapVariableCacheToVariableGroup(
-  variableCache: NodeDebugPreviewVariableCache,
+function mapNodeDisplayCacheItems(
+  nodeId: string,
+  nodeLabel: string,
+  nodeType: string | undefined,
+  value: NodePreviewDisplayVariableCache[string],
+  outputs?: FlowNodeOutputDocument[]
+): AgentFlowVariableItem[] {
+  if (!value.output || Object.keys(value.output).length === 0) {
+    return [];
+  }
+
+  return mapNodeOutputVariables(
+    nodeId,
+    nodeLabel,
+    nodeType,
+    value.output,
+    outputs
+  );
+}
+
+export function mapVariableCacheToVariableGroups(
+  variableCache: NodePreviewDisplayVariableCache,
   nodeMetadata: Record<string, string | NodeVariableDisplayMeta> = {}
-): AgentFlowVariableGroup | null {
-  const items = Object.entries(variableCache).map(([nodeId, value]) => {
+): AgentFlowVariableGroup[] {
+  return Object.entries(variableCache).flatMap(([nodeId, value]) => {
     const metadata = normalizeNodeVariableDisplayMeta(
       nodeMetadata[nodeId],
       nodeId
     );
+    const items = mapNodeDisplayCacheItems(
+      nodeId,
+      metadata.label,
+      metadata.nodeType,
+      value,
+      metadata.outputs
+    );
 
-    return {
-      key: nodeId,
-      label: metadata.label,
-      helperText: metadata.nodeType,
-      value
-    };
+    if (items.length === 0) {
+      return [];
+    }
+
+    return [
+      {
+        title: metadata.label,
+        items
+      }
+    ];
   });
-
-  if (items.length === 0) {
-    return null;
-  }
-
-  return {
-    title: 'Variable Cache',
-    items
-  };
 }
 
 export function mapRunDetailToVariableGroups(

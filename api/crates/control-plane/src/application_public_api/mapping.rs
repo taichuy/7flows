@@ -95,11 +95,11 @@ impl ApplicationApiMappingConfig {
     pub fn default_native() -> Self {
         Self {
             input: ApplicationApiMappingInput {
-                query_target: "start.query".to_string(),
-                model_target: None,
-                inputs_target: None,
-                history_target: None,
-                attachments_target: None,
+                query_target: "node-start.query".to_string(),
+                model_target: Some("node-start.model".to_string()),
+                inputs_target: Some("node-start".to_string()),
+                history_target: Some("node-start.history".to_string()),
+                attachments_target: Some("node-start.files".to_string()),
             },
             output: ApplicationApiMappingOutput::default(),
         }

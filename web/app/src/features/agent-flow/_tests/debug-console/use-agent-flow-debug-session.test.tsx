@@ -281,7 +281,13 @@ describe('useAgentFlowDebugSession', () => {
     });
     expect(result.current.variableGroups[0]).toEqual(
       expect.objectContaining({
-        title: 'Variable Cache'
+        title: 'Start',
+        items: expect.arrayContaining([
+          expect.objectContaining({
+            key: 'node-start.query',
+            value: '沿用 durable 输入'
+          })
+        ])
       })
     );
     expect(fetchSnapshotSpy).toHaveBeenCalledWith(
@@ -406,7 +412,12 @@ describe('useAgentFlowDebugSession', () => {
         document,
         debug_session_id: expect.stringMatching(/^app-1:draft-1:/),
         input_payload: {
-          'node-start': { files: undefined, query: '请总结退款政策' }
+          'node-start': {
+            files: [],
+            history: [],
+            model: '',
+            query: '请总结退款政策'
+          }
         }
       },
       'csrf-123'

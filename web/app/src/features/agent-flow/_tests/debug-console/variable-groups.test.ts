@@ -5,7 +5,7 @@ import {
   buildRunContextFromDocument,
   mapRunContextToVariableGroups,
   mapRunDetailToVariableGroups,
-  mapVariableCacheToVariableGroup
+  mapVariableCacheToVariableGroups
 } from '../../lib/debug-console/variable-groups';
 import type { FlowDebugRunDetail } from '../../api/runtime';
 
@@ -152,12 +152,17 @@ describe('debug console variable groups', () => {
   });
 
   test('maps variable cache entries at complete node output level', () => {
-    const group = mapVariableCacheToVariableGroup(
+    const groups = mapVariableCacheToVariableGroups(
       {
         'node-llm': {
-          text: '你好?',
-          structured_output: { intent: 'refund' },
-          usage: { total_tokens: 12 }
+          input: {
+            user_prompt: '退款政策'
+          },
+          output: {
+            text: '你好?',
+            structured_output: { intent: 'refund' },
+            usage: { total_tokens: 12 }
+          }
         }
       },
       {
@@ -176,21 +181,71 @@ describe('debug console variable groups', () => {
       }
     );
 
-    expect(group).toEqual({
-      title: 'Variable Cache',
-      items: [
-        {
-          key: 'node-llm',
-          label: 'LLM',
-          helperText: 'llm',
-          value: {
-            text: '你好?',
-            structured_output: { intent: 'refund' },
-            usage: { total_tokens: 12 }
+    expect(groups).toEqual([
+      {
+        title: 'LLM',
+        items: [
+          {
+            key: 'node-llm.text',
+            label: 'LLM/text',
+            helperText: '模型输出',
+            value: '你好?'
+          },
+          {
+            key: 'node-llm.structured_output',
+            label: 'LLM/structured_output',
+            helperText: '结构化输出',
+            value: { intent: 'refund' }
+          }
+        ]
+      }
+    ]);
+  });
+
+  test('maps start cache as node variables', () => {
+    const groups = mapVariableCacheToVariableGroups(
+      {
+        'node-start': {
+          input: {
+            query: '22'
+          },
+          output: {
+            query: '22',
+            model: '',
+            history: [],
+            files: []
           }
         }
-      ]
-    });
+      },
+      {
+        'node-start': {
+          label: 'Start',
+          nodeType: 'start',
+          outputs: [
+            { key: 'query', title: 'userinput.query', valueType: 'string' },
+            { key: 'model', title: 'userinput.model', valueType: 'string' },
+            {
+              key: 'history',
+              title: 'userinput.history',
+              valueType: 'array[object]'
+            },
+            {
+              key: 'files',
+              title: 'userinput.files',
+              valueType: 'array[object]'
+            }
+          ]
+        }
+      }
+    );
+
+    expect(groups[0]?.title).toBe('Start');
+    expect(groups[0]?.items.map((item) => item.key)).toEqual([
+      'node-start.query',
+      'node-start.model',
+      'node-start.history',
+      'node-start.files'
+    ]);
   });
 
   test('maps run detail variables with run context inputs and node outputs', () => {

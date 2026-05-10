@@ -98,10 +98,10 @@ async fn publish_application(app: &Router, cookie: &str, csrf: &str, application
                     json!({
                         "mapping": {
                             "input": {
-                                "query_target": "start.query",
+                                "query_target": "node-start.query",
                                 "model_target": null,
                                 "inputs_target": null,
-                                "history_target": "start.history",
+                                "history_target": "node-start.history",
                                 "attachments_target": null
                             },
                             "output": {

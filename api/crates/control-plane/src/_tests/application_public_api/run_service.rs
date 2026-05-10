@@ -43,9 +43,9 @@ fn native_request(response_mode: &str, idempotency_key: Option<&str>) -> NativeR
 fn published_mapping() -> ApplicationApiMappingConfig {
     ApplicationApiMappingConfig {
         input: ApplicationApiMappingInput {
-            query_target: "start.query".into(),
+            query_target: "node-start.query".into(),
             model_target: None,
-            inputs_target: Some("start.inputs".into()),
+            inputs_target: Some("node-start".into()),
             history_target: None,
             attachments_target: None,
         },
@@ -119,11 +119,9 @@ async fn start_native_run_creates_published_api_flow_run_from_frozen_publication
     assert_eq!(
         flow_run.input_payload,
         json!({
-            "start": {
+            "node-start": {
                 "query": "Summarize the incident",
-                "inputs": {
-                    "priority": "high"
-                }
+                "priority": "high"
             }
         })
     );

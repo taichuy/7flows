@@ -31,10 +31,12 @@ import {
   getRunContextValues,
   mapRunContextToVariableGroups,
   mapRunDetailToVariableGroups,
-  mapVariableCacheToVariableGroup,
+  mapVariableCacheToVariableGroups,
+  type NodePreviewDisplayVariableCache,
   type NodeVariableDisplayMeta
 } from '../../lib/debug-console/variable-groups';
 import type { AgentFlowEnvironmentVariable } from '../../lib/application-environment-variables';
+import { getNodeVariableOutputs } from '../../lib/start-node-variables';
 
 const DEBUG_SESSION_STORAGE_VERSION = 1;
 const DEBUG_SESSION_STORAGE_PREFIX = '1flowbase.agent-flow.debug-session';
@@ -329,7 +331,7 @@ function buildVariableCacheFromTraceItems(
   return cache;
 }
 
-function buildVariableCacheFromRunDetail(
+function buildOutputVariableCacheFromRunDetail(
   detail: FlowDebugRunDetail
 ): NodeDebugPreviewVariableCache {
   let cache: NodeDebugPreviewVariableCache = {};
@@ -347,33 +349,42 @@ function buildVariableCacheFromRunDetail(
   return cache;
 }
 
-function isSameVariableValue(left: unknown, right: unknown) {
-  return JSON.stringify(left) === JSON.stringify(right);
+function buildInputVariableCacheFromRunDetail(
+  detail: FlowDebugRunDetail
+): NodeDebugPreviewVariableCache {
+  let cache: NodeDebugPreviewVariableCache = {};
+
+  if (isRecord(detail.flow_run.input_payload)) {
+    for (const [nodeId, payload] of Object.entries(
+      detail.flow_run.input_payload
+    )) {
+      if (isRecord(payload)) {
+        cache = mergeVariablePayload(cache, nodeId, payload);
+      }
+    }
+  }
+
+  for (const nodeRun of detail.node_runs) {
+    if (isRecord(nodeRun.input_payload)) {
+      cache = mergeVariablePayload(
+        cache,
+        nodeRun.node_id,
+        nodeRun.input_payload
+      );
+    }
+  }
+
+  return cache;
 }
 
 function buildDisplayVariableCache(
-  variableCache: NodeDebugPreviewVariableCache,
-  runContext: AgentFlowRunContext
-) {
-  let displayCache: NodeDebugPreviewVariableCache = {};
+  outputCache: NodeDebugPreviewVariableCache
+): NodePreviewDisplayVariableCache {
+  const displayCache: NodePreviewDisplayVariableCache = {};
 
-  for (const [nodeId, payload] of Object.entries(variableCache)) {
-    for (const [key, value] of Object.entries(payload)) {
-      const sameRunContextField = runContext.fields.find(
-        (field) =>
-          field.nodeId === nodeId &&
-          field.key === key &&
-          isSameVariableValue(field.value, value)
-      );
-
-      if (sameRunContextField) {
-        continue;
-      }
-
-      displayCache = mergeVariablePayload(displayCache, nodeId, {
-        [key]: value
-      });
-    }
+  for (const [nodeId, payload] of Object.entries(outputCache)) {
+    displayCache[nodeId] ??= {};
+    displayCache[nodeId].output = payload;
   }
 
   return displayCache;
@@ -388,7 +399,7 @@ function buildNodeVariableDisplayMetadata(
       {
         label: node.alias,
         nodeType: node.type,
-        outputs: node.outputs
+        outputs: getNodeVariableOutputs(node)
       }
     ])
   );
@@ -453,7 +464,9 @@ export function useAgentFlowDebugSession({
   const [streamTraceItems, setStreamTraceItems] = useState<
     AgentFlowTraceItem[]
   >([]);
-  const [nodePreviewVariableCache, setNodePreviewVariableCache] =
+  const [nodePreviewInputCache, setNodePreviewInputCache] =
+    useState<NodeDebugPreviewVariableCache>({});
+  const [nodePreviewOutputCache, setNodePreviewOutputCache] =
     useState<NodeDebugPreviewVariableCache>({});
   const [runContext, setRunContext] = useState(() =>
     buildRunContextFromDocument(document, rememberedInputValues)
@@ -524,7 +537,8 @@ export function useAgentFlowDebugSession({
     const restoreGeneration =
       (variableSnapshotRestoreGenerationRef.current += 1);
 
-    setNodePreviewVariableCache({});
+    setNodePreviewInputCache({});
+    setNodePreviewOutputCache({});
     fetchDebugVariableSnapshot(applicationId, debugSessionState.id)
       .then((snapshot) => {
         if (
@@ -534,7 +548,7 @@ export function useAgentFlowDebugSession({
           return;
         }
 
-        setNodePreviewVariableCache((currentCache) =>
+        setNodePreviewOutputCache((currentCache) =>
           mergeVariableCache(snapshot.variable_cache, currentCache)
         );
       })
@@ -582,12 +596,12 @@ export function useAgentFlowDebugSession({
       actorUserId,
       environmentVariables
     });
-    const cacheGroup = mapVariableCacheToVariableGroup(
-      buildDisplayVariableCache(nodePreviewVariableCache, runContext),
+    const cacheGroups = mapVariableCacheToVariableGroups(
+      buildDisplayVariableCache(nodePreviewOutputCache),
       nodeVariableDisplayMetadata
     );
 
-    return cacheGroup ? [cacheGroup, ...groups] : groups;
+    return cacheGroups.length > 0 ? [...cacheGroups, ...groups] : groups;
   }, [
     applicationId,
     actorUserId,
@@ -597,7 +611,7 @@ export function useAgentFlowDebugSession({
     environmentVariables,
     lastDetail,
     nodeVariableDisplayMetadata,
-    nodePreviewVariableCache,
+    nodePreviewOutputCache,
     runContext
   ]);
 
@@ -689,8 +703,17 @@ export function useAgentFlowDebugSession({
     const assistantMessage = mapRunDetailToConversation(detail);
 
     setLastDetail(detail);
-    setNodePreviewVariableCache((currentCache) =>
-      mergeVariableCache(currentCache, buildVariableCacheFromRunDetail(detail))
+    setNodePreviewInputCache((currentCache) =>
+      mergeVariableCache(
+        currentCache,
+        buildInputVariableCacheFromRunDetail(detail)
+      )
+    );
+    setNodePreviewOutputCache((currentCache) =>
+      mergeVariableCache(
+        currentCache,
+        buildOutputVariableCacheFromRunDetail(detail)
+      )
     );
     setStatus(assistantMessage.status);
     setMessages((currentMessages) =>
@@ -883,7 +906,7 @@ export function useAgentFlowDebugSession({
           if (isTraceEvent) {
             setStreamTraceItems(streamTraceItemsSnapshot);
             if (isNodeStateEvent) {
-              setNodePreviewVariableCache((currentCache) =>
+              setNodePreviewOutputCache((currentCache) =>
                 mergeVariableCache(
                   currentCache,
                   buildVariableCacheFromTraceItems(streamTraceItemsSnapshot)
@@ -1060,6 +1083,9 @@ export function useAgentFlowDebugSession({
 
   function getNodePreviewVariableCache(): NodeDebugPreviewVariableCache {
     const cache: NodeDebugPreviewVariableCache = {};
+    const startNodeId =
+      document.graph.nodes.find((node) => node.type === 'start')?.id ??
+      'node-start';
 
     for (const field of runContext.fields) {
       cache[field.nodeId] ??= {};
@@ -1075,7 +1101,18 @@ export function useAgentFlowDebugSession({
       }
     }
 
-    for (const [nodeId, payload] of Object.entries(nodePreviewVariableCache)) {
+    for (const [nodeId, payload] of Object.entries(nodePreviewOutputCache)) {
+      cache[nodeId] = {
+        ...(cache[nodeId] ?? {}),
+        ...payload
+      };
+    }
+
+    for (const [nodeId, payload] of Object.entries(nodePreviewInputCache)) {
+      if (nodeId !== startNodeId) {
+        continue;
+      }
+
       cache[nodeId] = {
         ...(cache[nodeId] ?? {}),
         ...payload
@@ -1088,7 +1125,7 @@ export function useAgentFlowDebugSession({
   function rememberNodePreviewVariables(
     inputPayload: NodeDebugPreviewVariableCache
   ) {
-    setNodePreviewVariableCache((currentCache) => {
+    setNodePreviewInputCache((currentCache) => {
       return mergeVariableCache(currentCache, inputPayload);
     });
   }
@@ -1109,7 +1146,8 @@ export function useAgentFlowDebugSession({
     setStatus('idle');
     setLastDetail(null);
     setStreamTraceItems([]);
-    setNodePreviewVariableCache({});
+    setNodePreviewInputCache({});
+    setNodePreviewOutputCache({});
     setRunContext(buildRunContextFromDocument(document, null));
   }
 

@@ -1,21 +1,9 @@
-import {
-  CheckOutlined,
-  CopyOutlined,
-  DownOutlined,
-  FullscreenOutlined
-} from '@ant-design/icons';
-import { App, Button, Card, Modal, Space, Tag, Tooltip } from 'antd';
-import { Suspense, lazy, useEffect, useMemo, useState } from 'react';
+import { App, Button, Card, Space, Tag } from 'antd';
+import { useEffect, useMemo, useState } from 'react';
 
 import type { NodeLastRun } from '../../../api/runtime';
 import { fetchRuntimeDebugArtifact } from '../../../api/runtime';
-import { useClipboardCopy } from '../../../../../shared/ui/clipboard/use-clipboard-copy';
-
-const MonacoEditor = lazy(() => import('@monaco-editor/react'));
-
-function formatJson(payload: unknown) {
-  return JSON.stringify(payload, null, 2);
-}
+import { JsonPreviewBlock } from '../../../../../shared/ui/json-preview/JsonPreviewBlock';
 
 function findRuntimeDebugArtifactRef(value: unknown): string | null {
   if (!value || typeof value !== 'object') {
@@ -48,51 +36,6 @@ function findRuntimeDebugArtifactRef(value: unknown): string | null {
   }
 
   return null;
-}
-
-const EDITOR_OPTIONS = {
-  readOnly: true,
-  domReadOnly: true,
-  minimap: { enabled: false },
-  scrollBeyondLastLine: false,
-  wordWrap: 'on' as const,
-  lineNumbersMinChars: 2,
-  fontSize: 12,
-  lineHeight: 18,
-  folding: true,
-  renderLineHighlight: 'none' as const,
-  overviewRulerBorder: false,
-  automaticLayout: true,
-  padding: {
-    top: 8,
-    bottom: 8
-  },
-  scrollbar: {
-    verticalScrollbarSize: 8,
-    horizontalScrollbarSize: 8
-  }
-};
-
-function JsonEditorFallback() {
-  return (
-    <div className="agent-flow-node-run-json-viewer__loading">
-      正在加载 JSON 查看器
-    </div>
-  );
-}
-
-function JsonEditor({ height, value }: { height: string; value: string }) {
-  return (
-    <Suspense fallback={<JsonEditorFallback />}>
-      <MonacoEditor
-        defaultLanguage="json"
-        height={height}
-        options={EDITOR_OPTIONS}
-        theme="vs"
-        value={value}
-      />
-    </Suspense>
-  );
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -147,29 +90,16 @@ export function NodeRunJsonBlock({
   onLoadArtifact?: (artifactRef: string) => Promise<unknown>;
 }) {
   const { message } = App.useApp();
-  const [collapsed, setCollapsed] = useState(false);
-  const [expanded, setExpanded] = useState(false);
   const [loadedPayload, setLoadedPayload] = useState<unknown>(null);
-  const { copied, copy } = useClipboardCopy();
   const artifactRef = useMemo(
     () => findRuntimeDebugArtifactRef(payload),
     [payload]
   );
   const displayPayload = loadedPayload ?? payload;
-  const value = useMemo(() => formatJson(displayPayload), [displayPayload]);
 
   useEffect(() => {
     setLoadedPayload(null);
   }, [payload]);
-
-  const handleCopy = async () => {
-    try {
-      await copy(value);
-      message.success('已复制');
-    } catch {
-      message.error('复制失败');
-    }
-  };
 
   const handleLoadFullValue = async () => {
     if (!artifactRef || !onLoadArtifact) {
@@ -185,79 +115,25 @@ export function NodeRunJsonBlock({
   };
 
   return (
-    <section className="agent-flow-node-run-json-viewer">
-      <pre
-        aria-label={`${title} JSON`}
-        className="agent-flow-node-run-json__a11y"
-      >
-        {value}
-      </pre>
-      <div className="agent-flow-node-run-json-viewer__header">
-        <button
-          aria-label={title}
-          aria-expanded={!collapsed}
-          className="agent-flow-node-run-json-viewer__toggle"
-          onClick={() => setCollapsed((current) => !current)}
-          type="button"
-        >
-          <DownOutlined className="agent-flow-node-run-json-viewer__toggle-icon" />
-          <span className="agent-flow-node-run-json-viewer__title">
-            {title}
-          </span>
-        </button>
-        <div className="agent-flow-node-run-json-viewer__actions">
-          {artifactRef ? (
-            <Space size={6} wrap>
-              <Tag color="warning">已截断</Tag>
-              <Button
-                disabled={!onLoadArtifact}
-                onClick={handleLoadFullValue}
-                size="small"
-              >
-                加载完整值
-              </Button>
-            </Space>
-          ) : null}
-          <Tooltip title="复制 JSON">
+    <JsonPreviewBlock
+      actions={
+        artifactRef ? (
+          <Space size={6} wrap>
+            <Tag color="warning">已截断</Tag>
             <Button
-              aria-label={`复制${title} JSON`}
-              icon={copied ? <CheckOutlined /> : <CopyOutlined />}
-              onClick={handleCopy}
+              disabled={!onLoadArtifact}
+              onClick={handleLoadFullValue}
               size="small"
-              type="text"
-            />
-          </Tooltip>
-          <Tooltip title="放大查看">
-            <Button
-              aria-label={`放大查看${title} JSON`}
-              disabled={collapsed}
-              icon={<FullscreenOutlined />}
-              onClick={() => setExpanded(true)}
-              size="small"
-              type="text"
-            />
-          </Tooltip>
-        </div>
-      </div>
-      {!collapsed ? (
-        <div className="agent-flow-node-run-json-viewer__editor">
-          <JsonEditor height="220px" value={value} />
-        </div>
-      ) : null}
-      <Modal
-        centered
-        className="agent-flow-node-run-json-modal"
-        footer={null}
-        onCancel={() => setExpanded(false)}
-        open={expanded}
-        title={`${title} JSON`}
-        width="min(960px, calc(100vw - 48px))"
-      >
-        <div className="agent-flow-node-run-json-modal__editor">
-          <JsonEditor height="70vh" value={value} />
-        </div>
-      </Modal>
-    </section>
+            >
+              加载完整值
+            </Button>
+          </Space>
+        ) : null
+      }
+      height="220px"
+      title={title}
+      value={displayPayload}
+    />
   );
 }
 

@@ -1,13 +1,16 @@
 import {
+  DownOutlined,
   DeleteOutlined,
   HolderOutlined,
-  PlusOutlined
+  PlusOutlined,
+  RightOutlined
 } from '@ant-design/icons';
 import { Button, Empty, Typography } from 'antd';
 import { useRef, useState } from 'react';
 
 import type { FlowStartInputField } from '@1flowbase/flow-schema';
 
+import { JsonPreviewBlock } from '../../../../../shared/ui/json-preview/JsonPreviewBlock';
 import {
   normalizeStartInputField,
   startSystemVariables
@@ -58,6 +61,62 @@ function moveItem(fields: FlowStartInputField[], from: number, to: number) {
   return nextFields;
 }
 
+function formatSystemVariableType(variable: {
+  key: string;
+  valueType: string;
+}) {
+  return formatValueType(variable.valueType);
+}
+
+function formatValueType(valueType: string) {
+  if (valueType === 'string') {
+    return 'String';
+  }
+  if (valueType === 'number') {
+    return 'Number';
+  }
+  if (valueType === 'boolean') {
+    return 'Boolean';
+  }
+  if (valueType === 'json') {
+    return 'JSON';
+  }
+  return valueType;
+}
+
+function systemVariableExample(variableKey: string) {
+  switch (variableKey) {
+    case 'history':
+      return [
+        {
+          role: 'user',
+          content: '上一轮用户消息'
+        },
+        {
+          role: 'assistant',
+          content: '上一轮助手回复'
+        }
+      ];
+    case 'files':
+      return [
+        {
+          id: 'file-1',
+          title: 'example.pdf',
+          filename: 'example.pdf',
+          extname: 'pdf',
+          size: 245760,
+          mimetype: 'application/pdf',
+          path: 'attachments/2026/05/file-1.pdf',
+          url: 'https://files.example.com/attachments/2026/05/file-1.pdf',
+          storage_id: 'storage-1',
+          meta: {}
+        }
+      ];
+    default:
+      return null;
+  }
+}
+
 type EditingInputField = {
   index: number | null;
   field: FlowStartInputField;
@@ -73,6 +132,9 @@ export function StartInputFieldsField({
   const fields = normalizeList(value);
   const [editing, setEditing] = useState<EditingInputField | null>(null);
   const [draggingIndex, setDraggingIndex] = useState<number | null>(null);
+  const [expandedSystemKeys, setExpandedSystemKeys] = useState<Set<string>>(
+    () => new Set()
+  );
   const triggerRef = useRef<HTMLButtonElement | null>(null);
 
   function openAddPanel() {
@@ -140,6 +202,18 @@ export function StartInputFieldsField({
     setDraggingIndex(null);
   }
 
+  function toggleSystemVariable(key: string) {
+    setExpandedSystemKeys((current) => {
+      const next = new Set(current);
+      if (next.has(key)) {
+        next.delete(key);
+      } else {
+        next.add(key);
+      }
+      return next;
+    });
+  }
+
   const floatingPanel = editing ? (
     <StartInputFieldSettingsPanel
       mode={editing.index === null ? 'create' : 'edit'}
@@ -154,9 +228,6 @@ export function StartInputFieldsField({
   return (
     <div className="agent-flow-start-input-fields">
       <div className="agent-flow-start-input-fields__header">
-        <Typography.Text className="agent-flow-node-detail__section-subtitle">
-          设置的输入可在工作流程中使用
-        </Typography.Text>
         <Button
           aria-label="新增输入字段"
           icon={<PlusOutlined />}
@@ -220,15 +291,7 @@ export function StartInputFieldsField({
                     </span>
                   ) : null}
                   <span className="agent-flow-node-detail__list-item-type">
-                    {field.valueType === 'array'
-                      ? 'Array[File]'
-                      : field.valueType === 'string'
-                        ? 'String'
-                        : field.valueType === 'number'
-                          ? 'Number'
-                          : field.valueType === 'boolean'
-                            ? 'Boolean'
-                            : 'JSON'}
+                    {formatValueType(field.valueType)}
                   </span>
                 </span>
               </button>
@@ -263,24 +326,73 @@ export function StartInputFieldsField({
           系统变量
         </Typography.Text>
         <div className="agent-flow-node-detail__list">
-          {startSystemVariables.map((variable) => (
-            <div
-              key={variable.key}
-              className="agent-flow-node-detail__list-item"
-            >
-              <div className="agent-flow-node-detail__list-item-left">
-                <span className="agent-flow-node-detail__list-item-icon">
-                  {'{x}'}
+          {startSystemVariables.map((variable) => {
+            const example = systemVariableExample(variable.key);
+            const expanded = expandedSystemKeys.has(variable.key);
+            const systemRowContent = (
+              <>
+                <span className="agent-flow-node-detail__list-item-left">
+                  {example ? (
+                    <span className="agent-flow-start-input-fields__system-chevron">
+                      {expanded ? <DownOutlined /> : <RightOutlined />}
+                    </span>
+                  ) : null}
+                  <span className="agent-flow-node-detail__list-item-icon">
+                    {'{x}'}
+                  </span>
+                  <span className="agent-flow-node-detail__list-item-name">
+                    {variable.title}
+                  </span>
                 </span>
-                <span className="agent-flow-node-detail__list-item-name">
-                  {variable.title}
+                <span className="agent-flow-node-detail__list-item-type">
+                  {formatSystemVariableType(variable)}
                 </span>
+              </>
+            );
+
+            return (
+              <div
+                key={variable.key}
+                className={[
+                  'agent-flow-start-input-fields__system-variable',
+                  expanded
+                    ? 'agent-flow-start-input-fields__system-variable--expanded'
+                    : null
+                ]
+                  .filter(Boolean)
+                  .join(' ')}
+              >
+                {example ? (
+                  <button
+                    type="button"
+                    className="agent-flow-node-detail__list-item agent-flow-start-input-fields__system-trigger"
+                    aria-expanded={expanded}
+                    onClick={() => {
+                      toggleSystemVariable(variable.key);
+                    }}
+                  >
+                    {systemRowContent}
+                  </button>
+                ) : (
+                  <div className="agent-flow-node-detail__list-item">
+                    {systemRowContent}
+                  </div>
+                )}
+                {example && expanded ? (
+                  <JsonPreviewBlock
+                    className="agent-flow-start-input-fields__system-json"
+                    collapsible={false}
+                    copyAriaLabel={`复制${variable.title} JSON`}
+                    displayTitle=""
+                    fullscreenAriaLabel={`放大查看${variable.title} JSON`}
+                    height="180px"
+                    title={variable.title}
+                    value={example}
+                  />
+                ) : null}
               </div>
-              <span className="agent-flow-node-detail__list-item-type">
-                {variable.key === 'files' ? 'Array[File]' : 'String'}
-              </span>
-            </div>
-          ))}
+            );
+          })}
         </div>
       </div>
       {floatingPanel}

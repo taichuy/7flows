@@ -117,11 +117,11 @@ async fn publish_native_application(
 fn mapping_without_model_target() -> Value {
     json!({
         "input": {
-            "query_target": "start.query",
+            "query_target": "node-start.query",
             "model_target": null,
-            "inputs_target": "start.inputs",
-            "history_target": "start.history",
-            "attachments_target": "start.attachments"
+            "inputs_target": "node-start",
+            "history_target": "node-start.history",
+            "attachments_target": "node-start.files"
         },
         "output": {
             "answer_selector": null,

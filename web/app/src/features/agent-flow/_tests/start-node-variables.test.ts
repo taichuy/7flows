@@ -67,7 +67,7 @@ describe('start node variables', () => {
         key: 'attachments',
         label: '附件',
         inputType: 'file_list',
-        valueType: 'array',
+        valueType: 'array[object]',
         required: false
       }
     ];
@@ -88,6 +88,8 @@ describe('start node variables', () => {
           label: 'Start/attachments'
         },
         { value: ['node-start', 'query'], label: 'Start/query' },
+        { value: ['node-start', 'model'], label: 'Start/model' },
+        { value: ['node-start', 'history'], label: 'Start/history' },
         { value: ['node-start', 'files'], label: 'Start/files' }
       ])
     );
@@ -175,6 +177,8 @@ describe('start node variables', () => {
     expect(selectorLabels).toEqual(
       expect.arrayContaining([
         'Start/query',
+        'Start/model',
+        'Start/history',
         'Start/files',
         'LLM/text',
         'LLM/usage'
@@ -253,7 +257,7 @@ describe('start node variables', () => {
         key: 'files',
         label: '附件',
         inputType: 'file_list',
-        valueType: 'array',
+        valueType: 'array[object]',
         required: false
       }
     ];
@@ -264,6 +268,8 @@ describe('start node variables', () => {
           customer_name: 'Start customer_name 调试值',
           age: 1,
           files: [],
+          model: '',
+          history: [],
           query: ''
         }
       }
@@ -305,6 +311,9 @@ describe('start node variables', () => {
         'node-start': {
           priority: '低',
           confirmed: false,
+          model: '',
+          history: [],
+          files: [],
           query: ''
         }
       }

@@ -275,10 +275,10 @@ async fn application_public_api_mapping_service_returns_default_then_replaces_st
         .unwrap();
     let replacement = ApplicationApiMappingConfig {
         input: ApplicationApiMappingInput {
-            query_target: "start.query".into(),
+            query_target: "node-start.query".into(),
             model_target: None,
-            inputs_target: Some("start.inputs".into()),
-            history_target: Some("start.history".into()),
+            inputs_target: Some("node-start".into()),
+            history_target: Some("node-start.history".into()),
             attachments_target: None,
         },
         output: ApplicationApiMappingOutput {
@@ -351,9 +351,9 @@ async fn application_public_api_publish_creates_immutable_publication_version_re
             application_id: application.id,
             mapping: ApplicationApiMappingConfig {
                 input: ApplicationApiMappingInput {
-                    query_target: "start.query".into(),
+                    query_target: "node-start.query".into(),
                     model_target: None,
-                    inputs_target: Some("start.inputs".into()),
+                    inputs_target: Some("node-start".into()),
                     history_target: None,
                     attachments_target: None,
                 },
@@ -530,7 +530,7 @@ fn application_public_api_mapping_validation_rejects_missing_query_target_and_in
 fn application_public_api_mapping_validation_accepts_null_model_target() {
     let mapping = ApplicationApiMappingConfig {
         input: ApplicationApiMappingInput {
-            query_target: "start.query".into(),
+            query_target: "node-start.query".into(),
             model_target: None,
             inputs_target: None,
             history_target: None,

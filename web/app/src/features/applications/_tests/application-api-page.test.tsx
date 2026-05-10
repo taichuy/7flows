@@ -1,4 +1,10 @@
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import {
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+  within
+} from '@testing-library/react';
 import type { ReactNode } from 'react';
 import { beforeEach, describe, expect, test, vi } from 'vitest';
 
@@ -50,11 +56,11 @@ import { ApplicationApiPage } from '../pages/ApplicationApiPage';
 
 const mapping = {
   input: {
-    query_target: 'start.query',
-    model_target: null,
-    inputs_target: 'start.inputs',
-    history_target: 'start.history',
-    attachments_target: 'start.attachments'
+    query_target: 'node-start.query',
+    model_target: 'node-start.model',
+    inputs_target: 'node-start',
+    history_target: 'node-start.history',
+    attachments_target: 'node-start.files'
   },
   output: {
     answer_selector: 'answer',
@@ -135,18 +141,38 @@ describe('ApplicationApiPage', () => {
     renderWithProviders(<ApplicationApiPage application={application} />);
 
     expect(await screen.findByText('需要先发布公开 API')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'API 密钥' })).toBeInTheDocument();
+    expect(
+      screen.getByRole('button', { name: 'API 密钥' })
+    ).toBeInTheDocument();
     expect(screen.queryByText('API Keys')).not.toBeInTheDocument();
-    expect(screen.queryByText('完整 token 只在创建后显示一次。')).not.toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: '创建 Key' })).not.toBeInTheDocument();
-    expect(screen.queryByRole('tab', { name: 'API Keys' })).not.toBeInTheDocument();
+    expect(
+      screen.queryByText('完整 token 只在创建后显示一次。')
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole('button', { name: '创建 Key' })
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole('tab', { name: 'API Keys' })
+    ).not.toBeInTheDocument();
     expect(screen.getByRole('tab', { name: 'API 文档' })).toBeInTheDocument();
-    expect(screen.queryByRole('tab', { name: 'Native API' })).not.toBeInTheDocument();
-    expect(screen.queryByRole('tab', { name: 'OpenAI Compatible' })).not.toBeInTheDocument();
-    expect(screen.queryByRole('tab', { name: 'Anthropic Compatible' })).not.toBeInTheDocument();
-    expect(screen.getByRole('tab', { name: 'Mapping' })).toBeInTheDocument();
-    expect(screen.queryByRole('tab', { name: 'Debug' })).not.toBeInTheDocument();
-    expect(screen.getByRole('button', { name: '发布当前版本' })).toBeInTheDocument();
+    expect(
+      screen.queryByRole('tab', { name: 'Native API' })
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole('tab', { name: 'OpenAI Compatible' })
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole('tab', { name: 'Anthropic Compatible' })
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole('tab', { name: 'Mapping' })
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole('tab', { name: 'Debug' })
+    ).not.toBeInTheDocument();
+    expect(
+      screen.getByRole('button', { name: '发布当前版本' })
+    ).toBeInTheDocument();
   });
 
   test('does not duplicate endpoint summaries above the API tabs', async () => {
@@ -159,7 +185,9 @@ describe('ApplicationApiPage', () => {
       updated_at: '2026-05-09T00:00:00Z'
     });
 
-    const { container } = renderWithProviders(<ApplicationApiPage application={application} />);
+    const { container } = renderWithProviders(
+      <ApplicationApiPage application={application} />
+    );
 
     const statusCard = await waitFor(() => {
       const node = container.querySelector('.application-api-status');
@@ -170,11 +198,19 @@ describe('ApplicationApiPage', () => {
     expect(within(statusCard).queryByText('Native')).not.toBeInTheDocument();
     expect(within(statusCard).queryByText('OpenAI')).not.toBeInTheDocument();
     expect(within(statusCard).queryByText('Anthropic')).not.toBeInTheDocument();
-    expect(within(statusCard).queryByText('/api/1flowbase/runs')).not.toBeInTheDocument();
+    expect(
+      within(statusCard).queryByText('/api/1flowbase/runs')
+    ).not.toBeInTheDocument();
     expect(screen.getByRole('tab', { name: 'API 文档' })).toBeInTheDocument();
-    expect(screen.queryByRole('tab', { name: 'Native API' })).not.toBeInTheDocument();
-    expect(screen.queryByRole('tab', { name: 'OpenAI Compatible' })).not.toBeInTheDocument();
-    expect(screen.queryByRole('tab', { name: 'Anthropic Compatible' })).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole('tab', { name: 'Native API' })
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole('tab', { name: 'OpenAI Compatible' })
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole('tab', { name: 'Anthropic Compatible' })
+    ).not.toBeInTheDocument();
   });
 
   test('opens API key list from the public API header action', async () => {
@@ -199,7 +235,9 @@ describe('ApplicationApiPage', () => {
       }
     ]);
 
-    const { container } = renderWithProviders(<ApplicationApiPage application={application} />);
+    const { container } = renderWithProviders(
+      <ApplicationApiPage application={application} />
+    );
 
     const statusCard = await waitFor(() => {
       const node = container.querySelector('.application-api-status');
@@ -215,15 +253,25 @@ describe('ApplicationApiPage', () => {
       within(statusCard).queryByText('完整 token 只在创建后显示一次。')
     ).not.toBeInTheDocument();
     expect(within(statusCard).queryByRole('table')).not.toBeInTheDocument();
-    expect(within(statusCard).queryByText('Server key')).not.toBeInTheDocument();
+    expect(
+      within(statusCard).queryByText('Server key')
+    ).not.toBeInTheDocument();
 
-    fireEvent.click(within(statusCard).getByRole('button', { name: 'API 密钥' }));
+    fireEvent.click(
+      within(statusCard).getByRole('button', { name: 'API 密钥' })
+    );
 
     const dialog = await screen.findByRole('dialog', { name: 'API Keys' });
     expect(within(dialog).getByText('Server key')).toBeInTheDocument();
-    expect(within(dialog).getByRole('button', { name: '创建 Key' })).toBeInTheDocument();
-    expect(within(dialog).getByRole('button', { name: '删除' })).toBeInTheDocument();
-    expect(screen.queryByRole('tab', { name: 'API Keys' })).not.toBeInTheDocument();
+    expect(
+      within(dialog).getByRole('button', { name: '创建 Key' })
+    ).toBeInTheDocument();
+    expect(
+      within(dialog).getByRole('button', { name: '删除' })
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole('tab', { name: 'API Keys' })
+    ).not.toBeInTheDocument();
     expect(screen.getByRole('tab', { name: 'API 文档' })).toBeInTheDocument();
   });
 
@@ -257,7 +305,9 @@ describe('ApplicationApiPage', () => {
     fireEvent.click(createButtons[createButtons.length - 1]);
 
     expect(await screen.findByText('apk_full_secret')).toBeInTheDocument();
-    expect(screen.getByText('完整 token 只在创建后显示一次。')).toBeInTheDocument();
+    expect(
+      screen.getByText('完整 token 只在创建后显示一次。')
+    ).toBeInTheDocument();
     expect(publicApi.createApplicationApiKey).toHaveBeenCalledWith(
       'app-1',
       'Server key',

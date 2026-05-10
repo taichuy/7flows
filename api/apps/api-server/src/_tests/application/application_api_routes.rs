@@ -227,9 +227,12 @@ async fn application_api_mapping_routes_get_and_replace_nullable_model_target() 
     let default_payload = response_json(default_mapping).await;
     assert_eq!(
         default_payload["data"]["input"]["query_target"].as_str(),
-        Some("start.query")
+        Some("node-start.query")
     );
-    assert!(default_payload["data"]["input"]["model_target"].is_null());
+    assert_eq!(
+        default_payload["data"]["input"]["model_target"].as_str(),
+        Some("node-start.model")
+    );
 
     let replace = app
         .clone()
@@ -247,9 +250,9 @@ async fn application_api_mapping_routes_get_and_replace_nullable_model_target() 
                         "input": {
                             "query_target": "start.prompt",
                             "model_target": null,
-                            "inputs_target": "start.inputs",
+                            "inputs_target": "node-start",
                             "history_target": null,
-                            "attachments_target": "start.files"
+                            "attachments_target": "node-start.files"
                         },
                         "output": {
                             "answer_selector": "end.answer",
@@ -285,7 +288,7 @@ async fn application_api_publication_routes_publish_and_patch_api_enabled_state(
 
     let mapping = json!({
         "input": {
-            "query_target": "start.query",
+            "query_target": "node-start.query",
             "model_target": null,
             "inputs_target": null,
             "history_target": null,

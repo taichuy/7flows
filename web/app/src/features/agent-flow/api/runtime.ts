@@ -194,20 +194,7 @@ export function buildFlowDebugRunInput(
   const startNode = document.graph.nodes.find((node) => node.type === 'start');
   const startPayload: Record<string, unknown> = {};
 
-  const explicitInputKeys = new Set(Object.keys(inputValues ?? {}));
-  const customInputKeys = new Set(
-    getStartInputFields(startNode).map((field) => field.key)
-  );
-
   for (const output of startNode ? getNodeVariableOutputs(startNode) : []) {
-    if (
-      output.key === 'files' &&
-      !explicitInputKeys.has('files') &&
-      !customInputKeys.has('files')
-    ) {
-      continue;
-    }
-
     startPayload[output.key] =
       inputValues &&
       Object.prototype.hasOwnProperty.call(inputValues, output.key)
@@ -419,11 +406,24 @@ function buildMissingPreviewField(
   };
 }
 
+function isRequiredStartPreviewKey(node: FlowNodeDocument, outputKey: string) {
+  if (outputKey === 'query') {
+    return true;
+  }
+
+  return getStartInputFields(node).some(
+    (field) => field.key === outputKey && field.required
+  );
+}
+
 function buildStringPreviewValue(
   node: FlowNodeDocument | undefined,
   outputKey: string
 ) {
-  if (node?.type === 'start' && outputKey === 'query') {
+  if (
+    node?.type === 'start' &&
+    (outputKey === 'query' || outputKey === 'model')
+  ) {
     return '';
   }
 
@@ -451,13 +451,15 @@ function buildPreviewValue(
     ? getNodeVariableOutputs(node).find((entry) => entry.key === outputKey)
     : undefined;
 
+  if (output?.valueType.startsWith('array')) {
+    return [];
+  }
+
   switch (output?.valueType) {
     case 'number':
       return 1;
     case 'boolean':
       return true;
-    case 'array':
-      return [];
     case 'json':
     case 'unknown':
       return {};
@@ -507,6 +509,41 @@ export function buildNodeDebugPreviewPlan(
   const missingFields: NodeDebugPreviewVariableField[] = [];
 
   if (!node) {
+    return { input_payload: inputPayload, missing_fields: missingFields };
+  }
+
+  if (node.type === 'start') {
+    const visitedStartKeys = new Set<string>();
+
+    for (const output of getNodeVariableOutputs(node)) {
+      if (visitedStartKeys.has(output.key)) {
+        continue;
+      }
+
+      visitedStartKeys.add(output.key);
+
+      const cachedOutput = readCachedOutputValue(
+        variableCache[node.id],
+        output,
+        output.key
+      );
+
+      if (cachedOutput.found && hasPreviewVariableValue(cachedOutput.value)) {
+        inputPayload[node.id] ??= {};
+        inputPayload[node.id][output.key] = cachedOutput.value;
+        continue;
+      }
+
+      inputPayload[node.id] ??= {};
+      inputPayload[node.id][output.key] = buildPreviewValue(node, output.key);
+
+      if (isRequiredStartPreviewKey(node, output.key)) {
+        missingFields.push(
+          buildMissingPreviewField(document, node.id, output.key)
+        );
+      }
+    }
+
     return { input_payload: inputPayload, missing_fields: missingFields };
   }
 

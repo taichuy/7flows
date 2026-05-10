@@ -17,7 +17,7 @@ function fieldName(field: NodeDebugPreviewVariableField) {
 }
 
 function parseFieldValue(field: NodeDebugPreviewVariableField, value: unknown) {
-  if (field.valueType !== 'json' && field.valueType !== 'array') {
+  if (field.valueType !== 'json' && !field.valueType.startsWith('array')) {
     return value;
   }
 
@@ -38,7 +38,6 @@ function renderField(field: NodeDebugPreviewVariableField) {
       return <Switch />;
     case 'number':
       return <InputNumber style={{ width: '100%' }} />;
-    case 'array':
     case 'json':
     case 'unknown':
       return <Input.TextArea autoSize={{ minRows: 3, maxRows: 6 }} />;
@@ -65,7 +64,7 @@ export function NodePreviewVariablesModal({
     form.setFieldsValue(
       fields.reduce<Record<string, unknown>>((values, field) => {
         values[fieldName(field)] =
-          field.valueType === 'json' || field.valueType === 'array'
+          field.valueType === 'json' || field.valueType.startsWith('array')
             ? JSON.stringify(field.value ?? {}, null, 2)
             : field.value;
         return values;

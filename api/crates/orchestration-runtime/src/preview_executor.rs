@@ -39,6 +39,25 @@ impl NodePreviewOutcome {
     }
 }
 
+fn start_preview_output(resolved_inputs: &Map<String, Value>) -> Value {
+    let mut output = resolved_inputs.clone();
+
+    output
+        .entry("query".to_string())
+        .or_insert_with(|| Value::String(String::new()));
+    output
+        .entry("model".to_string())
+        .or_insert_with(|| Value::String(String::new()));
+    output
+        .entry("history".to_string())
+        .or_insert_with(|| Value::Array(Vec::new()));
+    output
+        .entry("files".to_string())
+        .or_insert_with(|| Value::Array(Vec::new()));
+
+    Value::Object(output)
+}
+
 pub async fn run_node_preview<I>(
     plan: &CompiledPlan,
     target_node_id: &str,
@@ -56,7 +75,15 @@ where
         .as_object()
         .cloned()
         .ok_or_else(|| anyhow!("input payload must be an object"))?;
-    let resolved_inputs = resolve_node_inputs(node, &variable_pool)?;
+    let resolved_inputs = if node.node_type == "start" {
+        variable_pool
+            .get(target_node_id)
+            .and_then(|value| value.as_object())
+            .cloned()
+            .unwrap_or_default()
+    } else {
+        resolve_node_inputs(node, &variable_pool)?
+    };
     let rendered_templates = render_templated_bindings(node, &resolved_inputs);
     let output_contract = node
         .outputs
@@ -71,7 +98,15 @@ where
         .collect();
 
     let (node_output, error_payload, metrics_payload, debug_payload, provider_events) =
-        if node.node_type == "llm" {
+        if node.node_type == "start" {
+            (
+                start_preview_output(&resolved_inputs),
+                None,
+                json!({ "preview_mode": true }),
+                json!({}),
+                Vec::new(),
+            )
+        } else if node.node_type == "llm" {
             let execution =
                 execute_llm_node(node, &resolved_inputs, &rendered_templates, invoker).await?;
             (

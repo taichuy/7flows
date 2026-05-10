@@ -62,11 +62,11 @@ fn native_request(model: Value) -> Value {
 fn mapping_without_model_target() -> ApplicationApiMappingConfig {
     ApplicationApiMappingConfig {
         input: ApplicationApiMappingInput {
-            query_target: "start.query".into(),
+            query_target: "node-start.query".into(),
             model_target: None,
-            inputs_target: Some("start.inputs".into()),
-            history_target: Some("start.history".into()),
-            attachments_target: Some("start.attachments".into()),
+            inputs_target: Some("node-start".into()),
+            history_target: Some("node-start.history".into()),
+            attachments_target: Some("node-start.files".into()),
         },
         output: ApplicationApiMappingOutput::default(),
     }
@@ -196,22 +196,22 @@ async fn native_run_with_null_model_target_keeps_model_metadata_out_of_node_inpu
 
     assert_eq!(run.metadata["model"], json!("pass-through-model"));
     assert_eq!(
-        run.node_input_payload["start"]["query"],
+        run.node_input_payload["node-start"]["query"],
         json!("Summarize the incident")
     );
     assert_eq!(
-        run.node_input_payload["start"]["inputs"]["priority"],
+        run.node_input_payload["node-start"]["priority"],
         json!("high")
     );
     assert_eq!(
-        run.node_input_payload["start"]["history"][0]["role"],
+        run.node_input_payload["node-start"]["history"][0]["role"],
         json!("user")
     );
     assert_eq!(
-        run.node_input_payload["start"]["attachments"][0]["id"],
+        run.node_input_payload["node-start"]["files"][0]["id"],
         json!("file-1")
     );
-    assert!(run.node_input_payload["start"].get("model").is_none());
+    assert!(run.node_input_payload["node-start"].get("model").is_none());
 }
 
 #[tokio::test]
@@ -311,7 +311,7 @@ async fn native_run_read_loads_durable_published_flow_run_without_test_only_resu
     assert_eq!(loaded.api_key_id, created.api_key_id);
     assert_eq!(loaded.status, NativeRunStatus::Queued);
     assert_eq!(
-        loaded.node_input_payload["start"]["query"],
+        loaded.node_input_payload["node-start"]["query"],
         json!("Summarize the incident")
     );
 }

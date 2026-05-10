@@ -21,7 +21,7 @@ fn other_user_id() -> Uuid {
 fn published_mapping() -> ApplicationApiMappingConfig {
     ApplicationApiMappingConfig {
         input: ApplicationApiMappingInput {
-            query_target: "start.query".into(),
+            query_target: "node-start.query".into(),
             model_target: None,
             inputs_target: None,
             history_target: None,

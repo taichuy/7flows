@@ -92,6 +92,22 @@ fn sample_compiled_plan() -> CompiledPlan {
 
     let mut nodes = BTreeMap::new();
     nodes.insert(
+        "node-start".to_string(),
+        CompiledNode {
+            node_id: "node-start".to_string(),
+            node_type: "start".to_string(),
+            alias: "Start".to_string(),
+            container_id: None,
+            dependency_node_ids: Vec::new(),
+            downstream_node_ids: vec!["node-llm".to_string()],
+            bindings: BTreeMap::new(),
+            outputs: Vec::new(),
+            config: json!({}),
+            plugin_runtime: None,
+            llm_runtime: None,
+        },
+    );
+    nodes.insert(
         "node-llm".to_string(),
         CompiledNode {
             node_id: "node-llm".to_string(),
@@ -130,6 +146,35 @@ fn sample_compiled_plan() -> CompiledPlan {
         nodes,
         compile_issues: Vec::new(),
     }
+}
+
+#[tokio::test]
+async fn preview_executor_uses_start_input_as_start_output() {
+    let plan = sample_compiled_plan();
+    let invoker = StubPreviewInvoker {
+        captured_input: Arc::new(Mutex::new(None)),
+    };
+    let outcome = preview_executor::run_node_preview(
+        &plan,
+        "node-start",
+        &serde_json::json!({
+            "node-start": {
+                "query": "退款流程是什么？",
+                "files": [{ "filename": "policy.pdf" }]
+            }
+        }),
+        &invoker,
+    )
+    .await
+    .unwrap();
+
+    assert_eq!(outcome.target_node_id, "node-start");
+    assert_eq!(outcome.resolved_inputs["query"], "退款流程是什么？");
+    assert_eq!(outcome.node_output["query"], "退款流程是什么？");
+    assert_eq!(outcome.node_output["model"], "");
+    assert_eq!(outcome.node_output["history"], json!([]));
+    assert_eq!(outcome.node_output["files"][0]["filename"], "policy.pdf");
+    assert!(outcome.provider_events.is_empty());
 }
 
 #[tokio::test]

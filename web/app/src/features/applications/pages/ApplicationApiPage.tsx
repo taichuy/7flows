@@ -4,7 +4,10 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Alert, Button, Result, Tabs } from 'antd';
 
 import { useAuthStore } from '../../../state/auth-store';
-import { applicationDetailQueryKey, type ApplicationDetail } from '../api/applications';
+import {
+  applicationDetailQueryKey,
+  type ApplicationDetail
+} from '../api/applications';
 import {
   applicationApiMappingQueryKey,
   applicationApiPublicationQueryKey,
@@ -15,7 +18,6 @@ import {
 } from '../api/public-api';
 import { ApplicationApiDocsPanel } from '../components/api/ApplicationApiDocsPanel';
 import { ApplicationApiKeysPanel } from '../components/api/ApplicationApiKeysPanel';
-import { ApplicationApiMappingPanel } from '../components/api/ApplicationApiMappingPanel';
 import { ApplicationApiStatusBar } from '../components/api/ApplicationApiStatusBar';
 import './application-api-page.css';
 
@@ -47,7 +49,8 @@ export function ApplicationApiPage({
   };
   const publishMutation = useMutation({
     mutationFn: async () => {
-      const mapping = mappingQuery.data ?? (await fetchApplicationApiMapping(application.id));
+      const mapping =
+        mappingQuery.data ?? (await fetchApplicationApiMapping(application.id));
       return publishApplicationApiVersion(application.id, mapping, csrfToken);
     },
     onSuccess: invalidatePublication
@@ -68,20 +71,7 @@ export function ApplicationApiPage({
     {
       key: 'docs',
       label: 'API 文档',
-      children: (
-        <ApplicationApiDocsPanel applicationId={application.id} />
-      )
-    },
-    {
-      key: 'mapping',
-      label: 'Mapping',
-      children: (
-        <ApplicationApiMappingPanel
-          applicationId={application.id}
-          csrfToken={csrfToken}
-          publication={publication}
-        />
-      )
+      children: <ApplicationApiDocsPanel applicationId={application.id} />
     }
   ];
 
@@ -104,7 +94,7 @@ export function ApplicationApiPage({
           type="warning"
           showIcon
           message="需要先发布公开 API"
-          description="发布会保存当前 mapping snapshot，并让 API Key 调用 active publication。"
+          description="发布会保存当前工作流版本和公开 API 运行配置，并让 API Key 调用 active publication。"
           action={
             <Button
               type="primary"

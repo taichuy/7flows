@@ -7,6 +7,20 @@ function renderFieldInput(
   field: AgentFlowRunContext['fields'][number],
   onChange: (value: unknown) => void
 ) {
+  if (field.valueType.startsWith('array')) {
+    return (
+      <Input.TextArea
+        autoSize={{ minRows: 2, maxRows: 4 }}
+        value={
+          typeof field.value === 'string'
+            ? field.value
+            : JSON.stringify(field.value ?? [], null, 2)
+        }
+        onChange={(event) => onChange(event.target.value)}
+      />
+    );
+  }
+
   switch (field.valueType) {
     case 'boolean':
       return <Switch checked={Boolean(field.value)} onChange={onChange} />;
@@ -18,7 +32,6 @@ function renderFieldInput(
           onChange={(value) => onChange(value ?? 0)}
         />
       );
-    case 'array':
     case 'json':
     case 'unknown':
       return (
@@ -36,7 +49,11 @@ function renderFieldInput(
     default:
       return (
         <Input
-          value={typeof field.value === 'string' ? field.value : String(field.value ?? '')}
+          value={
+            typeof field.value === 'string'
+              ? field.value
+              : String(field.value ?? '')
+          }
           onChange={(event) => onChange(event.target.value)}
         />
       );

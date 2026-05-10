@@ -872,7 +872,12 @@ describe('useAgentFlowDebugSession streaming', () => {
         document,
         debug_session_id: expect.stringMatching(/^app-1:draft-1:/),
         input_payload: {
-          'node-start': { files: undefined, query: '请总结退款政策' }
+          'node-start': {
+            files: [],
+            history: [],
+            model: '',
+            query: '请总结退款政策'
+          }
         }
       },
       'csrf-123',
@@ -960,7 +965,12 @@ describe('useAgentFlowDebugSession streaming', () => {
         document,
         debug_session_id: expect.stringMatching(/^app-1:draft-1:/),
         input_payload: {
-          'node-start': { files: undefined, query: '' }
+          'node-start': {
+            files: [],
+            history: [],
+            model: '',
+            query: ''
+          }
         }
       },
       'csrf-123',

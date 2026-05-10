@@ -529,7 +529,19 @@ fn write_selector(
             .ok_or_else(|| NativeInputMappingError::SelectorCollision {
                 selector: selector.to_string(),
             })?;
-    if object.contains_key(leaf) {
+    if let Some(existing) = object.get_mut(leaf) {
+        if let (Some(existing), Value::Object(next)) = (existing.as_object_mut(), value) {
+            for (key, value) in next {
+                if existing.contains_key(&key) {
+                    return Err(NativeInputMappingError::SelectorCollision {
+                        selector: format!("{selector}.{key}"),
+                    });
+                }
+                existing.insert(key, value);
+            }
+            return Ok(());
+        }
+
         return Err(NativeInputMappingError::SelectorCollision {
             selector: selector.to_string(),
         });
