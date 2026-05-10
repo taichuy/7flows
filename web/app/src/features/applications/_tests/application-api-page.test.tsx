@@ -144,7 +144,7 @@ describe('ApplicationApiPage', () => {
     expect(screen.getByRole('tab', { name: 'OpenAI Compatible' })).toBeInTheDocument();
     expect(screen.getByRole('tab', { name: 'Anthropic Compatible' })).toBeInTheDocument();
     expect(screen.getByRole('tab', { name: 'Mapping' })).toBeInTheDocument();
-    expect(screen.getByRole('tab', { name: 'Debug' })).toBeInTheDocument();
+    expect(screen.queryByRole('tab', { name: 'Debug' })).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: '发布当前版本' })).toBeInTheDocument();
   });
 

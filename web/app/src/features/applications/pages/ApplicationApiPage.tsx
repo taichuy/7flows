@@ -13,7 +13,6 @@ import {
   publishApplicationApiVersion,
   setApplicationApiEnabled
 } from '../api/public-api';
-import { ApplicationApiDebugPanel } from '../components/api/ApplicationApiDebugPanel';
 import { ApplicationApiDocsPanel } from '../components/api/ApplicationApiDocsPanel';
 import { ApplicationApiKeysPanel } from '../components/api/ApplicationApiKeysPanel';
 import { ApplicationApiMappingPanel } from '../components/api/ApplicationApiMappingPanel';
@@ -112,11 +111,6 @@ export function ApplicationApiPage({
           publication={publication}
         />
       )
-    },
-    {
-      key: 'debug',
-      label: 'Debug',
-      children: <ApplicationApiDebugPanel createdToken={createdToken} />
     }
   ];
 

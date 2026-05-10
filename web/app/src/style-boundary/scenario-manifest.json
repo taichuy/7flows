@@ -294,7 +294,6 @@
       "web/app/src/features/applications/components/api/ApplicationApiKeysPanel.tsx",
       "web/app/src/features/applications/components/api/ApplicationApiDocsPanel.tsx",
       "web/app/src/features/applications/components/api/ApplicationApiMappingPanel.tsx",
-      "web/app/src/features/applications/components/api/ApplicationApiDebugPanel.tsx",
       "web/app/src/features/applications/api/public-api.ts",
       "web/app/src/shared/ui/api-docs/ApiDocsExplorer.tsx",
       "web/app/src/shared/ui/api-docs/api-docs-explorer.css",
@@ -335,7 +334,7 @@
       },
       {
         "id": "application-api-header",
-        "selector": ".application-api-panel__header",
+        "selector": ".application-api-status__header",
         "propertyAssertions": [
           {
             "property": "display",
@@ -354,7 +353,7 @@
       {
         "id": "application-api-create-key-visible",
         "type": "fully_visible",
-        "subjectSelector": ".application-api-panel__header .ant-btn-primary"
+        "subjectSelector": ".application-api-status__actions .ant-btn"
       }
     ]
   },
