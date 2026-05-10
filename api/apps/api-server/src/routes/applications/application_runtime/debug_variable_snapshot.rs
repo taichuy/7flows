@@ -241,11 +241,51 @@ pub(super) async fn build_debug_variable_snapshot(
     workspace_id: Uuid,
     actor_user_id: Uuid,
     debug_session_id: Option<String>,
+    run_id: Option<Uuid>,
     editor_state: &domain::FlowEditorState,
 ) -> Result<DebugVariableSnapshotResponse, ApiError> {
     let public_start_keys = collect_start_public_input_keys(&editor_state.draft.document);
     let document_hash = debug_snapshot_document_hash(&editor_state.draft.document);
     let flow_schema_version = debug_snapshot_flow_schema_version(editor_state);
+    if let Some(run_id) = run_id {
+        let detail =
+            <MainDurableStore as OrchestrationRuntimeRepository>::get_application_run_detail(
+                store,
+                application_id,
+                run_id,
+            )
+            .await?
+            .ok_or(control_plane::errors::ControlPlaneError::NotFound("flow_run"))?;
+        let mut variable_cache = serde_json::Map::new();
+        let mut source_flow_run_ids = serde_json::Map::new();
+        let mut source_node_run_ids = serde_json::Map::new();
+
+        merge_start_public_inputs(
+            &mut variable_cache,
+            &mut source_flow_run_ids,
+            &detail.flow_run.input_payload,
+            &public_start_keys,
+            detail.flow_run.id,
+        );
+        for node_run in &detail.node_runs {
+            merge_node_output_payload(&mut variable_cache, &mut source_node_run_ids, node_run);
+        }
+
+        return Ok(DebugVariableSnapshotResponse {
+            snapshot_schema_version: DEBUG_VARIABLE_SNAPSHOT_SCHEMA_VERSION.to_string(),
+            workspace_id: workspace_id.to_string(),
+            actor_user_id: actor_user_id.to_string(),
+            draft_id: editor_state.draft.id.to_string(),
+            flow_schema_version,
+            document_hash,
+            debug_session_id: detail.flow_run.debug_session_id.clone(),
+            latest_run_scope: Some(to_debug_snapshot_run_scope(&detail.flow_run)),
+            snapshot_completeness: debug_snapshot_completeness(detail.flow_run.status).to_string(),
+            source_flow_run_ids: serde_json::Value::Object(source_flow_run_ids),
+            source_node_run_ids: serde_json::Value::Object(source_node_run_ids),
+            variable_cache: serde_json::Value::Object(variable_cache),
+        });
+    }
     let Some(debug_session_id) = normalize_debug_session_id(debug_session_id) else {
         return Ok(DebugVariableSnapshotResponse {
             snapshot_schema_version: DEBUG_VARIABLE_SNAPSHOT_SCHEMA_VERSION.to_string(),

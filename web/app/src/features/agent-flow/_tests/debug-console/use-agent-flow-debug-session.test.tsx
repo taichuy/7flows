@@ -292,7 +292,9 @@ describe('useAgentFlowDebugSession', () => {
     );
     expect(fetchSnapshotSpy).toHaveBeenCalledWith(
       'app-1',
-      expect.stringMatching(/^app-1:draft-1:/)
+      {
+        debugSessionId: expect.stringMatching(/^app-1:draft-1:/)
+      }
     );
   });
 
@@ -335,7 +337,9 @@ describe('useAgentFlowDebugSession', () => {
     });
 
     expect(secondRender.result.current.debugSessionId).toBe(firstSessionId);
-    expect(fetchSnapshotSpy).toHaveBeenLastCalledWith('app-1', firstSessionId);
+    expect(fetchSnapshotSpy).toHaveBeenLastCalledWith('app-1', {
+      debugSessionId: firstSessionId
+    });
   });
 
   test('ignores a delayed durable snapshot after resetting variable cache', async () => {

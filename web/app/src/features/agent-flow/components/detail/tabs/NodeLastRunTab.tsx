@@ -6,6 +6,7 @@ import { SchemaRenderer } from '../../../../../shared/schema-ui/runtime/SchemaRe
 import type { SchemaAdapter } from '../../../../../shared/schema-ui/registry/create-renderer-registry';
 
 import {
+  fetchApplicationRunDetail,
   fetchNodeLastRun,
   nodeLastRunQueryKey
 } from '../../../api/runtime';
@@ -32,20 +33,66 @@ function isNodeLastRun(value: unknown): value is NonNullable<
   );
 }
 
+function toNodeLastRunFromRunDetail(
+  detail: NonNullable<Awaited<ReturnType<typeof fetchApplicationRunDetail>>>,
+  nodeId: string
+): NonNullable<Awaited<ReturnType<typeof fetchNodeLastRun>>> | null {
+  const nodeRun =
+    [...detail.node_runs].reverse().find((candidate) => candidate.node_id === nodeId) ??
+    null;
+
+  if (!nodeRun) {
+    return null;
+  }
+
+  return {
+    flow_run: detail.flow_run,
+    node_run: nodeRun,
+    checkpoints: detail.checkpoints,
+    events: detail.events
+  };
+}
+
 export function NodeLastRunTab({
+  activeRunId,
   applicationId,
   nodeId,
+  onResolveRunScope,
   schema,
   adapter
 }: {
+  activeRunId?: string | null;
   applicationId?: string;
   nodeId?: string;
+  onResolveRunScope?: ((runId: string | null) => void) | undefined;
   schema?: CanvasNodeSchema;
   adapter?: SchemaAdapter;
 }) {
   const lastRunQuery = useQuery({
-    queryKey: nodeLastRunQueryKey(applicationId ?? 'unknown', nodeId ?? 'unknown'),
-    queryFn: () => fetchNodeLastRun(applicationId!, nodeId!),
+    queryKey: activeRunId
+      ? ([
+          'applications',
+          applicationId ?? 'unknown',
+          'runtime',
+          'runs',
+          activeRunId,
+          'nodes',
+          nodeId ?? 'unknown',
+          'last-run'
+        ] as const)
+      : nodeLastRunQueryKey(applicationId ?? 'unknown', nodeId ?? 'unknown'),
+    queryFn: async () => {
+      if (activeRunId) {
+        const detail = await fetchApplicationRunDetail(applicationId!, activeRunId);
+        return toNodeLastRunFromRunDetail(detail, nodeId!);
+      }
+
+      const lastRun = await fetchNodeLastRun(applicationId!, nodeId!);
+      if (lastRun?.flow_run?.id) {
+        onResolveRunScope?.(lastRun.flow_run.id);
+      }
+      return lastRun;
+    },
     enabled: Boolean(applicationId && nodeId)
   });
   if (lastRunQuery.isPending) {
@@ -59,7 +106,7 @@ export function NodeLastRunTab({
   if (!lastRunQuery.data) {
     return (
       <Empty
-        description="当前节点还没有运行记录"
+        description={activeRunId ? '当前运行没有该节点记录' : '当前节点还没有运行记录'}
         image={Empty.PRESENTED_IMAGE_SIMPLE}
       />
     );

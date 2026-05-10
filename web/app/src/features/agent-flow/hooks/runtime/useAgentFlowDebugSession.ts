@@ -468,6 +468,7 @@ export function useAgentFlowDebugSession({
     useState<NodeDebugPreviewVariableCache>({});
   const [nodePreviewOutputCache, setNodePreviewOutputCache] =
     useState<NodeDebugPreviewVariableCache>({});
+  const [activeRunId, setActiveRunId] = useState<string | null>(null);
   const [runContext, setRunContext] = useState(() =>
     buildRunContextFromDocument(document, rememberedInputValues)
   );
@@ -539,7 +540,12 @@ export function useAgentFlowDebugSession({
 
     setNodePreviewInputCache({});
     setNodePreviewOutputCache({});
-    fetchDebugVariableSnapshot(applicationId, debugSessionState.id)
+    fetchDebugVariableSnapshot(
+      applicationId,
+      activeRunId
+        ? { runId: activeRunId }
+        : { debugSessionId: debugSessionState.id }
+    )
       .then((snapshot) => {
         if (
           disposed ||
@@ -559,7 +565,13 @@ export function useAgentFlowDebugSession({
     return () => {
       disposed = true;
     };
-  }, [applicationId, debugSessionScope, debugSessionState, draftId]);
+  }, [
+    activeRunId,
+    applicationId,
+    debugSessionScope,
+    debugSessionState,
+    draftId
+  ]);
 
   const rawTraceItems = useMemo(
     () =>
@@ -702,6 +714,7 @@ export function useAgentFlowDebugSession({
   ) {
     const assistantMessage = mapRunDetailToConversation(detail);
 
+    setActiveRunId(detail.flow_run.id);
     setLastDetail(detail);
     setNodePreviewInputCache((currentCache) =>
       mergeVariableCache(
@@ -1064,6 +1077,7 @@ export function useAgentFlowDebugSession({
     stopPolling();
     clearScheduledAssistantMessageFlush();
     setStatus('idle');
+    setActiveRunId(null);
     setMessages([]);
     setLastDetail(null);
     setStreamTraceItems([]);
@@ -1138,6 +1152,24 @@ export function useAgentFlowDebugSession({
     });
   }
 
+  function rememberExternalRunDetail(detail: FlowDebugRunDetail) {
+    setActiveRunId(detail.flow_run.id);
+    setLastDetail(detail);
+    setNodePreviewInputCache((currentCache) =>
+      mergeVariableCache(currentCache, buildInputVariableCacheFromRunDetail(detail))
+    );
+    setNodePreviewOutputCache((currentCache) =>
+      mergeVariableCache(currentCache, buildOutputVariableCacheFromRunDetail(detail))
+    );
+  }
+
+  function selectRunScope(runId: string | null) {
+    setActiveRunId((current) => (current === runId ? current : runId));
+    setLastDetail((current) =>
+      current && current.flow_run.id !== runId ? null : current
+    );
+  }
+
   function resetVariableCache() {
     variableSnapshotRestoreGenerationRef.current += 1;
     const nextDebugSessionState = createDebugSessionState(
@@ -1152,6 +1184,7 @@ export function useAgentFlowDebugSession({
     stopPolling();
     clearScheduledAssistantMessageFlush();
     setStatus('idle');
+    setActiveRunId(null);
     setLastDetail(null);
     setStreamTraceItems([]);
     setNodePreviewInputCache({});
@@ -1163,6 +1196,7 @@ export function useAgentFlowDebugSession({
     status,
     stopping,
     debugSessionId: debugSessionState.id,
+    activeRunId,
     runContext,
     messages,
     traceItems,
@@ -1175,6 +1209,8 @@ export function useAgentFlowDebugSession({
     getNodePreviewVariableCache,
     rememberNodePreviewInputs,
     rememberNodePreviewOutputs,
+    rememberExternalRunDetail,
+    selectRunScope,
     resetVariableCache
   };
 }

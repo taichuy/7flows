@@ -63,13 +63,28 @@ async fn get_snapshot(
     application_id: &str,
     debug_session_id: &str,
 ) -> Value {
+    get_snapshot_by_query(
+        app,
+        cookie,
+        application_id,
+        &format!("debug_session_id={debug_session_id}"),
+    )
+    .await
+}
+
+async fn get_snapshot_by_query(
+    app: &axum::Router,
+    cookie: &str,
+    application_id: &str,
+    query: &str,
+) -> Value {
     let response = app
         .clone()
         .oneshot(
             Request::builder()
                 .method("GET")
                 .uri(format!(
-                    "/api/console/applications/{application_id}/orchestration/debug-variable-snapshot?debug_session_id={debug_session_id}"
+                    "/api/console/applications/{application_id}/orchestration/debug-variable-snapshot?{query}"
                 ))
                 .header("cookie", cookie)
                 .body(Body::empty())
@@ -373,6 +388,49 @@ async fn debug_variable_snapshot_uses_latest_node_run_output_in_selected_run() {
         replacement_node_run_id.to_string()
     );
 }
+
+#[tokio::test]
+async fn debug_variable_snapshot_can_pin_to_explicit_run_id() {
+    let app = test_app().await;
+    let (cookie, csrf) = login_and_capture_cookie(&app, "root", "change-me").await;
+    let provider_instance_id = create_ready_provider_instance(&app, &cookie, &csrf).await;
+    let application_id =
+        seed_agent_flow_application(&app, &cookie, &csrf, &provider_instance_id).await;
+    let preview_a = start_preview(
+        &app,
+        &cookie,
+        &csrf,
+        &application_id,
+        "policy A",
+        "session-a",
+    )
+    .await;
+    let preview_b = start_preview(
+        &app,
+        &cookie,
+        &csrf,
+        &application_id,
+        "policy B",
+        "session-b",
+    )
+    .await;
+
+    let run_a = preview_a["data"]["flow_run"]["id"].as_str().unwrap();
+    let run_b = preview_b["data"]["flow_run"]["id"].as_str().unwrap();
+
+    let snapshot = get_snapshot_by_query(
+        &app,
+        &cookie,
+        &application_id,
+        &format!("run_id={run_a}"),
+    )
+    .await;
+
+    assert_eq!(snapshot["data"]["latest_run_scope"]["flow_run_id"], run_a);
+    assert_ne!(snapshot["data"]["latest_run_scope"]["flow_run_id"], run_b);
+    assert_eq!(snapshot["data"]["variable_cache"]["node-start"]["query"], "policy A");
+    assert_eq!(snapshot["data"]["variable_cache"]["node-llm"]["text"], "reply:policy A");
+  }
 
 #[tokio::test]
 async fn debug_variable_snapshot_ignores_waiting_and_non_output_payload_buckets() {

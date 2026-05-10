@@ -145,6 +145,76 @@ describe('NodeLastRunTab', () => {
     ).toBeDisabled();
   });
 
+  test('uses the active run scope detail instead of latest node run fallback', async () => {
+    const fetchRunDetailSpy = vi
+      .spyOn(runtimeApi, 'fetchApplicationRunDetail')
+      .mockResolvedValue({
+        flow_run: {
+          id: 'run-active',
+          application_id: 'app-1',
+          flow_id: 'flow-1',
+          draft_id: 'draft-1',
+          compiled_plan_id: 'plan-1',
+          run_mode: 'debug_flow_run',
+          status: 'succeeded',
+          target_node_id: null,
+          input_payload: {
+            'node-start': { query: '统一 run scope' }
+          },
+          output_payload: {
+            answer: '统一结果'
+          },
+          error_payload: null,
+          created_by: 'user-1',
+          started_at: '2026-04-17T09:00:00Z',
+          finished_at: '2026-04-17T09:00:01Z',
+          created_at: '2026-04-17T09:00:00Z'
+        },
+        node_runs: [
+          {
+            id: 'node-run-1',
+            flow_run_id: 'run-active',
+            node_id: 'node-llm',
+            node_type: 'llm',
+            node_alias: 'LLM',
+            status: 'succeeded',
+            input_payload: {
+              user_prompt: '统一 run scope'
+            },
+            output_payload: {
+              text: '统一结果'
+            },
+            error_payload: null,
+            metrics_payload: {
+              total_tokens: 16
+            },
+            debug_payload: {},
+            started_at: '2026-04-17T09:00:00Z',
+            finished_at: '2026-04-17T09:00:01Z'
+          }
+        ],
+        checkpoints: [],
+        callback_tasks: [],
+        events: []
+      });
+    const fetchNodeLastRunSpy = vi.spyOn(runtimeApi, 'fetchNodeLastRun');
+
+    render(
+      <AppProviders>
+        <NodeLastRunTab
+          activeRunId="run-active"
+          applicationId="app-1"
+          nodeId="node-llm"
+        />
+      </AppProviders>
+    );
+
+    expect(await screen.findByText('运行摘要')).toBeInTheDocument();
+    expect(fetchRunDetailSpy).toHaveBeenCalledWith('app-1', 'run-active');
+    expect(fetchNodeLastRunSpy).not.toHaveBeenCalled();
+    expect(screen.getByLabelText('输出 JSON')).toHaveTextContent('统一结果');
+  });
+
   test('renders API-provided node output without frontend envelope rewriting', async () => {
     vi.spyOn(runtimeApi, 'fetchNodeLastRun').mockResolvedValue({
       flow_run: {

@@ -14,6 +14,7 @@ import {
   getConsoleNodeLastRun,
   startConsoleNodeDebugPreview,
   type ConsoleApplicationRunDetail,
+  type ConsoleDebugVariableSnapshot,
   type ConsoleFlowDebugStreamEvent,
   type ConsoleFlowDebugStreamCursor,
   type ConsoleFlowDebugStreamHandlers,
@@ -34,7 +35,7 @@ import {
 export type NodeLastRun = ConsoleNodeLastRun;
 export type FlowDebugRunDetail = ConsoleApplicationRunDetail;
 export type RuntimeDebugArtifactPreview = ConsoleRuntimeDebugArtifactPreview;
-export type DebugVariableSnapshot = {
+export type DebugVariableSnapshot = ConsoleDebugVariableSnapshot & {
   variable_cache: NodeDebugPreviewVariableCache;
 };
 export type FlowDebugRunStreamEvent = ConsoleFlowDebugStreamEvent;
@@ -142,13 +143,28 @@ export function fetchNodeLastRun(applicationId: string, nodeId: string) {
 
 export function fetchDebugVariableSnapshot(
   applicationId: string,
-  debugSessionId?: string
+  options?: {
+    debugSessionId?: string;
+    runId?: string;
+  }
 ) {
   return getConsoleDebugVariableSnapshot(
     applicationId,
-    debugSessionId,
+    options,
     getApplicationsApiBaseUrl()
   );
+}
+
+export function nodeLastRunToFlowDebugRunDetail(
+  lastRun: ConsoleNodeLastRun
+): FlowDebugRunDetail {
+  return {
+    flow_run: lastRun.flow_run,
+    node_runs: [lastRun.node_run],
+    checkpoints: lastRun.checkpoints,
+    callback_tasks: [],
+    events: lastRun.events
+  };
 }
 
 export function startNodeDebugPreview(

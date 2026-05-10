@@ -29,6 +29,7 @@ import {
   buildNodeDebugPreviewPlan,
   extractNodePreviewVariableOutput,
   fetchRuntimeDebugArtifact,
+  nodeLastRunToFlowDebugRunDetail,
   nodeLastRunQueryKey,
   startNodeDebugPreview,
   type NodeDebugPreviewPlan
@@ -316,6 +317,9 @@ export function AgentFlowCanvasFrame({
       queryClient.setQueryData(
         nodeLastRunQueryKey(applicationId, variables.nodeId),
         lastRun
+      );
+      debugSession.rememberExternalRunDetail(
+        nodeLastRunToFlowDebugRunDetail(lastRun)
       );
       setPanelState({ nodeDetailTab: 'lastRun' });
       await queryClient.invalidateQueries({
@@ -1021,9 +1025,11 @@ export function AgentFlowCanvasFrame({
               role="separator"
             />
             <NodeDetailPanel
+              activeRunId={debugSession.activeRunId}
               applicationId={applicationId}
               environmentVariables={environmentVariables}
               onClose={detailActions.closeDetail}
+              onResolveRunScope={debugSession.selectRunScope}
               onRunNode={selectedNodeId ? handleRunSelectedNode : undefined}
               runLoading={nodePreviewMutation.isPending}
             />

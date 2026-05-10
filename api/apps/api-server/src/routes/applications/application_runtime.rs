@@ -247,6 +247,7 @@ pub struct DebugRunStreamQuery {
 #[derive(Debug, Deserialize)]
 pub struct DebugVariableSnapshotQuery {
     pub debug_session_id: Option<String>,
+    pub run_id: Option<Uuid>,
 }
 
 #[derive(Debug, Deserialize, ToSchema)]
@@ -1142,6 +1143,7 @@ pub async fn get_debug_variable_snapshot(
         context.actor.current_workspace_id,
         context.actor.user_id,
         query.debug_session_id,
+        query.run_id,
         &editor_state,
     )
     .await?;

@@ -21,13 +21,17 @@ export function NodeDetailPanel({
   onClose,
   onRunNode,
   applicationId,
+  activeRunId,
   environmentVariables = [],
+  onResolveRunScope,
   runLoading = false
 }: {
   onClose: () => void;
   onRunNode?: (() => void) | undefined;
   applicationId?: string;
+  activeRunId?: string | null;
   environmentVariables?: AgentFlowEnvironmentVariable[];
+  onResolveRunScope?: ((runId: string | null) => void) | undefined;
   runLoading?: boolean;
 }) {
   const nodeDetailTab = useAgentFlowEditorStore((state) => state.nodeDetailTab);
@@ -126,9 +130,11 @@ export function NodeDetailPanel({
               forceRender: true,
               children: (
                 <NodeLastRunTab
+                  activeRunId={activeRunId}
                   adapter={runtime.adapter}
                   applicationId={applicationId}
                   nodeId={runtime.selectedNodeId}
+                  onResolveRunScope={onResolveRunScope}
                   schema={runtime.schema}
                 />
               )
