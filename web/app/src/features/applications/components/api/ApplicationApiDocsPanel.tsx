@@ -12,16 +12,14 @@ import {
 } from '../../api/public-api';
 
 export function ApplicationApiDocsPanel({
-  applicationId,
-  defaultCategoryId
+  applicationId
 }: {
   applicationId: string;
-  defaultCategoryId: string;
 }) {
   const [queryState, setQueryState] = useState<{
     categoryId: string | null;
     operationId: string | null;
-  }>({ categoryId: defaultCategoryId, operationId: null });
+  }>({ categoryId: null, operationId: null });
   const handleQueryStateChange = useCallback(
     (nextState: { categoryId: string | null; operationId: string | null }) =>
       setQueryState(nextState),
@@ -48,6 +46,7 @@ export function ApplicationApiDocsPanel({
           fetchApplicationApiDocsOperationSpec(applicationId, operationId)
         }
         baseServerUrl={getApplicationsApiBaseUrl}
+        showAllOperationsWhenNoCategory
       />
     </section>
   );

@@ -4,6 +4,7 @@ import { describe, expect, test, vi } from 'vitest';
 const explorerState = vi.hoisted(() => ({
   lastProps: null as null | {
     queryState: { categoryId: string | null; operationId: string | null };
+    showAllOperationsWhenNoCategory?: boolean;
     onQueryStateChange: (next: {
       categoryId: string | null;
       operationId: string | null;
@@ -39,19 +40,17 @@ describe('ApplicationApiDocsPanel', () => {
 
     render(
       <AppProviders>
-        <ApplicationApiDocsPanel
-          applicationId="app-1"
-          defaultCategoryId="openai-compatible-api"
-        />
+        <ApplicationApiDocsPanel applicationId="app-1" />
       </AppProviders>
     );
 
     expect(screen.queryByText('Support Agent API 文档')).not.toBeInTheDocument();
     expect(screen.queryByText('active publication v3')).not.toBeInTheDocument();
     expect(explorerState.lastProps?.queryState).toEqual({
-      categoryId: 'openai-compatible-api',
+      categoryId: null,
       operationId: null
     });
+    expect(explorerState.lastProps?.showAllOperationsWhenNoCategory).toBe(true);
 
     fireEvent.click(screen.getByRole('button', { name: 'docs explorer' }));
 

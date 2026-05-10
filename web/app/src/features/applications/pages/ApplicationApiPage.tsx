@@ -69,10 +69,7 @@ export function ApplicationApiPage({
       key: 'docs',
       label: 'API 文档',
       children: (
-        <ApplicationApiDocsPanel
-          applicationId={application.id}
-          defaultCategoryId="application-native-api"
-        />
+        <ApplicationApiDocsPanel applicationId={application.id} />
       )
     },
     {

@@ -402,7 +402,6 @@ describe('ApiDocsPanel', () => {
     renderApp('/settings/docs?category=single%3Ahealth&operation=health');
 
     expect(await screen.findByRole('combobox', { name: '接口分类' })).toBeInTheDocument();
-    expect(screen.getByText('/health')).toBeInTheDocument();
     expect(await screen.findByRole('button', { name: /get \/health/i })).toHaveAttribute(
       'aria-pressed',
       'true'

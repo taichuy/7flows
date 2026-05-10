@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 
 import { ApiReferenceReact } from '@scalar/api-reference-react';
 import '@scalar/api-reference-react/style.css';
-import { useQuery } from '@tanstack/react-query';
+import { useQueries, useQuery } from '@tanstack/react-query';
 import { Empty, Input, Result, Select, Spin, Typography } from 'antd';
 
 import './api-docs-explorer.css';
@@ -51,6 +51,11 @@ type CategorySelectOption = {
   searchText: string;
 };
 
+type ApiDocsOperationWithCategory = ApiDocsCatalogOperation & {
+  categoryId: string | null;
+  categoryLabel: string | null;
+};
+
 export interface ApiDocsExplorerProps<TAuthenticationSnapshot = unknown> {
   queryState: ApiDocsExplorerQueryState;
   onQueryStateChange: (
@@ -66,6 +71,7 @@ export interface ApiDocsExplorerProps<TAuthenticationSnapshot = unknown> {
   operationSpecQueryKey: (operationId: string) => QueryKey;
   fetchOperationSpec: (operationId: string) => Promise<unknown>;
   baseServerUrl: string | (() => string);
+  showAllOperationsWhenNoCategory?: boolean;
   authentication?: {
     queryKey: QueryKey;
     queryFn: () => Promise<TAuthenticationSnapshot>;
@@ -102,6 +108,7 @@ export function ApiDocsExplorer<TAuthenticationSnapshot = unknown>({
   operationSpecQueryKey,
   fetchOperationSpec,
   baseServerUrl,
+  showAllOperationsWhenNoCategory = false,
   authentication
 }: ApiDocsExplorerProps<TAuthenticationSnapshot>) {
   const [operationSearch, setOperationSearch] = useState('');
@@ -147,23 +154,63 @@ export function ApiDocsExplorer<TAuthenticationSnapshot = unknown>({
     queryFn: () => fetchCategoryOperations(selectedCategoryId!),
     enabled: Boolean(selectedCategoryId)
   });
-  const operations = categoryOperationsQuery.data?.operations;
+
+  const allCategoryOperationsQueries = useQueries({
+    queries: categories.map((category) => ({
+      queryKey: categoryOperationsQueryKey(category.id),
+      queryFn: () => fetchCategoryOperations(category.id),
+      enabled: showAllOperationsWhenNoCategory && !selectedCategoryId
+    }))
+  });
+  const allCategoryOperationsLoading =
+    showAllOperationsWhenNoCategory &&
+    !selectedCategoryId &&
+    allCategoryOperationsQueries.some((query) => query.isLoading);
+  const allCategoryOperationsError =
+    showAllOperationsWhenNoCategory &&
+    !selectedCategoryId &&
+    allCategoryOperationsQueries.some((query) => query.isError);
+  const allCategoryOperations = useMemo(
+    () =>
+      allCategoryOperationsQueries.flatMap((query, index) => {
+        const category = categories[index];
+
+        return (query.data?.operations ?? []).map((operation) => ({
+          ...operation,
+          categoryId: category?.id ?? null,
+          categoryLabel: category?.label ?? null
+        }));
+      }),
+    [allCategoryOperationsQueries, categories]
+  );
+  const selectedCategoryOperations = useMemo(
+    () =>
+      (categoryOperationsQuery.data?.operations ?? []).map((operation) => ({
+        ...operation,
+        categoryId: selectedCategoryId,
+        categoryLabel: selectedCategory?.label ?? null
+      })),
+    [categoryOperationsQuery.data?.operations, selectedCategory?.label, selectedCategoryId]
+  );
+  const operations: ApiDocsOperationWithCategory[] =
+    showAllOperationsWhenNoCategory && !selectedCategoryId
+      ? allCategoryOperations
+      : selectedCategoryOperations;
   const selectedOperationId =
-    operations?.find((operation) => operation.id === queryState.operationId)
+    operations.find((operation) => operation.id === queryState.operationId)
       ?.id ?? null;
   const selectedOperation =
-    operations?.find((operation) => operation.id === selectedOperationId) ??
+    operations.find((operation) => operation.id === selectedOperationId) ??
     null;
 
   const filteredOperations = useMemo(() => {
-    const operationList = operations ?? [];
     const normalizedQuery = normalizeSearchText(operationSearch);
 
     if (!normalizedQuery) {
-      return operationList;
+      return operations;
     }
 
-    return operationList.filter((operation) =>
+    return operations.filter((operation) =>
       buildOperationSearchText(operation).includes(normalizedQuery)
     );
   }, [operationSearch, operations]);
@@ -188,6 +235,27 @@ export function ApiDocsExplorer<TAuthenticationSnapshot = unknown>({
     queryState.operationId,
     selectedCategoryId,
     selectedOperationId
+  ]);
+
+  useEffect(() => {
+    if (
+      !showAllOperationsWhenNoCategory ||
+      selectedCategoryId ||
+      allCategoryOperationsLoading ||
+      !queryState.operationId ||
+      selectedOperationId
+    ) {
+      return;
+    }
+
+    onQueryStateChange({ categoryId: null, operationId: null }, 'replace');
+  }, [
+    allCategoryOperationsLoading,
+    onQueryStateChange,
+    queryState.operationId,
+    selectedCategoryId,
+    selectedOperationId,
+    showAllOperationsWhenNoCategory
   ]);
 
   const operationSpecQuery = useQuery({
@@ -219,7 +287,11 @@ export function ApiDocsExplorer<TAuthenticationSnapshot = unknown>({
             value={selectedCategoryId ?? undefined}
             options={categoryOptions}
             placeholder={
-              categories.length === 0 ? '暂无接口分类' : '选择接口分类'
+              categories.length === 0
+                ? '暂无接口分类'
+                : showAllOperationsWhenNoCategory
+                  ? '全部接口'
+                  : '选择接口分类'
             }
             optionRender={(option) => {
               const category = option.data as CategorySelectOption;
@@ -289,7 +361,7 @@ export function ApiDocsExplorer<TAuthenticationSnapshot = unknown>({
       );
     }
 
-    if (!selectedCategoryId) {
+    if (!selectedCategoryId && !showAllOperationsWhenNoCategory) {
       return (
         <section className="api-docs-panel__pane" aria-label="接口列表">
           <div className="api-docs-panel__pane-header">
@@ -311,14 +383,18 @@ export function ApiDocsExplorer<TAuthenticationSnapshot = unknown>({
       );
     }
 
-    if (categoryOperationsQuery.isLoading) {
+    if (
+      selectedCategoryId
+        ? categoryOperationsQuery.isLoading
+        : allCategoryOperationsLoading
+    ) {
       return (
         <section className="api-docs-panel__pane" aria-label="接口列表">
           <div className="api-docs-panel__pane-header">
             <div className="api-docs-panel__pane-copy">
               <Typography.Text strong>接口列表</Typography.Text>
               <Typography.Text type="secondary">
-                正在加载 {selectedCategory?.label ?? '当前分类'} 的接口
+                正在加载 {selectedCategory?.label ?? '全部分类'} 的接口
               </Typography.Text>
             </div>
           </div>
@@ -329,14 +405,18 @@ export function ApiDocsExplorer<TAuthenticationSnapshot = unknown>({
       );
     }
 
-    if (categoryOperationsQuery.isError) {
+    if (
+      selectedCategoryId
+        ? categoryOperationsQuery.isError
+        : allCategoryOperationsError
+    ) {
       return (
         <section className="api-docs-panel__pane" aria-label="接口列表">
           <div className="api-docs-panel__pane-header">
             <div className="api-docs-panel__pane-copy">
               <Typography.Text strong>接口列表</Typography.Text>
               <Typography.Text type="secondary">
-                当前分类接口加载失败
+                {selectedCategoryId ? '当前分类' : '全部分类'}接口加载失败
               </Typography.Text>
             </div>
           </div>
@@ -357,8 +437,7 @@ export function ApiDocsExplorer<TAuthenticationSnapshot = unknown>({
           <div className="api-docs-panel__pane-copy">
             <Typography.Text strong>接口列表</Typography.Text>
             <Typography.Text type="secondary">
-              {selectedCategory?.label ?? '当前分类'} 共{' '}
-              {(operations ?? []).length} 个接口
+              {selectedCategory?.label ?? '全部分类'} 共 {operations.length} 个接口
             </Typography.Text>
           </div>
         </div>
@@ -372,9 +451,9 @@ export function ApiDocsExplorer<TAuthenticationSnapshot = unknown>({
           />
         </div>
         <div className="api-docs-panel__pane-body">
-          {!(operations ?? []).length ? (
+          {!operations.length ? (
             <Empty
-              description="当前分类暂无接口"
+              description={selectedCategoryId ? '当前分类暂无接口' : '暂无接口'}
               image={Empty.PRESENTED_IMAGE_SIMPLE}
             />
           ) : filteredOperations.length === 0 ? (
@@ -424,13 +503,20 @@ export function ApiDocsExplorer<TAuthenticationSnapshot = unknown>({
   }
 
   function renderDetailPane() {
-    if (!selectedCategoryId || !selectedOperationId) {
+    if (
+      (!selectedCategoryId && !showAllOperationsWhenNoCategory) ||
+      !selectedOperationId
+    ) {
       return (
         <div className="api-docs-panel__detail-state">
           <Result
             status="info"
             title="选择接口后查看详情"
-            subTitle="先在上方选择分类，再从左侧接口列表打开要查看的接口。"
+            subTitle={
+              showAllOperationsWhenNoCategory
+                ? '从左侧接口列表打开要查看的接口。'
+                : '先在上方选择分类，再从左侧接口列表打开要查看的接口。'
+            }
           />
         </div>
       );
