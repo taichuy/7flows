@@ -273,11 +273,6 @@ export function ApiDocsExplorer<TAuthenticationSnapshot = unknown>({
     return (
       <section className="api-docs-panel__toolbar" aria-label="文档筛选">
         <div className="api-docs-panel__header-control">
-          <div className="api-docs-panel__header-control-copy">
-            <Typography.Text type="secondary">
-              已收录 {categories.length} 个分类，切换分类后再浏览接口详情
-            </Typography.Text>
-          </div>
           <Select
             aria-label="接口分类"
             className="api-docs-panel__category-select"
