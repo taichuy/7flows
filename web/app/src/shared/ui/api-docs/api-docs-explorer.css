@@ -18,8 +18,13 @@
   gap: 6px;
 }
 
+.api-docs-panel__header-control {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
 .api-docs-panel__category-select {
-  width: min(360px, 100%);
+  width: min(520px, 100%);
 }
 
 .api-docs-panel__count {
