@@ -140,9 +140,10 @@ describe('ApplicationApiPage', () => {
     expect(screen.queryByText('完整 token 只在创建后显示一次。')).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: '创建 Key' })).not.toBeInTheDocument();
     expect(screen.queryByRole('tab', { name: 'API Keys' })).not.toBeInTheDocument();
-    expect(screen.getByRole('tab', { name: 'Native API' })).toBeInTheDocument();
-    expect(screen.getByRole('tab', { name: 'OpenAI Compatible' })).toBeInTheDocument();
-    expect(screen.getByRole('tab', { name: 'Anthropic Compatible' })).toBeInTheDocument();
+    expect(screen.getByRole('tab', { name: 'API 文档' })).toBeInTheDocument();
+    expect(screen.queryByRole('tab', { name: 'Native API' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('tab', { name: 'OpenAI Compatible' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('tab', { name: 'Anthropic Compatible' })).not.toBeInTheDocument();
     expect(screen.getByRole('tab', { name: 'Mapping' })).toBeInTheDocument();
     expect(screen.queryByRole('tab', { name: 'Debug' })).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: '发布当前版本' })).toBeInTheDocument();
@@ -170,9 +171,10 @@ describe('ApplicationApiPage', () => {
     expect(within(statusCard).queryByText('OpenAI')).not.toBeInTheDocument();
     expect(within(statusCard).queryByText('Anthropic')).not.toBeInTheDocument();
     expect(within(statusCard).queryByText('/api/1flowbase/runs')).not.toBeInTheDocument();
-    expect(screen.getByRole('tab', { name: 'Native API' })).toBeInTheDocument();
-    expect(screen.getByRole('tab', { name: 'OpenAI Compatible' })).toBeInTheDocument();
-    expect(screen.getByRole('tab', { name: 'Anthropic Compatible' })).toBeInTheDocument();
+    expect(screen.getByRole('tab', { name: 'API 文档' })).toBeInTheDocument();
+    expect(screen.queryByRole('tab', { name: 'Native API' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('tab', { name: 'OpenAI Compatible' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('tab', { name: 'Anthropic Compatible' })).not.toBeInTheDocument();
   });
 
   test('opens API key list from the public API header action', async () => {
@@ -222,7 +224,7 @@ describe('ApplicationApiPage', () => {
     expect(within(dialog).getByRole('button', { name: '创建 Key' })).toBeInTheDocument();
     expect(within(dialog).getByRole('button', { name: '删除' })).toBeInTheDocument();
     expect(screen.queryByRole('tab', { name: 'API Keys' })).not.toBeInTheDocument();
-    expect(screen.getByRole('tab', { name: 'Native API' })).toBeInTheDocument();
+    expect(screen.getByRole('tab', { name: 'API 文档' })).toBeInTheDocument();
   });
 
   test('shows created token once without writing it to storage or URL', async () => {

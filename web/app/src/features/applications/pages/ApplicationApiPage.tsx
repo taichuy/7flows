@@ -66,35 +66,13 @@ export function ApplicationApiPage({
 
   const tabs = [
     {
-      key: 'native',
-      label: 'Native API',
+      key: 'docs',
+      label: 'API 文档',
       children: (
         <ApplicationApiDocsPanel
           applicationId={application.id}
           applicationName={application.name}
           defaultCategoryId="application-native-api"
-        />
-      )
-    },
-    {
-      key: 'openai',
-      label: 'OpenAI Compatible',
-      children: (
-        <ApplicationApiDocsPanel
-          applicationId={application.id}
-          applicationName={application.name}
-          defaultCategoryId="openai-compatible-api"
-        />
-      )
-    },
-    {
-      key: 'anthropic',
-      label: 'Anthropic Compatible',
-      children: (
-        <ApplicationApiDocsPanel
-          applicationId={application.id}
-          applicationName={application.name}
-          defaultCategoryId="anthropic-compatible-api"
         />
       )
     },
