@@ -65,4 +65,5 @@ runs:
         INPUT_PUBLISH_ISSUE: ${{ inputs.publish_issue }}
         INPUT_GITHUB_TOKEN: ${{ inputs.github_token }}
         INPUT_ENVIRONMENT: ${{ inputs.environment }}
+        TURBO_TELEMETRY_DISABLED: "1"
       run: node scripts/node/github-quality-gate.js
