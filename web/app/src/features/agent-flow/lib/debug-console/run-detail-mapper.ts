@@ -7,7 +7,8 @@ import type {
 import {
   appendReasoningDeltaToAssistantContent,
   appendTextDeltaToAssistantContent,
-  closeOpenThinkBlock
+  closeOpenThinkBlock,
+  parseAssistantContent
 } from './assistant-content';
 
 function findFirstString(value: unknown): string | null {
@@ -218,6 +219,31 @@ function extractAssistantContent(detail: FlowDebugRunDetail): string {
   const orderedStreamContent = collectOrderedAssistantContentEvents(detail);
 
   if (orderedStreamContent) {
+    const orderedParsedContent = parseAssistantContent(orderedStreamContent);
+
+    if (orderedParsedContent.answerText.trim().length > 0) {
+      return orderedStreamContent;
+    }
+
+    const outputText = extractAssistantOutputText(detail);
+
+    if (!outputText) {
+      return orderedStreamContent;
+    }
+
+    const outputParsedContent = parseAssistantContent(outputText);
+
+    if (outputParsedContent.answerText.trim().length > 0) {
+      return outputText;
+    }
+
+    if (outputParsedContent.reasoningText.trim().length === 0) {
+      return appendTextDeltaToAssistantContent(
+        orderedStreamContent,
+        outputText
+      );
+    }
+
     return orderedStreamContent;
   }
 

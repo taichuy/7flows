@@ -122,6 +122,31 @@ describe('run detail mapper', () => {
     );
   });
 
+  test('restores final output text when durable events only contain reasoning', () => {
+    const detail = baseDetail();
+    detail.flow_run.status = 'succeeded';
+    detail.flow_run.output_payload = {
+      text: '<think>先分析</think>结果'
+    };
+    detail.events = [
+      {
+        id: 'event-1',
+        flow_run_id: 'flow-run-1',
+        node_run_id: 'node-run-llm',
+        sequence: 1,
+        event_type: 'reasoning_delta',
+        payload: { type: 'reasoning_delta', text: '先分析' },
+        created_at: '2026-04-26T10:00:00Z'
+      }
+    ];
+
+    expect(mapRunDetailToConversation(detail)).toEqual(
+      expect.objectContaining({
+        content: '<think>先分析</think>结果'
+      })
+    );
+  });
+
   test('maps trace debug payload separately from public output and metrics', () => {
     const detail = baseDetail();
     detail.node_runs = [
