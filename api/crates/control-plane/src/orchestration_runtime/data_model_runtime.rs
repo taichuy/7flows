@@ -248,6 +248,7 @@ fn data_model_action(node: &orchestration_runtime::compiled_plan::CompiledNode) 
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 async fn execute_write_with_receipt<R>(
     runtime: &WorkflowDataModelRuntime<R>,
     repository: &R,
@@ -370,6 +371,7 @@ where
     .await
 }
 
+#[allow(clippy::too_many_arguments)]
 async fn execute_write_with_idempotency<R>(
     runtime: &WorkflowDataModelRuntime<R>,
     repository: &R,

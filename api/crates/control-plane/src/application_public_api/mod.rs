@@ -209,6 +209,13 @@ impl ApplicationPublicApiTestHarness {
 }
 
 #[cfg(test)]
+impl Default for ApplicationPublicApiTestHarness {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+#[cfg(test)]
 #[async_trait]
 impl FlowRepository for ApplicationPublicApiTestRepository {
     async fn get_or_create_editor_state(

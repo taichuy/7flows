@@ -740,6 +740,7 @@ where
         .await
     }
 
+    #[allow(clippy::too_many_arguments)]
     async fn complete_data_model_side_effect_callback(
         &self,
         command: CompleteCallbackTaskCommand,

@@ -24,6 +24,7 @@ pub trait FlowRepository: Send + Sync {
         actor_user_id: Uuid,
         version_id: Uuid,
     ) -> anyhow::Result<domain::FlowEditorState>;
+    #[allow(clippy::too_many_arguments)]
     async fn update_version_metadata(
         &self,
         workspace_id: Uuid,

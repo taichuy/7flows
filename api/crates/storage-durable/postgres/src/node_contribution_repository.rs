@@ -190,15 +190,14 @@ impl NodeContributionRepository for PgControlPlaneStore {
             .map(|row| {
                 let assigned_installation_id: Option<Uuid> = row.get("assigned_installation_id");
                 let installed_desired_state: Option<String> = row.get("installed_desired_state");
-                let dependency_status = if assigned_installation_id.is_none() {
-                    NodeContributionDependencyStatus::MissingPlugin
-                } else if installed_desired_state.is_none() {
-                    NodeContributionDependencyStatus::MissingPlugin
-                } else if installed_desired_state.as_deref() == Some("disabled") {
-                    NodeContributionDependencyStatus::DisabledPlugin
-                } else {
-                    NodeContributionDependencyStatus::Ready
-                };
+                let dependency_status =
+                    if assigned_installation_id.is_none() || installed_desired_state.is_none() {
+                        NodeContributionDependencyStatus::MissingPlugin
+                    } else if installed_desired_state.as_deref() == Some("disabled") {
+                        NodeContributionDependencyStatus::DisabledPlugin
+                    } else {
+                        NodeContributionDependencyStatus::Ready
+                    };
                 map_registry_row(row, dependency_status)
             })
             .collect()
