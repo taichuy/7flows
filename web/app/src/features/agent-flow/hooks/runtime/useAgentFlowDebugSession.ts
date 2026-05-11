@@ -37,18 +37,22 @@ import {
 } from '../../lib/debug-console/variable-groups';
 import type { AgentFlowEnvironmentVariable } from '../../lib/application-environment-variables';
 import { getNodeVariableOutputs } from '../../lib/start-node-variables';
+import {
+  buildAgentFlowDebugSessionStorageKey,
+  readPersistedDebugSessionId,
+  readPersistedInputValues,
+  readPersistedLatestRunId,
+  readPersistedVariableOverrides,
+  writePersistedDebugSessionId,
+  writePersistedInputValues,
+  writePersistedLatestRunId,
+  writePersistedVariableOverrides
+} from './debug-session-storage';
 
-const DEBUG_SESSION_STORAGE_VERSION = 1;
-const DEBUG_SESSION_STORAGE_PREFIX = '1flowbase.agent-flow.debug-session';
 const RUN_DETAIL_POLL_INTERVAL_MS = 200;
 let debugMessageIdSequence = 0;
 
-interface PersistedDebugSessionPayload {
-  version: number;
-  debugSessionId?: string;
-  latestRunId?: string | null;
-  inputValues: Record<string, unknown>;
-}
+export { buildAgentFlowDebugSessionStorageKey };
 
 export type AgentFlowDebugSessionStatus =
   | 'idle'
@@ -58,100 +62,6 @@ export type AgentFlowDebugSessionStatus =
   | 'waiting_human'
   | 'cancelled'
   | 'failed';
-
-export function buildAgentFlowDebugSessionStorageKey(
-  applicationId: string,
-  draftId: string
-) {
-  return `${DEBUG_SESSION_STORAGE_PREFIX}:${applicationId}:${draftId}`;
-}
-
-function readPersistedDebugSessionPayload(
-  storageKey: string
-): PersistedDebugSessionPayload | null {
-  const rawValue = window.localStorage.getItem(storageKey);
-
-  if (!rawValue) {
-    return null;
-  }
-
-  try {
-    const parsedValue = JSON.parse(rawValue) as PersistedDebugSessionPayload;
-
-    if (
-      parsedValue.version !== DEBUG_SESSION_STORAGE_VERSION ||
-      !parsedValue.inputValues ||
-      typeof parsedValue.inputValues !== 'object'
-    ) {
-      return null;
-    }
-
-    return parsedValue;
-  } catch {
-    return null;
-  }
-}
-
-function readPersistedInputValues(
-  storageKey: string
-): Record<string, unknown> | null {
-  return readPersistedDebugSessionPayload(storageKey)?.inputValues ?? null;
-}
-
-function writePersistedInputValues(
-  storageKey: string,
-  inputValues: Record<string, unknown>
-) {
-  const currentPayload = readPersistedDebugSessionPayload(storageKey);
-  window.localStorage.setItem(
-    storageKey,
-    JSON.stringify({
-      version: DEBUG_SESSION_STORAGE_VERSION,
-      debugSessionId: currentPayload?.debugSessionId,
-      latestRunId: currentPayload?.latestRunId ?? null,
-      inputValues
-    } satisfies PersistedDebugSessionPayload)
-  );
-}
-
-function writePersistedDebugSessionId(
-  storageKey: string,
-  debugSessionId: string
-) {
-  const currentPayload = readPersistedDebugSessionPayload(storageKey);
-  window.localStorage.setItem(
-    storageKey,
-    JSON.stringify({
-      version: DEBUG_SESSION_STORAGE_VERSION,
-      debugSessionId,
-      latestRunId: currentPayload?.latestRunId ?? null,
-      inputValues: currentPayload?.inputValues ?? {}
-    } satisfies PersistedDebugSessionPayload)
-  );
-}
-
-function readPersistedLatestRunId(storageKey: string): string | null {
-  const latestRunId = readPersistedDebugSessionPayload(storageKey)?.latestRunId;
-  return typeof latestRunId === 'string' && latestRunId.trim()
-    ? latestRunId
-    : null;
-}
-
-function writePersistedLatestRunId(
-  storageKey: string,
-  latestRunId: string | null
-) {
-  const currentPayload = readPersistedDebugSessionPayload(storageKey);
-  window.localStorage.setItem(
-    storageKey,
-    JSON.stringify({
-      version: DEBUG_SESSION_STORAGE_VERSION,
-      debugSessionId: currentPayload?.debugSessionId,
-      latestRunId,
-      inputValues: currentPayload?.inputValues ?? {}
-    } satisfies PersistedDebugSessionPayload)
-  );
-}
 
 function createUserMessage(prompt: string): AgentFlowDebugMessage {
   return {
@@ -341,6 +251,88 @@ function mergeVariableCache(
   }
 
   return mergedCache;
+}
+
+function removeVariableCacheKeys(
+  currentCache: NodeDebugPreviewVariableCache,
+  consumedCache: NodeDebugPreviewVariableCache
+) {
+  let changed = false;
+  const nextCache: NodeDebugPreviewVariableCache = {};
+
+  for (const [nodeId, payload] of Object.entries(currentCache)) {
+    const consumedPayload = consumedCache[nodeId];
+    const nextPayload: Record<string, unknown> = {};
+
+    for (const [key, value] of Object.entries(payload)) {
+      if (
+        consumedPayload &&
+        Object.prototype.hasOwnProperty.call(consumedPayload, key)
+      ) {
+        changed = true;
+        continue;
+      }
+      nextPayload[key] = value;
+    }
+
+    if (Object.keys(nextPayload).length > 0) {
+      nextCache[nodeId] = nextPayload;
+    }
+  }
+
+  return changed ? nextCache : currentCache;
+}
+
+function parseVariableCacheItemKey(
+  key: string
+): { nodeId: string; variableKey: string } | null {
+  const separatorIndex = key.indexOf('.');
+
+  if (separatorIndex <= 0 || separatorIndex === key.length - 1) {
+    return null;
+  }
+
+  return {
+    nodeId: key.slice(0, separatorIndex),
+    variableKey: key.slice(separatorIndex + 1)
+  };
+}
+
+function readVariableCacheValue(
+  cache: NodeDebugPreviewVariableCache,
+  key: string
+) {
+  const parsed = parseVariableCacheItemKey(key);
+  if (!parsed) {
+    return { found: false as const };
+  }
+
+  const payload = cache[parsed.nodeId];
+  if (
+    !payload ||
+    !Object.prototype.hasOwnProperty.call(payload, parsed.variableKey)
+  ) {
+    return { found: false as const };
+  }
+
+  return { found: true as const, value: payload[parsed.variableKey] };
+}
+
+function applyVariableOverridesToGroups(
+  groups: AgentFlowVariableGroup[],
+  variableOverrides: NodeDebugPreviewVariableCache
+): AgentFlowVariableGroup[] {
+  if (Object.keys(variableOverrides).length === 0) {
+    return groups;
+  }
+
+  return groups.map((group) => ({
+    ...group,
+    items: group.items.map((item) => {
+      const override = readVariableCacheValue(variableOverrides, item.key);
+      return override.found ? { ...item, value: override.value } : item;
+    })
+  }));
 }
 
 function readOutputSelectorValue(
@@ -585,6 +577,10 @@ export function useAgentFlowDebugSession({
     useState<NodeDebugPreviewVariableCache>({});
   const [nodePreviewOutputCache, setNodePreviewOutputCache] =
     useState<NodeDebugPreviewVariableCache>({});
+  const [variableOverrides, setVariableOverrides] =
+    useState<NodeDebugPreviewVariableCache>(() =>
+      readPersistedVariableOverrides(storageKey)
+    );
   const [activeRunId, setActiveRunId] = useState<string | null>(() =>
     readPersistedLatestRunId(storageKey)
   );
@@ -597,7 +593,7 @@ export function useAgentFlowDebugSession({
     createDebugSessionState(
       applicationId,
       draftId,
-      readPersistedDebugSessionPayload(storageKey)?.debugSessionId
+      readPersistedDebugSessionId(storageKey)
     )
   );
   const lastSubmittedPromptRef = useRef<string | null>(null);
@@ -617,10 +613,11 @@ export function useAgentFlowDebugSession({
         : createDebugSessionState(
             applicationId,
             draftId,
-            readPersistedDebugSessionPayload(storageKey)?.debugSessionId
+            readPersistedDebugSessionId(storageKey)
           )
     );
     setActiveRunId(readPersistedLatestRunId(storageKey));
+    setVariableOverrides(readPersistedVariableOverrides(storageKey));
   }, [applicationId, debugSessionScope, draftId, storageKey]);
 
   useEffect(() => {
@@ -712,15 +709,18 @@ export function useAgentFlowDebugSession({
   );
   const variableGroups = useMemo<AgentFlowVariableGroup[]>(() => {
     if (lastDetail) {
-      return mapRunDetailToVariableGroups(lastDetail, {
-        applicationId,
-        draftId,
-        runContext,
-        nodeMetadata: nodeVariableDisplayMetadata,
-        debugSessionId: debugSessionState.id,
-        actorUserId,
-        environmentVariables
-      });
+      return applyVariableOverridesToGroups(
+        mapRunDetailToVariableGroups(lastDetail, {
+          applicationId,
+          draftId,
+          runContext,
+          nodeMetadata: nodeVariableDisplayMetadata,
+          debugSessionId: debugSessionState.id,
+          actorUserId,
+          environmentVariables
+        }),
+        variableOverrides
+      );
     }
 
     const groups = mapRunContextToVariableGroups(runContext, {
@@ -736,7 +736,10 @@ export function useAgentFlowDebugSession({
       nodeVariableDisplayMetadata
     );
 
-    return cacheGroups.length > 0 ? [...cacheGroups, ...groups] : groups;
+    return applyVariableOverridesToGroups(
+      cacheGroups.length > 0 ? [...cacheGroups, ...groups] : groups,
+      variableOverrides
+    );
   }, [
     applicationId,
     actorUserId,
@@ -747,7 +750,8 @@ export function useAgentFlowDebugSession({
     lastDetail,
     nodeVariableDisplayMetadata,
     nodePreviewOutputCache,
-    runContext
+    runContext,
+    variableOverrides
   ]);
 
   const clearPollTimer = useCallback(() => {
@@ -836,21 +840,32 @@ export function useAgentFlowDebugSession({
     }
   ) {
     const assistantMessage = mapRunDetailToConversation(detail);
+    const inputVariableCache = buildInputVariableCacheFromRunDetail(detail);
+    const outputVariableCache = buildOutputVariableCacheFromRunDetail(
+      document,
+      detail
+    );
+    const consumedVariableCache = mergeVariableCache(
+      inputVariableCache,
+      outputVariableCache
+    );
 
     setActiveRunId(detail.flow_run.id);
     writePersistedLatestRunId(storageKey, detail.flow_run.id);
     setLastDetail(detail);
+    setVariableOverrides((currentOverrides) => {
+      const nextOverrides = removeVariableCacheKeys(
+        currentOverrides,
+        consumedVariableCache
+      );
+      writePersistedVariableOverrides(storageKey, nextOverrides);
+      return nextOverrides;
+    });
     setNodePreviewInputCache((currentCache) =>
-      mergeVariableCache(
-        currentCache,
-        buildInputVariableCacheFromRunDetail(detail)
-      )
+      mergeVariableCache(currentCache, inputVariableCache)
     );
     setNodePreviewOutputCache((currentCache) =>
-      mergeVariableCache(
-        currentCache,
-        buildOutputVariableCacheFromRunDetail(document, detail)
-      )
+      mergeVariableCache(currentCache, outputVariableCache)
     );
     setStatus(assistantMessage.status);
     setMessages((currentMessages) =>
@@ -1287,7 +1302,60 @@ export function useAgentFlowDebugSession({
       };
     }
 
-    return cache;
+    return mergeVariableCache(cache, variableOverrides);
+  }
+
+  function setVariableCacheValue(key: string, value: unknown) {
+    const parsed = parseVariableCacheItemKey(key);
+    if (!parsed) {
+      return;
+    }
+
+    const nextOverridePayload = {
+      [parsed.nodeId]: {
+        [parsed.variableKey]: value
+      }
+    };
+
+    setVariableOverrides((currentOverrides) => {
+      const nextOverrides = mergeVariableCache(
+        currentOverrides,
+        nextOverridePayload
+      );
+      writePersistedVariableOverrides(storageKey, nextOverrides);
+      return nextOverrides;
+    });
+    setNodePreviewOutputCache((currentCache) =>
+      mergeVariableCache(currentCache, nextOverridePayload)
+    );
+    setRunContext((currentRunContext) => {
+      let changed = false;
+      const nextFields = currentRunContext.fields.map((field) => {
+        if (
+          field.nodeId !== parsed.nodeId ||
+          field.key !== parsed.variableKey
+        ) {
+          return field;
+        }
+        changed = true;
+        return { ...field, value };
+      });
+
+      if (!changed) {
+        return currentRunContext;
+      }
+
+      const nextRunContext = {
+        ...currentRunContext,
+        remembered: false,
+        fields: nextFields
+      };
+      writePersistedInputValues(
+        storageKey,
+        getRunContextValues(nextRunContext)
+      );
+      return nextRunContext;
+    });
   }
 
   function rememberNodePreviewInputs(
@@ -1307,20 +1375,32 @@ export function useAgentFlowDebugSession({
   }
 
   function rememberExternalRunDetail(detail: FlowDebugRunDetail) {
+    const inputVariableCache = buildInputVariableCacheFromRunDetail(detail);
+    const outputVariableCache = buildOutputVariableCacheFromRunDetail(
+      document,
+      detail
+    );
+    const consumedVariableCache = mergeVariableCache(
+      inputVariableCache,
+      outputVariableCache
+    );
+
     setActiveRunId(detail.flow_run.id);
     writePersistedLatestRunId(storageKey, detail.flow_run.id);
     setLastDetail(detail);
+    setVariableOverrides((currentOverrides) => {
+      const nextOverrides = removeVariableCacheKeys(
+        currentOverrides,
+        consumedVariableCache
+      );
+      writePersistedVariableOverrides(storageKey, nextOverrides);
+      return nextOverrides;
+    });
     setNodePreviewInputCache((currentCache) =>
-      mergeVariableCache(
-        currentCache,
-        buildInputVariableCacheFromRunDetail(detail)
-      )
+      mergeVariableCache(currentCache, inputVariableCache)
     );
     setNodePreviewOutputCache((currentCache) =>
-      mergeVariableCache(
-        currentCache,
-        buildOutputVariableCacheFromRunDetail(document, detail)
-      )
+      mergeVariableCache(currentCache, outputVariableCache)
     );
   }
 
@@ -1352,6 +1432,8 @@ export function useAgentFlowDebugSession({
     setStreamTraceItems([]);
     setNodePreviewInputCache({});
     setNodePreviewOutputCache({});
+    setVariableOverrides({});
+    writePersistedVariableOverrides(storageKey, {});
     setRunContext(buildRunContextFromDocument(document, null));
   }
 
@@ -1370,6 +1452,7 @@ export function useAgentFlowDebugSession({
     clearSession,
     setRunContextValue,
     getNodePreviewVariableCache,
+    setVariableCacheValue,
     rememberNodePreviewInputs,
     rememberNodePreviewOutputs,
     rememberExternalRunDetail,

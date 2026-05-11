@@ -813,6 +813,7 @@ export function AgentFlowCanvasFrame({
           }
         : current
     );
+    debugSession.setVariableCacheValue(key, value);
   }
   function getDocumentWithLatestViewport(
     currentDocument: FlowAuthoringDocument

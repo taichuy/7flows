@@ -560,6 +560,91 @@ describe('useAgentFlowDebugSession', () => {
     });
   });
 
+  test('persists edited variable cache values across editor remounts', async () => {
+    const queryClient = createQueryClient();
+    const document = createDefaultAgentFlowDocument({ flowId: 'flow-1' });
+    vi.spyOn(runtimeApi, 'startFlowDebugRun').mockResolvedValue(
+      createSucceededRunDetail()
+    );
+    vi.spyOn(runtimeApi, 'startFlowDebugRunStream').mockRejectedValue(
+      new Error('stream unavailable')
+    );
+    vi.spyOn(runtimeApi, 'fetchDebugVariableSnapshot').mockResolvedValue({
+      variable_cache: {
+        'node-llm': {
+          text: '后端持久化输出'
+        }
+      }
+    });
+
+    const view = renderHook(
+      () =>
+        useAgentFlowDebugSession({
+          applicationId: 'app-1',
+          draftId: 'draft-1',
+          document
+        }),
+      { wrapper: createWrapper(queryClient) }
+    );
+
+    await act(async () => {
+      await view.result.current.submitPrompt('请总结退款政策');
+    });
+
+    act(() => {
+      view.result.current.setVariableCacheValue(
+        'node-llm.text',
+        '手动调试缓存'
+      );
+    });
+
+    expect(view.result.current.getNodePreviewVariableCache()).toEqual(
+      expect.objectContaining({
+        'node-llm': expect.objectContaining({
+          text: '手动调试缓存'
+        })
+      })
+    );
+    expect(
+      view.result.current.variableGroups
+        .flatMap((group) => group.items)
+        .find((item) => item.key === 'node-llm.text')?.value
+    ).toBe('手动调试缓存');
+    expect(
+      JSON.parse(
+        window.localStorage.getItem(
+          buildAgentFlowDebugSessionStorageKey('app-1', 'draft-1')
+        ) ?? '{}'
+      ).variableOverrides
+    ).toEqual({
+      'node-llm': {
+        text: '手动调试缓存'
+      }
+    });
+
+    view.unmount();
+
+    const remounted = renderHook(
+      () =>
+        useAgentFlowDebugSession({
+          applicationId: 'app-1',
+          draftId: 'draft-1',
+          document
+        }),
+      { wrapper: createWrapper(queryClient) }
+    );
+
+    await waitFor(() => {
+      expect(remounted.result.current.getNodePreviewVariableCache()).toEqual(
+        expect.objectContaining({
+          'node-llm': expect.objectContaining({
+            text: '手动调试缓存'
+          })
+        })
+      );
+    });
+  });
+
   test('maps waiting_human runs to pending assistant state without fake output', async () => {
     const queryClient = createQueryClient();
     const document = createDefaultAgentFlowDocument({ flowId: 'flow-1' });
