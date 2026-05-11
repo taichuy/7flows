@@ -248,9 +248,6 @@ describe('useAgentFlowDebugSession', () => {
       .spyOn(runtimeApi, 'fetchDebugVariableSnapshot')
       .mockResolvedValue({
         variable_cache: {
-          'node-start': {
-            query: '沿用 durable 输入'
-          },
           'node-llm': {
             text: '沿用 durable 输出'
           }
@@ -270,9 +267,6 @@ describe('useAgentFlowDebugSession', () => {
     await waitFor(() => {
       expect(result.current.getNodePreviewVariableCache()).toEqual(
         expect.objectContaining({
-          'node-start': expect.objectContaining({
-            query: '沿用 durable 输入'
-          }),
           'node-llm': expect.objectContaining({
             text: '沿用 durable 输出'
           })
@@ -281,11 +275,11 @@ describe('useAgentFlowDebugSession', () => {
     });
     expect(result.current.variableGroups[0]).toEqual(
       expect.objectContaining({
-        title: 'Start',
+        title: 'LLM',
         items: expect.arrayContaining([
           expect.objectContaining({
-            key: 'node-start.query',
-            value: '沿用 durable 输入'
+            key: 'node-llm.text',
+            value: '沿用 durable 输出'
           })
         ])
       })

@@ -147,10 +147,8 @@ async fn debug_variable_snapshot_keeps_actor_run_scope_isolated() {
         snapshot["data"]["latest_run_scope"]["flow_run_id"],
         member_run_id
     );
-    assert_eq!(
-        snapshot["data"]["variable_cache"]["node-start"]["query"],
-        "root policy"
-    );
+    assert!(snapshot["data"]["variable_cache"]["node-start"].is_null());
+    assert!(snapshot["data"]["source_flow_run_ids"]["node-start"].is_null());
     assert_eq!(
         snapshot["data"]["variable_cache"]["node-llm"]["text"],
         "reply:root policy"
@@ -294,10 +292,8 @@ async fn debug_variable_snapshot_uses_flow_run_document_scope_after_compiled_pla
     assert_eq!(old_snapshot["data"]["variable_cache"], json!({}));
 
     let new_snapshot = get_snapshot(&app, &cookie, &application_id, "session-b").await;
-    assert_eq!(
-        new_snapshot["data"]["variable_cache"]["node-start"]["query"],
-        "new policy"
-    );
+    assert!(new_snapshot["data"]["variable_cache"]["node-start"].is_null());
+    assert_eq!(new_snapshot["data"]["source_flow_run_ids"], json!({}));
     assert_eq!(
         new_snapshot["data"]["variable_cache"]["node-llm"]["text"],
         "reply:new policy"
@@ -415,10 +411,8 @@ async fn debug_variable_snapshot_can_pin_to_explicit_run_id() {
 
     assert_eq!(snapshot["data"]["latest_run_scope"]["flow_run_id"], run_a);
     assert_ne!(snapshot["data"]["latest_run_scope"]["flow_run_id"], run_b);
-    assert_eq!(
-        snapshot["data"]["variable_cache"]["node-start"]["query"],
-        "policy A"
-    );
+    assert!(snapshot["data"]["variable_cache"]["node-start"].is_null());
+    assert_eq!(snapshot["data"]["source_flow_run_ids"], json!({}));
     assert_eq!(
         snapshot["data"]["variable_cache"]["node-llm"]["text"],
         "reply:policy A"

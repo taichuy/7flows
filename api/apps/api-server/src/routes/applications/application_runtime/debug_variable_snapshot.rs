@@ -1,4 +1,4 @@
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 
 use control_plane::ports::OrchestrationRuntimeRepository;
 use serde::Serialize;
@@ -116,50 +116,6 @@ fn collect_node_public_output_selectors(document: &serde_json::Value) -> NodeOut
     selectors
 }
 
-fn collect_start_public_input_keys(
-    document: &serde_json::Value,
-) -> HashMap<String, HashSet<String>> {
-    let mut public_inputs = HashMap::new();
-    let Some(nodes) = document
-        .get("graph")
-        .and_then(|graph| graph.get("nodes"))
-        .and_then(|nodes| nodes.as_array())
-    else {
-        return public_inputs;
-    };
-
-    for node in nodes {
-        if node.get("type").and_then(|value| value.as_str()) != Some("start") {
-            continue;
-        }
-        let Some(node_id) = node
-            .get("id")
-            .and_then(|value| value.as_str())
-            .map(str::to_string)
-        else {
-            continue;
-        };
-
-        let mut keys = HashSet::from(["query".to_string(), "files".to_string()]);
-        for input_fields_key in ["input_fields", "inputFields"] {
-            if let Some(fields) = node
-                .get("config")
-                .and_then(|config| config.get(input_fields_key))
-                .and_then(|value| value.as_array())
-            {
-                for field in fields {
-                    if let Some(key) = field.get("key").and_then(|value| value.as_str()) {
-                        keys.insert(key.to_string());
-                    }
-                }
-            }
-        }
-        public_inputs.insert(node_id, keys);
-    }
-
-    public_inputs
-}
-
 fn insert_variable_value(
     variable_cache: &mut serde_json::Map<String, serde_json::Value>,
     node_id: &str,
@@ -175,7 +131,7 @@ fn insert_variable_value(
     node_entry.insert(key.to_string(), value.clone());
 }
 
-fn insert_source_id(
+fn insert_node_run_source_id(
     source_map: &mut serde_json::Map<String, serde_json::Value>,
     node_id: &str,
     key: &str,
@@ -191,34 +147,6 @@ fn insert_source_id(
         key.to_string(),
         serde_json::Value::String(source_id.to_string()),
     );
-}
-
-fn merge_start_public_inputs(
-    variable_cache: &mut serde_json::Map<String, serde_json::Value>,
-    source_flow_run_ids: &mut serde_json::Map<String, serde_json::Value>,
-    input_payload: &serde_json::Value,
-    public_start_keys: &HashMap<String, HashSet<String>>,
-    flow_run_id: Uuid,
-) {
-    let Some(payload) = input_payload.as_object() else {
-        return;
-    };
-
-    for (node_id, node_payload) in payload {
-        let Some(allowed_keys) = public_start_keys.get(node_id) else {
-            continue;
-        };
-        let Some(node_payload) = node_payload.as_object() else {
-            continue;
-        };
-        for (key, value) in node_payload {
-            if !allowed_keys.contains(key) {
-                continue;
-            }
-            insert_variable_value(variable_cache, node_id, key, value);
-            insert_source_id(source_flow_run_ids, node_id, key, flow_run_id);
-        }
-    }
 }
 
 fn is_snapshot_public_node_status(status: domain::NodeRunStatus) -> bool {
@@ -247,7 +175,7 @@ fn merge_node_output_payload(
     for (key, selector) in node_selectors {
         if let Some(value) = read_output_selector(output_payload, selector) {
             insert_variable_value(variable_cache, &node_run.node_id, key, value);
-            insert_source_id(source_node_run_ids, &node_run.node_id, key, node_run.id);
+            insert_node_run_source_id(source_node_run_ids, &node_run.node_id, key, node_run.id);
         }
     }
 }
@@ -321,7 +249,6 @@ pub(super) async fn build_debug_variable_snapshot(
     run_id: Option<Uuid>,
     editor_state: &domain::FlowEditorState,
 ) -> Result<DebugVariableSnapshotResponse, ApiError> {
-    let public_start_keys = collect_start_public_input_keys(&editor_state.draft.document);
     let public_output_selectors =
         collect_node_public_output_selectors(&editor_state.draft.document);
     let document_hash = debug_snapshot_document_hash(&editor_state.draft.document);
@@ -338,16 +265,9 @@ pub(super) async fn build_debug_variable_snapshot(
                 "flow_run",
             ))?;
         let mut variable_cache = serde_json::Map::new();
-        let mut source_flow_run_ids = serde_json::Map::new();
+        let source_flow_run_ids = serde_json::Map::new();
         let mut source_node_run_ids = serde_json::Map::new();
 
-        merge_start_public_inputs(
-            &mut variable_cache,
-            &mut source_flow_run_ids,
-            &detail.flow_run.input_payload,
-            &public_start_keys,
-            detail.flow_run.id,
-        );
         for node_run in &detail.node_runs {
             merge_node_output_payload(
                 &mut variable_cache,
@@ -394,7 +314,7 @@ pub(super) async fn build_debug_variable_snapshot(
     )
     .await?;
     let mut variable_cache = serde_json::Map::new();
-    let mut source_flow_run_ids = serde_json::Map::new();
+    let source_flow_run_ids = serde_json::Map::new();
     let mut source_node_run_ids = serde_json::Map::new();
     let mut latest_run_scope = None;
     let mut snapshot_completeness = "empty";
@@ -424,13 +344,6 @@ pub(super) async fn build_debug_variable_snapshot(
 
         latest_run_scope = Some(to_debug_snapshot_run_scope(&detail.flow_run));
         snapshot_completeness = debug_snapshot_completeness(detail.flow_run.status);
-        merge_start_public_inputs(
-            &mut variable_cache,
-            &mut source_flow_run_ids,
-            &detail.flow_run.input_payload,
-            &public_start_keys,
-            detail.flow_run.id,
-        );
         for node_run in &detail.node_runs {
             merge_node_output_payload(
                 &mut variable_cache,
@@ -456,40 +369,4 @@ pub(super) async fn build_debug_variable_snapshot(
         source_node_run_ids: serde_json::Value::Object(source_node_run_ids),
         variable_cache: serde_json::Value::Object(variable_cache),
     })
-}
-
-#[cfg(test)]
-mod tests {
-    use super::collect_start_public_input_keys;
-    use serde_json::json;
-
-    #[test]
-    fn start_public_input_keys_ignore_legacy_start_outputs() {
-        let document = json!({
-            "graph": {
-                "nodes": [
-                    {
-                        "id": "node-start",
-                        "type": "start",
-                        "config": {
-                            "input_fields": [
-                                { "key": "customer_id" }
-                            ]
-                        },
-                        "outputs": [
-                            { "key": "legacy_output", "title": "Legacy", "valueType": "string" }
-                        ]
-                    }
-                ]
-            }
-        });
-
-        let keys = collect_start_public_input_keys(&document);
-        let start_keys = keys.get("node-start").expect("start keys should exist");
-
-        assert!(start_keys.contains("query"));
-        assert!(start_keys.contains("files"));
-        assert!(start_keys.contains("customer_id"));
-        assert!(!start_keys.contains("legacy_output"));
-    }
 }

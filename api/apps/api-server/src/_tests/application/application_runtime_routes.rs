@@ -820,18 +820,12 @@ async fn get_debug_variable_snapshot_restores_latest_preview_inputs_and_outputs(
             "target_node_id": "node-llm"
         })
     );
-    assert_eq!(
-        payload["data"]["variable_cache"]["node-start"]["query"],
-        "总结退款政策"
-    );
+    assert!(payload["data"]["variable_cache"]["node-start"].is_null());
+    assert_eq!(payload["data"]["source_flow_run_ids"], json!({}));
     assert!(payload["data"]["variable_cache"]["node-llm"]["prompt_messages"].is_null());
     assert_eq!(
         payload["data"]["variable_cache"]["node-llm"]["text"],
         "reply:总结退款政策"
-    );
-    assert_eq!(
-        payload["data"]["source_flow_run_ids"]["node-start"]["query"],
-        flow_run_id
     );
     assert_eq!(
         payload["data"]["source_node_run_ids"]["node-llm"]["text"],
@@ -1547,30 +1541,7 @@ async fn application_runtime_routes_runtime_debug_artifact_full_load_returns_ori
         .await
         .unwrap();
     let snapshot_payload: Value = serde_json::from_slice(&snapshot_body).unwrap();
-    let snapshot_preview = &snapshot_payload["data"]["variable_cache"]["node-start"]["query"];
-
-    assert_eq!(snapshot_preview["__runtime_debug_artifact"], true);
-    assert_eq!(snapshot_preview["is_truncated"], true);
-    let snapshot_artifact_ref = snapshot_preview["artifact_ref"].as_str().unwrap();
-    let snapshot_artifact_response = app
-        .clone()
-        .oneshot(
-            Request::builder()
-                .uri(format!(
-                    "/api/console/applications/{application_id}/orchestration/debug-artifacts/{snapshot_artifact_ref}"
-                ))
-                .header("cookie", &cookie)
-                .body(Body::empty())
-                .unwrap(),
-        )
-        .await
-        .unwrap();
-    assert_eq!(snapshot_artifact_response.status(), StatusCode::OK);
-    let snapshot_artifact_body = to_bytes(snapshot_artifact_response.into_body(), usize::MAX)
-        .await
-        .unwrap();
-    let snapshot_full_payload: Value = serde_json::from_slice(&snapshot_artifact_body).unwrap();
-    assert_eq!(snapshot_full_payload, large_query);
+    assert!(snapshot_payload["data"]["variable_cache"]["node-start"].is_null());
 
     let detail = wait_for_run_detail(
         &app,
