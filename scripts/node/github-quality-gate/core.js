@@ -8,6 +8,7 @@ const { BACKEND_CONSISTENCY_TARGETS } = require('../verify/index.js');
 
 const OUTPUT_ROOT = path.join('tmp', 'test-governance');
 const BACKEND_CONSISTENCY_TARGET_REPORT_FILE = 'backend-consistency-targets.json';
+const DEFAULT_AGGREGATE_SCOPES = ['repo', 'backend-consistency', 'coverage'];
 const VALID_SCOPES = new Set(['ci', 'repo', 'backend', 'backend-consistency', 'coverage']);
 const VALID_REPORT_TYPES = new Set(['ci', 'cd']);
 const MAX_GATE_OUTPUT_BYTES = 64 * 1024 * 1024;
@@ -443,6 +444,226 @@ function buildReport({
   };
 }
 
+function readQualityGateArtifactReports({ repoRoot, artifactRoot }) {
+  const absoluteArtifactRoot = path.isAbsolute(artifactRoot)
+    ? artifactRoot
+    : path.join(repoRoot, artifactRoot);
+
+  if (!fs.existsSync(absoluteArtifactRoot)) {
+    return [];
+  }
+
+  const reports = listFilesBySuffix(absoluteArtifactRoot, 'quality-gate-report.json')
+    .map((reportPath) => {
+      const report = readJsonFileIfPresent(reportPath);
+
+      if (!report) {
+        return null;
+      }
+
+      const artifactPath = path.dirname(reportPath);
+      const artifactName = path.relative(absoluteArtifactRoot, artifactPath).split(path.sep)[0]
+        || path.basename(artifactPath);
+      const scope = report.scope || artifactName.replace(/^test-governance-/u, '');
+
+      return {
+        artifactName,
+        artifactPath,
+        reportPath,
+        scope,
+        report,
+      };
+    })
+    .filter(Boolean);
+
+  return reports.sort((left, right) => left.scope.localeCompare(right.scope));
+}
+
+function dedupeBy(items, keyForItem) {
+  const seen = new Set();
+  const deduped = [];
+
+  for (const item of items) {
+    const key = keyForItem(item);
+
+    if (seen.has(key)) {
+      continue;
+    }
+
+    seen.add(key);
+    deduped.push(item);
+  }
+
+  return deduped;
+}
+
+function normalizeComponentReport({ repoRoot, artifact }) {
+  const exitCode = Number.isFinite(artifact.report.exitCode) ? artifact.report.exitCode : 1;
+  const status = artifact.report.status === 'passed' && exitCode === 0 ? 'passed' : 'failed';
+  const logPath = artifact.artifactPath
+    ? path.join(artifact.artifactPath, 'quality-gate.latest.log')
+    : '';
+
+  return {
+    artifactName: artifact.artifactName,
+    scope: artifact.scope,
+    status,
+    exitCode,
+    reportPath: artifact.reportPath ? toRepoRelative(repoRoot, artifact.reportPath) : '',
+    logPath: fs.existsSync(logPath) ? toRepoRelative(repoRoot, logPath) : '',
+    failureExcerpt: status === 'failed'
+      ? (artifact.missing ? `No quality gate artifact was downloaded for scope: ${artifact.scope}` : readFailureExcerpt(logPath))
+      : '',
+  };
+}
+
+function addMissingAggregateScopes({ componentArtifacts, expectedScopes }) {
+  const seenScopes = new Set(componentArtifacts.map((artifact) => artifact.scope));
+  const missingArtifacts = expectedScopes
+    .filter((scope) => !seenScopes.has(scope))
+    .map((scope) => ({
+      artifactName: `missing-${scope}`,
+      artifactPath: '',
+      reportPath: '',
+      scope,
+      missing: true,
+      report: {
+        status: 'failed',
+        scope,
+        exitCode: 1,
+        coverageSummaries: [],
+        backendConsistencyTargets: [],
+        warningFiles: [],
+      },
+    }));
+
+  return [...componentArtifacts, ...missingArtifacts]
+    .sort((left, right) => left.scope.localeCompare(right.scope));
+}
+
+function buildAggregateReport({
+  repoRoot,
+  reportType,
+  componentArtifacts,
+  issueUrl,
+  environmentName,
+  timestamp,
+  env,
+}) {
+  const components = componentArtifacts.map((artifact) => normalizeComponentReport({ repoRoot, artifact }));
+  const status = components.every((component) => component.status === 'passed') ? 'passed' : 'failed';
+  const exitCode = status === 'passed'
+    ? 0
+    : components.find((component) => component.exitCode !== 0)?.exitCode || 1;
+  const warningFiles = dedupeBy(
+    componentArtifacts.flatMap((artifact) => artifact.report.warningFiles || []),
+    (filePath) => filePath
+  );
+  const coverageSummaries = dedupeBy(
+    componentArtifacts.flatMap((artifact) => artifact.report.coverageSummaries || []),
+    (summary) => `${summary.kind || 'unknown'}:${summary.name}:${summary.path}`
+  );
+  const backendConsistencyTargets = componentArtifacts.flatMap(
+    (artifact) => artifact.report.backendConsistencyTargets || []
+  );
+  const runUrl = buildRunUrl(env);
+  const shortSha = shortShaFromEnv(env);
+  const outputDir = path.join(repoRoot, OUTPUT_ROOT);
+  const logPath = path.join(outputDir, 'quality-gate.latest.log');
+
+  const report = {
+    reportType,
+    status,
+    scope: 'ci',
+    exitCode,
+    branch: env.GITHUB_REF_NAME || '',
+    commit: env.GITHUB_SHA || '',
+    shortSha,
+    actor: env.GITHUB_ACTOR || '',
+    workflow: env.GITHUB_WORKFLOW || '',
+    runUrl,
+    environment: environmentName || '',
+    timestamp,
+    issueUrl,
+    logPath: toRepoRelative(repoRoot, logPath),
+    warningFiles,
+    coverageFiles: coverageSummaries.map((summary) => summary.path).filter(Boolean),
+    coverageSummaries,
+    backendConsistencyTargets,
+    components,
+  };
+
+  const failedComponents = components.filter((component) => component.status !== 'passed');
+  const markdown = [
+    '# Quality Gate Report',
+    '',
+    '## Result Summary',
+    '',
+    `- Type: ${reportType.toUpperCase()}`,
+    `- Status: ${status}`,
+    `- Exit code: ${exitCode}`,
+    '- Scope: ci',
+    environmentName ? `- Environment: ${environmentName}` : null,
+    `- Branch: ${report.branch || 'unknown'}`,
+    `- Commit: ${report.commit || 'unknown'}`,
+    `- Actor: ${report.actor || 'unknown'}`,
+    runUrl ? `- Run: ${runUrl}` : null,
+    '',
+    '## Component Results',
+    '',
+    '| Scope | Status | Exit code | Artifact |',
+    '| --- | --- | ---: | --- |',
+    ...components.map((component) => (
+      `| \`${component.scope}\` | ${component.status} | ${component.exitCode} | `
+        + `\`${component.artifactName}\` |`
+    )),
+    '',
+    '## Warnings',
+    '',
+    warningFiles.length === 0 ? 'No warning logs were captured.' : null,
+    ...warningFiles.map((filePath) => `- ${filePath}`),
+    '',
+    '## Coverage',
+    '',
+    coverageSummaries.length === 0 ? 'No coverage summaries were captured for this scope.' : null,
+    ...coverageSummaries.map(formatCoverageSummaryLine),
+    '',
+    backendConsistencyTargets.length > 0 ? '## Backend Consistency Targets' : null,
+    backendConsistencyTargets.length > 0 ? '' : null,
+    backendConsistencyTargets.length > 0 ? '| Label | Package | Rust test filter | Status | Duration | Passed | Failed |' : null,
+    backendConsistencyTargets.length > 0 ? '| --- | --- | --- | --- | ---: | ---: | ---: |' : null,
+    ...backendConsistencyTargets.map(formatBackendConsistencyTargetLine),
+    '',
+    '## Evidence',
+    '',
+    `- Main log: ${report.logPath}`,
+    '- Artifact: test-governance-artifacts',
+    ...components.flatMap((component) => [
+      component.reportPath ? `- Component report: ${component.reportPath}` : null,
+      component.logPath ? `- Component log: ${component.logPath}` : null,
+    ]),
+    ...warningFiles.map((filePath) => `- Warning log: ${filePath}`),
+    ...coverageSummaries.map((summary) => `- Coverage summary file: ${summary.path}`),
+    ...failedComponents.flatMap((component) => (
+      component.failureExcerpt
+        ? [
+          '',
+          `## Failure Excerpt: ${component.scope}`,
+          '',
+          '```text',
+          component.failureExcerpt,
+          '```',
+        ]
+        : []
+    )),
+  ].filter((line) => line !== null).join('\n');
+
+  return {
+    markdown: `${markdown}\n`,
+    json: report,
+  };
+}
+
 function writeReports({ repoRoot, report }) {
   const outputDir = ensureOutputDir(repoRoot);
   const markdownPath = path.join(outputDir, 'quality-gate-report.md');
@@ -721,6 +942,127 @@ function runGateCommand({
   return result.status ?? 1;
 }
 
+async function runQualityGateAggregate({
+  repoRoot = getRepoRoot(),
+  artifactRoot = path.join(OUTPUT_ROOT, 'parallel'),
+  expectedScopes = DEFAULT_AGGREGATE_SCOPES,
+  reportType = 'ci',
+  publishIssue = false,
+  githubToken = '',
+  environmentName = '',
+  env = process.env,
+  nowImpl = () => new Date(),
+  createIssueImpl = createIssueWithGitHubApi,
+  listOpenQualityGateIssuesImpl = listOpenQualityGateIssuesWithGitHubApi,
+  closeIssueImpl = closeIssueWithGitHubApi,
+} = {}) {
+  const normalizedReportType = normalizeReportType(reportType);
+  const outputDir = ensureOutputDir(repoRoot);
+  const componentArtifacts = addMissingAggregateScopes({
+    componentArtifacts: readQualityGateArtifactReports({ repoRoot, artifactRoot }),
+    expectedScopes,
+  });
+  const timestamp = formatTimestamp(nowImpl());
+  const aggregateLogPath = path.join(outputDir, 'quality-gate.latest.log');
+  fs.writeFileSync(
+    aggregateLogPath,
+    componentArtifacts
+      .map((artifact) => {
+        const componentLogPath = path.join(artifact.artifactPath, 'quality-gate.latest.log');
+        const componentLog = fs.existsSync(componentLogPath)
+          ? fs.readFileSync(componentLogPath, 'utf8').trimEnd()
+          : '';
+
+        return [
+          `===== ${artifact.scope} (${artifact.artifactName}) =====`,
+          componentLog,
+        ].filter(Boolean).join('\n');
+      })
+      .join('\n\n'),
+    'utf8'
+  );
+
+  let issueUrl = '';
+  const report = buildAggregateReport({
+    repoRoot,
+    reportType: normalizedReportType,
+    componentArtifacts,
+    issueUrl,
+    environmentName,
+    timestamp,
+    env,
+  });
+  const reportPaths = writeReports({ repoRoot, report });
+
+  if (publishIssue) {
+    if (!githubToken) {
+      throw new Error('github_token is required when publish_issue is true');
+    }
+
+    const issue = await createIssueWithLabelFallback({
+      createIssueImpl,
+      issue: {
+        token: githubToken,
+        repository: env.GITHUB_REPOSITORY,
+        title: buildIssueTitle({
+          reportType: normalizedReportType,
+          timestamp,
+          branch: env.GITHUB_REF_NAME || '',
+          shortSha: shortShaFromEnv(env),
+          status: report.json.status,
+          environment: environmentName,
+        }),
+        body: report.markdown,
+        labels: buildIssueLabels({
+          reportType: normalizedReportType,
+          status: report.json.status,
+        }),
+      },
+    });
+    issueUrl = issue.html_url || '';
+    await closeStaleOpenQualityGateIssues({
+      token: githubToken,
+      repository: env.GITHUB_REPOSITORY,
+      latestIssue: issue,
+      listOpenQualityGateIssuesImpl,
+      closeIssueImpl,
+    });
+  }
+
+  const finalReport = issueUrl
+    ? buildAggregateReport({
+      repoRoot,
+      reportType: normalizedReportType,
+      componentArtifacts,
+      issueUrl,
+      environmentName,
+      timestamp,
+      env,
+    })
+    : report;
+
+  if (issueUrl) {
+    writeReports({ repoRoot, report: finalReport });
+  }
+
+  appendStepSummary(finalReport.markdown);
+  writeActionOutputs({
+    status: finalReport.json.status,
+    exit_code: finalReport.json.exitCode,
+    report_path: toRepoRelative(repoRoot, reportPaths.markdownPath),
+    report_json_path: toRepoRelative(repoRoot, reportPaths.jsonPath),
+    issue_url: issueUrl,
+  });
+
+  return {
+    status: finalReport.json.status,
+    exitCode: finalReport.json.exitCode,
+    issueUrl,
+    reportPath: reportPaths.markdownPath,
+    reportJsonPath: reportPaths.jsonPath,
+  };
+}
+
 async function runQualityGate({
   repoRoot = getRepoRoot(),
   scope = 'ci',
@@ -838,6 +1180,7 @@ async function runQualityGate({
 }
 
 module.exports = {
+  buildAggregateReport,
   buildGateCommand,
   buildIssueLabels,
   buildIssueTitle,
@@ -846,5 +1189,6 @@ module.exports = {
   createIssueWithGitHubApi,
   listOpenQualityGateIssuesWithGitHubApi,
   parseBooleanInput,
+  runQualityGateAggregate,
   runQualityGate,
 };

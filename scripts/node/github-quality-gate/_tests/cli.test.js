@@ -5,6 +5,10 @@ const os = require('node:os');
 const path = require('node:path');
 
 const { main, readInputs } = require('../../github-quality-gate.js');
+const {
+  main: aggregateMain,
+  readInputs: readAggregateInputs,
+} = require('../../github-quality-gate-aggregate.js');
 
 test('readInputs maps GitHub action environment inputs', () => {
   assert.deepEqual(readInputs({
@@ -95,4 +99,50 @@ test('main forwards quality issue maintenance dependencies to the runner', async
 
   assert.equal(status, 0);
   assert.deepEqual(closedIssues, [17]);
+});
+
+test('readAggregateInputs maps aggregate environment inputs', () => {
+  assert.deepEqual(readAggregateInputs({
+    INPUT_ARTIFACT_ROOT: 'tmp/test-governance/parallel',
+    INPUT_REPORT_TYPE: 'ci',
+    INPUT_PUBLISH_ISSUE: 'true',
+    INPUT_GITHUB_TOKEN: 'token',
+    INPUT_ENVIRONMENT: 'nightly-latest',
+  }), {
+    artifactRoot: 'tmp/test-governance/parallel',
+    reportType: 'ci',
+    publishIssue: true,
+    githubToken: 'token',
+    environmentName: 'nightly-latest',
+  });
+});
+
+test('aggregateMain returns the aggregate quality gate exit code', async () => {
+  const repoRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'oneflowbase-quality-gate-aggregate-cli-'));
+  const artifactDir = path.join(repoRoot, 'tmp', 'test-governance', 'parallel', 'test-governance-repo');
+  fs.mkdirSync(artifactDir, { recursive: true });
+  fs.writeFileSync(
+    path.join(artifactDir, 'quality-gate-report.json'),
+    `${JSON.stringify({
+      reportType: 'ci',
+      status: 'failed',
+      scope: 'repo',
+      exitCode: 1,
+      coverageSummaries: [],
+      backendConsistencyTargets: [],
+      warningFiles: [],
+    })}\n`,
+    'utf8'
+  );
+
+  const status = await aggregateMain([], {
+    repoRoot,
+    env: {
+      INPUT_ARTIFACT_ROOT: 'tmp/test-governance/parallel',
+      INPUT_REPORT_TYPE: 'ci',
+      INPUT_PUBLISH_ISSUE: 'false',
+    },
+  });
+
+  assert.equal(status, 1);
 });

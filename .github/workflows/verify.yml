@@ -16,7 +16,48 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  verify:
+  repo-gate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: pnpm/action-setup@v5
+        with:
+          version: 10
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: web/pnpm-lock.yaml
+      - run: pnpm --dir web install --frozen-lockfile
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: ./.github/actions/quality-gate
+        with:
+          scope: repo
+          report_type: ci
+          publish_issue: "false"
+      - uses: actions/upload-artifact@v6
+        if: always()
+        with:
+          name: test-governance-repo
+          path: tmp/test-governance
+
+  backend-consistency-gate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: ./.github/actions/quality-gate
+        with:
+          scope: backend-consistency
+          report_type: ci
+          publish_issue: "false"
+      - uses: actions/upload-artifact@v6
+        if: always()
+        with:
+          name: test-governance-backend-consistency
+          path: tmp/test-governance
+
+  coverage-gate:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
@@ -33,10 +74,35 @@ jobs:
       - uses: taiki-e/install-action@cargo-llvm-cov
       - uses: ./.github/actions/quality-gate
         with:
-          scope: ci
+          scope: coverage
           report_type: ci
-          publish_issue: ${{ github.event_name == 'push' && github.ref == 'refs/heads/latest' }}
-          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_issue: "false"
+      - uses: actions/upload-artifact@v6
+        if: always()
+        with:
+          name: test-governance-coverage
+          path: tmp/test-governance
+
+  verify:
+    needs:
+      - repo-gate
+      - backend-consistency-gate
+      - coverage-gate
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/download-artifact@v6
+        with:
+          pattern: test-governance-*
+          path: tmp/test-governance/parallel
+          merge-multiple: false
+      - run: node scripts/node/github-quality-gate-aggregate.js
+        env:
+          INPUT_ARTIFACT_ROOT: tmp/test-governance/parallel
+          INPUT_REPORT_TYPE: ci
+          INPUT_PUBLISH_ISSUE: ${{ github.event_name == 'push' && github.ref == 'refs/heads/latest' }}
+          INPUT_GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - uses: actions/upload-artifact@v6
         if: always()
         with:

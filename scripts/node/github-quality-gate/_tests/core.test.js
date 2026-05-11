@@ -10,6 +10,7 @@ const {
   buildIssueTitle,
   buildIssueLabels,
   parseBooleanInput,
+  runQualityGateAggregate,
   runQualityGate,
 } = require('../core.js');
 
@@ -554,4 +555,105 @@ test('runQualityGate publishes the rust failure block when cargo stderr hides it
   assert.match(createdIssues[0].body, /PoolTimedOut/u);
   assert.match(createdIssues[0].body, /test result: FAILED\. 68 passed; 111 failed/u);
   assert.doesNotMatch(createdIssues[0].body, /Compiling crate-99/u);
+});
+
+test('runQualityGateAggregate publishes one report from parallel quality gate artifacts', async () => {
+  const repoRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'oneflowbase-quality-gate-aggregate-'));
+  const artifactRoot = path.join(repoRoot, 'tmp', 'test-governance', 'parallel');
+  const createdIssues = [];
+
+  const writeArtifact = (artifactName, report) => {
+    const artifactDir = path.join(artifactRoot, artifactName);
+    fs.mkdirSync(artifactDir, { recursive: true });
+    fs.writeFileSync(
+      path.join(artifactDir, 'quality-gate-report.json'),
+      `${JSON.stringify(report, null, 2)}\n`,
+      'utf8'
+    );
+    fs.writeFileSync(path.join(artifactDir, 'quality-gate.latest.log'), `${report.scope} log\n`, 'utf8');
+  };
+
+  writeArtifact('test-governance-repo', {
+    reportType: 'ci',
+    status: 'passed',
+    scope: 'repo',
+    exitCode: 0,
+    coverageSummaries: [],
+    backendConsistencyTargets: [],
+    warningFiles: [],
+  });
+  writeArtifact('test-governance-backend-consistency', {
+    reportType: 'ci',
+    status: 'passed',
+    scope: 'backend-consistency',
+    exitCode: 0,
+    coverageSummaries: [],
+    backendConsistencyTargets: [{
+      label: 'consistency-runtime-engine',
+      packageName: 'runtime-core',
+      filter: 'runtime_engine_tests',
+      status: 'passed',
+      exitCode: 0,
+      durationMs: 250,
+      passedCount: 9,
+      failedCount: 0,
+    }],
+    warningFiles: [],
+  });
+  writeArtifact('test-governance-coverage', {
+    reportType: 'ci',
+    status: 'passed',
+    scope: 'coverage',
+    exitCode: 0,
+    coverageSummaries: [{
+      name: 'frontend total',
+      kind: 'frontend',
+      path: 'tmp/test-governance/coverage/frontend/coverage-summary.json',
+      metrics: {
+        lines: 80,
+        functions: 75,
+        statements: 80,
+        branches: 78,
+      },
+    }],
+    backendConsistencyTargets: [],
+    warningFiles: [],
+  });
+
+  const result = await runQualityGateAggregate({
+    repoRoot,
+    artifactRoot: path.join('tmp', 'test-governance', 'parallel'),
+    reportType: 'ci',
+    publishIssue: true,
+    githubToken: 'token',
+    env: {
+      GITHUB_ACTOR: 'taichu',
+      GITHUB_REF_NAME: 'latest',
+      GITHUB_REPOSITORY: 'taichuy/1flowbase',
+      GITHUB_RUN_ID: '999',
+      GITHUB_SERVER_URL: 'https://github.com',
+      GITHUB_SHA: 'abcdef1234567890',
+      GITHUB_WORKFLOW: 'verify',
+    },
+    createIssueImpl(issue) {
+      createdIssues.push(issue);
+      return { html_url: 'https://github.com/taichuy/1flowbase/issues/7' };
+    },
+    listOpenQualityGateIssuesImpl() {
+      return [];
+    },
+  });
+
+  assert.equal(result.status, 'passed');
+  assert.equal(result.exitCode, 0);
+  assert.equal(createdIssues.length, 1);
+  assert.match(createdIssues[0].body, /## Component Results/u);
+  assert.match(createdIssues[0].body, /\| `repo` \| passed \| 0 \|/u);
+  assert.match(createdIssues[0].body, /\| `coverage` \| passed \| 0 \|/u);
+  assert.match(createdIssues[0].body, /frontend total: lines 80\.00%, functions 75\.00%, statements 80\.00%, branches 78\.00%/u);
+  assert.match(createdIssues[0].body, /consistency-runtime-engine/u);
+  assert.equal(
+    fs.existsSync(path.join(repoRoot, 'tmp', 'test-governance', 'quality-gate-report.json')),
+    true
+  );
 });

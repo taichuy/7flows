@@ -6,7 +6,7 @@ This directory owns GitHub Actions automation for repository quality gates.
 
 | Path | Purpose |
 | --- | --- |
-| `.github/workflows/verify.yml` | Automatic CI for `pull_request` and `push` to `main` / `latest`; only `latest` push publishes quality-gate issues. |
+| `.github/workflows/verify.yml` | Automatic CI for `pull_request` and `push` to `main` / `latest`; runs repo, backend consistency, and coverage gates in parallel, then publishes one aggregate issue only for `latest` pushes. |
 | `.github/workflows/quality-gate.yml` | Manual and nightly quality gate run that creates one new GitHub Issue report per run. |
 | `.github/actions/quality-gate/action.yml` | Reusable repository-local action used by CI, manual, and nightly quality gates. |
 
@@ -18,18 +18,26 @@ This directory owns GitHub Actions automation for repository quality gates.
 - `push` to `main`
 - `push` to `latest`
 
-It calls the local Quality Gate Action with:
+It runs three local Quality Gate Action jobs in parallel:
 
 ```yaml
-scope: ci
-report_type: ci
-publish_issue: ${{ github.event_name == 'push' && github.ref == 'refs/heads/latest' }}
+scope: repo
+scope: backend-consistency
+scope: coverage
 ```
 
-Automatic CI creates a GitHub Issue only for `latest` branch pushes and uploads
-`tmp/test-governance` as the `test-governance-artifacts` artifact. The issue body includes
-the quality gate result summary, warning status, coverage percentages, evidence paths, and
-a failure excerpt when the gate fails. Use the artifact for full logs and raw coverage files.
+The final aggregate job downloads the three component artifacts and publishes a single
+report with:
+
+```yaml
+INPUT_PUBLISH_ISSUE: ${{ github.event_name == 'push' && github.ref == 'refs/heads/latest' }}
+```
+
+Automatic CI creates a GitHub Issue only for `latest` branch pushes and uploads the
+merged `tmp/test-governance` directory as the `test-governance-artifacts` artifact. The
+issue body includes the aggregate result summary, component status table, warning status,
+coverage percentages, evidence paths, and a failure excerpt when a component gate fails.
+Use the artifact for full logs and raw coverage files.
 Runs use branch-level concurrency, so a newer push cancels an older in-progress quality gate
 for the same branch before stale runs can publish or close quality issues.
 

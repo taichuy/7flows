@@ -38,9 +38,26 @@ test('verify workflow runs on main and latest but only publishes quality reports
   assert.match(workflow, /concurrency:\n\s+group: quality-gate-\$\{\{ github\.ref_name \}\}\n\s+cancel-in-progress: true/u);
   assert.match(
     workflow,
-    /publish_issue: \$\{\{ github\.event_name == 'push' && github\.ref == 'refs\/heads\/latest' \}\}/u
+    /INPUT_PUBLISH_ISSUE: \$\{\{ github\.event_name == 'push' && github\.ref == 'refs\/heads\/latest' \}\}/u
   );
-  assert.doesNotMatch(workflow, /publish_issue: .+refs\/heads\/main/u);
+  assert.doesNotMatch(workflow, /INPUT_PUBLISH_ISSUE: .+refs\/heads\/main/u);
+});
+
+test('verify workflow runs quality gate scopes in parallel before one aggregate report', () => {
+  const workflow = readVerifyWorkflow();
+
+  assert.match(workflow, /repo-gate:\n\s+runs-on: ubuntu-latest/u);
+  assert.match(workflow, /backend-consistency-gate:\n\s+runs-on: ubuntu-latest/u);
+  assert.match(workflow, /coverage-gate:\n\s+runs-on: ubuntu-latest/u);
+  assert.match(workflow, /verify:\n\s+needs:\n\s+- repo-gate\n\s+- backend-consistency-gate\n\s+- coverage-gate/u);
+  assert.match(workflow, /scope: repo/u);
+  assert.match(workflow, /scope: backend-consistency/u);
+  assert.match(workflow, /scope: coverage/u);
+  assert.match(workflow, /name: test-governance-repo/u);
+  assert.match(workflow, /name: test-governance-backend-consistency/u);
+  assert.match(workflow, /name: test-governance-coverage/u);
+  assert.match(workflow, /merge-multiple: false/u);
+  assert.match(workflow, /node scripts\/node\/github-quality-gate-aggregate\.js/u);
 });
 
 test('GitHub automation docs describe latest-only issue publishing', () => {
@@ -49,7 +66,7 @@ test('GitHub automation docs describe latest-only issue publishing', () => {
   assert.match(readme, /push` to `latest`/u);
   assert.match(
     readme,
-    /publish_issue: \$\{\{ github\.event_name == 'push' && github\.ref == 'refs\/heads\/latest' \}\}/u
+    /INPUT_PUBLISH_ISSUE: \$\{\{ github\.event_name == 'push' && github\.ref == 'refs\/heads\/latest' \}\}/u
   );
   assert.match(readme, /creates a GitHub Issue only for `latest` branch pushes/u);
   assert.doesNotMatch(readme, /main branch push failures/u);
