@@ -330,6 +330,24 @@ function removeCachedVariableItemsFromGroups(
   });
 }
 
+function mergeVariableGroupsByTitle(
+  groups: AgentFlowVariableGroup[]
+): AgentFlowVariableGroup[] {
+  const groupsByTitle = new Map<string, AgentFlowVariableGroup>();
+
+  for (const group of groups) {
+    const existing = groupsByTitle.get(group.title);
+    if (existing) {
+      existing.items.push(...group.items);
+      continue;
+    }
+
+    groupsByTitle.set(group.title, { ...group, items: [...group.items] });
+  }
+
+  return Array.from(groupsByTitle.values());
+}
+
 function readOutputSelectorValue(
   payload: Record<string, unknown>,
   selector: string[]
@@ -638,7 +656,9 @@ export function useAgentFlowDebugSession({
     );
 
     return applyVariableOverridesToGroups(
-      cacheGroups.length > 0 ? [...cacheGroups, ...uncachedGroups] : groups,
+      cacheGroups.length > 0
+        ? mergeVariableGroupsByTitle([...cacheGroups, ...uncachedGroups])
+        : groups,
       variableOverrides
     );
   }, [

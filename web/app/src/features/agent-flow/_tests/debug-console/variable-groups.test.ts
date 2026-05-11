@@ -258,9 +258,7 @@ describe('debug console variable groups', () => {
       runContext
     });
 
-    const inputGroup = variableGroups.find(
-      (group) => group.title === 'Input Variables'
-    );
+    const inputGroup = variableGroups.find((group) => group.title === 'Start');
     const inputKeys = (inputGroup?.items ?? []).map((item) => item.key);
 
     expect(inputKeys).toEqual(

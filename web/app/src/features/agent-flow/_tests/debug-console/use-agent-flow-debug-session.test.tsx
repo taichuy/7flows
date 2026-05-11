@@ -496,13 +496,7 @@ describe('useAgentFlowDebugSession', () => {
     expect(fetchSnapshotSpy).toHaveBeenCalledTimes(2);
     expect(fetchSnapshotSpy).toHaveBeenLastCalledWith('app-1', undefined);
     expect(result.current.variableGroups.map((group) => group.title)).toEqual(
-      expect.arrayContaining(['LLM', 'Input Variables'])
-    );
-    const inputVariablesGroup = result.current.variableGroups.find(
-      (group) => group.title === 'Input Variables'
-    );
-    const inputVariablesKeys = (inputVariablesGroup?.items ?? []).map(
-      (item) => item.key
+      expect.arrayContaining(['LLM', 'Start'])
     );
     const startGroup = result.current.variableGroups.find(
       (group) => group.title === 'Start'
@@ -510,9 +504,9 @@ describe('useAgentFlowDebugSession', () => {
     const startKeys = (startGroup?.items ?? []).map((item) => item.key);
 
     expect(startKeys).toContain('node-start.query');
-    expect(inputVariablesKeys).not.toContain('node-start.query');
-    expect(inputVariablesKeys).not.toContain('node-llm.user_prompt');
-    expect(inputVariablesKeys).not.toContain('node-answer.answer_template');
+    expect(startKeys).toContain('node-start.model');
+    expect(startKeys).not.toContain('node-llm.user_prompt');
+    expect(startKeys).not.toContain('node-answer.answer_template');
     expect(result.current.getNodePreviewVariableCache()).toEqual(
       expect.objectContaining({
         'node-start': expect.objectContaining({
