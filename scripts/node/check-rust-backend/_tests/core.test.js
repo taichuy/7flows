@@ -153,3 +153,45 @@ test('main writes a report and fails when error findings exist', async () => {
     true
   );
 });
+
+test('baseline suppression survives unrelated line shifts', async () => {
+  const repoRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'oneflowbase-rust-gate-baseline-'));
+  fs.mkdirSync(path.join(repoRoot, 'api', 'crates', 'domain', 'src'), { recursive: true });
+  fs.mkdirSync(path.join(repoRoot, 'scripts', 'node', 'check-rust-backend'), { recursive: true });
+  fs.writeFileSync(
+    path.join(repoRoot, 'api', 'crates', 'domain', 'src', 'existing.rs'),
+    [
+      '',
+      '',
+      'pub fn existing() { Some(1).unwrap(); }',
+    ].join('\n')
+  );
+  fs.writeFileSync(
+    path.join(repoRoot, 'scripts', 'node', 'check-rust-backend', 'baseline.json'),
+    JSON.stringify({
+      allowedFindings: [
+        {
+          rule: 'no-production-escape',
+          file: 'api/crates/domain/src/existing.rs',
+          line: 1,
+          snippet: 'pub fn existing() { Some(1).unwrap(); }',
+        },
+      ],
+    })
+  );
+
+  const findings = collectRustBackendFindings({ repoRoot });
+
+  assert.deepEqual(findings, []);
+});
+
+test('current api routes do not contain active blocking IO warnings', () => {
+  const repoRoot = path.resolve(__dirname, '..', '..', '..', '..');
+  const findings = collectRustBackendFindings({ repoRoot }).filter(
+    (finding) =>
+      finding.rule === 'blocking-in-async-context'
+      && finding.file.startsWith('api/apps/api-server/src/routes/')
+  );
+
+  assert.deepEqual(findings, []);
+});

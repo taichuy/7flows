@@ -245,7 +245,6 @@ function findingKey(finding) {
   return [
     finding.rule,
     finding.file,
-    String(finding.line),
     finding.snippet,
   ].join('\u0000');
 }

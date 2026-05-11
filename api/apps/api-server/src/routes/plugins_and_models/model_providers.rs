@@ -4,15 +4,15 @@ use std::{
 };
 
 use axum::{
+    Json, Router,
     body::Body,
     extract::{Path, Query, State},
     http::{
-        header::{ACCEPT_LANGUAGE, CONTENT_TYPE},
         HeaderMap, StatusCode,
+        header::{ACCEPT_LANGUAGE, CONTENT_TYPE},
     },
     response::Response,
     routing::{get, patch, post},
-    Json, Router,
 };
 use control_plane::model_provider::{
     CreateModelProviderInstanceCommand, DeleteModelProviderInstanceCommand,
@@ -419,7 +419,13 @@ fn provider_icon_content_type(path: &FsPath) -> &'static str {
     }
 }
 
-fn resolve_provider_icon_path(
+async fn path_is_file(path: &FsPath) -> bool {
+    tokio::fs::metadata(path)
+        .await
+        .is_ok_and(|metadata| metadata.is_file())
+}
+
+async fn resolve_provider_icon_path(
     installed_path: &str,
     icon_path: &str,
 ) -> Result<std::path::PathBuf, ApiError> {
@@ -438,14 +444,14 @@ fn resolve_provider_icon_path(
 
     let installed_root = FsPath::new(installed_path);
     let resolved_path = installed_root.join(icon_relative_path);
-    if resolved_path.is_file() {
+    if path_is_file(&resolved_path).await {
         return Ok(resolved_path);
     }
 
     // 兼容官方 provider 安装产物：manifest 只给出文件名，实际图标位于 _assets/ 目录。
     if icon_relative_path.components().count() == 1 {
         let assets_path = installed_root.join("_assets").join(icon_relative_path);
-        if assets_path.is_file() {
+        if path_is_file(&assets_path).await {
             return Ok(assets_path);
         }
     }
@@ -453,9 +459,9 @@ fn resolve_provider_icon_path(
     Ok(resolved_path)
 }
 
-fn installed_manifest_icon(installed_path: &str) -> Option<String> {
+async fn installed_manifest_icon(installed_path: &str) -> Option<String> {
     let manifest_path = FsPath::new(installed_path).join("manifest.yaml");
-    let manifest_raw = std::fs::read_to_string(manifest_path).ok()?;
+    let manifest_raw = tokio::fs::read_to_string(manifest_path).await.ok()?;
     let manifest = plugin_framework::parse_plugin_manifest(&manifest_raw).ok()?;
     let icon = manifest.icon?;
     let icon = icon.trim().to_string();
@@ -465,17 +471,21 @@ fn installed_manifest_icon(installed_path: &str) -> Option<String> {
     Some(icon)
 }
 
-fn installation_icon_path(
+async fn installation_icon_path(
     installed_path: &str,
     metadata_json: &serde_json::Value,
 ) -> Option<String> {
-    metadata_json
+    if let Some(icon) = metadata_json
         .get("icon")
         .and_then(|value| value.as_str())
         .map(str::trim)
         .filter(|value| !value.is_empty())
         .map(str::to_string)
-        .or_else(|| installed_manifest_icon(installed_path))
+    {
+        return Some(icon);
+    }
+
+    installed_manifest_icon(installed_path).await
 }
 
 fn to_config_field_response(field: ProviderConfigField) -> ModelProviderConfigFieldResponse {
@@ -841,16 +851,21 @@ pub async fn read_provider_icon(
             "plugin_installation",
         ))?;
     let icon_path =
-        installation_icon_path(&installation.installed_path, &installation.metadata_json).ok_or(
-            control_plane::errors::ControlPlaneError::NotFound("plugin_icon"),
-        )?;
-    let resolved_path = resolve_provider_icon_path(&installation.installed_path, &icon_path)?;
-    let content = std::fs::read(&resolved_path).map_err(|error| match error.kind() {
-        std::io::ErrorKind::NotFound => {
-            control_plane::errors::ControlPlaneError::NotFound("plugin_icon").into()
-        }
-        _ => ApiError::from(anyhow::Error::from(error)),
-    })?;
+        installation_icon_path(&installation.installed_path, &installation.metadata_json)
+            .await
+            .ok_or(control_plane::errors::ControlPlaneError::NotFound(
+                "plugin_icon",
+            ))?;
+    let resolved_path =
+        resolve_provider_icon_path(&installation.installed_path, &icon_path).await?;
+    let content = tokio::fs::read(&resolved_path)
+        .await
+        .map_err(|error| match error.kind() {
+            std::io::ErrorKind::NotFound => {
+                control_plane::errors::ControlPlaneError::NotFound("plugin_icon").into()
+            }
+            _ => ApiError::from(anyhow::Error::from(error)),
+        })?;
 
     Response::builder()
         .status(StatusCode::OK)
