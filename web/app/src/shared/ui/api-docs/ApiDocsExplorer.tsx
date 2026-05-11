@@ -7,6 +7,14 @@ import { Empty, Input, Result, Select, Spin, Typography } from 'antd';
 
 import './api-docs-explorer.css';
 
+type ScalarReferenceConfiguration = Exclude<
+  Parameters<typeof ApiReferenceReact>[0]['configuration'],
+  unknown[]
+>;
+type ScalarAuthenticationConfiguration =
+  ScalarReferenceConfiguration['authentication'];
+type ScalarDocumentContent = ScalarReferenceConfiguration['content'];
+
 export interface ApiDocsCatalogOperation {
   id: string;
   method: string;
@@ -69,16 +77,18 @@ export interface ApiDocsExplorerProps<TAuthenticationSnapshot = unknown> {
     categoryId: string
   ) => Promise<ApiDocsCategoryOperations>;
   operationSpecQueryKey: (operationId: string) => QueryKey;
-  fetchOperationSpec: (operationId: string) => Promise<unknown>;
+  fetchOperationSpec: (
+    operationId: string
+  ) => Promise<ScalarDocumentContent>;
   baseServerUrl: string | (() => string);
   showAllOperationsWhenNoCategory?: boolean;
   authentication?: {
     queryKey: QueryKey;
     queryFn: () => Promise<TAuthenticationSnapshot>;
     buildConfig: (
-      operationSpec: unknown,
+      operationSpec: ScalarDocumentContent | undefined,
       snapshot: TAuthenticationSnapshot | undefined
-    ) => unknown;
+    ) => ScalarAuthenticationConfiguration;
   };
 }
 
