@@ -284,12 +284,9 @@ describe('useAgentFlowDebugSession', () => {
         ])
       })
     );
-    expect(fetchSnapshotSpy).toHaveBeenCalledWith(
-      'app-1',
-      {
-        debugSessionId: expect.stringMatching(/^app-1:draft-1:/)
-      }
-    );
+    expect(fetchSnapshotSpy).toHaveBeenCalledWith('app-1', {
+      debugSessionId: expect.stringMatching(/^app-1:draft-1:/)
+    });
   });
 
   test('reuses persisted debug session id when the editor remounts', async () => {
@@ -334,6 +331,53 @@ describe('useAgentFlowDebugSession', () => {
     expect(fetchSnapshotSpy).toHaveBeenLastCalledWith('app-1', {
       debugSessionId: firstSessionId
     });
+  });
+
+  test('restores durable variable cache by latest persisted run id after remount', async () => {
+    const queryClient = createQueryClient();
+    const document = createDefaultAgentFlowDocument({ flowId: 'flow-1' });
+    const storageKey = buildAgentFlowDebugSessionStorageKey('app-1', 'draft-1');
+    window.localStorage.setItem(
+      storageKey,
+      JSON.stringify({
+        version: 1,
+        debugSessionId: 'app-1:draft-1:session-1',
+        latestRunId: 'flow-run-latest',
+        inputValues: {}
+      })
+    );
+    const fetchSnapshotSpy = vi
+      .spyOn(runtimeApi, 'fetchDebugVariableSnapshot')
+      .mockResolvedValue({
+        variable_cache: {
+          'node-llm': {
+            text: '刷新后沿用最新 run 输出'
+          }
+        }
+      });
+
+    const { result } = renderHook(
+      () =>
+        useAgentFlowDebugSession({
+          applicationId: 'app-1',
+          draftId: 'draft-1',
+          document
+        }),
+      { wrapper: createWrapper(queryClient) }
+    );
+
+    await waitFor(() => {
+      expect(fetchSnapshotSpy).toHaveBeenCalledWith('app-1', {
+        runId: 'flow-run-latest'
+      });
+    });
+    expect(result.current.getNodePreviewVariableCache()).toEqual(
+      expect.objectContaining({
+        'node-llm': expect.objectContaining({
+          text: '刷新后沿用最新 run 输出'
+        })
+      })
+    );
   });
 
   test('ignores a delayed durable snapshot after resetting variable cache', async () => {
@@ -504,6 +548,13 @@ describe('useAgentFlowDebugSession', () => {
         ) ?? '{}'
       ).inputValues.query
     ).toBe('');
+    expect(
+      JSON.parse(
+        window.localStorage.getItem(
+          buildAgentFlowDebugSessionStorageKey('app-1', 'draft-1')
+        ) ?? '{}'
+      ).latestRunId
+    ).toBe('flow-run-1');
     expect(invalidateQueriesSpy).toHaveBeenCalledWith({
       queryKey: ['applications', 'app-1', 'runtime']
     });

@@ -46,6 +46,7 @@ let debugMessageIdSequence = 0;
 interface PersistedDebugSessionPayload {
   version: number;
   debugSessionId?: string;
+  latestRunId?: string | null;
   inputValues: Record<string, unknown>;
 }
 
@@ -107,6 +108,7 @@ function writePersistedInputValues(
     JSON.stringify({
       version: DEBUG_SESSION_STORAGE_VERSION,
       debugSessionId: currentPayload?.debugSessionId,
+      latestRunId: currentPayload?.latestRunId ?? null,
       inputValues
     } satisfies PersistedDebugSessionPayload)
   );
@@ -122,6 +124,30 @@ function writePersistedDebugSessionId(
     JSON.stringify({
       version: DEBUG_SESSION_STORAGE_VERSION,
       debugSessionId,
+      latestRunId: currentPayload?.latestRunId ?? null,
+      inputValues: currentPayload?.inputValues ?? {}
+    } satisfies PersistedDebugSessionPayload)
+  );
+}
+
+function readPersistedLatestRunId(storageKey: string): string | null {
+  const latestRunId = readPersistedDebugSessionPayload(storageKey)?.latestRunId;
+  return typeof latestRunId === 'string' && latestRunId.trim()
+    ? latestRunId
+    : null;
+}
+
+function writePersistedLatestRunId(
+  storageKey: string,
+  latestRunId: string | null
+) {
+  const currentPayload = readPersistedDebugSessionPayload(storageKey);
+  window.localStorage.setItem(
+    storageKey,
+    JSON.stringify({
+      version: DEBUG_SESSION_STORAGE_VERSION,
+      debugSessionId: currentPayload?.debugSessionId,
+      latestRunId,
       inputValues: currentPayload?.inputValues ?? {}
     } satisfies PersistedDebugSessionPayload)
   );
@@ -433,11 +459,7 @@ function buildOutputVariableCacheFromRunDetail(
       if (Object.keys(projectedPayload).length === 0) {
         continue;
       }
-      cache = mergeVariablePayload(
-        cache,
-        nodeRun.node_id,
-        projectedPayload
-      );
+      cache = mergeVariablePayload(cache, nodeRun.node_id, projectedPayload);
     }
   }
 
@@ -563,7 +585,9 @@ export function useAgentFlowDebugSession({
     useState<NodeDebugPreviewVariableCache>({});
   const [nodePreviewOutputCache, setNodePreviewOutputCache] =
     useState<NodeDebugPreviewVariableCache>({});
-  const [activeRunId, setActiveRunId] = useState<string | null>(null);
+  const [activeRunId, setActiveRunId] = useState<string | null>(() =>
+    readPersistedLatestRunId(storageKey)
+  );
   const [runContext, setRunContext] = useState(() =>
     buildRunContextFromDocument(document, rememberedInputValues)
   );
@@ -596,6 +620,7 @@ export function useAgentFlowDebugSession({
             readPersistedDebugSessionPayload(storageKey)?.debugSessionId
           )
     );
+    setActiveRunId(readPersistedLatestRunId(storageKey));
   }, [applicationId, debugSessionScope, draftId, storageKey]);
 
   useEffect(() => {
@@ -813,6 +838,7 @@ export function useAgentFlowDebugSession({
     const assistantMessage = mapRunDetailToConversation(detail);
 
     setActiveRunId(detail.flow_run.id);
+    writePersistedLatestRunId(storageKey, detail.flow_run.id);
     setLastDetail(detail);
     setNodePreviewInputCache((currentCache) =>
       mergeVariableCache(
@@ -1265,9 +1291,13 @@ export function useAgentFlowDebugSession({
 
   function rememberExternalRunDetail(detail: FlowDebugRunDetail) {
     setActiveRunId(detail.flow_run.id);
+    writePersistedLatestRunId(storageKey, detail.flow_run.id);
     setLastDetail(detail);
     setNodePreviewInputCache((currentCache) =>
-      mergeVariableCache(currentCache, buildInputVariableCacheFromRunDetail(detail))
+      mergeVariableCache(
+        currentCache,
+        buildInputVariableCacheFromRunDetail(detail)
+      )
     );
     setNodePreviewOutputCache((currentCache) =>
       mergeVariableCache(
@@ -1279,6 +1309,7 @@ export function useAgentFlowDebugSession({
 
   function selectRunScope(runId: string | null) {
     setActiveRunId((current) => (current === runId ? current : runId));
+    writePersistedLatestRunId(storageKey, runId);
     setLastDetail((current) =>
       current && current.flow_run.id !== runId ? null : current
     );
@@ -1299,6 +1330,7 @@ export function useAgentFlowDebugSession({
     clearScheduledAssistantMessageFlush();
     setStatus('idle');
     setActiveRunId(null);
+    writePersistedLatestRunId(storageKey, null);
     setLastDetail(null);
     setStreamTraceItems([]);
     setNodePreviewInputCache({});

@@ -199,7 +199,7 @@ async fn debug_variable_snapshot_requires_matching_debug_session() {
 }
 
 #[tokio::test]
-async fn debug_variable_snapshot_ignores_runs_before_current_draft_document() {
+async fn debug_variable_snapshot_restores_session_run_after_current_draft_document_changes() {
     let (app, database_url) = test_app_with_database_url().await;
     let (cookie, csrf) = login_and_capture_cookie(&app, "root", "change-me").await;
     let provider_instance_id = create_ready_provider_instance(&app, &cookie, &csrf).await;
@@ -232,11 +232,17 @@ async fn debug_variable_snapshot_ignores_runs_before_current_draft_document() {
     .unwrap();
 
     let snapshot = get_snapshot(&app, &cookie, &application_id, "doc-session").await;
-    assert_eq!(snapshot["data"]["snapshot_completeness"], "empty");
-    assert!(snapshot["data"]["latest_run_scope"].is_null());
-    assert_eq!(snapshot["data"]["variable_cache"], json!({}));
+    assert_eq!(snapshot["data"]["snapshot_completeness"], "complete");
+    assert_eq!(
+        snapshot["data"]["latest_run_scope"]["flow_run_id"],
+        preview["data"]["flow_run"]["id"]
+    );
+    assert_eq!(
+        snapshot["data"]["variable_cache"]["node-llm"]["text"],
+        "reply:old policy"
+    );
     assert_eq!(snapshot["data"]["source_flow_run_ids"], json!({}));
-    assert_eq!(snapshot["data"]["source_node_run_ids"], json!({}));
+    assert!(snapshot["data"]["source_node_run_ids"]["node-llm"]["text"].is_string());
 }
 
 #[tokio::test]
@@ -287,9 +293,11 @@ async fn debug_variable_snapshot_uses_flow_run_document_scope_after_compiled_pla
     .await;
 
     let old_snapshot = get_snapshot(&app, &cookie, &application_id, "session-a").await;
-    assert_eq!(old_snapshot["data"]["snapshot_completeness"], "empty");
-    assert!(old_snapshot["data"]["latest_run_scope"].is_null());
-    assert_eq!(old_snapshot["data"]["variable_cache"], json!({}));
+    assert_eq!(old_snapshot["data"]["snapshot_completeness"], "complete");
+    assert_eq!(
+        old_snapshot["data"]["variable_cache"]["node-llm"]["text"],
+        "reply:old policy"
+    );
 
     let new_snapshot = get_snapshot(&app, &cookie, &application_id, "session-b").await;
     assert!(new_snapshot["data"]["variable_cache"]["node-start"].is_null());
@@ -297,6 +305,60 @@ async fn debug_variable_snapshot_uses_flow_run_document_scope_after_compiled_pla
     assert_eq!(
         new_snapshot["data"]["variable_cache"]["node-llm"]["text"],
         "reply:new policy"
+    );
+}
+
+#[tokio::test]
+async fn debug_variable_snapshot_restores_latest_session_run_after_saved_draft_changes() {
+    let (app, database_url) = test_app_with_database_url().await;
+    let (cookie, csrf) = login_and_capture_cookie(&app, "root", "change-me").await;
+    let provider_instance_id = create_ready_provider_instance(&app, &cookie, &csrf).await;
+    let application_id =
+        seed_agent_flow_application(&app, &cookie, &csrf, &provider_instance_id).await;
+    let first_preview = start_preview(
+        &app,
+        &cookie,
+        &csrf,
+        &application_id,
+        "latest unsaved policy",
+        "session-draft-independent",
+    )
+    .await;
+    let draft_id = Uuid::parse_str(
+        first_preview["data"]["flow_run"]["draft_id"]
+            .as_str()
+            .unwrap(),
+    )
+    .unwrap();
+    let flow_run_id = first_preview["data"]["flow_run"]["id"].as_str().unwrap();
+
+    let pool = sqlx::PgPool::connect(&database_url).await.unwrap();
+    sqlx::query(
+        r#"
+        update flow_drafts
+        set document = jsonb_set(
+                jsonb_set(document, '{meta,name}', to_jsonb('Saved Draft Changed Later'::text), true),
+                '{graph,nodes,1,outputs}',
+                '[]'::jsonb,
+                true
+            ),
+            updated_at = now() + interval '1 hour'
+        where id = $1
+        "#,
+    )
+    .bind(draft_id)
+    .execute(&pool)
+    .await
+    .unwrap();
+
+    let snapshot = get_snapshot(&app, &cookie, &application_id, "session-draft-independent").await;
+    assert_eq!(
+        snapshot["data"]["latest_run_scope"]["flow_run_id"],
+        flow_run_id
+    );
+    assert_eq!(
+        snapshot["data"]["variable_cache"]["node-llm"]["text"],
+        "reply:latest unsaved policy"
     );
 }
 

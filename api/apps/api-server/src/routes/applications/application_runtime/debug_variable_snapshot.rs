@@ -116,6 +116,62 @@ fn collect_node_public_output_selectors(document: &serde_json::Value) -> NodeOut
     selectors
 }
 
+fn collect_compiled_plan_public_output_selectors(plan: &serde_json::Value) -> NodeOutputSelectors {
+    let mut selectors = HashMap::new();
+    let Some(nodes) = plan.get("nodes").and_then(|nodes| nodes.as_object()) else {
+        return selectors;
+    };
+
+    for (node_id, node) in nodes {
+        if node.get("node_type").and_then(|value| value.as_str()) == Some("start") {
+            continue;
+        }
+        let Some(outputs) = node.get("outputs").and_then(|value| value.as_array()) else {
+            continue;
+        };
+
+        let node_selectors = outputs
+            .iter()
+            .filter_map(|output| {
+                let key = output.get("key").and_then(|value| value.as_str())?;
+                if key.is_empty() || key.starts_with("__") {
+                    return None;
+                }
+                Some((key.to_string(), output_selector(output, key)))
+            })
+            .collect::<Vec<_>>();
+
+        if !node_selectors.is_empty() {
+            selectors.insert(node_id.to_string(), node_selectors);
+        }
+    }
+
+    selectors
+}
+
+async fn public_output_selectors_for_run(
+    store: &MainDurableStore,
+    run: &domain::FlowRunRecord,
+    fallback_document: &serde_json::Value,
+) -> Result<NodeOutputSelectors, ApiError> {
+    if let Some(compiled_plan_id) = run.compiled_plan_id {
+        if let Some(compiled_plan) =
+            <MainDurableStore as OrchestrationRuntimeRepository>::get_compiled_plan(
+                store,
+                compiled_plan_id,
+            )
+            .await?
+        {
+            let selectors = collect_compiled_plan_public_output_selectors(&compiled_plan.plan);
+            if !selectors.is_empty() {
+                return Ok(selectors);
+            }
+        }
+    }
+
+    Ok(collect_node_public_output_selectors(fallback_document))
+}
+
 fn insert_variable_value(
     variable_cache: &mut serde_json::Map<String, serde_json::Value>,
     node_id: &str,
@@ -229,15 +285,11 @@ fn run_matches_snapshot_key(
     run: &domain::FlowRunRecord,
     actor_user_id: Uuid,
     debug_session_id: &str,
-    flow_schema_version: &str,
-    document_hash: &str,
     editor_state: &domain::FlowEditorState,
 ) -> bool {
     run.created_by == actor_user_id
         && run.debug_session_id == debug_session_id
         && run.draft_id == editor_state.draft.id
-        && run.flow_schema_version == flow_schema_version
-        && run.document_hash == document_hash
 }
 
 pub(super) async fn build_debug_variable_snapshot(
@@ -249,8 +301,6 @@ pub(super) async fn build_debug_variable_snapshot(
     run_id: Option<Uuid>,
     editor_state: &domain::FlowEditorState,
 ) -> Result<DebugVariableSnapshotResponse, ApiError> {
-    let public_output_selectors =
-        collect_node_public_output_selectors(&editor_state.draft.document);
     let document_hash = debug_snapshot_document_hash(&editor_state.draft.document);
     let flow_schema_version = debug_snapshot_flow_schema_version(editor_state);
     if let Some(run_id) = run_id {
@@ -267,6 +317,9 @@ pub(super) async fn build_debug_variable_snapshot(
         let mut variable_cache = serde_json::Map::new();
         let source_flow_run_ids = serde_json::Map::new();
         let mut source_node_run_ids = serde_json::Map::new();
+        let public_output_selectors =
+            public_output_selectors_for_run(store, &detail.flow_run, &editor_state.draft.document)
+                .await?;
 
         for node_run in &detail.node_runs {
             merge_node_output_payload(
@@ -281,9 +334,9 @@ pub(super) async fn build_debug_variable_snapshot(
             snapshot_schema_version: DEBUG_VARIABLE_SNAPSHOT_SCHEMA_VERSION.to_string(),
             workspace_id: workspace_id.to_string(),
             actor_user_id: actor_user_id.to_string(),
-            draft_id: editor_state.draft.id.to_string(),
-            flow_schema_version,
-            document_hash,
+            draft_id: detail.flow_run.draft_id.to_string(),
+            flow_schema_version: detail.flow_run.flow_schema_version.clone(),
+            document_hash: detail.flow_run.document_hash.clone(),
             debug_session_id: detail.flow_run.debug_session_id.clone(),
             latest_run_scope: Some(to_debug_snapshot_run_scope(&detail.flow_run)),
             snapshot_completeness: debug_snapshot_completeness(detail.flow_run.status).to_string(),
@@ -318,6 +371,9 @@ pub(super) async fn build_debug_variable_snapshot(
     let mut source_node_run_ids = serde_json::Map::new();
     let mut latest_run_scope = None;
     let mut snapshot_completeness = "empty";
+    let mut snapshot_draft_id = editor_state.draft.id.to_string();
+    let mut snapshot_flow_schema_version = flow_schema_version;
+    let mut snapshot_document_hash = document_hash;
 
     for run in runs {
         let Some(detail) =
@@ -335,8 +391,6 @@ pub(super) async fn build_debug_variable_snapshot(
             &detail.flow_run,
             actor_user_id,
             &debug_session_id,
-            &flow_schema_version,
-            &document_hash,
             editor_state,
         ) {
             continue;
@@ -344,6 +398,12 @@ pub(super) async fn build_debug_variable_snapshot(
 
         latest_run_scope = Some(to_debug_snapshot_run_scope(&detail.flow_run));
         snapshot_completeness = debug_snapshot_completeness(detail.flow_run.status);
+        snapshot_draft_id = detail.flow_run.draft_id.to_string();
+        snapshot_flow_schema_version = detail.flow_run.flow_schema_version.clone();
+        snapshot_document_hash = detail.flow_run.document_hash.clone();
+        let public_output_selectors =
+            public_output_selectors_for_run(store, &detail.flow_run, &editor_state.draft.document)
+                .await?;
         for node_run in &detail.node_runs {
             merge_node_output_payload(
                 &mut variable_cache,
@@ -359,9 +419,9 @@ pub(super) async fn build_debug_variable_snapshot(
         snapshot_schema_version: DEBUG_VARIABLE_SNAPSHOT_SCHEMA_VERSION.to_string(),
         workspace_id: workspace_id.to_string(),
         actor_user_id: actor_user_id.to_string(),
-        draft_id: editor_state.draft.id.to_string(),
-        flow_schema_version,
-        document_hash,
+        draft_id: snapshot_draft_id,
+        flow_schema_version: snapshot_flow_schema_version,
+        document_hash: snapshot_document_hash,
         debug_session_id,
         latest_run_scope,
         snapshot_completeness: snapshot_completeness.to_string(),
