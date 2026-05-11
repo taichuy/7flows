@@ -4,6 +4,7 @@ const path = require('node:path');
 
 const { main: runCheckStyleBoundary } = require('../check-style-boundary/core.js');
 const { main: runCheckRustBackend } = require('../check-rust-backend/core.js');
+const { main: runHotspotReview } = require('../hotspot-review/core.js');
 const { main: runPageDebug } = require('../page-debug/core.js');
 const { main: runMockUiSync } = require('../mock-ui-sync/core.js');
 const { main: runClaudeSkillSync } = require('../claude-skill-sync/core.js');
@@ -17,6 +18,7 @@ const TOOLING_COMMANDS = new Set([
   'check-style-boundary',
   'check-rust-backend',
   'claude-skill-sync',
+  'hotspot-review',
   'mock-ui-sync',
   'page-debug',
   'runtime-gate',
@@ -81,7 +83,7 @@ function parseToolingCliArgs(argv) {
 
 function usage(writeStdout = (text) => process.stdout.write(text)) {
   writeStdout(
-    'Usage: node scripts/node/tooling <check-rust-backend|check-style-boundary|claude-skill-sync|mock-ui-sync|page-debug|runtime-gate> [args]\n'
+    'Usage: node scripts/node/tooling <check-rust-backend|check-style-boundary|claude-skill-sync|hotspot-review|mock-ui-sync|page-debug|runtime-gate> [args]\n'
   );
 }
 
@@ -107,6 +109,10 @@ async function main(argv = [], deps = {}) {
 
   if (options.command === 'claude-skill-sync') {
     return (deps.runClaudeSkillSyncImpl || runClaudeSkillSync)(options.rest);
+  }
+
+  if (options.command === 'hotspot-review') {
+    return (deps.runHotspotReviewImpl || runHotspotReview)(options.rest, deps);
   }
 
   if (options.command === 'mock-ui-sync') {

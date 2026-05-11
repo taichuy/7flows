@@ -17,6 +17,7 @@ description: Use when evaluating 1flowbase task outcomes or current project qual
 - 需要输出结构化 QA 报告，而不是直接进入修复
 - 需要判断 UI、流程、响应式、API、状态和架构边界是否仍然成立
 - 需要评估后端接口、状态入口、插件消费边界、runtime 行为或工程质量门禁是否仍然符合最新规范
+- 需要分析昨天/今天、近两天或近期代码热点、反复修改、churn 来源，并把问题转化为 AI 下次少犯错的 skills / AGENTS / 质量门禁 / 代码环境优化
 
 **不要用于**
 
@@ -38,6 +39,7 @@ description: Use when evaluating 1flowbase task outcomes or current project qual
 - 如果评估范围命中后端，必须先读 `api/AGENTS.md`，再对齐 `.memory/project-memory` 中最近的后端规范、计划和插件边界记忆，不能沿用旧口径
 - `task mode` 必查：验收场景、交互流、变化传播、状态 / API / 数据映射、关键回归
 - `project evaluation mode` 必查：UI 一致性、流程逻辑、响应式降级、API 契约、状态数据一致性、架构边界、测试缺口
+- 热点修改复盘必查：高频文件、提交意图、反复修改原因、缺失的前置判断规则，以及应更新的 `skills / AGENTS / scripts/node` 门禁；报告重点是预防下一次 AI 返工，不是只列业务代码修复建议
 - 评估范围命中前端页面、导航、样式、共享壳层或第三方组件覆写时，必须加载 `references/frontend-quality-gates.md`
 - 评估范围命中前端页面运行态、受保护页面、路由跳转、浏览器截图或控制台证据时，优先运行 `node scripts/node/page-debug.js`
 - 评估范围命中前端样式边界时，优先读取 `node scripts/node/check-style-boundary.js ...` 的运行结果；它只说明边界/扩散是否通过，不直接说明泛 UI 质量
@@ -58,6 +60,7 @@ description: Use when evaluating 1flowbase task outcomes or current project qual
 - Mode selection and session bias: `references/modes.md`
 - Repository quality gate routing: `references/repo-quality-gates.md`
 - Quality gate watch scenarios: `references/quality-gate-watch.md`
+- Hotspot prevention review: `references/hotspot-prevention.md`
 - Task-scoped checks: `references/task-mode-checklist.md`
 - Full-project checks: `references/project-evaluation-checklist.md`
 - Frontend quality gates: `references/frontend-quality-gates.md`
