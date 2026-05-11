@@ -31,6 +31,7 @@
 | 工程质量门禁 | `route / service / repository / domain / mapper` 是否仍分层，`storage-durable/postgres` 内的 `storage-postgres` 是否保持 repository / mapper 拆分，`storage-durable / storage-object` 是否仍守住各自边界，验证命令和测试目录规则是否被执行 | 代码结构、storage-durable/postgres、storage-durable、storage-object 目录、测试文件、验证脚本、命令输出 |
 | 测试缺口 | 当前项目最关键的行为是否缺少自动化或手动验证覆盖 | 测试文件、命令结果、缺口清单 |
 | 目录与文件边界 | 目录规划是否仍对齐 spec，路由、壳层、feature、测试文件是否分工清楚 | 目录树、文件职责、spec 对照、行数与目录压力 |
+| 热点预防层 | 近期反复修改是否暴露 AI 前置判断缺口，是否需要更新 skill、AGENTS、质量脚本或代码环境规则 | `git log`、`git numstat`、高频文件、现有 skill 缺口、建议 patch 点 |
 
 ## Output Rules
 
@@ -40,6 +41,7 @@
 - 若前端结论来自 `page-debug`，报告里应明确写出请求路由、最终 URL 和 `outputDir`
 - 不能验证的项要单独列入 `未覆盖项 / 风险`
 - 命中后端评估时，如果没有核对最新 `.memory/project-memory`，应在报告中明确说明结论可能存在旧口径偏差
+- 命中热点 churn 复盘时，必须输出“AI 下次如何避免”的预防层建议；不能只给业务代码修复建议
 
 ## Escalation
 

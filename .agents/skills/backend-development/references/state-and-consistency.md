@@ -8,6 +8,7 @@
 - 允许哪些流转？
 - 每个动作能把状态从哪里推到哪里？
 - 哪个入口负责改这个状态？
+- 展示态是否只有一个事实锚点？例如同一运行态不能让 cache、snapshot、latest run、last-run panel 分别代表不同真值。
 
 ## Review Questions
 
@@ -16,6 +17,7 @@
 - 有没有绕过主入口的隐式改写？
 - 数据一致性和状态一致性分别靠什么保证？
 - 失败、重试、回滚时状态是否仍然可解释？
+- 如果存在 read model、cache、snapshot、latest 查询和详情查询，它们是否能追溯到同一个 `run_id / scope_id / state_version`？
 
 ## Resource Action Kernel Checks
 
@@ -31,3 +33,4 @@
 - repository 内偷偷附带状态跳转
 - 只有代码路径，没有显式状态规则
 - 没有办法回答“为什么现在是这个状态”
+- 一个面板读 snapshot，另一个面板读 latest record，用户却以为它们代表同一次运行
