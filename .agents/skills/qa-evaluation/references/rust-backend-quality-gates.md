@@ -60,6 +60,32 @@ cargo deny check
 - repository test 覆盖 SQL、migration、唯一约束、外键、`CHECK` constraint 和 mapper 转换。
 - API integration test 覆盖 HTTP 状态码、统一错误结构、序列化、鉴权和敏感字段不泄漏。
 
+## Completion Self-Check Evidence
+
+Rust 后端验收时，必须能用代码、测试、数据库约束或运行结果回答：
+
+- 错误是否会被吞掉。
+- 状态是否能被非法构造。
+- 字段是否能被外部乱改。
+- ID 是否会传错类型。
+- 请求重试是否会产生重复副作用。
+- 事务失败是否会留下半成功数据。
+- async 路径是否存在阻塞。
+- 锁是否跨 `.await`。
+- API 是否会泄漏内部字段。
+- 数据库约束是否能兜住并发问题。
+
+通过口径：
+
+- 非法状态不可表示。
+- 非法转换无法绕过。
+- 错误路径必须处理。
+- 副作用边界清晰。
+- 并发风险被显式管理。
+- 数据一致性由类型、事务和数据库约束共同保证。
+
+没有直接证据时，对应项写 `未验证`；发现做不到时，按风险级别进入 Findings，不得用“后续优化”稀释状态一致性或数据一致性问题。
+
 ## Failure Signals
 
 - `String` / `Uuid` / `serde_json::Value` 从 HTTP 一路穿到领域核心或数据库写入。

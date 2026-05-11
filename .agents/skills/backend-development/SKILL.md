@@ -38,6 +38,7 @@ description: Use when building or changing backend APIs, state transitions, modu
 - 状态必须写清：状态集合、流转规则、动作约束
 - 多个模块都能改同一关键状态：立即收口
 - Rust 后端实现要用类型表达核心不变量、显式传播错误、封装状态转换，并把阻塞 IO、锁、事务和外部副作用放在清晰边界内
+- Rust 后端开发完成前必须按 `references/rust-backend-practices.md` 的 completion self-check 自检；不能保证的项要标为风险或待办
 
 ## Implementation
 
