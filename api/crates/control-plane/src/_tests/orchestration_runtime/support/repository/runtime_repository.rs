@@ -487,6 +487,80 @@ impl OrchestrationRuntimeRepository for InMemoryOrchestrationRuntimeRepository {
         Ok(inner.callback_tasks_by_id.get(&callback_task_id).cloned())
     }
 
+    async fn upsert_debug_variable_cache_entry(
+        &self,
+        input: &UpsertDebugVariableCacheEntryInput,
+    ) -> Result<DebugVariableCacheEntry> {
+        let mut inner = self.inner.lock().expect("runtime repo mutex poisoned");
+        let entry = DebugVariableCacheEntry {
+            node_id: input.node_id.clone(),
+            variable_key: input.variable_key.clone(),
+            value: input.value.clone(),
+        };
+        inner.debug_variable_cache_entries_by_key.insert(
+            (
+                input.application_id,
+                input.draft_id,
+                input.actor_user_id,
+                input.node_id.clone(),
+                input.variable_key.clone(),
+            ),
+            entry.clone(),
+        );
+        Ok(entry)
+    }
+
+    async fn list_debug_variable_cache_entries(
+        &self,
+        application_id: Uuid,
+        draft_id: Uuid,
+        actor_user_id: Uuid,
+    ) -> Result<Vec<DebugVariableCacheEntry>> {
+        let inner = self.inner.lock().expect("runtime repo mutex poisoned");
+        Ok(inner
+            .debug_variable_cache_entries_by_key
+            .iter()
+            .filter_map(
+                |((cached_application_id, cached_draft_id, cached_actor_user_id, _, _), entry)| {
+                    (*cached_application_id == application_id
+                        && *cached_draft_id == draft_id
+                        && *cached_actor_user_id == actor_user_id)
+                        .then(|| entry.clone())
+                },
+            )
+            .collect())
+    }
+
+    async fn delete_debug_variable_cache_entries(
+        &self,
+        input: &DeleteDebugVariableCacheEntriesInput,
+    ) -> Result<()> {
+        let mut inner = self.inner.lock().expect("runtime repo mutex poisoned");
+        match &input.keys {
+            Some(keys) => {
+                for key in keys {
+                    inner.debug_variable_cache_entries_by_key.remove(&(
+                        input.application_id,
+                        input.draft_id,
+                        input.actor_user_id,
+                        key.node_id.clone(),
+                        key.variable_key.clone(),
+                    ));
+                }
+            }
+            None => {
+                inner.debug_variable_cache_entries_by_key.retain(
+                    |(application_id, draft_id, actor_user_id, _, _), _| {
+                        *application_id != input.application_id
+                            || *draft_id != input.draft_id
+                            || *actor_user_id != input.actor_user_id
+                    },
+                );
+            }
+        }
+        Ok(())
+    }
+
     async fn get_data_model_side_effect_receipt(
         &self,
         workspace_id: Uuid,

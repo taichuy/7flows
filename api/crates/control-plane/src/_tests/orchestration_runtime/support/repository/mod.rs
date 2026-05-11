@@ -8,6 +8,8 @@ struct InMemoryOrchestrationRuntimeState {
     node_runs_by_id: HashMap<Uuid, domain::NodeRunRecord>,
     checkpoints_by_id: HashMap<Uuid, domain::CheckpointRecord>,
     callback_tasks_by_id: HashMap<Uuid, domain::CallbackTaskRecord>,
+    debug_variable_cache_entries_by_key:
+        HashMap<(Uuid, Uuid, Uuid, String, String), DebugVariableCacheEntry>,
     events_by_flow_run_id: HashMap<Uuid, Vec<domain::RunEventRecord>>,
     runtime_spans_by_flow_run_id: HashMap<Uuid, Vec<domain::RuntimeSpanRecord>>,
     runtime_events_by_flow_run_id: HashMap<Uuid, Vec<domain::RuntimeEventRecord>>,

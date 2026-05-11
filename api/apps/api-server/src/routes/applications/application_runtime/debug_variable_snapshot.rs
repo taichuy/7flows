@@ -429,17 +429,6 @@ pub(super) async fn build_debug_variable_snapshot(
                 &public_output_selectors,
             );
         }
-        merge_debug_variable_cache_entries(
-            &mut variable_cache,
-            load_debug_variable_cache_entries(
-                store,
-                application_id,
-                editor_state.draft.id,
-                actor_user_id,
-            )
-            .await?,
-        );
-
         return Ok(DebugVariableSnapshotResponse {
             snapshot_schema_version: DEBUG_VARIABLE_SNAPSHOT_SCHEMA_VERSION.to_string(),
             workspace_id: workspace_id.to_string(),
@@ -463,7 +452,7 @@ pub(super) async fn build_debug_variable_snapshot(
     .await?;
     let mut variable_cache = serde_json::Map::new();
     let source_flow_run_ids = serde_json::Map::new();
-    let mut source_node_run_ids = serde_json::Map::new();
+    let source_node_run_ids = serde_json::Map::new();
     let mut latest_run_scope = None;
     let mut snapshot_completeness = "empty";
     let mut snapshot_draft_id = editor_state.draft.id.to_string();
@@ -496,17 +485,6 @@ pub(super) async fn build_debug_variable_snapshot(
         snapshot_draft_id = detail.flow_run.draft_id.to_string();
         snapshot_flow_schema_version = detail.flow_run.flow_schema_version.clone();
         snapshot_document_hash = detail.flow_run.document_hash.clone();
-        let public_output_selectors =
-            public_output_selectors_for_run(store, &detail.flow_run, &editor_state.draft.document)
-                .await?;
-        for node_run in &detail.node_runs {
-            merge_node_output_payload(
-                &mut variable_cache,
-                &mut source_node_run_ids,
-                node_run,
-                &public_output_selectors,
-            );
-        }
         break;
     }
     merge_debug_variable_cache_entries(
