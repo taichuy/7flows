@@ -503,15 +503,75 @@ async function prepareSceneForAssertions(page, scene) {
     return;
   }
 
-  const detailDock = page.locator('.agent-flow-editor__detail-dock').first();
-  if ((await detailDock.count()) > 0 && await detailDock.isVisible().catch(() => false)) {
+  if (await isApplicationDetailDockVisible(page)) {
     return;
   }
 
-  await page.locator('.agent-flow-node-card--type-llm').first().click({
-    force: true,
+  const opened = await openApplicationDetailDock(page);
+
+  if (!opened) {
+    throw new Error(
+      'style-boundary page.application-detail failed to open the node detail dock'
+    );
+  }
+}
+
+async function isApplicationDetailDockVisible(page) {
+  const detailDock = page.locator('.agent-flow-editor__detail-dock').first();
+  return (
+    (await detailDock.count()) > 0 &&
+    await detailDock.isVisible().catch(() => false)
+  );
+}
+
+async function openApplicationDetailDock(page) {
+  const nodeSelector = '.agent-flow-node-card--type-llm';
+  const dockSelector = '.agent-flow-editor__detail-dock';
+
+  await page.waitForSelector(nodeSelector, {
+    state: 'visible',
     timeout: 30000,
   });
+
+  for (let attempt = 0; attempt < 5; attempt += 1) {
+    const clicked = await page.evaluate(({ nodeSelector, dockSelector }) => {
+      const existingDock = document.querySelector(dockSelector);
+
+      if (existingDock && existingDock.getBoundingClientRect().width > 0) {
+        return true;
+      }
+
+      const node = document.querySelector(nodeSelector);
+
+      if (!node) {
+        return false;
+      }
+
+      node.scrollIntoView({
+        block: 'center',
+        inline: 'center',
+      });
+      node.dispatchEvent(new MouseEvent('click', {
+        bubbles: true,
+        cancelable: true,
+        view: window,
+      }));
+      return true;
+    }, { nodeSelector, dockSelector });
+
+    if (!clicked) {
+      await page.waitForTimeout(100);
+      continue;
+    }
+
+    if (await isApplicationDetailDockVisible(page)) {
+      return true;
+    }
+
+    await page.waitForTimeout(250);
+  }
+
+  return isApplicationDetailDockVisible(page);
 }
 
 async function runScene(browser, baseUrl, scene) {

@@ -529,8 +529,10 @@ function seedStyleBoundaryApplicationFetch() {
 
     if (
       method.toUpperCase() === 'GET' &&
-      url.includes('/api/console/applications/app-1/orchestration/nodes/') &&
-      url.endsWith('/last-run')
+      requestUrl.pathname.includes(
+        '/api/console/applications/app-1/orchestration/nodes/'
+      ) &&
+      requestUrl.pathname.endsWith('/last-run')
     ) {
       return new Response(
         JSON.stringify({
@@ -546,9 +548,8 @@ function seedStyleBoundaryApplicationFetch() {
 
     if (
       method.toUpperCase() === 'GET' &&
-      url.endsWith(
+      requestUrl.pathname ===
         '/api/console/applications/app-1/orchestration/debug-variable-snapshot'
-      )
     ) {
       return new Response(
         JSON.stringify({
