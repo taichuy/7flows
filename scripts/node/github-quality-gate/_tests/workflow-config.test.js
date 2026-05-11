@@ -13,6 +13,10 @@ function readQualityGateWorkflow() {
   return fs.readFileSync(path.join(repoRoot, '.github', 'workflows', 'quality-gate.yml'), 'utf8');
 }
 
+function readQualityGateAction() {
+  return fs.readFileSync(path.join(repoRoot, '.github', 'actions', 'quality-gate', 'action.yml'), 'utf8');
+}
+
 function readGitHubReadme() {
   return fs.readFileSync(path.join(repoRoot, '.github', 'README.md'), 'utf8');
 }
@@ -67,4 +71,11 @@ test('quality gate workflow supports dispatch targets and nightly latest CI defa
   assert.match(workflow, /GITHUB_REF_NAME: \$\{\{ env\.QUALITY_GATE_TARGET_BRANCH \}\}/u);
   assert.match(workflow, /GITHUB_SHA: \$\{\{ env\.QUALITY_GATE_TARGET_SHA \}\}/u);
   assert.match(workflow, /environment: \$\{\{ github\.event_name == 'schedule' && env\.QUALITY_GATE_SCHEDULED_ENVIRONMENT \|\| inputs\.environment \}\}/u);
+});
+
+test('quality gate action clears stale middleware containers before starting postgres', () => {
+  const action = readQualityGateAction();
+
+  assert.match(action, /docker compose -f docker\/docker-compose\.middleware\.yaml down --remove-orphans/u);
+  assert.match(action, /docker-compose -f docker\/docker-compose\.middleware\.yaml down --remove-orphans/u);
 });
