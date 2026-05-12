@@ -15,6 +15,20 @@ import {
   type CreatedApplicationApiKey
 } from '../../api/public-api';
 
+function formatDateTime(value: string) {
+  const date = new Date(value);
+  const pad = (part: number) => String(part).padStart(2, '0');
+
+  if (Number.isNaN(date.getTime())) {
+    return value;
+  }
+
+  return [
+    `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`,
+    `${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`
+  ].join(' ');
+}
+
 export function ApplicationApiKeysPanel({
   applicationId,
   csrfToken,
@@ -95,7 +109,11 @@ export function ApplicationApiKeysPanel({
             <Typography.Text code>{maskTokenPreview(value)}</Typography.Text>
           )
         },
-        { title: '创建时间', dataIndex: 'created_at' },
+        {
+          title: '创建时间',
+          dataIndex: 'created_at',
+          render: (value: string) => formatDateTime(value)
+        },
         {
           title: '操作',
           key: 'actions',

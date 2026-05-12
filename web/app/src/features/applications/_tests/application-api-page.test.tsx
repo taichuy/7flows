@@ -262,6 +262,10 @@ describe('ApplicationApiPage', () => {
     const dialog = await screen.findByRole('dialog', { name: 'API Keys' });
     expect(within(dialog).getByText('Server key')).toBeInTheDocument();
     expect(within(dialog).getByText('sk-0****2b48')).toBeInTheDocument();
+    expect(within(dialog).getByText('2026-05-09 08:00:00')).toBeInTheDocument();
+    expect(
+      within(dialog).queryByText('2026-05-09T00:00:00Z')
+    ).not.toBeInTheDocument();
     expect(
       within(dialog).queryByText('sk-019e1a2b48')
     ).not.toBeInTheDocument();
