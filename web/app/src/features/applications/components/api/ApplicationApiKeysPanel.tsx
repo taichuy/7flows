@@ -1,8 +1,8 @@
 import { useState } from 'react';
 
-import { DeleteOutlined, KeyOutlined } from '@ant-design/icons';
+import { DeleteOutlined, KeyOutlined, QuestionCircleOutlined } from '@ant-design/icons';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { App, Button, Form, Input, Modal, Space, Table, Typography } from 'antd';
+import { App, Button, Form, Input, Modal, Space, Table, Tooltip, Typography } from 'antd';
 
 import { copyTextToClipboard } from '../../../../shared/ui/clipboard/copy-text';
 import { applicationDetailQueryKey } from '../../api/applications';
@@ -99,7 +99,14 @@ export function ApplicationApiKeysPanel({
       columns={[
         { title: '名称', dataIndex: 'name' },
         {
-          title: '密钥',
+          title: (
+            <Space size={6}>
+              <span>密钥</span>
+              <Tooltip title="列表只显示可识别的 Key 前缀；完整 token 只在创建后显示一次，关闭后无法再次查看。">
+                <QuestionCircleOutlined aria-label="密钥说明" />
+              </Tooltip>
+            </Space>
+          ),
           dataIndex: 'token_prefix',
           width: 210,
           render: (value: string) => (
