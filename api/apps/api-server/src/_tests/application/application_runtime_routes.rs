@@ -819,7 +819,10 @@ async fn get_debug_variable_snapshot_restores_latest_preview_inputs_and_outputs(
             "target_node_id": "node-llm"
         })
     );
-    assert!(payload["data"]["variable_cache"]["node-start"].is_null());
+    assert_eq!(
+        payload["data"]["variable_cache"]["node-start"]["query"],
+        "总结退款政策"
+    );
     assert_eq!(payload["data"]["source_flow_run_ids"], json!({}));
     assert!(payload["data"]["variable_cache"]["node-llm"]["prompt_messages"].is_null());
     assert_eq!(

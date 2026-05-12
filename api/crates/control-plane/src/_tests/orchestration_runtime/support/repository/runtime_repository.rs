@@ -520,14 +520,14 @@ impl OrchestrationRuntimeRepository for InMemoryOrchestrationRuntimeRepository {
         Ok(inner
             .debug_variable_cache_entries_by_key
             .iter()
-            .filter_map(
-                |((cached_application_id, cached_draft_id, cached_actor_user_id, _, _), entry)| {
-                    (*cached_application_id == application_id
+            .filter(
+                |((cached_application_id, cached_draft_id, cached_actor_user_id, _, _), _)| {
+                    *cached_application_id == application_id
                         && *cached_draft_id == draft_id
-                        && *cached_actor_user_id == actor_user_id)
-                        .then(|| entry.clone())
+                        && *cached_actor_user_id == actor_user_id
                 },
             )
+            .map(|(_, entry)| entry.clone())
             .collect())
     }
 

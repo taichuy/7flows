@@ -271,7 +271,10 @@ async fn debug_variable_snapshot_keeps_actor_run_scope_isolated() {
         snapshot["data"]["latest_run_scope"]["flow_run_id"],
         member_run_id
     );
-    assert!(snapshot["data"]["variable_cache"]["node-start"].is_null());
+    assert_eq!(
+        snapshot["data"]["variable_cache"]["node-start"]["query"],
+        "root policy"
+    );
     assert!(snapshot["data"]["source_flow_run_ids"]["node-start"].is_null());
     assert_eq!(
         snapshot["data"]["variable_cache"]["node-llm"]["text"],
@@ -524,6 +527,10 @@ async fn debug_node_preview_persists_variable_cache_as_snapshot_source() {
 
     let snapshot = get_snapshot(&app, &cookie, &application_id).await;
     assert_eq!(
+        snapshot["data"]["variable_cache"]["node-start"]["query"],
+        "durable preview cache"
+    );
+    assert_eq!(
         snapshot["data"]["variable_cache"]["node-llm"]["text"],
         "reply:durable preview cache"
     );
@@ -676,7 +683,10 @@ async fn debug_variable_snapshot_uses_flow_run_document_scope_after_compiled_pla
     );
 
     let new_snapshot = get_snapshot(&app, &cookie, &application_id).await;
-    assert!(new_snapshot["data"]["variable_cache"]["node-start"].is_null());
+    assert_eq!(
+        new_snapshot["data"]["variable_cache"]["node-start"]["query"],
+        "new policy"
+    );
     assert_eq!(new_snapshot["data"]["source_flow_run_ids"], json!({}));
     assert_eq!(
         new_snapshot["data"]["variable_cache"]["node-llm"]["text"],
@@ -848,7 +858,10 @@ async fn debug_variable_snapshot_ignores_legacy_run_id_query() {
     assert_eq!(snapshot["data"]["debug_session_id"], "");
     assert_eq!(snapshot["data"]["latest_run_scope"]["flow_run_id"], run_b);
     assert_ne!(snapshot["data"]["latest_run_scope"]["flow_run_id"], run_a);
-    assert!(snapshot["data"]["variable_cache"]["node-start"].is_null());
+    assert_eq!(
+        snapshot["data"]["variable_cache"]["node-start"]["query"],
+        "policy B"
+    );
     assert_eq!(snapshot["data"]["source_flow_run_ids"], json!({}));
     assert_eq!(
         snapshot["data"]["variable_cache"]["node-llm"]["text"],

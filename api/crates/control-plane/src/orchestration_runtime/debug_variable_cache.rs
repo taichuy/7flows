@@ -45,6 +45,10 @@ pub(super) fn public_node_variable_cache(
         .filter_map(|(node_id, payload)| {
             let node = compiled_plan.nodes.get(node_id)?;
             let payload = payload.as_object()?;
+            if node.node_type == "start" {
+                return public_start_variable_cache(node_id, payload);
+            }
+
             let public_payload = node
                 .outputs
                 .iter()
@@ -65,6 +69,28 @@ pub(super) fn public_node_variable_cache(
             Some((node_id.clone(), Value::Object(public_payload)))
         })
         .collect()
+}
+
+fn public_start_variable_cache(
+    node_id: &str,
+    payload: &Map<String, Value>,
+) -> Option<(String, Value)> {
+    let public_payload = payload
+        .iter()
+        .filter_map(|(key, value)| {
+            if key.is_empty() || key.starts_with("__") {
+                return None;
+            }
+
+            Some((key.clone(), value.clone()))
+        })
+        .collect::<Map<_, _>>();
+
+    if public_payload.is_empty() {
+        return None;
+    }
+
+    Some((node_id.to_string(), Value::Object(public_payload)))
 }
 
 fn read_selector<'a>(payload: &'a Map<String, Value>, selector: &[String]) -> Option<&'a Value> {
