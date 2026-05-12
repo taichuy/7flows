@@ -1146,8 +1146,8 @@ export function AgentFlowCanvasFrame({
               onStopRun={() => {
                 void debugSession.stopRun();
               }}
-              onSubmitPrompt={() => {
-                void debugSession.submitPrompt();
+              onSubmitPrompt={(prompt) => {
+                void debugSession.submitPrompt(prompt);
               }}
             />
           </AgentFlowSideDock>
