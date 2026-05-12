@@ -64,6 +64,7 @@ fn map_api_key_row(row: sqlx::postgres::PgRow) -> ApiKeyRecord {
         scope_id: row.get("scope_id"),
         enabled: row.get("enabled"),
         expires_at: row.get("expires_at"),
+        last_used_at: row.get("last_used_at"),
         created_at: row.get("created_at"),
         updated_at: row.get("updated_at"),
     }
@@ -749,7 +750,7 @@ impl ApiKeyRepository for PgControlPlaneStore {
             values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
             returning id, name, token_hash, token_prefix, creator_user_id, tenant_id,
                       scope_kind, scope_id, key_kind, application_id, enabled, expires_at,
-                      created_at, updated_at
+                      last_used_at, created_at, updated_at
             "#,
         )
         .bind(input.id)
@@ -811,7 +812,7 @@ impl ApiKeyRepository for PgControlPlaneStore {
             r#"
             select id, name, token_hash, token_prefix, creator_user_id, tenant_id,
                    scope_kind, scope_id, key_kind, application_id, enabled, expires_at,
-                   created_at, updated_at
+                   last_used_at, created_at, updated_at
             from api_keys
             where token_hash = $1
             "#,
@@ -823,6 +824,22 @@ impl ApiKeyRepository for PgControlPlaneStore {
         Ok(row.map(map_api_key_row))
     }
 
+    async fn mark_api_key_used(&self, api_key_id: Uuid) -> Result<()> {
+        sqlx::query(
+            r#"
+            update api_keys
+            set last_used_at = now(),
+                updated_at = now()
+            where id = $1
+            "#,
+        )
+        .bind(api_key_id)
+        .execute(self.pool())
+        .await?;
+
+        Ok(())
+    }
+
     async fn list_application_api_keys(
         &self,
         application_id: Uuid,
@@ -832,7 +849,7 @@ impl ApiKeyRepository for PgControlPlaneStore {
             r#"
             select id, name, token_hash, token_prefix, creator_user_id, tenant_id,
                    scope_kind, scope_id, key_kind, application_id, enabled, expires_at,
-                   created_at, updated_at
+                   last_used_at, created_at, updated_at
             from api_keys
             where key_kind = 'application_api_key'
               and application_id = $1

@@ -184,6 +184,7 @@ where
         {
             return Err(anyhow!("not_authenticated"));
         }
+        self.repository.mark_api_key_used(api_key.id).await?;
 
         let application_id = api_key
             .application_id

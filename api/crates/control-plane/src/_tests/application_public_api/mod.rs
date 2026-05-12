@@ -205,6 +205,47 @@ async fn application_public_api_delete_removes_key_and_makes_token_unusable() {
 }
 
 #[tokio::test]
+async fn application_public_api_authentication_records_last_used_time_for_key_list() {
+    let harness = ApplicationPublicApiTestHarness::new();
+    let application = harness.seed_application(actor_user_id(), "Support Bot");
+    let service = ApplicationApiKeyService::new(harness.repository());
+    let created = service
+        .create_api_key(CreateApplicationApiKeyCommand {
+            actor_user_id: actor_user_id(),
+            application_id: application.id,
+            name: "Runtime client".into(),
+            expires_at: None,
+        })
+        .await
+        .unwrap();
+
+    let before_use = service
+        .list_api_keys(ListApplicationApiKeysCommand {
+            actor_user_id: actor_user_id(),
+            application_id: application.id,
+        })
+        .await
+        .unwrap();
+    assert_eq!(before_use[0].id, created.api_key.id);
+    assert!(before_use[0].last_used_at.is_none());
+
+    service
+        .authenticate_bearer_token(&created.token)
+        .await
+        .unwrap();
+
+    let after_use = service
+        .list_api_keys(ListApplicationApiKeysCommand {
+            actor_user_id: actor_user_id(),
+            application_id: application.id,
+        })
+        .await
+        .unwrap();
+    assert_eq!(after_use[0].id, created.api_key.id);
+    assert!(after_use[0].last_used_at.is_some());
+}
+
+#[tokio::test]
 async fn application_public_api_root_has_no_global_view_every_users_key_list_path() {
     let harness = ApplicationPublicApiTestHarness::new();
     let application = harness.seed_application(actor_user_id(), "Support Bot");

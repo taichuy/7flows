@@ -128,6 +128,7 @@ pub trait ApiKeyRepository: Send + Sync {
         &self,
         token_hash: &str,
     ) -> anyhow::Result<Option<ApiKeyRecord>>;
+    async fn mark_api_key_used(&self, api_key_id: Uuid) -> anyhow::Result<()>;
     async fn list_application_api_keys(
         &self,
         application_id: Uuid,

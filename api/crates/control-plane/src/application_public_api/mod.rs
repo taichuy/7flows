@@ -492,6 +492,7 @@ impl ApiKeyRepository for ApplicationPublicApiTestRepository {
             scope_id: input.scope_id,
             enabled: input.enabled,
             expires_at: input.expires_at,
+            last_used_at: None,
             created_at: now,
             updated_at: now,
         };
@@ -540,6 +541,19 @@ impl ApiKeyRepository for ApplicationPublicApiTestRepository {
             .values()
             .find(|api_key| api_key.token_hash == token_hash)
             .cloned())
+    }
+
+    async fn mark_api_key_used(&self, api_key_id: Uuid) -> Result<()> {
+        let mut inner = self
+            .inner
+            .lock()
+            .expect("application public api test repo mutex poisoned");
+        let api_key = inner
+            .api_keys
+            .get_mut(&api_key_id)
+            .ok_or(ControlPlaneError::NotFound("api_key"))?;
+        api_key.last_used_at = Some(OffsetDateTime::now_utc());
+        Ok(())
     }
 
     async fn list_application_api_keys(

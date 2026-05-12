@@ -18,6 +18,7 @@ export interface ConsoleApplicationApiKey {
   creator_user_id: string;
   enabled: boolean;
   expires_at: string | null;
+  last_used_at: string | null;
   created_at: string;
   updated_at: string;
 }

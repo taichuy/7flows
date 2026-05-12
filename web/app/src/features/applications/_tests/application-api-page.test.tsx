@@ -232,6 +232,7 @@ describe('ApplicationApiPage', () => {
         creator_user_id: 'user-1',
         enabled: true,
         expires_at: null,
+        last_used_at: '2026-05-10T01:02:03Z',
         created_at: '2026-05-09T00:00:00Z',
         updated_at: '2026-05-09T00:00:00Z'
       }
@@ -267,6 +268,8 @@ describe('ApplicationApiPage', () => {
       within(dialog).queryByText('sk-0****2b48')
     ).not.toBeInTheDocument();
     expect(within(dialog).getByText('2026-05-09 08:00:00')).toBeInTheDocument();
+    expect(within(dialog).getByText('最后使用时间')).toBeInTheDocument();
+    expect(within(dialog).getByText('2026-05-10 09:02:03')).toBeInTheDocument();
     expect(
       within(dialog).queryByText('2026-05-09T00:00:00Z')
     ).not.toBeInTheDocument();
@@ -298,6 +301,7 @@ describe('ApplicationApiPage', () => {
       creator_user_id: 'user-1',
       enabled: true,
       expires_at: null,
+      last_used_at: null,
       created_at: '2026-05-09T00:00:00Z',
       updated_at: '2026-05-09T00:00:00Z'
     });

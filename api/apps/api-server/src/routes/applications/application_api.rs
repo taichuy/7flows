@@ -62,6 +62,7 @@ pub struct ApplicationApiKeyResponse {
     pub creator_user_id: Uuid,
     pub enabled: bool,
     pub expires_at: Option<String>,
+    pub last_used_at: Option<String>,
     pub created_at: String,
     pub updated_at: String,
 }
@@ -75,6 +76,7 @@ pub struct CreatedApplicationApiKeyResponse {
     pub creator_user_id: Uuid,
     pub enabled: bool,
     pub expires_at: Option<String>,
+    pub last_used_at: Option<String>,
     pub created_at: String,
     pub updated_at: String,
 }
@@ -210,6 +212,7 @@ fn to_api_key_response(api_key: domain::ApiKeyRecord) -> ApplicationApiKeyRespon
         creator_user_id: api_key.creator_user_id,
         enabled: api_key.enabled,
         expires_at: format_optional_time(api_key.expires_at),
+        last_used_at: format_optional_time(api_key.last_used_at),
         created_at: format_time(api_key.created_at),
         updated_at: format_time(api_key.updated_at),
     }
@@ -227,6 +230,7 @@ fn to_created_api_key_response(
         creator_user_id: api_key.creator_user_id,
         enabled: api_key.enabled,
         expires_at: format_optional_time(api_key.expires_at),
+        last_used_at: format_optional_time(api_key.last_used_at),
         created_at: format_time(api_key.created_at),
         updated_at: format_time(api_key.updated_at),
     }

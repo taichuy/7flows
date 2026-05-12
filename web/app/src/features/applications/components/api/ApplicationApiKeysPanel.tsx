@@ -29,6 +29,10 @@ function formatDateTime(value: string) {
   ].join(' ');
 }
 
+function formatOptionalDateTime(value: string | null | undefined) {
+  return value ? formatDateTime(value) : '未使用';
+}
+
 export function ApplicationApiKeysPanel({
   applicationId,
   csrfToken,
@@ -118,6 +122,12 @@ export function ApplicationApiKeysPanel({
           dataIndex: 'created_at',
           width: 200,
           render: (value: string) => formatDateTime(value)
+        },
+        {
+          title: '最后使用时间',
+          dataIndex: 'last_used_at',
+          width: 200,
+          render: (value: string | null | undefined) => formatOptionalDateTime(value)
         },
         {
           title: '操作',

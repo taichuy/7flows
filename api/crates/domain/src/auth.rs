@@ -243,6 +243,7 @@ pub struct ApiKeyRecord {
     pub scope_id: Uuid,
     pub enabled: bool,
     pub expires_at: Option<OffsetDateTime>,
+    pub last_used_at: Option<OffsetDateTime>,
     pub created_at: OffsetDateTime,
     pub updated_at: OffsetDateTime,
 }
