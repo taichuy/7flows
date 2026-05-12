@@ -687,7 +687,7 @@ describe('useAgentFlowDebugSession', () => {
 
     view.unmount();
 
-    const remounted = renderHook(
+    const utils = renderHook(
       () =>
         useAgentFlowDebugSession({
           applicationId: 'app-1',
@@ -698,7 +698,7 @@ describe('useAgentFlowDebugSession', () => {
     );
 
     await waitFor(() => {
-      expect(remounted.result.current.getNodePreviewVariableCache()).toEqual(
+      expect(utils.result.current.getNodePreviewVariableCache()).toEqual(
         expect.objectContaining({
           'node-llm': expect.objectContaining({
             text: '手动调试缓存'

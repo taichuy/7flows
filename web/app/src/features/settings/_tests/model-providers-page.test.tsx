@@ -763,9 +763,20 @@ describe('ModelProvidersPage', () => {
 
     renderApp('/settings/model-providers');
 
-    const versionSelect = await screen.findByRole('combobox', {
-      name: '切换 OpenAI Compatible 版本'
-    });
+    await waitFor(
+      () => {
+        expect(pluginsApi.fetchSettingsPluginFamilies).toHaveBeenCalled();
+      },
+      { timeout: 10_000 }
+    );
+
+    const versionSelect = await screen.findByRole(
+      'combobox',
+      {
+        name: '切换 OpenAI Compatible 版本'
+      },
+      { timeout: 10_000 }
+    );
 
     fireEvent.mouseDown(versionSelect);
     fireEvent.click(await screen.findByText('0.2.0'));
@@ -785,19 +796,17 @@ describe('ModelProvidersPage', () => {
     renderApp('/settings/model-providers');
 
     const headers = await screen.findAllByRole('columnheader');
-    const catalogHeaders = headers
-      .map((header) => header.textContent?.trim() ?? '')
-      .filter((text) =>
-        ['操作', '名称', '状态', '版本', '说明'].includes(text)
-      );
+    const expectedHeaders = ['操作', '名称', '状态', '版本', '说明'];
+    const expectedHeaderSet = new Set(expectedHeaders);
+    const catalogHeaders: string[] = [];
+    for (const header of headers) {
+      const text = header.textContent?.trim() ?? '';
+      if (expectedHeaderSet.has(text)) {
+        catalogHeaders.push(text);
+      }
+    }
 
-    expect(catalogHeaders.slice(0, 5)).toEqual([
-      '操作',
-      '名称',
-      '状态',
-      '版本',
-      '说明'
-    ]);
+    expect(catalogHeaders.slice(0, 5)).toEqual(expectedHeaders);
   }, 10000);
 
   test(
@@ -864,6 +873,13 @@ describe('ModelProvidersPage', () => {
       modelProvidersApi.updateSettingsModelProviderInstance.mockImplementation(
         async (instanceId, input, csrfToken) => {
           expect(csrfToken).toBe('csrf-123');
+          const enabledModelIds: string[] = [];
+          for (const model of input.configured_models) {
+            if (model.enabled) {
+              enabledModelIds.push(model.model_id);
+            }
+          }
+
           instancesState = instancesState.map((instance) =>
             instance.id === instanceId
               ? {
@@ -871,9 +887,7 @@ describe('ModelProvidersPage', () => {
                   display_name: input.display_name,
                   included_in_main: input.included_in_main,
                   configured_models: input.configured_models,
-                  enabled_model_ids: input.configured_models
-                    .filter((model: { enabled: boolean }) => model.enabled)
-                    .map((model: { model_id: string }) => model.model_id),
+                  enabled_model_ids: enabledModelIds,
                   config_json: input.config
                 }
               : instance

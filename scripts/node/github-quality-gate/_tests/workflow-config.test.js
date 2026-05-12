@@ -65,6 +65,7 @@ test('verify workflow runs React Doctor as a frontend quality gate', () => {
 
   assert.match(workflow, /react-doctor-gate:\n\s+runs-on: ubuntu-latest/u);
   assert.match(workflow, /fetch-depth: 0/u);
+  assert.match(workflow, /git show-ref --verify --quiet refs\/heads\/main \|\| git branch main origin\/main/u);
   assert.match(workflow, /uses: millionco\/react-doctor@main/u);
   assert.match(workflow, /directory: web\/app/u);
   assert.match(workflow, /diff: main/u);

@@ -709,6 +709,7 @@ export function useAgentFlowDebugSession({
     applicationId,
     debugSessionScope,
     debugSessionState,
+    document,
     draftId
   ]);
 

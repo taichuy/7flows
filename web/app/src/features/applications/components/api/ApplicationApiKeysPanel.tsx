@@ -15,17 +15,30 @@ import {
   type CreatedApplicationApiKey
 } from '../../api/public-api';
 
+const SHANGHAI_DATE_TIME_FORMATTER = new Intl.DateTimeFormat('en-US', {
+  timeZone: 'Asia/Shanghai',
+  year: 'numeric',
+  month: '2-digit',
+  day: '2-digit',
+  hour: '2-digit',
+  minute: '2-digit',
+  second: '2-digit',
+  hourCycle: 'h23'
+});
+
 function formatDateTime(value: string) {
   const date = new Date(value);
-  const pad = (part: number) => String(part).padStart(2, '0');
 
   if (Number.isNaN(date.getTime())) {
     return value;
   }
 
+  const parts = SHANGHAI_DATE_TIME_FORMATTER.formatToParts(date);
+  const partByType = new Map(parts.map((part) => [part.type, part.value]));
+
   return [
-    `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`,
-    `${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`
+    `${partByType.get('year')}-${partByType.get('month')}-${partByType.get('day')}`,
+    `${partByType.get('hour')}:${partByType.get('minute')}:${partByType.get('second')}`
   ].join(' ');
 }
 
@@ -50,14 +63,6 @@ export function ApplicationApiKeysPanel({
     queryKey: applicationApiKeysQueryKey(applicationId),
     queryFn: () => fetchApplicationApiKeys(applicationId)
   });
-  const invalidate = () => {
-    void queryClient.invalidateQueries({
-      queryKey: applicationApiKeysQueryKey(applicationId)
-    });
-    void queryClient.invalidateQueries({
-      queryKey: applicationDetailQueryKey(applicationId)
-    });
-  };
   const createMutation = useMutation({
     mutationFn: (name: string) => createApplicationApiKey(applicationId, name, csrfToken),
     onSuccess: (key) => {
@@ -65,14 +70,24 @@ export function ApplicationApiKeysPanel({
       onCreatedToken(key.token);
       setCreateOpen(false);
       form.resetFields();
-      invalidate();
+      void queryClient.invalidateQueries({
+        queryKey: applicationApiKeysQueryKey(applicationId)
+      });
+      void queryClient.invalidateQueries({
+        queryKey: applicationDetailQueryKey(applicationId)
+      });
     }
   });
   const revokeMutation = useMutation({
     mutationFn: (keyId: string) => revokeApplicationApiKey(applicationId, keyId, csrfToken),
     onSuccess: () => {
       message.success('API Key 已删除');
-      invalidate();
+      void queryClient.invalidateQueries({
+        queryKey: applicationApiKeysQueryKey(applicationId)
+      });
+      void queryClient.invalidateQueries({
+        queryKey: applicationDetailQueryKey(applicationId)
+      });
     }
   });
 
@@ -189,7 +204,7 @@ export function ApplicationApiKeysPanel({
               label="Key 名称"
               rules={[{ required: true, message: '请输入 Key 名称' }]}
             >
-              <Input autoFocus />
+              <Input />
             </Form.Item>
           </Form>
         </Modal>
@@ -258,7 +273,7 @@ export function ApplicationApiKeysPanel({
             label="Key 名称"
             rules={[{ required: true, message: '请输入 Key 名称' }]}
           >
-            <Input autoFocus />
+            <Input />
           </Form.Item>
         </Form>
       </Modal>

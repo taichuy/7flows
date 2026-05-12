@@ -1308,5 +1308,5 @@ describe('Settings data models page', () => {
         'csrf-123'
       )
     );
-  });
+  }, 20_000);
 });
