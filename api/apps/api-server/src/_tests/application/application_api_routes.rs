@@ -97,8 +97,46 @@ async fn application_api_key_routes_create_list_hide_token_filter_and_revoke() {
     let key_id = create_payload["data"]["id"].as_str().unwrap().to_string();
     let token = create_payload["data"]["token"].as_str().unwrap();
     let token_prefix = create_payload["data"]["token_prefix"].as_str().unwrap();
-    assert!(token.starts_with("apk_"));
+    assert!(token.starts_with("sk-"));
+    assert!(token_prefix.starts_with("sk-"));
+    assert_eq!(token.len(), 56);
+    assert_eq!(token_prefix.len(), 15);
+    assert_eq!(token.matches('-').count(), 2);
     assert!(token.starts_with(token_prefix));
+
+    let duplicate_create = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri(format!(
+                    "/api/console/applications/{application_id}/api-keys"
+                ))
+                .header("cookie", &root_cookie)
+                .header("x-csrf-token", &root_csrf)
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    json!({
+                        "name": "Server key",
+                        "expires_at": null
+                    })
+                    .to_string(),
+                ))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+
+    assert_eq!(duplicate_create.status(), StatusCode::CREATED);
+    let duplicate_payload = response_json(duplicate_create).await;
+    assert!(duplicate_payload["data"]["token"]
+        .as_str()
+        .unwrap()
+        .starts_with("sk-"));
+    assert_eq!(
+        duplicate_payload["data"]["token"].as_str().unwrap().len(),
+        56
+    );
 
     let list = app
         .clone()
@@ -115,12 +153,14 @@ async fn application_api_key_routes_create_list_hide_token_filter_and_revoke() {
         .unwrap();
     assert_eq!(list.status(), StatusCode::OK);
     let list_payload = response_json(list).await;
-    assert_eq!(list_payload["data"].as_array().unwrap().len(), 1);
-    assert_eq!(
-        list_payload["data"][0]["token_prefix"].as_str(),
-        Some(token_prefix)
-    );
-    assert!(list_payload["data"][0].get("token").is_none());
+    let listed_keys = list_payload["data"].as_array().unwrap();
+    assert_eq!(listed_keys.len(), 2);
+    assert!(listed_keys.iter().any(
+        |key| key["token_prefix"].as_str() == Some(token_prefix) && key.get("token").is_none()
+    ));
+    assert!(listed_keys
+        .iter()
+        .all(|key| key["name"].as_str() == Some("Server key")));
 
     let (member_cookie, _) =
         create_member_with_permissions(&app, &root_cookie, &root_csrf, &["application.view.all"])
@@ -200,7 +240,7 @@ async fn application_api_key_routes_create_list_hide_token_filter_and_revoke() {
     let list_after_revoke_payload = response_json(list_after_revoke).await;
     assert_eq!(
         list_after_revoke_payload["data"].as_array().unwrap().len(),
-        0
+        1
     );
 }
 

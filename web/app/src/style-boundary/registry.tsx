@@ -658,7 +658,7 @@ function seedStyleBoundaryApplicationFetch() {
             {
               id: 'key-1',
               name: 'Production client',
-              token_prefix: 'ofb_live_1234',
+              token_prefix: 'sk-019e1a2b48',
               creator_user_id: 'user-1',
               enabled: true,
               expires_at: null,
@@ -670,6 +670,33 @@ function seedStyleBoundaryApplicationFetch() {
         }),
         {
           status: 200,
+          headers: { 'content-type': 'application/json' }
+        }
+      );
+    }
+
+    if (
+      method.toUpperCase() === 'POST' &&
+      requestUrl.pathname === '/api/console/applications/app-1/api-keys'
+    ) {
+      return new Response(
+        JSON.stringify({
+          data: {
+            id: 'key-created',
+            name: 'Production client',
+            token:
+              'sk-019e1a463b39-AbCdEfGhIjKlMnOpQrStUvWxYz0123456789ABCD',
+            token_prefix: 'sk-019e1a463b39',
+            creator_user_id: 'user-1',
+            enabled: true,
+            expires_at: null,
+            created_at: '2026-05-09T10:00:00Z',
+            updated_at: '2026-05-09T10:00:00Z'
+          },
+          meta: null
+        }),
+        {
+          status: 201,
           headers: { 'content-type': 'application/json' }
         }
       );

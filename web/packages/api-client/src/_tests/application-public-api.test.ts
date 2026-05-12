@@ -42,8 +42,8 @@ describe('application public API client', () => {
         jsonResponse({
           id: 'key-1',
           name: 'Server key',
-          token: 'apk_secret',
-          token_prefix: 'apk_',
+          token: 'sk-secret',
+          token_prefix: 'sk-1234',
           creator_user_id: 'user-1',
           enabled: true,
           expires_at: null,

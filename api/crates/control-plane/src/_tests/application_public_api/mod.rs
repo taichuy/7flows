@@ -59,7 +59,7 @@ async fn application_public_api_key_service_requires_application_edit_permission
 }
 
 #[tokio::test]
-async fn application_public_api_create_returns_apk_token_exactly_once() {
+async fn application_public_api_create_returns_sk_token_exactly_once_and_allows_duplicate_names() {
     let harness = ApplicationPublicApiTestHarness::new();
     let application = harness.seed_application(actor_user_id(), "Support Bot");
     let service = ApplicationApiKeyService::new(harness.repository());
@@ -74,9 +74,28 @@ async fn application_public_api_create_returns_apk_token_exactly_once() {
         .await
         .unwrap();
 
-    assert!(created.token.starts_with("apk_"));
-    assert!(created.api_key.token_prefix.starts_with("apk_"));
+    assert!(created.token.starts_with("sk-"));
+    assert!(created.api_key.token_prefix.starts_with("sk-"));
+    assert_eq!(created.token.len(), 56);
+    assert_eq!(created.api_key.token_prefix.len(), 15);
+    assert_eq!(created.token.matches('-').count(), 2);
     assert_ne!(created.api_key.token_prefix, created.token);
+
+    let duplicate = service
+        .create_api_key(CreateApplicationApiKeyCommand {
+            actor_user_id: actor_user_id(),
+            application_id: application.id,
+            name: "Native clients".into(),
+            expires_at: None,
+        })
+        .await
+        .unwrap();
+
+    assert!(duplicate.token.starts_with("sk-"));
+    assert_eq!(duplicate.token.len(), 56);
+    assert_eq!(duplicate.api_key.token_prefix.len(), 15);
+    assert_ne!(duplicate.api_key.id, created.api_key.id);
+    assert_eq!(duplicate.api_key.name, created.api_key.name);
 
     let listed = service
         .list_api_keys(ListApplicationApiKeysCommand {
@@ -86,10 +105,13 @@ async fn application_public_api_create_returns_apk_token_exactly_once() {
         .await
         .unwrap();
 
-    assert_eq!(listed.len(), 1);
-    assert_eq!(listed[0].id, created.api_key.id);
-    assert_eq!(listed[0].token_prefix, created.api_key.token_prefix);
-    assert_ne!(listed[0].token_prefix, created.token);
+    assert_eq!(listed.len(), 2);
+    assert!(listed.iter().any(|key| key.id == created.api_key.id
+        && key.token_prefix == created.api_key.token_prefix
+        && key.token_prefix != created.token));
+    assert!(listed.iter().any(|key| key.id == duplicate.api_key.id
+        && key.token_prefix == duplicate.api_key.token_prefix
+        && key.token_prefix != duplicate.token));
 }
 
 #[tokio::test]
@@ -241,7 +263,7 @@ async fn application_public_api_dmk_keys_still_authenticate_only_for_data_model_
         .unwrap();
 
     assert!(dmk.token.starts_with("dmk_"));
-    assert!(apk.token.starts_with("apk_"));
+    assert!(apk.token.starts_with("sk-"));
     data_model_key_service
         .authenticate_bearer_token(&dmk.token)
         .await
@@ -256,6 +278,10 @@ async fn application_public_api_dmk_keys_still_authenticate_only_for_data_model_
         .is_err());
     assert!(application_key_service
         .authenticate_bearer_token(&dmk.token)
+        .await
+        .is_err());
+    assert!(application_key_service
+        .authenticate_bearer_token("apk_legacy_token")
         .await
         .is_err());
 }
