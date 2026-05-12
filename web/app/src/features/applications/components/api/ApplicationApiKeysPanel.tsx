@@ -78,11 +78,7 @@ export function ApplicationApiKeysPanel({
 
   const keys = keysQuery.data ?? [];
   const maskTokenPreview = (value: string) => {
-    if (value.length <= 8) {
-      return '****';
-    }
-
-    return `${value.slice(0, 4)}****${value.slice(-4)}`;
+    return `${value}****`;
   };
   const copyCreatedToken = () => {
     const token = createdKey?.token;
@@ -105,7 +101,7 @@ export function ApplicationApiKeysPanel({
         {
           title: '密钥',
           dataIndex: 'token_prefix',
-          width: 180,
+          width: 210,
           render: (value: string) => (
             <Typography.Text code>{maskTokenPreview(value)}</Typography.Text>
           )
