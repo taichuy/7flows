@@ -105,6 +105,7 @@ export function ApplicationApiKeysPanel({
         {
           title: '密钥',
           dataIndex: 'token_prefix',
+          width: 180,
           render: (value: string) => (
             <Typography.Text code>{maskTokenPreview(value)}</Typography.Text>
           )
@@ -112,11 +113,13 @@ export function ApplicationApiKeysPanel({
         {
           title: '创建时间',
           dataIndex: 'created_at',
+          width: 200,
           render: (value: string) => formatDateTime(value)
         },
         {
           title: '操作',
           key: 'actions',
+          width: 96,
           render: (_, record) => (
             <Button
               danger
