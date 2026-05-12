@@ -18,9 +18,7 @@ use crate::{
     response::ApiSuccess,
 };
 
-use super::{
-    ensure_application_visible, runtime_debug_artifacts::offload_debug_variable_snapshot_artifacts,
-};
+use super::ensure_application_visible;
 
 const DEBUG_VARIABLE_SNAPSHOT_SCHEMA_VERSION: &str = "1flowbase.debug-variable-snapshot/v1";
 
@@ -76,13 +74,6 @@ pub async fn get_debug_variable_snapshot(
         context.actor.current_workspace_id,
         context.actor.user_id,
         &editor_state,
-    )
-    .await?;
-    let snapshot = offload_debug_variable_snapshot_artifacts(
-        state,
-        context.actor.current_workspace_id,
-        id,
-        snapshot,
     )
     .await?;
 

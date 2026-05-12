@@ -23,8 +23,6 @@ use uuid::Uuid;
 
 use crate::{app_state::ApiState, error_response::ApiError};
 
-use super::debug_variable_snapshot::DebugVariableSnapshotResponse;
-
 struct RuntimeDebugArtifactScope {
     workspace_id: Uuid,
     application_id: Uuid,
@@ -259,51 +257,6 @@ pub async fn offload_application_run_detail_artifacts(
     Ok(detail)
 }
 
-pub async fn offload_debug_variable_snapshot_artifacts(
-    state: Arc<ApiState>,
-    workspace_id: Uuid,
-    application_id: Uuid,
-    mut snapshot: DebugVariableSnapshotResponse,
-) -> Result<DebugVariableSnapshotResponse, ApiError> {
-    let Some(variable_cache) = snapshot.variable_cache.as_object_mut() else {
-        return Ok(snapshot);
-    };
-    let writer = RuntimeDebugArtifactWriter::new(state).await?;
-    let latest_flow_run_id = snapshot
-        .latest_run_scope
-        .as_ref()
-        .and_then(|scope| Uuid::parse_str(&scope.flow_run_id).ok());
-    let source_flow_run_ids = snapshot.source_flow_run_ids.clone();
-    let source_node_run_ids = snapshot.source_node_run_ids.clone();
-
-    for (node_id, node_payload) in variable_cache {
-        let Some(node_payload) = node_payload.as_object_mut() else {
-            continue;
-        };
-
-        for (key, value) in node_payload {
-            let flow_run_id =
-                source_flow_run_id(&source_flow_run_ids, node_id, key).or(latest_flow_run_id);
-            let node_run_id = source_node_run_id(&source_node_run_ids, node_id, key);
-            let scope = RuntimeDebugArtifactScope {
-                workspace_id,
-                application_id,
-                flow_run_id,
-                node_run_id,
-                run_event_id: None,
-            };
-            let (preview, changed) = writer
-                .offload_value(&scope, "debug_snapshot_value", value.clone())
-                .await?;
-            if changed {
-                *value = preview;
-            }
-        }
-    }
-
-    Ok(snapshot)
-}
-
 fn is_safe_to_persist_debug_artifact_previews(status: domain::FlowRunStatus) -> bool {
     matches!(
         status,
@@ -311,22 +264,6 @@ fn is_safe_to_persist_debug_artifact_previews(status: domain::FlowRunStatus) -> 
             | domain::FlowRunStatus::Failed
             | domain::FlowRunStatus::Cancelled
     )
-}
-
-fn source_flow_run_id(source_flow_run_ids: &Value, node_id: &str, key: &str) -> Option<Uuid> {
-    source_id(source_flow_run_ids, node_id, key)
-}
-
-fn source_node_run_id(source_node_run_ids: &Value, node_id: &str, key: &str) -> Option<Uuid> {
-    source_id(source_node_run_ids, node_id, key)
-}
-
-fn source_id(source_map: &Value, node_id: &str, key: &str) -> Option<Uuid> {
-    source_map
-        .get(node_id)
-        .and_then(|node| node.get(key))
-        .and_then(Value::as_str)
-        .and_then(|value| Uuid::parse_str(value).ok())
 }
 
 pub async fn load_runtime_debug_artifact_response(

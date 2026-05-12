@@ -422,6 +422,66 @@ async fn debug_variable_cache_entry_persists_without_frontend_session() {
 }
 
 #[tokio::test]
+async fn debug_variable_snapshot_returns_persisted_large_cache_value_inline() {
+    let (app, database_url) = test_app_with_database_url().await;
+    let (cookie, csrf) = login_and_capture_cookie(&app, "root", "change-me").await;
+    let provider_instance_id = create_ready_provider_instance(&app, &cookie, &csrf).await;
+    let application_id =
+        seed_agent_flow_application(&app, &cookie, &csrf, &provider_instance_id).await;
+    let large_text = "persisted cache value ".repeat(128);
+
+    let response = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("PUT")
+                .uri(format!(
+                    "/api/console/applications/{application_id}/orchestration/debug-variable-cache"
+                ))
+                .header("cookie", &cookie)
+                .header("x-csrf-token", &csrf)
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    json!({
+                        "node_id": "node-llm",
+                        "variable_key": "text",
+                        "value": large_text
+                    })
+                    .to_string(),
+                ))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(response.status(), StatusCode::OK);
+
+    let snapshot = get_snapshot(&app, &cookie, &application_id).await;
+    assert_eq!(
+        snapshot["data"]["variable_cache"]["node-llm"]["text"],
+        json!(large_text)
+    );
+    assert_ne!(
+        snapshot["data"]["variable_cache"]["node-llm"]["text"]["__runtime_debug_artifact"],
+        true
+    );
+
+    let pool = sqlx::PgPool::connect(&database_url).await.unwrap();
+    let application_uuid = Uuid::parse_str(&application_id).unwrap();
+    let artifact_count: i64 = sqlx::query_scalar(
+        r#"
+        select count(*)
+        from runtime_debug_artifacts
+        where application_id = $1
+        "#,
+    )
+    .bind(application_uuid)
+    .fetch_one(&pool)
+    .await
+    .unwrap();
+    assert_eq!(artifact_count, 0);
+}
+
+#[tokio::test]
 async fn debug_node_preview_persists_variable_cache_as_snapshot_source() {
     let (app, database_url) = test_app_with_database_url().await;
     let (cookie, csrf) = login_and_capture_cookie(&app, "root", "change-me").await;
