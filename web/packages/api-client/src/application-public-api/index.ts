@@ -22,8 +22,7 @@ export interface ConsoleApplicationApiKey {
   updated_at: string;
 }
 
-export interface CreatedConsoleApplicationApiKey
-  extends ConsoleApplicationApiKey {
+export interface CreatedConsoleApplicationApiKey extends ConsoleApplicationApiKey {
   token: string;
 }
 
@@ -76,6 +75,16 @@ export interface ConsoleApplicationApiStatus {
   application_id: string;
   api_enabled: boolean;
   public_url: string;
+}
+
+function buildApplicationApiDocsPath(path: string, locale?: string | null) {
+  if (!locale) {
+    return path;
+  }
+
+  const params = new URLSearchParams();
+  params.set('locale', locale);
+  return `${path}?${params.toString()}`;
 }
 
 export function listConsoleApplicationApiKeys(
@@ -184,10 +193,14 @@ export function updateConsoleApplicationApiStatus(
 
 export function fetchConsoleApplicationApiDocsCatalog(
   applicationId: string,
-  baseUrl?: string
+  baseUrl?: string,
+  locale?: string | null
 ): Promise<ConsoleApiDocsCatalog> {
   return apiFetch<ConsoleApiDocsCatalog>({
-    path: `/api/console/applications/${applicationId}/api-docs/catalog`,
+    path: buildApplicationApiDocsPath(
+      `/api/console/applications/${applicationId}/api-docs/catalog`,
+      locale
+    ),
     baseUrl
   });
 }
@@ -195,10 +208,14 @@ export function fetchConsoleApplicationApiDocsCatalog(
 export function fetchConsoleApplicationApiDocsCategoryOperations(
   applicationId: string,
   categoryId: string,
-  baseUrl?: string
+  baseUrl?: string,
+  locale?: string | null
 ): Promise<ConsoleApiDocsCategoryOperations> {
   return apiFetch<ConsoleApiDocsCategoryOperations>({
-    path: `/api/console/applications/${applicationId}/api-docs/categories/${encodeURIComponent(categoryId)}/operations`,
+    path: buildApplicationApiDocsPath(
+      `/api/console/applications/${applicationId}/api-docs/categories/${encodeURIComponent(categoryId)}/operations`,
+      locale
+    ),
     baseUrl
   });
 }
@@ -206,10 +223,14 @@ export function fetchConsoleApplicationApiDocsCategoryOperations(
 export function fetchConsoleApplicationApiDocsCategorySpec(
   applicationId: string,
   categoryId: string,
-  baseUrl?: string
+  baseUrl?: string,
+  locale?: string | null
 ): Promise<Record<string, unknown>> {
   return apiFetch<Record<string, unknown>>({
-    path: `/api/console/applications/${applicationId}/api-docs/categories/${encodeURIComponent(categoryId)}/openapi.json`,
+    path: buildApplicationApiDocsPath(
+      `/api/console/applications/${applicationId}/api-docs/categories/${encodeURIComponent(categoryId)}/openapi.json`,
+      locale
+    ),
     baseUrl,
     unwrapSuccess: false
   });
@@ -218,10 +239,14 @@ export function fetchConsoleApplicationApiDocsCategorySpec(
 export function fetchConsoleApplicationApiOperationSpec(
   applicationId: string,
   operationId: string,
-  baseUrl?: string
+  baseUrl?: string,
+  locale?: string | null
 ): Promise<Record<string, unknown>> {
   return apiFetch<Record<string, unknown>>({
-    path: `/api/console/applications/${applicationId}/api-docs/operations/${encodeURIComponent(operationId)}/openapi.json`,
+    path: buildApplicationApiDocsPath(
+      `/api/console/applications/${applicationId}/api-docs/operations/${encodeURIComponent(operationId)}/openapi.json`,
+      locale
+    ),
     baseUrl,
     unwrapSuccess: false
   });

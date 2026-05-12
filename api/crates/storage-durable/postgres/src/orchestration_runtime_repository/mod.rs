@@ -20,11 +20,13 @@ use control_plane::{
         CompleteCallbackTaskInput, CompleteFlowRunInput, CompleteNodeRunInput,
         CreateCallbackTaskInput, CreateCheckpointInput, CreateFlowRunInput,
         CreateFlowRunShellInput, CreateNodeRunInput, CreateRuntimeDebugArtifactInput,
-        DataModelSideEffectReceiptClaim, FailQueuedFlowRunShellInput, GetRuntimeDebugArtifactInput,
-        LinkUsageLedgerToModelFailoverAttemptInput, OrchestrationRuntimeRepository,
-        UpdateFlowRunInput, UpdateFlowRunPayloadsInput, UpdateNodeRunInput,
-        UpdateNodeRunPayloadsInput, UpdateRunEventPayloadInput, UpsertCompiledPlanInput,
-        UpsertDataModelSideEffectReceiptInput,
+        DataModelSideEffectReceiptClaim, DebugVariableCacheEntry,
+        DeleteDebugVariableCacheEntriesInput, FailQueuedFlowRunShellInput,
+        GetRuntimeDebugArtifactInput, LinkUsageLedgerToModelFailoverAttemptInput,
+        OrchestrationRuntimeRepository, UpdateFlowRunInput, UpdateFlowRunPayloadsInput,
+        UpdateNodeRunInput, UpdateNodeRunPayloadsInput, UpdateRunEventPayloadInput,
+        UpsertCompiledPlanInput, UpsertDataModelSideEffectReceiptInput,
+        UpsertDebugVariableCacheEntryInput,
     },
 };
 use sqlx::{Postgres, QueryBuilder, Row};
@@ -43,6 +45,7 @@ use sequencing::*;
 
 include!("event_methods.rs");
 include!("artifact_methods.rs");
+include!("debug_variable_cache_methods.rs");
 include!("flow_run_methods.rs");
 include!("ledger_methods.rs");
 include!("read_methods.rs");
@@ -200,6 +203,35 @@ impl OrchestrationRuntimeRepository for PgControlPlaneStore {
         input: &UpdateRunEventPayloadInput,
     ) -> Result<domain::RunEventRecord> {
         PgControlPlaneStore::update_run_event_payload(self, input).await
+    }
+
+    async fn upsert_debug_variable_cache_entry(
+        &self,
+        input: &UpsertDebugVariableCacheEntryInput,
+    ) -> Result<DebugVariableCacheEntry> {
+        PgControlPlaneStore::upsert_debug_variable_cache_entry(self, input).await
+    }
+
+    async fn list_debug_variable_cache_entries(
+        &self,
+        application_id: Uuid,
+        draft_id: Uuid,
+        actor_user_id: Uuid,
+    ) -> Result<Vec<DebugVariableCacheEntry>> {
+        PgControlPlaneStore::list_debug_variable_cache_entries(
+            self,
+            application_id,
+            draft_id,
+            actor_user_id,
+        )
+        .await
+    }
+
+    async fn delete_debug_variable_cache_entries(
+        &self,
+        input: &DeleteDebugVariableCacheEntriesInput,
+    ) -> Result<()> {
+        PgControlPlaneStore::delete_debug_variable_cache_entries(self, input).await
     }
 
     async fn create_runtime_debug_artifact(

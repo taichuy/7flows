@@ -28,7 +28,6 @@ import { useAgentFlowDebugSession } from '../../hooks/runtime/useAgentFlowDebugS
 import {
   applicationRunNodeLastRunQueryKey,
   buildNodeDebugPreviewPlan,
-  extractNodePreviewVariableOutput,
   fetchRuntimeDebugArtifact,
   nodeLastRunToFlowDebugRunDetail,
   nodeLastRunQueryKey,
@@ -306,9 +305,6 @@ export function AgentFlowCanvasFrame({
       );
     },
     onSuccess: async (lastRun, variables) => {
-      debugSession.rememberNodePreviewOutputs({
-        [variables.nodeId]: extractNodePreviewVariableOutput(lastRun)
-      });
       queryClient.setQueryData(
         nodeLastRunQueryKey(applicationId, variables.nodeId),
         lastRun
@@ -813,6 +809,7 @@ export function AgentFlowCanvasFrame({
           }
         : current
     );
+    debugSession.setVariableCacheValue(key, value);
   }
   function getDocumentWithLatestViewport(
     currentDocument: FlowAuthoringDocument
@@ -1149,8 +1146,8 @@ export function AgentFlowCanvasFrame({
               onStopRun={() => {
                 void debugSession.stopRun();
               }}
-              onSubmitPrompt={() => {
-                void debugSession.submitPrompt();
+              onSubmitPrompt={(prompt) => {
+                void debugSession.submitPrompt(prompt);
               }}
             />
           </AgentFlowSideDock>

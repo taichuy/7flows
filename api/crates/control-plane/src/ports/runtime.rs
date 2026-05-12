@@ -169,6 +169,38 @@ pub struct UpdateRunEventPayloadInput {
 }
 
 #[derive(Debug, Clone)]
+pub struct DebugVariableCacheKey {
+    pub node_id: String,
+    pub variable_key: String,
+}
+
+#[derive(Debug, Clone)]
+pub struct DebugVariableCacheEntry {
+    pub node_id: String,
+    pub variable_key: String,
+    pub value: serde_json::Value,
+}
+
+#[derive(Debug, Clone)]
+pub struct UpsertDebugVariableCacheEntryInput {
+    pub workspace_id: Uuid,
+    pub application_id: Uuid,
+    pub draft_id: Uuid,
+    pub actor_user_id: Uuid,
+    pub node_id: String,
+    pub variable_key: String,
+    pub value: serde_json::Value,
+}
+
+#[derive(Debug, Clone)]
+pub struct DeleteDebugVariableCacheEntriesInput {
+    pub application_id: Uuid,
+    pub draft_id: Uuid,
+    pub actor_user_id: Uuid,
+    pub keys: Option<Vec<DebugVariableCacheKey>>,
+}
+
+#[derive(Debug, Clone)]
 pub struct CreateRuntimeDebugArtifactInput {
     pub artifact_id: Uuid,
     pub workspace_id: Uuid,
@@ -554,6 +586,29 @@ pub trait OrchestrationRuntimeRepository: Send + Sync {
     ) -> anyhow::Result<domain::RunEventRecord> {
         let _ = input;
         anyhow::bail!("update_run_event_payload not implemented")
+    }
+    async fn upsert_debug_variable_cache_entry(
+        &self,
+        input: &UpsertDebugVariableCacheEntryInput,
+    ) -> anyhow::Result<DebugVariableCacheEntry> {
+        let _ = input;
+        anyhow::bail!("upsert_debug_variable_cache_entry not implemented")
+    }
+    async fn list_debug_variable_cache_entries(
+        &self,
+        application_id: Uuid,
+        draft_id: Uuid,
+        actor_user_id: Uuid,
+    ) -> anyhow::Result<Vec<DebugVariableCacheEntry>> {
+        let _ = (application_id, draft_id, actor_user_id);
+        anyhow::bail!("list_debug_variable_cache_entries not implemented")
+    }
+    async fn delete_debug_variable_cache_entries(
+        &self,
+        input: &DeleteDebugVariableCacheEntriesInput,
+    ) -> anyhow::Result<()> {
+        let _ = input;
+        anyhow::bail!("delete_debug_variable_cache_entries not implemented")
     }
     async fn create_runtime_debug_artifact(
         &self,

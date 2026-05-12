@@ -60,6 +60,21 @@ test('verify workflow runs quality gate scopes in parallel before one aggregate 
   assert.match(workflow, /node scripts\/node\/github-quality-gate-aggregate\.js/u);
 });
 
+test('verify workflow runs React Doctor as a frontend quality gate', () => {
+  const workflow = readVerifyWorkflow();
+
+  assert.match(workflow, /react-doctor-gate:\n\s+runs-on: ubuntu-latest/u);
+  assert.match(workflow, /fetch-depth: 0/u);
+  assert.match(workflow, /uses: millionco\/react-doctor@main/u);
+  assert.match(workflow, /directory: web\/app/u);
+  assert.match(workflow, /diff: main/u);
+  assert.match(workflow, /fail-on: warning/u);
+  assert.match(workflow, /offline: "true"/u);
+  assert.match(workflow, /node-version: 22/u);
+  assert.doesNotMatch(workflow, /github-token: \$\{\{ secrets\.GITHUB_TOKEN \}\}/u);
+  assert.match(workflow, /verify:\n\s+needs:\n\s+- repo-gate\n\s+- backend-consistency-gate\n\s+- coverage-gate\n\s+- react-doctor-gate/u);
+});
+
 test('GitHub automation docs describe latest-only issue publishing', () => {
   const readme = readGitHubReadme();
 
@@ -71,6 +86,16 @@ test('GitHub automation docs describe latest-only issue publishing', () => {
   assert.match(readme, /creates a GitHub Issue only for `latest` branch pushes/u);
   assert.doesNotMatch(readme, /main branch push failures/u);
   assert.doesNotMatch(readme, /refs\/heads\/main/u);
+});
+
+test('GitHub automation docs describe the React Doctor frontend gate', () => {
+  const readme = readGitHubReadme();
+
+  assert.match(readme, /React Doctor frontend gates/u);
+  assert.match(readme, /directory: web\/app/u);
+  assert.match(readme, /diff: main/u);
+  assert.match(readme, /fail-on: warning/u);
+  assert.match(readme, /offline: "true"/u);
 });
 
 test('quality gate workflow supports dispatch targets and nightly latest CI defaults', () => {

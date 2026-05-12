@@ -32,6 +32,7 @@ pub(crate) mod compile_context;
 mod data_model_runtime;
 pub mod debug_artifacts;
 pub mod debug_stream_events;
+mod debug_variable_cache;
 pub(crate) mod inputs;
 mod live_debug_run;
 mod payloads;
@@ -40,6 +41,7 @@ mod runtime_event_persister;
 
 use self::{
     compile_context::{build_compile_context, ensure_compiled_plan_runnable},
+    debug_variable_cache::{persist_debug_variable_cache_entries, public_node_variable_cache},
     inputs::{
         build_compiled_plan_input, build_complete_flow_run_input, build_complete_node_run_input,
         build_flow_run_input, build_node_run_input,
@@ -381,6 +383,20 @@ where
                 finished_at,
             ))
             .await?;
+        let mut variable_cache = command
+            .input_payload
+            .as_object()
+            .cloned()
+            .unwrap_or_default();
+        variable_cache.insert(node_run.node_id.clone(), node_run.output_payload.clone());
+        let variable_cache = public_node_variable_cache(&compiled_plan, &variable_cache);
+        persist_debug_variable_cache_entries(
+            &self.repository,
+            application.workspace_id,
+            &flow_run,
+            &variable_cache,
+        )
+        .await?;
 
         Ok(domain::NodeDebugPreviewResult {
             flow_run,

@@ -5,6 +5,7 @@ import {
   waitFor,
   within
 } from '@testing-library/react';
+import copy from 'copy-to-clipboard';
 import type { ReactNode } from 'react';
 import { beforeEach, describe, expect, test, vi } from 'vitest';
 
@@ -40,10 +41,14 @@ const publicApi = vi.hoisted(() => ({
   setApplicationApiEnabled: vi.fn(),
   fetchApplicationApiDocsCatalog: vi.fn(),
   fetchApplicationApiDocsCategoryOperations: vi.fn(),
-  fetchApplicationApiDocsOperationSpec: vi.fn()
+  fetchApplicationApiDocsOperationSpec: vi.fn(),
+  getApplicationApiDocsLocale: vi.fn(() => null)
 }));
 
 vi.mock('../api/public-api', () => publicApi);
+vi.mock('copy-to-clipboard', () => ({
+  default: vi.fn()
+}));
 vi.mock('../../../shared/ui/api-docs/ApiDocsExplorer', () => ({
   ApiDocsExplorer: () => <div>docs explorer</div>
 }));
@@ -119,6 +124,7 @@ function renderWithProviders(ui: ReactNode) {
 describe('ApplicationApiPage', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.mocked(copy).mockResolvedValue(true);
     resetAuthStore();
     useAuthStore.getState().setAuthenticated({
       csrfToken: 'csrf-123',
@@ -222,7 +228,7 @@ describe('ApplicationApiPage', () => {
       {
         id: 'key-1',
         name: 'Server key',
-        token_prefix: 'apk_',
+        token_prefix: 'sk-019e1a2b48',
         creator_user_id: 'user-1',
         enabled: true,
         expires_at: null,
@@ -255,12 +261,27 @@ describe('ApplicationApiPage', () => {
 
     const dialog = await screen.findByRole('dialog', { name: 'API Keys' });
     expect(within(dialog).getByText('Server key')).toBeInTheDocument();
+    expect(within(dialog).getByLabelText('密钥说明')).toBeInTheDocument();
+    expect(within(dialog).getByText('sk-019e1a2b48****')).toBeInTheDocument();
+    expect(
+      within(dialog).queryByText('sk-0****2b48')
+    ).not.toBeInTheDocument();
+    expect(within(dialog).getByText('2026-05-09 08:00:00')).toBeInTheDocument();
+    expect(
+      within(dialog).queryByText('2026-05-09T00:00:00Z')
+    ).not.toBeInTheDocument();
+    expect(
+      within(dialog).queryByText('sk-019e1a2b48')
+    ).not.toBeInTheDocument();
     expect(
       within(dialog).getByRole('button', { name: '创建 Key' })
     ).toBeInTheDocument();
     expect(
       within(dialog).getByRole('button', { name: '删除' })
     ).toBeInTheDocument();
+    expect(
+      within(dialog).queryByRole('button', { name: '复制' })
+    ).not.toBeInTheDocument();
     expect(
       screen.queryByRole('tab', { name: 'API Keys' })
     ).not.toBeInTheDocument();
@@ -272,8 +293,8 @@ describe('ApplicationApiPage', () => {
     publicApi.createApplicationApiKey.mockResolvedValue({
       id: 'key-1',
       name: 'Server key',
-      token: 'apk_full_secret',
-      token_prefix: 'apk_',
+      token: 'sk-019e1a463b39-AbCdEfGhIjKlMnOpQrStUvWxYz0123456789ABCD',
+      token_prefix: 'sk-019e1a463b39',
       creator_user_id: 'user-1',
       enabled: true,
       expires_at: null,
@@ -296,22 +317,47 @@ describe('ApplicationApiPage', () => {
     const createButtons = screen.getAllByRole('button', { name: /创\s*建/ });
     fireEvent.click(createButtons[createButtons.length - 1]);
 
-    expect(await screen.findByText('apk_full_secret')).toBeInTheDocument();
+    expect(
+      await screen.findByText(
+        'sk-019e1a463b39-AbCdEfGhIjKlMnOpQrStUvWxYz0123456789ABCD'
+      )
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole('textbox', { name: 'API Key' })
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByDisplayValue(
+        'sk-019e1a463b39-AbCdEfGhIjKlMnOpQrStUvWxYz0123456789ABCD'
+      )
+    ).not.toBeInTheDocument();
     expect(
       screen.getByText('完整 token 只在创建后显示一次。')
     ).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: '复制' })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: '复制' }));
+    await waitFor(() => {
+      expect(copy).toHaveBeenCalledWith(
+        'sk-019e1a463b39-AbCdEfGhIjKlMnOpQrStUvWxYz0123456789ABCD'
+      );
+    });
     expect(publicApi.createApplicationApiKey).toHaveBeenCalledWith(
       'app-1',
       'Server key',
       'csrf-123'
     );
     expect(storageSpy).not.toHaveBeenCalled();
-    expect(window.location.href).not.toContain('apk_full_secret');
+    expect(window.location.href).not.toContain(
+      'sk-019e1a463b39'
+    );
 
     fireEvent.click(screen.getByRole('button', { name: /关\s*闭/ }));
 
     await waitFor(() => {
-      expect(screen.queryByText('apk_full_secret')).not.toBeInTheDocument();
+      expect(
+        screen.queryByText(
+          'sk-019e1a463b39-AbCdEfGhIjKlMnOpQrStUvWxYz0123456789ABCD'
+        )
+      ).not.toBeInTheDocument();
     });
   });
 });

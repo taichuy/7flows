@@ -26,6 +26,77 @@ function createWrapper(queryClient: QueryClient) {
   };
 }
 
+function createStreamRunDetail(runId: string, answer = '退款政策摘要') {
+  return {
+    flow_run: {
+      id: runId,
+      application_id: 'app-1',
+      flow_id: 'flow-1',
+      draft_id: 'draft-1',
+      compiled_plan_id: 'plan-1',
+      run_mode: 'debug_flow_run' as const,
+      status: 'succeeded',
+      target_node_id: null,
+      input_payload: {
+        'node-start': { query: '请总结退款政策' }
+      },
+      output_payload: { answer },
+      error_payload: null,
+      created_by: 'user-1',
+      started_at: '2026-04-25T10:00:00Z',
+      finished_at: '2026-04-25T10:00:02Z',
+      created_at: '2026-04-25T10:00:00Z'
+    },
+    node_runs: [
+      {
+        id: 'node-run-start',
+        flow_run_id: runId,
+        node_id: 'node-start',
+        node_type: 'start',
+        node_alias: 'Start',
+        status: 'succeeded',
+        input_payload: {},
+        output_payload: { query: '请总结退款政策' },
+        error_payload: null,
+        metrics_payload: {},
+        started_at: '2026-04-25T10:00:00Z',
+        finished_at: '2026-04-25T10:00:00Z'
+      },
+      {
+        id: 'node-run-llm',
+        flow_run_id: runId,
+        node_id: 'node-llm',
+        node_type: 'llm',
+        node_alias: 'LLM',
+        status: 'succeeded',
+        input_payload: { user_prompt: '请总结退款政策' },
+        output_payload: { text: answer },
+        error_payload: null,
+        metrics_payload: { total_tokens: 128 },
+        started_at: '2026-04-25T10:00:01Z',
+        finished_at: '2026-04-25T10:00:02Z'
+      },
+      {
+        id: 'node-run-answer',
+        flow_run_id: runId,
+        node_id: 'node-answer',
+        node_type: 'answer',
+        node_alias: 'Answer',
+        status: 'succeeded',
+        input_payload: { answer_template: answer },
+        output_payload: { answer },
+        error_payload: null,
+        metrics_payload: {},
+        started_at: '2026-04-25T10:00:02Z',
+        finished_at: '2026-04-25T10:00:02Z'
+      }
+    ],
+    checkpoints: [],
+    callback_tasks: [],
+    events: []
+  };
+}
+
 beforeEach(() => {
   window.localStorage.clear();
   resetAuthStore();
@@ -98,6 +169,9 @@ describe('useAgentFlowDebugSession streaming', () => {
             });
           }
         );
+      vi.spyOn(runtimeApi, 'fetchApplicationRunDetail').mockResolvedValue(
+        createStreamRunDetail('run-1', '退款')
+      );
       const document = createDefaultAgentFlowDocument({ flowId: 'flow-1' });
       const { result } = renderHook(
         () =>
@@ -134,6 +208,9 @@ describe('useAgentFlowDebugSession streaming', () => {
 
     try {
       const queryClient = createQueryClient();
+      vi.spyOn(runtimeApi, 'fetchApplicationRunDetail').mockResolvedValue(
+        createStreamRunDetail('run-envelope', '退款政策')
+      );
       vi.spyOn(runtimeApi, 'startFlowDebugRunStream').mockImplementation(
         async (_applicationId, _input, _csrfToken, handlers) => {
           handlers.onEvent({
@@ -725,6 +802,9 @@ describe('useAgentFlowDebugSession streaming', () => {
           });
         }
       );
+    vi.spyOn(runtimeApi, 'fetchApplicationRunDetail').mockResolvedValue(
+      createStreamRunDetail('flow-run-stream', '你好')
+    );
     const document = createDefaultAgentFlowDocument({ flowId: 'flow-1' });
 
     try {
@@ -846,10 +926,21 @@ describe('useAgentFlowDebugSession streaming', () => {
         }
       );
     const startFlowDebugRunSpy = vi.spyOn(runtimeApi, 'startFlowDebugRun');
-    const fetchApplicationRunDetailSpy = vi.spyOn(
-      runtimeApi,
-      'fetchApplicationRunDetail'
-    );
+    const fetchApplicationRunDetailSpy = vi
+      .spyOn(runtimeApi, 'fetchApplicationRunDetail')
+      .mockResolvedValue(createStreamRunDetail('flow-run-stream'));
+    vi.spyOn(runtimeApi, 'fetchDebugVariableSnapshot')
+      .mockResolvedValueOnce({ variable_cache: {} })
+      .mockResolvedValue({
+        variable_cache: {
+          'node-start': {
+            query: '请总结退款政策'
+          },
+          'node-llm': {
+            text: '退款政策摘要'
+          }
+        }
+      });
     const document = createDefaultAgentFlowDocument({ flowId: 'flow-1' });
 
     const { result } = renderHook(
@@ -886,7 +977,10 @@ describe('useAgentFlowDebugSession streaming', () => {
       })
     );
     expect(startFlowDebugRunSpy).not.toHaveBeenCalled();
-    expect(fetchApplicationRunDetailSpy).not.toHaveBeenCalled();
+    expect(fetchApplicationRunDetailSpy).toHaveBeenCalledWith(
+      'app-1',
+      'flow-run-stream'
+    );
     expect(result.current.status).toBe('completed');
     expect(result.current.messages.at(-1)).toEqual(
       expect.objectContaining({
@@ -937,6 +1031,7 @@ describe('useAgentFlowDebugSession streaming', () => {
         })
       })
     );
+    expect(window.localStorage.length).toBe(0);
     expect(
       result.current.getNodePreviewVariableCache()['node-llm']
     ).not.toHaveProperty('user_prompt');

@@ -4,7 +4,6 @@ import { beforeEach, describe, expect, test, vi } from 'vitest';
 import { createDefaultAgentFlowDocument } from '@1flowbase/flow-schema';
 import { resetAuthStore, useAuthStore } from '../../../state/auth-store';
 import * as runtimeApi from '../api/runtime';
-import { buildAgentFlowDebugSessionStorageKey } from '../hooks/runtime/useAgentFlowDebugSession';
 import { AgentFlowEditorShell } from '../components/editor/AgentFlowEditorShell';
 import { renderReactFlowScene } from '../../../test/renderers/render-react-flow-scene';
 
@@ -168,16 +167,30 @@ describe('node last run runtime', () => {
       .spyOn(runtimeApi, 'fetchApplicationRunDetail')
       .mockResolvedValue(sampleRunDetail());
     vi.spyOn(runtimeApi, 'startNodeDebugPreview').mockResolvedValue(sampleNodeLastRun());
+    vi.spyOn(runtimeApi, 'fetchDebugVariableSnapshot').mockResolvedValue({
+      variable_cache: {}
+    });
   });
 
   test('runs node preview from cached variables and refreshes last-run cards', async () => {
-    window.localStorage.setItem(
-      buildAgentFlowDebugSessionStorageKey('app-1', 'draft-1'),
-      JSON.stringify({
-        version: 1,
-        inputValues: { query: '总结退款政策' }
+    vi.spyOn(runtimeApi, 'fetchDebugVariableSnapshot')
+      .mockResolvedValueOnce({
+        variable_cache: {
+          'node-start': {
+            query: '总结退款政策'
+          }
+        }
       })
-    );
+      .mockResolvedValue({
+        variable_cache: {
+          'node-start': {
+            query: '总结退款政策'
+          },
+          'node-llm': {
+            text: '退款政策摘要'
+          }
+        }
+      });
 
     renderReactFlowScene(
       <AgentFlowEditorShell

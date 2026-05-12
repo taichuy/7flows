@@ -1,4 +1,5 @@
 use anyhow::{anyhow, Result};
+use rand_core::{OsRng, RngCore};
 use time::OffsetDateTime;
 use uuid::Uuid;
 
@@ -52,6 +53,31 @@ pub struct ApplicationApiKeyService<R> {
     repository: R,
 }
 
+const API_KEY_SECRET_ALPHABET: &[u8] =
+    b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
+const API_KEY_SHORT_ID_LEN: usize = 12;
+const API_KEY_SECRET_LEN: usize = 40;
+const API_KEY_SECRET_ALPHABET_LEN: u8 = 62;
+
+fn generate_application_api_key_token(key_id: Uuid) -> (String, String) {
+    let key_id_hex = key_id.simple().to_string();
+    let token_prefix = format!("sk-{}", &key_id_hex[..API_KEY_SHORT_ID_LEN]);
+    let mut secret = String::with_capacity(API_KEY_SECRET_LEN);
+    let unbiased_limit = u8::MAX - (u8::MAX % API_KEY_SECRET_ALPHABET_LEN);
+
+    while secret.len() < API_KEY_SECRET_LEN {
+        let random = OsRng.next_u32() as u8;
+        if random >= unbiased_limit {
+            continue;
+        }
+        let index = usize::from(random % API_KEY_SECRET_ALPHABET_LEN);
+        secret.push(API_KEY_SECRET_ALPHABET[index] as char);
+    }
+
+    let token = format!("{token_prefix}-{secret}");
+    (token_prefix, token)
+}
+
 impl<R> ApplicationApiKeyService<R>
 where
     R: AuthRepository + ApiKeyRepository + ApplicationRepository,
@@ -75,9 +101,7 @@ where
         ensure_application_edit_permission(&actor, &application)?;
 
         let key_id = Uuid::now_v7();
-        let token_prefix = format!("apk_{}", key_id.simple());
-        let secret = format!("{}{}", Uuid::now_v7().simple(), Uuid::now_v7().simple());
-        let token = format!("{token_prefix}_{secret}");
+        let (token_prefix, token) = generate_application_api_key_token(key_id);
         let api_key = self
             .repository
             .create_api_key(&CreateApiKeyInput {
@@ -143,7 +167,7 @@ where
     }
 
     pub async fn authenticate_bearer_token(&self, token: &str) -> Result<ApplicationApiKeyActor> {
-        if !token.starts_with("apk_") {
+        if !token.starts_with("sk-") {
             return Err(anyhow!("not_authenticated"));
         }
 

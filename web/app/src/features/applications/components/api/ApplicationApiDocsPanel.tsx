@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 
 import { ApiDocsExplorer } from '../../../../shared/ui/api-docs/ApiDocsExplorer';
 import { getApplicationsApiBaseUrl } from '../../api/applications';
@@ -8,7 +8,8 @@ import {
   applicationApiDocsOperationSpecQueryKey,
   fetchApplicationApiDocsCatalog,
   fetchApplicationApiDocsCategoryOperations,
-  fetchApplicationApiDocsOperationSpec
+  fetchApplicationApiDocsOperationSpec,
+  getApplicationApiDocsLocale
 } from '../../api/public-api';
 
 export function ApplicationApiDocsPanel({
@@ -16,6 +17,7 @@ export function ApplicationApiDocsPanel({
 }: {
   applicationId: string;
 }) {
+  const docsLocale = useMemo(() => getApplicationApiDocsLocale(), []);
   const [queryState, setQueryState] = useState<{
     categoryId: string | null;
     operationId: string | null;
@@ -31,19 +33,40 @@ export function ApplicationApiDocsPanel({
       <ApiDocsExplorer
         queryState={queryState}
         onQueryStateChange={handleQueryStateChange}
-        catalogQueryKey={applicationApiDocsCatalogQueryKey(applicationId)}
-        fetchCatalog={() => fetchApplicationApiDocsCatalog(applicationId)}
+        catalogQueryKey={applicationApiDocsCatalogQueryKey(
+          applicationId,
+          docsLocale
+        )}
+        fetchCatalog={() =>
+          fetchApplicationApiDocsCatalog(applicationId, docsLocale)
+        }
         categoryOperationsQueryKey={(categoryId) =>
-          applicationApiDocsCategoryOperationsQueryKey(applicationId, categoryId)
+          applicationApiDocsCategoryOperationsQueryKey(
+            applicationId,
+            categoryId,
+            docsLocale
+          )
         }
         fetchCategoryOperations={(categoryId) =>
-          fetchApplicationApiDocsCategoryOperations(applicationId, categoryId)
+          fetchApplicationApiDocsCategoryOperations(
+            applicationId,
+            categoryId,
+            docsLocale
+          )
         }
         operationSpecQueryKey={(operationId) =>
-          applicationApiDocsOperationSpecQueryKey(applicationId, operationId)
+          applicationApiDocsOperationSpecQueryKey(
+            applicationId,
+            operationId,
+            docsLocale
+          )
         }
         fetchOperationSpec={(operationId) =>
-          fetchApplicationApiDocsOperationSpec(applicationId, operationId)
+          fetchApplicationApiDocsOperationSpec(
+            applicationId,
+            operationId,
+            docsLocale
+          )
         }
         baseServerUrl={getApplicationsApiBaseUrl}
         showAllOperationsWhenNoCategory

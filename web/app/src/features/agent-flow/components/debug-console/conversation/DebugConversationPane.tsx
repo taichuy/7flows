@@ -30,7 +30,7 @@ export function DebugConversationPane({
   onChangeQuery: (value: string) => void;
   onLoadArtifact?: (artifactRef: string) => Promise<unknown>;
   onStopRun: () => void;
-  onSubmitPrompt: () => void;
+  onSubmitPrompt: (prompt: string) => void;
 }) {
   const messagesRef = useRef<HTMLDivElement | null>(null);
   const messageListRef = useRef<HTMLDivElement | null>(null);

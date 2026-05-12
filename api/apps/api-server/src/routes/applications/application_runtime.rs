@@ -4,13 +4,12 @@ use axum::{
     extract::{Path, Query, State},
     http::{HeaderMap, StatusCode},
     response::sse::{KeepAlive, Sse},
-    routing::{get, post},
+    routing::{get, post, put},
     Json, Router,
 };
 use control_plane::{
     application::ApplicationService,
     errors::ControlPlaneError,
-    flow::FlowService,
     orchestration_runtime::{
         debug_stream_events, CancelFlowRunCommand, CompleteCallbackTaskCommand,
         ContinueFlowDebugRunCommand, OrchestrationRuntimeService, PrepareFlowDebugRunCommand,
@@ -38,14 +37,16 @@ use crate::{
 };
 
 use super::debug_run_stream;
-mod debug_variable_snapshot;
+pub(crate) mod debug_variable_cache;
+pub(crate) mod debug_variable_snapshot;
 mod runtime_debug_artifacts;
 
-use debug_variable_snapshot::build_debug_variable_snapshot;
-pub use debug_variable_snapshot::DebugVariableSnapshotResponse;
+pub use debug_variable_cache::{
+    delete_debug_variable_cache_entries, upsert_debug_variable_cache_entry,
+};
+pub use debug_variable_snapshot::{get_debug_variable_snapshot, DebugVariableSnapshotResponse};
 use runtime_debug_artifacts::{
     load_runtime_debug_artifact_response, offload_application_run_detail_artifacts,
-    offload_debug_variable_snapshot_artifacts,
 };
 
 fn is_terminal_runtime_event(event_type: &str) -> bool {
@@ -244,12 +245,6 @@ pub struct DebugRunStreamQuery {
     pub last_event_id: Option<String>,
 }
 
-#[derive(Debug, Deserialize)]
-pub struct DebugVariableSnapshotQuery {
-    pub debug_session_id: Option<String>,
-    pub run_id: Option<Uuid>,
-}
-
 #[derive(Debug, Deserialize, ToSchema)]
 pub struct ResumeFlowRunBody {
     pub checkpoint_id: String,
@@ -412,6 +407,10 @@ pub fn router() -> Router<Arc<ApiState>> {
         .route(
             "/applications/:id/orchestration/debug-variable-snapshot",
             get(get_debug_variable_snapshot),
+        )
+        .route(
+            "/applications/:id/orchestration/debug-variable-cache",
+            put(upsert_debug_variable_cache_entry).delete(delete_debug_variable_cache_entries),
         )
         .route(
             "/applications/:id/orchestration/debug-artifacts/:artifact_id",
@@ -1116,50 +1115,6 @@ pub async fn start_node_debug_preview(
     });
 
     Ok((StatusCode::CREATED, Json(ApiSuccess::new(response))))
-}
-
-#[utoipa::path(
-    get,
-    path = "/api/console/applications/{id}/orchestration/debug-variable-snapshot",
-    params(("id" = String, Path, description = "Application id")),
-    responses(
-        (status = 200, body = DebugVariableSnapshotResponse),
-        (status = 401, body = crate::error_response::ErrorBody),
-        (status = 403, body = crate::error_response::ErrorBody),
-        (status = 404, body = crate::error_response::ErrorBody)
-    )
-)]
-pub async fn get_debug_variable_snapshot(
-    State(state): State<Arc<ApiState>>,
-    headers: HeaderMap,
-    Path(id): Path<Uuid>,
-    Query(query): Query<DebugVariableSnapshotQuery>,
-) -> Result<Json<ApiSuccess<DebugVariableSnapshotResponse>>, ApiError> {
-    let context = require_session(&state, &headers).await?;
-    ensure_application_visible(&state, context.user.id, id).await?;
-    let editor_state = FlowService::new(state.store.clone())
-        .get_or_create_editor_state(context.user.id, id)
-        .await?;
-
-    let snapshot = build_debug_variable_snapshot(
-        &state.store,
-        id,
-        context.actor.current_workspace_id,
-        context.actor.user_id,
-        query.debug_session_id,
-        query.run_id,
-        &editor_state,
-    )
-    .await?;
-    let snapshot = offload_debug_variable_snapshot_artifacts(
-        state,
-        context.actor.current_workspace_id,
-        id,
-        snapshot,
-    )
-    .await?;
-
-    Ok(Json(ApiSuccess::new(snapshot)))
 }
 
 #[utoipa::path(

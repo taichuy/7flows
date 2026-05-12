@@ -4,7 +4,15 @@ import {
   FullscreenOutlined
 } from '@ant-design/icons';
 import { App, Button, Modal, Tooltip } from 'antd';
-import { useRef, useState, type MouseEvent, type ReactNode } from 'react';
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  type FocusEvent,
+  type MouseEvent,
+  type ReactNode
+} from 'react';
 
 import { useClipboardCopy } from '../../../../shared/ui/clipboard/use-clipboard-copy';
 import { type FlowSelectorOption } from '../../lib/selector-options';
@@ -13,6 +21,8 @@ import {
   type LexicalTemplatedTextEditorHandle
 } from './template-editor/LexicalTemplatedTextEditor';
 import { NodeConfigFieldContainer } from '../field-container/NodeConfigFieldContainer';
+
+const TEMPLATE_EDIT_COMMIT_DELAY_MS = 200;
 
 interface TemplatedTextFieldProps {
   label: string;
@@ -48,12 +58,93 @@ export function TemplatedTextField({
   const expandedEditorRef = useRef<LexicalTemplatedTextEditorHandle | null>(
     null
   );
+  const commitTimerRef = useRef<number | null>(null);
+  const latestDraftValueRef = useRef(value);
+  const latestCommittedValueRef = useRef(value);
+  const onChangeRef = useRef(onChange);
   const { copied, copy } = useClipboardCopy();
   const [expanded, setExpanded] = useState(false);
+  const [draftValue, setDraftValue] = useState(value);
+
+  useEffect(() => {
+    onChangeRef.current = onChange;
+  }, [onChange]);
+
+  const clearCommitTimer = useCallback(() => {
+    if (commitTimerRef.current === null) {
+      return;
+    }
+
+    window.clearTimeout(commitTimerRef.current);
+    commitTimerRef.current = null;
+  }, []);
+
+  const commitDraftValue = useCallback(
+    (nextValue = latestDraftValueRef.current) => {
+      clearCommitTimer();
+
+      if (nextValue === latestCommittedValueRef.current) {
+        return;
+      }
+
+      latestCommittedValueRef.current = nextValue;
+      onChangeRef.current(nextValue);
+    },
+    [clearCommitTimer]
+  );
+
+  useEffect(() => {
+    if (value === latestCommittedValueRef.current) {
+      return;
+    }
+
+    clearCommitTimer();
+    latestCommittedValueRef.current = value;
+    latestDraftValueRef.current = value;
+    setDraftValue(value);
+  }, [clearCommitTimer, value]);
+
+  useEffect(
+    () => () => {
+      if (commitTimerRef.current === null) {
+        return;
+      }
+
+      window.clearTimeout(commitTimerRef.current);
+      commitTimerRef.current = null;
+
+      if (latestDraftValueRef.current !== latestCommittedValueRef.current) {
+        latestCommittedValueRef.current = latestDraftValueRef.current;
+        onChangeRef.current(latestDraftValueRef.current);
+      }
+    },
+    []
+  );
+
+  function scheduleDraftCommit(nextValue: string) {
+    latestDraftValueRef.current = nextValue;
+    setDraftValue(nextValue);
+    clearCommitTimer();
+    commitTimerRef.current = window.setTimeout(() => {
+      commitTimerRef.current = null;
+      commitDraftValue(nextValue);
+    }, TEMPLATE_EDIT_COMMIT_DELAY_MS);
+  }
+
+  function handleRootBlur(event: FocusEvent<HTMLDivElement>) {
+    if (
+      event.relatedTarget instanceof Node &&
+      event.currentTarget.contains(event.relatedTarget)
+    ) {
+      return;
+    }
+
+    commitDraftValue();
+  }
 
   async function handleCopy() {
     try {
-      await copy(value);
+      await copy(draftValue);
       message.success('已复制');
     } catch {
       message.error('复制失败');
@@ -88,7 +179,10 @@ export function TemplatedTextField({
   }
 
   return (
-    <div className="agent-flow-templated-text-field">
+    <div
+      className="agent-flow-templated-text-field"
+      onBlurCapture={handleRootBlur}
+    >
       <NodeConfigFieldContainer
         ariaLabel={ariaLabel}
         classNames={{
@@ -103,7 +197,7 @@ export function TemplatedTextField({
           <>
             {toolbarExtraActions}
             <span className="agent-flow-templated-text-field__action agent-flow-templated-text-field__counter">
-              {value.length}
+              {draftValue.length}
             </span>
             <Tooltip title="插入变量">
               <Button
@@ -150,11 +244,11 @@ export function TemplatedTextField({
       >
         <LexicalTemplatedTextEditor
           ref={editorRef}
-          value={value}
+          value={draftValue}
           options={options}
           ariaLabel={ariaLabel}
           placeholder={placeholder}
-          onChange={onChange}
+          onChange={scheduleDraftCommit}
         />
       </NodeConfigFieldContainer>
       <Modal
@@ -168,11 +262,11 @@ export function TemplatedTextField({
       >
         <LexicalTemplatedTextEditor
           ref={expandedEditorRef}
-          value={value}
+          value={draftValue}
           options={options}
           ariaLabel={`${ariaLabel} 放大编辑`}
           placeholder={placeholder}
-          onChange={onChange}
+          onChange={scheduleDraftCommit}
         />
       </Modal>
     </div>

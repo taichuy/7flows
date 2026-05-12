@@ -1,5 +1,19 @@
-import { useEffect, useMemo, useState, type MouseEvent as ReactMouseEvent } from 'react';
-import { Collapse, Empty, Input, Button, Space, Tag, Tooltip, Typography } from 'antd';
+import {
+  useEffect,
+  useMemo,
+  useState,
+  type MouseEvent as ReactMouseEvent
+} from 'react';
+import {
+  Collapse,
+  Empty,
+  Input,
+  Button,
+  Space,
+  Tag,
+  Tooltip,
+  Typography
+} from 'antd';
 
 import type { AgentFlowVariableGroup } from '../../../api/runtime';
 
@@ -51,7 +65,7 @@ export function DebugVariablesPane({
   sidebarWidth,
   sidebarMinWidth,
   sidebarMaxWidth,
-  onSidebarResizeStart,
+  onSidebarResizeStart
 }: {
   groups: AgentFlowVariableGroup[];
   onSelectedChange?: (info: SelectedVariableInfo | null) => void;
@@ -150,23 +164,29 @@ export function DebugVariablesPane({
 
     const fullValue = await onLoadFullValue(selectedItem.artifactRef);
     setSelectedValueText(formatValue(fullValue));
+    onSelectedValueChange?.(selectedItem.key, fullValue);
     onSelectedChange?.({
       label: selectedItem.label,
       value: fullValue,
       key: selectedItem.key,
-      isReadOnly: true
+      isReadOnly: selectedItem.isReadOnly
     });
   }
 
   if (groups.length === 0) {
     return (
       <div className="agent-flow-editor__debug-console-pane">
-        <Empty description="当前还没有变量快照" image={Empty.PRESENTED_IMAGE_SIMPLE} />
+        <Empty
+          description="当前还没有变量快照"
+          image={Empty.PRESENTED_IMAGE_SIMPLE}
+        />
       </div>
     );
   }
 
-  const defaultGroupKeys = groups.map((group, index) => `${index}:${group.title}`);
+  const defaultGroupKeys = groups.map(
+    (group, index) => `${index}:${group.title}`
+  );
 
   return (
     <div className="agent-flow-editor__debug-console-pane agent-flow-editor__debug-variables-pane">
@@ -263,12 +283,17 @@ export function DebugVariablesPane({
               onBlur={handleVariableValueBlur}
               onChange={(event) => setSelectedValueText(event.target.value)}
               value={selectedValueText}
-              placeholder={selectedItem.isReadOnly ? '系统变量不可编辑' : undefined}
+              placeholder={
+                selectedItem.isReadOnly ? '系统变量不可编辑' : undefined
+              }
             />
           </>
         ) : (
           <div className="agent-flow-editor__debug-variables-detail-empty">
-            <Empty description="选择左侧变量查看详情" image={Empty.PRESENTED_IMAGE_SIMPLE} />
+            <Empty
+              description="选择左侧变量查看详情"
+              image={Empty.PRESENTED_IMAGE_SIMPLE}
+            />
           </div>
         )}
       </div>

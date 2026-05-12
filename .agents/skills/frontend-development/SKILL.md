@@ -56,6 +56,7 @@ description: Use when building or changing 1flowbase frontend/UI pages, page req
 - 示例与压力场景：`examples/`
 - 命中结构性问题后的完整信息架构诊断：`frontend-logic-design`
 - 前端测试资源限制统一读取仓库根 `.1flowbase.verify.local.json`；调整 `turbo` 并发或 `vitest` worker 时，同步维护 `.1flowbase.verify.local.json.example`，不要把并发重新写死进 `package.json`
+- 涉及可测试行为变化时，先联动 `test-driven-development`；不能走 TDD 时，在交付说明里写明替代验证
 
 ## Implementation
 

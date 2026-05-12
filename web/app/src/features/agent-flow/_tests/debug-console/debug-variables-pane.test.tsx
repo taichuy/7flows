@@ -32,10 +32,7 @@ describe('DebugVariablesPane', () => {
     const onSelectedChange = vi.fn();
 
     render(
-      <DebugVariablesPane
-        groups={groups}
-        onSelectedChange={onSelectedChange}
-      />
+      <DebugVariablesPane groups={groups} onSelectedChange={onSelectedChange} />
     );
 
     expect(screen.getByLabelText('变量值编辑框')).toHaveValue('input query');
@@ -92,6 +89,8 @@ describe('DebugVariablesPane', () => {
     expect(await screen.findByLabelText('变量值编辑框')).toHaveValue(
       JSON.stringify({ text: '完整内容' }, null, 2)
     );
-    expect(onSelectedValueChange).not.toHaveBeenCalled();
+    expect(onSelectedValueChange).toHaveBeenCalledWith('node-llm.text', {
+      text: '完整内容'
+    });
   });
 });

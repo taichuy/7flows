@@ -42,8 +42,8 @@ describe('application public API client', () => {
         jsonResponse({
           id: 'key-1',
           name: 'Server key',
-          token: 'apk_secret',
-          token_prefix: 'apk_',
+          token: 'sk-secret',
+          token_prefix: 'sk-1234',
           creator_user_id: 'user-1',
           enabled: true,
           expires_at: null,
@@ -111,9 +111,15 @@ describe('application public API client', () => {
       .spyOn(globalThis, 'fetch')
       .mockResolvedValueOnce(jsonResponse(mapping))
       .mockResolvedValueOnce(jsonResponse(mapping))
-      .mockResolvedValueOnce(jsonResponse({ id: 'pub-1', mapping_snapshot: mapping }))
-      .mockResolvedValueOnce(jsonResponse({ id: 'pub-2', mapping_snapshot: mapping }))
-      .mockResolvedValueOnce(jsonResponse({ application_id: 'app-1', api_enabled: false }));
+      .mockResolvedValueOnce(
+        jsonResponse({ id: 'pub-1', mapping_snapshot: mapping })
+      )
+      .mockResolvedValueOnce(
+        jsonResponse({ id: 'pub-2', mapping_snapshot: mapping })
+      )
+      .mockResolvedValueOnce(
+        jsonResponse({ application_id: 'app-1', api_enabled: false })
+      );
 
     await getConsoleApplicationApiMapping('app-1', 'http://localhost:7800');
     await replaceConsoleApplicationApiMapping(
@@ -166,7 +172,9 @@ describe('application public API client', () => {
   test('uses application-scoped docs routes and raw OpenAPI responses', async () => {
     const fetchMock = vi
       .spyOn(globalThis, 'fetch')
-      .mockResolvedValueOnce(jsonResponse({ id: 'openai-compatible-api', operations: [] }))
+      .mockResolvedValueOnce(
+        jsonResponse({ id: 'openai-compatible-api', operations: [] })
+      )
       .mockResolvedValueOnce(rawJsonResponse({ openapi: '3.1.0', paths: {} }))
       .mockResolvedValueOnce(rawJsonResponse({ openapi: '3.1.0', paths: {} }));
 
@@ -190,6 +198,41 @@ describe('application public API client', () => {
       'http://localhost:7800/api/console/applications/app-1/api-docs/categories/openai-compatible-api/operations',
       'http://localhost:7800/api/console/applications/app-1/api-docs/categories/openai-compatible-api/openapi.json',
       'http://localhost:7800/api/console/applications/app-1/api-docs/operations/applicationOpenAiCreateChatCompletion/openapi.json'
+    ]);
+  });
+
+  test('passes locale through application-scoped docs routes', async () => {
+    const fetchMock = vi
+      .spyOn(globalThis, 'fetch')
+      .mockResolvedValueOnce(
+        jsonResponse({ id: 'openai-compatible-api', operations: [] })
+      )
+      .mockResolvedValueOnce(rawJsonResponse({ openapi: '3.1.0', paths: {} }))
+      .mockResolvedValueOnce(rawJsonResponse({ openapi: '3.1.0', paths: {} }));
+
+    await fetchConsoleApplicationApiDocsCategoryOperations(
+      'app-1',
+      'openai-compatible-api',
+      'http://localhost:7800',
+      'zh_Hans'
+    );
+    await fetchConsoleApplicationApiDocsCategorySpec(
+      'app-1',
+      'openai-compatible-api',
+      'http://localhost:7800',
+      'zh_Hans'
+    );
+    await fetchConsoleApplicationApiOperationSpec(
+      'app-1',
+      'applicationOpenAiCreateChatCompletion',
+      'http://localhost:7800',
+      'zh_Hans'
+    );
+
+    expect(fetchMock.mock.calls.map((call) => call[0])).toEqual([
+      'http://localhost:7800/api/console/applications/app-1/api-docs/categories/openai-compatible-api/operations?locale=zh_Hans',
+      'http://localhost:7800/api/console/applications/app-1/api-docs/categories/openai-compatible-api/openapi.json?locale=zh_Hans',
+      'http://localhost:7800/api/console/applications/app-1/api-docs/operations/applicationOpenAiCreateChatCompletion/openapi.json?locale=zh_Hans'
     ]);
   });
 

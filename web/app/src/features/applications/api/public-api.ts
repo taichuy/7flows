@@ -23,17 +23,63 @@ export type CreatedApplicationApiKey = CreatedConsoleApplicationApiKey;
 export type ApplicationApiMapping = ConsoleApplicationApiMapping;
 export type ApplicationApiPublication = ConsoleApplicationApiPublication;
 
+function normalizeApplicationApiDocsLocale(locale: string | null | undefined) {
+  if (!locale) {
+    return null;
+  }
+
+  const normalized = locale.replace('_', '-').toLowerCase();
+  if (normalized.startsWith('zh')) {
+    return 'zh_Hans';
+  }
+  if (normalized.startsWith('en')) {
+    return 'en_US';
+  }
+
+  return null;
+}
+
+export function getApplicationApiDocsLocale() {
+  if (typeof navigator === 'undefined') {
+    return null;
+  }
+
+  const languages = navigator.languages?.length
+    ? navigator.languages
+    : [navigator.language];
+
+  for (const language of languages) {
+    const locale = normalizeApplicationApiDocsLocale(language);
+    if (locale) {
+      return locale;
+    }
+  }
+
+  return null;
+}
+
 export const applicationApiKeysQueryKey = (applicationId: string) =>
   ['applications', applicationId, 'public-api', 'keys'] as const;
 export const applicationApiMappingQueryKey = (applicationId: string) =>
   ['applications', applicationId, 'public-api', 'mapping'] as const;
 export const applicationApiPublicationQueryKey = (applicationId: string) =>
   ['applications', applicationId, 'public-api', 'publication'] as const;
-export const applicationApiDocsCatalogQueryKey = (applicationId: string) =>
-  ['applications', applicationId, 'public-api', 'docs', 'catalog'] as const;
+export const applicationApiDocsCatalogQueryKey = (
+  applicationId: string,
+  locale?: string | null
+) =>
+  [
+    'applications',
+    applicationId,
+    'public-api',
+    'docs',
+    'catalog',
+    locale ?? 'default'
+  ] as const;
 export const applicationApiDocsCategoryOperationsQueryKey = (
   applicationId: string,
-  categoryId: string
+  categoryId: string,
+  locale?: string | null
 ) =>
   [
     'applications',
@@ -42,11 +88,13 @@ export const applicationApiDocsCategoryOperationsQueryKey = (
     'docs',
     'category',
     categoryId,
-    'operations'
+    'operations',
+    locale ?? 'default'
   ] as const;
 export const applicationApiDocsOperationSpecQueryKey = (
   applicationId: string,
-  operationId: string
+  operationId: string,
+  locale?: string | null
 ) =>
   [
     'applications',
@@ -55,11 +103,15 @@ export const applicationApiDocsOperationSpecQueryKey = (
     'docs',
     'operation',
     operationId,
-    'openapi'
+    'openapi',
+    locale ?? 'default'
   ] as const;
 
 export function fetchApplicationApiKeys(applicationId: string) {
-  return listConsoleApplicationApiKeys(applicationId, getApplicationsApiBaseUrl());
+  return listConsoleApplicationApiKeys(
+    applicationId,
+    getApplicationsApiBaseUrl()
+  );
 }
 
 export function createApplicationApiKey(
@@ -89,7 +141,10 @@ export function revokeApplicationApiKey(
 }
 
 export function fetchApplicationApiMapping(applicationId: string) {
-  return getConsoleApplicationApiMapping(applicationId, getApplicationsApiBaseUrl());
+  return getConsoleApplicationApiMapping(
+    applicationId,
+    getApplicationsApiBaseUrl()
+  );
 }
 
 export function saveApplicationApiMapping(
@@ -138,31 +193,39 @@ export function setApplicationApiEnabled(
   );
 }
 
-export function fetchApplicationApiDocsCatalog(applicationId: string) {
+export function fetchApplicationApiDocsCatalog(
+  applicationId: string,
+  locale = getApplicationApiDocsLocale()
+) {
   return fetchConsoleApplicationApiDocsCatalog(
     applicationId,
-    getApplicationsApiBaseUrl()
+    getApplicationsApiBaseUrl(),
+    locale
   );
 }
 
 export function fetchApplicationApiDocsCategoryOperations(
   applicationId: string,
-  categoryId: string
+  categoryId: string,
+  locale = getApplicationApiDocsLocale()
 ) {
   return fetchConsoleApplicationApiDocsCategoryOperations(
     applicationId,
     categoryId,
-    getApplicationsApiBaseUrl()
+    getApplicationsApiBaseUrl(),
+    locale
   );
 }
 
 export function fetchApplicationApiDocsOperationSpec(
   applicationId: string,
-  operationId: string
+  operationId: string,
+  locale = getApplicationApiDocsLocale()
 ) {
   return fetchConsoleApplicationApiOperationSpec(
     applicationId,
     operationId,
-    getApplicationsApiBaseUrl()
+    getApplicationsApiBaseUrl(),
+    locale
   );
 }

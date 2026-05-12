@@ -6,6 +6,7 @@ import { DebugComposer } from '../../components/debug-console/conversation/Debug
 describe('DebugComposer', () => {
   test('submits by button click and Enter key when not running', () => {
     const handleSubmit = vi.fn();
+    const handleChange = vi.fn();
 
     render(
       <DebugComposer
@@ -13,7 +14,7 @@ describe('DebugComposer', () => {
         submitting={false}
         stopping={false}
         value="你好？"
-        onChange={vi.fn()}
+        onChange={handleChange}
         onStop={vi.fn()}
         onSubmit={handleSubmit}
       />
@@ -27,6 +28,9 @@ describe('DebugComposer', () => {
     });
 
     expect(handleSubmit).toHaveBeenCalledTimes(2);
+    expect(handleSubmit).toHaveBeenNthCalledWith(1, '你好？');
+    expect(handleSubmit).toHaveBeenNthCalledWith(2, '你好？');
+    expect(handleChange).toHaveBeenCalledWith('');
   });
 
   test('shows stop action while submitting and does not submit on Enter', () => {

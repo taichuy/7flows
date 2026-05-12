@@ -34,7 +34,7 @@ export function AgentFlowDebugConsole({
   onClose: () => void;
   onLoadArtifact?: (artifactRef: string) => Promise<unknown>;
   onStopRun: () => void;
-  onSubmitPrompt: () => void;
+  onSubmitPrompt: (prompt: string) => void;
 }) {
   return (
     <AgentFlowDockPanel

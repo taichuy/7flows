@@ -22,10 +22,19 @@ export function DebugComposer({
   stopping: boolean;
   onChange: (value: string) => void;
   onStop: () => void;
-  onSubmit: () => void;
+  onSubmit: (value: string) => void;
 }) {
   const [isComposing, setIsComposing] = useState(false);
   const showStop = submitting || stopping;
+
+  function handleSubmit() {
+    if (disabled || submitting || stopping) {
+      return;
+    }
+
+    onSubmit(value);
+    onChange('');
+  }
 
   return (
     <div className="agent-flow-editor__debug-composer">
@@ -51,11 +60,7 @@ export function DebugComposer({
 
             event.preventDefault();
 
-            if (disabled || submitting || stopping) {
-              return;
-            }
-
-            onSubmit();
+            handleSubmit();
           }}
         />
         <div className="agent-flow-editor__debug-composer-actions">
@@ -77,7 +82,7 @@ export function DebugComposer({
               icon={<ArrowUpOutlined />}
               shape="circle"
               type="primary"
-              onClick={onSubmit}
+              onClick={handleSubmit}
             />
           )}
         </div>

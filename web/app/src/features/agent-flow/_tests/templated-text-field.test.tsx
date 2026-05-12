@@ -219,6 +219,47 @@ describe('TemplatedTextField', () => {
     ).not.toBeInTheDocument();
   });
 
+  test('keeps template edits local and commits after the edit settles', async () => {
+    const onChange = vi.fn();
+
+    render(
+      <TemplatedTextField
+        label="User Prompt"
+        ariaLabel="User Prompt"
+        options={[startQueryOption]}
+        value="请基于 "
+        onChange={onChange}
+      />
+    );
+
+    const editor = screen.getByLabelText('User Prompt');
+
+    fireEvent.focus(editor);
+    fireEvent.click(screen.getByRole('button', { name: '插入变量' }));
+    fireEvent.click(
+      await screen.findByRole('option', { name: 'Start/query' })
+    );
+
+    expect(onChange).not.toHaveBeenCalled();
+
+    await act(async () => {
+      await new Promise((resolve) => {
+        window.setTimeout(resolve, 80);
+      });
+    });
+
+    expect(onChange).not.toHaveBeenCalled();
+
+    await act(async () => {
+      await new Promise((resolve) => {
+        window.setTimeout(resolve, 180);
+      });
+    });
+
+    expect(onChange).toHaveBeenCalledTimes(1);
+    expect(onChange).toHaveBeenLastCalledWith('请基于 {{node-start.query}}');
+  });
+
   test('opens variable suggestions when typing trigger characters in the editor', async () => {
     render(<TemplatedTextHarness />);
 
@@ -371,9 +412,11 @@ describe('TemplatedTextField', () => {
         screen.queryByRole('listbox', { name: '变量建议' })
       ).not.toBeInTheDocument();
     });
-    expect(screen.getByTestId('templated-text-value')).toHaveTextContent(
-      '请基于 {{node-answer.answer}}'
-    );
+    await waitFor(() => {
+      expect(screen.getByTestId('templated-text-value')).toHaveTextContent(
+        '请基于 {{node-answer.answer}}'
+      );
+    });
   });
 
   test('does not insert twice when Enter bubbles from the searchbox', async () => {
@@ -391,9 +434,11 @@ describe('TemplatedTextField', () => {
         screen.queryByRole('listbox', { name: '变量建议' })
       ).not.toBeInTheDocument();
     });
-    expect(screen.getByTestId('templated-text-value')).toHaveTextContent(
-      '请基于 {{node-start.query}}'
-    );
+    await waitFor(() => {
+      expect(screen.getByTestId('templated-text-value')).toHaveTextContent(
+        '请基于 {{node-start.query}}'
+      );
+    });
   });
 
   test('positions the picker near the editor caret when opened from typing', async () => {
@@ -485,9 +530,11 @@ describe('TemplatedTextField', () => {
     expect(
       screen.getAllByText('Start/query').length
     ).toBeGreaterThan(0);
-    expect(screen.getByTestId('templated-text-value')).toHaveTextContent(
-      '请基于 {{node-start.query}}'
-    );
+    await waitFor(() => {
+      expect(screen.getByTestId('templated-text-value')).toHaveTextContent(
+        '请基于 {{node-start.query}}'
+      );
+    });
   });
 
   test('inserts selected variables and preserves stored template syntax', async () => {
@@ -507,8 +554,10 @@ describe('TemplatedTextField', () => {
     });
 
     expect(editor).toHaveTextContent('请基于 Start/query');
-    expect(screen.getByTestId('templated-text-value')).toHaveTextContent(
-      '请基于 {{node-start.query}}'
-    );
+    await waitFor(() => {
+      expect(screen.getByTestId('templated-text-value')).toHaveTextContent(
+        '请基于 {{node-start.query}}'
+      );
+    });
   });
 });

@@ -61,6 +61,24 @@ describe('run detail mapper', () => {
     expect(extractAssistantOutputText(detail)).toBe('退款政策摘要');
   });
 
+  test('uses runtime artifact preview instead of artifact metadata strings', () => {
+    const detail = baseDetail();
+    detail.flow_run.status = 'succeeded';
+    detail.flow_run.output_payload = {
+      answer: {
+        __runtime_debug_artifact: true,
+        is_truncated: true,
+        original_size_bytes: 8192,
+        preview_size_bytes: 256,
+        content_type: 'text/plain',
+        artifact_ref: 'artifact-answer',
+        preview: '截断预览内容'
+      }
+    };
+
+    expect(extractAssistantOutputText(detail)).toBe('截断预览内容');
+  });
+
   test('uses provider text delta events while a run is still producing output', () => {
     const detail = baseDetail();
     detail.flow_run.status = 'running';
@@ -119,6 +137,31 @@ describe('run detail mapper', () => {
     );
     expect(mapRunDetailToConversation(detail)).not.toHaveProperty(
       'reasoningContent'
+    );
+  });
+
+  test('restores final output text when durable events only contain reasoning', () => {
+    const detail = baseDetail();
+    detail.flow_run.status = 'succeeded';
+    detail.flow_run.output_payload = {
+      text: '<think>先分析</think>结果'
+    };
+    detail.events = [
+      {
+        id: 'event-1',
+        flow_run_id: 'flow-run-1',
+        node_run_id: 'node-run-llm',
+        sequence: 1,
+        event_type: 'reasoning_delta',
+        payload: { type: 'reasoning_delta', text: '先分析' },
+        created_at: '2026-04-26T10:00:00Z'
+      }
+    ];
+
+    expect(mapRunDetailToConversation(detail)).toEqual(
+      expect.objectContaining({
+        content: '<think>先分析</think>结果'
+      })
     );
   });
 

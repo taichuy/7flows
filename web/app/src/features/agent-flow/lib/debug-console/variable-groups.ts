@@ -316,7 +316,7 @@ export function mapRunContextToVariableGroups(
 
   return [
     {
-      title: 'Input Variables',
+      title: runContext.fields.at(0)?.nodeLabel ?? 'Start',
       items: runContext.fields.map((field) => ({
         key: `${field.nodeId}.${field.key}`,
         label: formatNodeVariablePathLabel(field.nodeLabel, field.key),
@@ -484,7 +484,7 @@ export function mapRunDetailToVariableGroups(
 
   return [
     {
-      title: 'Input Variables',
+      title: options.runContext.fields.at(0)?.nodeLabel ?? 'Start',
       items: inputItems
     },
     {

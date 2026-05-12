@@ -6,7 +6,7 @@ This directory owns GitHub Actions automation for repository quality gates.
 
 | Path | Purpose |
 | --- | --- |
-| `.github/workflows/verify.yml` | Automatic CI for `pull_request` and `push` to `main` / `latest`; runs repo, backend consistency, and coverage gates in parallel, then publishes one aggregate issue only for `latest` pushes. |
+| `.github/workflows/verify.yml` | Automatic CI for `pull_request` and `push` to `main` / `latest`; runs repo, backend consistency, coverage, and React Doctor frontend gates in parallel, then publishes one aggregate issue only for `latest` pushes. |
 | `.github/workflows/quality-gate.yml` | Manual and nightly quality gate run that creates one new GitHub Issue report per run. |
 | `.github/actions/quality-gate/action.yml` | Reusable repository-local action used by CI, manual, and nightly quality gates. |
 
@@ -24,6 +24,16 @@ It runs three local Quality Gate Action jobs in parallel:
 scope: repo
 scope: backend-consistency
 scope: coverage
+```
+
+It also runs React Doctor as a frontend quality gate against `web/app` changed files:
+
+```yaml
+uses: millionco/react-doctor@main
+directory: web/app
+diff: main
+fail-on: warning
+offline: "true"
 ```
 
 The final aggregate job downloads the three component artifacts and publishes a single

@@ -6,6 +6,7 @@ import type {
 } from '@1flowbase/flow-schema';
 import {
   cancelConsoleFlowRun,
+  deleteConsoleDebugVariableCacheEntries,
   getConsoleApplicationRunDetail,
   getConsoleApplicationRunNodeLastRun,
   getConsoleDebugVariableSnapshot,
@@ -14,6 +15,7 @@ import {
   startConsoleFlowDebugRunStream,
   getConsoleNodeLastRun,
   startConsoleNodeDebugPreview,
+  upsertConsoleDebugVariableCacheEntry,
   type ConsoleApplicationRunDetail,
   type ConsoleDebugVariableSnapshot,
   type ConsoleFlowDebugStreamEvent,
@@ -158,16 +160,44 @@ export function fetchNodeLastRun(applicationId: string, nodeId: string) {
   );
 }
 
-export function fetchDebugVariableSnapshot(
-  applicationId: string,
-  options?: {
-    debugSessionId?: string;
-    runId?: string;
-  }
-) {
+export function fetchDebugVariableSnapshot(applicationId: string) {
   return getConsoleDebugVariableSnapshot(
     applicationId,
-    options,
+    getApplicationsApiBaseUrl()
+  );
+}
+
+export function upsertDebugVariableCacheEntry(
+  applicationId: string,
+  input: {
+    node_id: string;
+    variable_key: string;
+    value: unknown;
+  },
+  csrfToken: string
+) {
+  return upsertConsoleDebugVariableCacheEntry(
+    applicationId,
+    input,
+    csrfToken,
+    getApplicationsApiBaseUrl()
+  );
+}
+
+export function deleteDebugVariableCacheEntries(
+  applicationId: string,
+  input: {
+    keys?: Array<{
+      node_id: string;
+      variable_key: string;
+    }>;
+  },
+  csrfToken: string
+) {
+  return deleteConsoleDebugVariableCacheEntries(
+    applicationId,
+    input,
+    csrfToken,
     getApplicationsApiBaseUrl()
   );
 }

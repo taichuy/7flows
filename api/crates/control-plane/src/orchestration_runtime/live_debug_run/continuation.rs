@@ -14,10 +14,13 @@ use crate::{
     state_transition::{ensure_flow_run_transition, ensure_node_run_transition},
 };
 
-use super::super::payloads::persisted_node_output_payload;
 use super::super::{
     data_model_runtime, debug_stream_events, CancelFlowRunCommand, ContinueFlowDebugRunCommand,
     LiveProviderStreamEventSender, OrchestrationRuntimeService,
+};
+use super::super::{
+    debug_variable_cache::{persist_debug_variable_cache_entries, public_node_variable_cache},
+    payloads::persisted_node_output_payload,
 };
 use super::{
     append_runtime_event, close_runtime_event_stream, emit_flow_failed_and_close, fail_flow_run,
@@ -989,6 +992,15 @@ where
             payload: last_output_payload,
         })
         .await?;
+    let updated_flow_run = updated.expect("updated flow run exists after is_none check");
+    let variable_cache = public_node_variable_cache(&compiled_plan, &variable_pool);
+    persist_debug_variable_cache_entries(
+        &service.repository,
+        application.workspace_id,
+        &updated_flow_run,
+        &variable_cache,
+    )
+    .await?;
 
     load_run_detail(&service.repository, command.application_id, flow_run.id).await
 }

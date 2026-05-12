@@ -60,6 +60,58 @@
   flex: 0 0 auto;
 }
 
+.application-api-key-trigger.ant-btn {
+  height: 36px;
+  padding: 0 16px;
+  color: var(--text-primary);
+  background: rgba(255, 255, 255, 0.54);
+  border-color: rgba(0, 217, 146, 0.32);
+  border-radius: 8px;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.72);
+  font-weight: 600;
+}
+
+.application-api-key-trigger.ant-btn:hover,
+.application-api-key-trigger.ant-btn:focus-visible {
+  color: #007a55;
+  background: rgba(255, 255, 255, 0.74);
+  border-color: rgba(0, 217, 146, 0.58);
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 255, 255, 0.86),
+    0 8px 20px rgba(0, 217, 146, 0.1);
+}
+
+.application-api-key-trigger.ant-btn:active {
+  color: #006a4a;
+  background: rgba(0, 217, 146, 0.1);
+  border-color: rgba(0, 217, 146, 0.7);
+}
+
+.application-api-created-token {
+  display: block;
+  font-family:
+    ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono",
+    "Courier New", monospace;
+  color: var(--text-primary);
+  overflow-wrap: anywhere;
+  word-break: break-all;
+}
+
+.application-api-created-token-copy.ant-btn {
+  color: #ffffff;
+  background: var(--text-primary);
+  border-color: var(--text-primary);
+  border-radius: 8px;
+  font-weight: 600;
+}
+
+.application-api-created-token-copy.ant-btn:hover,
+.application-api-created-token-copy.ant-btn:focus-visible {
+  color: #ffffff;
+  background: #0b1310;
+  border-color: #0b1310;
+}
+
 .application-api-panel__header {
   display: flex;
   align-items: flex-start;

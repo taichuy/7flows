@@ -1,8 +1,8 @@
 use std::sync::Arc;
 
 use axum::{
-    extract::{Path, State},
-    http::{HeaderMap, StatusCode},
+    extract::{Path, Query, State},
+    http::{header::ACCEPT_LANGUAGE, HeaderMap, StatusCode},
     response::IntoResponse,
     routing::{delete, get, post},
     Json, Router,
@@ -100,6 +100,11 @@ pub struct ApplicationApiMappingOutputBody {
 pub struct ApplicationApiMappingBody {
     pub input: ApplicationApiMappingInputBody,
     pub output: ApplicationApiMappingOutputBody,
+}
+
+#[derive(Debug, Clone, Deserialize, Default)]
+pub struct ApplicationApiDocsQuery {
+    pub locale: Option<String>,
 }
 
 #[derive(Debug, Deserialize, ToSchema)]
@@ -300,8 +305,26 @@ async fn load_application_public_docs_context(
     state: &ApiState,
     headers: &HeaderMap,
     application_id: Uuid,
+    query_locale: Option<String>,
 ) -> Result<ApplicationPublicDocsContext, ApiError> {
     let context = require_session(state, headers).await?;
+    let locale = runtime_profile::resolve_locale(runtime_profile::LocaleResolutionInput {
+        query_locale,
+        explicit_header_locale: headers
+            .get("x-1flowbase-locale")
+            .and_then(|value| value.to_str().ok())
+            .map(str::to_string),
+        user_preferred_locale: context.user.preferred_locale.clone(),
+        accept_language: headers
+            .get(ACCEPT_LANGUAGE)
+            .and_then(|value| value.to_str().ok())
+            .map(str::to_string),
+        fallback_locale: runtime_profile::FALLBACK_LOCALE,
+        supported_locales: runtime_profile::SUPPORTED_LOCALES
+            .iter()
+            .map(|value| value.to_string())
+            .collect(),
+    });
     let application = ApplicationService::new(state.store.clone())
         .get_application(context.user.id, application_id)
         .await?;
@@ -313,6 +336,7 @@ async fn load_application_public_docs_context(
     Ok(ApplicationPublicDocsContext {
         application,
         active_publication,
+        locale: locale.resolved_locale,
     })
 }
 
@@ -584,7 +608,10 @@ pub async fn patch_application_api_status(
 #[utoipa::path(
     get,
     path = "/api/console/applications/{application_id}/api-docs/catalog",
-    params(("application_id" = Uuid, Path, description = "Application id")),
+    params(
+        ("application_id" = Uuid, Path, description = "Application id"),
+        ("locale" = Option<String>, Query, description = "Requested docs locale")
+    ),
     responses(
         (status = 200, body = DocsCatalog),
         (status = 401, body = crate::error_response::ErrorBody),
@@ -594,10 +621,13 @@ pub async fn patch_application_api_status(
 )]
 pub async fn get_application_api_docs_catalog(
     State(state): State<Arc<ApiState>>,
+    Query(query): Query<ApplicationApiDocsQuery>,
     headers: HeaderMap,
     Path(application_id): Path<Uuid>,
 ) -> Result<Json<ApiSuccess<DocsCatalog>>, ApiError> {
-    let context = load_application_public_docs_context(&state, &headers, application_id).await?;
+    let context =
+        load_application_public_docs_context(&state, &headers, application_id, query.locale)
+            .await?;
 
     Ok(Json(ApiSuccess::new(
         build_application_public_docs_catalog(&context),
@@ -609,7 +639,8 @@ pub async fn get_application_api_docs_catalog(
     path = "/api/console/applications/{application_id}/api-docs/categories/{category_id}/operations",
     params(
         ("application_id" = Uuid, Path, description = "Application id"),
-        ("category_id" = String, Path, description = "Application public API docs category id")
+        ("category_id" = String, Path, description = "Application public API docs category id"),
+        ("locale" = Option<String>, Query, description = "Requested docs locale")
     ),
     responses(
         (status = 200, body = DocsCatalogCategoryOperations),
@@ -620,10 +651,13 @@ pub async fn get_application_api_docs_catalog(
 )]
 pub async fn get_application_api_docs_category_operations(
     State(state): State<Arc<ApiState>>,
+    Query(query): Query<ApplicationApiDocsQuery>,
     headers: HeaderMap,
     Path((application_id, category_id)): Path<(Uuid, String)>,
 ) -> Result<Json<ApiSuccess<DocsCatalogCategoryOperations>>, ApiError> {
-    let context = load_application_public_docs_context(&state, &headers, application_id).await?;
+    let context =
+        load_application_public_docs_context(&state, &headers, application_id, query.locale)
+            .await?;
     let operations = build_application_public_docs_category_operations(&context, &category_id)
         .ok_or(ControlPlaneError::NotFound("application_api_docs_category"))?;
 
@@ -635,7 +669,8 @@ pub async fn get_application_api_docs_category_operations(
     path = "/api/console/applications/{application_id}/api-docs/categories/{category_id}/openapi.json",
     params(
         ("application_id" = Uuid, Path, description = "Application id"),
-        ("category_id" = String, Path, description = "Application public API docs category id")
+        ("category_id" = String, Path, description = "Application public API docs category id"),
+        ("locale" = Option<String>, Query, description = "Requested docs locale")
     ),
     responses(
         (status = 200, body = Value),
@@ -646,10 +681,13 @@ pub async fn get_application_api_docs_category_operations(
 )]
 pub async fn get_application_api_docs_category_openapi(
     State(state): State<Arc<ApiState>>,
+    Query(query): Query<ApplicationApiDocsQuery>,
     headers: HeaderMap,
     Path((application_id, category_id)): Path<(Uuid, String)>,
 ) -> Result<Json<Value>, ApiError> {
-    let context = load_application_public_docs_context(&state, &headers, application_id).await?;
+    let context =
+        load_application_public_docs_context(&state, &headers, application_id, query.locale)
+            .await?;
     let spec = build_application_public_docs_category_spec(&context, &category_id)
         .ok_or(ControlPlaneError::NotFound("application_api_docs_category"))?;
 
@@ -661,7 +699,8 @@ pub async fn get_application_api_docs_category_openapi(
     path = "/api/console/applications/{application_id}/api-docs/operations/{operation_id}/openapi.json",
     params(
         ("application_id" = Uuid, Path, description = "Application id"),
-        ("operation_id" = String, Path, description = "Application public API docs operation id")
+        ("operation_id" = String, Path, description = "Application public API docs operation id"),
+        ("locale" = Option<String>, Query, description = "Requested docs locale")
     ),
     responses(
         (status = 200, body = Value),
@@ -672,10 +711,13 @@ pub async fn get_application_api_docs_category_openapi(
 )]
 pub async fn get_application_api_docs_operation_openapi(
     State(state): State<Arc<ApiState>>,
+    Query(query): Query<ApplicationApiDocsQuery>,
     headers: HeaderMap,
     Path((application_id, operation_id)): Path<(Uuid, String)>,
 ) -> Result<Json<Value>, ApiError> {
-    let context = load_application_public_docs_context(&state, &headers, application_id).await?;
+    let context =
+        load_application_public_docs_context(&state, &headers, application_id, query.locale)
+            .await?;
     let spec = build_application_public_docs_operation_spec(&context, &operation_id).ok_or(
         ControlPlaneError::NotFound("application_api_docs_operation"),
     )?;

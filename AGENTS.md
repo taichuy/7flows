@@ -13,6 +13,7 @@
 2.前端实现规则: `web/AGENTS.md`
 3.后端实现规则: `api/AGENTS.md`
 4.warning 与 coverage 产物统一落到 `tmp/test-governance/`。
+5.涉及功能、缺陷、重构或行为变化的开发，先使用项目 skill `test-driven-development`；若不适用，交付说明需写明原因与替代验证。
 # 文件管理约定
 1.理论上来说单个代码文件不应该超过1500行
 2.当前单个目录下文件不应该超过15个，超过后应该收纳整理对应子目录

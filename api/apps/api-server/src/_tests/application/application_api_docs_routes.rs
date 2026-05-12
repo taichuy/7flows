@@ -186,6 +186,46 @@ async fn application_api_docs_category_and_operation_specs_use_public_paths_only
 }
 
 #[tokio::test]
+async fn application_api_docs_specs_follow_requested_locale() {
+    let app = test_app().await;
+    let (cookie, application_id) = setup_published_app(&app).await;
+
+    let spec = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .uri(format!(
+                    "/api/console/applications/{application_id}/api-docs/operations/applicationNativeCreateRun/openapi.json"
+                ))
+                .header("cookie", &cookie)
+                .header("x-1flowbase-locale", "zh_Hans")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(spec.status(), StatusCode::OK);
+    let spec_payload = response_json(spec).await;
+
+    assert_eq!(
+        spec_payload["info"]["title"],
+        json!("Application API Docs App 公开 API")
+    );
+    assert_eq!(
+        spec_payload["info"]["description"],
+        json!("Application API Docs App 的应用级公开 API 文档。当前启用的是发布版本 v1。公开路径由应用 API 密钥选择，不通过 application_id 选择。")
+    );
+    assert_eq!(
+        spec_payload["paths"]["/api/1flowbase/runs"]["post"]["summary"],
+        json!("创建原生公开运行")
+    );
+    assert_eq!(
+        spec_payload["components"]["securitySchemes"]["applicationApiKey"]["description"],
+        json!("使用在当前应用 API 页签中创建的应用 API 密钥。")
+    );
+}
+
+#[tokio::test]
 async fn application_api_docs_routes_require_session_access() {
     let app = test_app().await;
     let (_, application_id) = setup_published_app(&app).await;

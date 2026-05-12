@@ -813,6 +813,7 @@ dependencies = [
  "observability",
  "orchestration-runtime",
  "plugin-framework",
+ "rand_core 0.6.4",
  "runtime-core",
  "runtime-profile",
  "serde",

@@ -83,11 +83,26 @@ jobs:
           name: test-governance-coverage
           path: tmp/test-governance
 
+  react-doctor-gate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - uses: millionco/react-doctor@main
+        with:
+          directory: web/app
+          diff: main
+          fail-on: warning
+          offline: "true"
+          node-version: 22
+
   verify:
     needs:
       - repo-gate
       - backend-consistency-gate
       - coverage-gate
+      - react-doctor-gate
     if: always()
     runs-on: ubuntu-latest
     steps:

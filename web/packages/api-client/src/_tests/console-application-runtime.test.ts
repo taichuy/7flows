@@ -2,6 +2,7 @@ import { afterEach, describe, expect, test, vi } from 'vitest';
 
 import {
   getConsoleApplicationRunNodeLastRun,
+  getConsoleDebugVariableSnapshot,
   getConsoleRuntimeDebugArtifact,
   startConsoleFlowDebugRunStream,
   subscribeConsoleFlowDebugRunStream
@@ -135,6 +136,23 @@ data: {"event_id":"run-1:2","run_id":"run-1","node_run_id":"node-run-1","event_t
         method: 'GET',
         credentials: 'include'
       })
+    );
+  });
+
+  test('loads debug variable snapshot without query parameters', async () => {
+    const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response('{"data":{"variable_cache":{}}}', {
+        status: 200,
+        headers: { 'content-type': 'application/json' }
+      })
+    );
+
+    await expect(
+      getConsoleDebugVariableSnapshot('app-1', 'http://127.0.0.1:7800')
+    ).resolves.toEqual({ variable_cache: {} });
+    expect(fetchMock).toHaveBeenCalledWith(
+      'http://127.0.0.1:7800/api/console/applications/app-1/orchestration/debug-variable-snapshot',
+      expect.any(Object)
     );
   });
 

@@ -4,6 +4,9 @@ import { describe, expect, test, vi } from 'vitest';
 const explorerState = vi.hoisted(() => ({
   lastProps: null as null | {
     queryState: { categoryId: string | null; operationId: string | null };
+    catalogQueryKey: readonly unknown[];
+    categoryOperationsQueryKey: (categoryId: string) => readonly unknown[];
+    operationSpecQueryKey: (operationId: string) => readonly unknown[];
     showAllOperationsWhenNoCategory?: boolean;
     onQueryStateChange: (next: {
       categoryId: string | null;
@@ -37,6 +40,10 @@ import { ApplicationApiDocsPanel } from '../components/api/ApplicationApiDocsPan
 describe('ApplicationApiDocsPanel', () => {
   test('uses app-local docs state without navigating to settings docs', () => {
     window.history.pushState({}, '', '/applications/app-1/api');
+    Object.defineProperty(window.navigator, 'languages', {
+      value: ['zh-CN', 'en-US'],
+      configurable: true
+    });
 
     render(
       <AppProviders>
@@ -44,13 +51,51 @@ describe('ApplicationApiDocsPanel', () => {
       </AppProviders>
     );
 
-    expect(screen.queryByText('Support Agent API 文档')).not.toBeInTheDocument();
+    expect(
+      screen.queryByText('Support Agent API 文档')
+    ).not.toBeInTheDocument();
     expect(screen.queryByText('active publication v3')).not.toBeInTheDocument();
     expect(explorerState.lastProps?.queryState).toEqual({
       categoryId: null,
       operationId: null
     });
     expect(explorerState.lastProps?.showAllOperationsWhenNoCategory).toBe(true);
+    expect(explorerState.lastProps?.catalogQueryKey).toEqual([
+      'applications',
+      'app-1',
+      'public-api',
+      'docs',
+      'catalog',
+      'zh_Hans'
+    ]);
+    expect(
+      explorerState.lastProps?.categoryOperationsQueryKey(
+        'openai-compatible-api'
+      )
+    ).toEqual([
+      'applications',
+      'app-1',
+      'public-api',
+      'docs',
+      'category',
+      'openai-compatible-api',
+      'operations',
+      'zh_Hans'
+    ]);
+    expect(
+      explorerState.lastProps?.operationSpecQueryKey(
+        'applicationOpenAiCreateChatCompletion'
+      )
+    ).toEqual([
+      'applications',
+      'app-1',
+      'public-api',
+      'docs',
+      'operation',
+      'applicationOpenAiCreateChatCompletion',
+      'openapi',
+      'zh_Hans'
+    ]);
 
     fireEvent.click(screen.getByRole('button', { name: 'docs explorer' }));
 
