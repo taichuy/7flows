@@ -56,6 +56,7 @@ export function ApplicationLogsPage({
       </section>
       <ApplicationRunDetailPanel
         applicationId={applicationId}
+        onClose={() => setSelectedRunId(null)}
         runId={selectedRunId}
       />
     </div>

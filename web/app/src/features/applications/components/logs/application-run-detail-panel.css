@@ -1,13 +1,49 @@
 .application-run-detail {
+  position: fixed;
+  z-index: 30;
+  top: 72px;
+  right: 0;
+  bottom: 0;
   display: flex;
-  width: 100%;
   flex-direction: column;
   gap: 16px;
   min-width: 0;
-  border: 1px solid var(--ant-color-border-secondary);
-  border-radius: 8px;
+  max-width: calc(100vw - 96px);
+  border-left: 1px solid var(--ant-color-border-secondary);
   background: var(--ant-color-bg-container);
   padding: 16px;
+  box-shadow: -18px 0 42px rgba(15, 23, 42, 0.14);
+}
+
+.application-run-detail__resize-handle {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: -5px;
+  width: 10px;
+  cursor: col-resize;
+}
+
+.application-run-detail__resize-handle::before {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 4px;
+  width: 2px;
+  background: transparent;
+  content: '';
+}
+
+.application-run-detail__resize-handle:hover::before,
+.application-run-detail__resize-handle:active::before {
+  background: var(--ant-color-primary);
+}
+
+.application-run-detail__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
 }
 
 .application-run-detail__header .ant-typography {
@@ -15,7 +51,7 @@
 }
 
 .application-run-detail__content {
-  display: block;
+  min-height: 0;
 }
 
 .application-run-detail__section {
@@ -35,7 +71,8 @@
 }
 
 .application-run-detail__conversation-pane {
-  min-height: 560px;
+  height: calc(100vh - 202px);
+  min-height: 420px;
   overflow: hidden;
   border: 1px solid var(--ant-color-border-secondary);
   border-radius: 8px;
@@ -46,7 +83,7 @@
   .agent-flow-editor__debug-console-pane {
   display: flex;
   height: 100%;
-  min-height: 560px;
+  min-height: 420px;
   flex-direction: column;
 }
 
@@ -158,9 +195,19 @@
   padding: 0 8px;
 }
 
-.application-run-detail__empty {
-  display: flex;
-  min-height: 560px;
-  align-items: center;
-  justify-content: center;
+@media (max-width: 720px) {
+  .application-run-detail {
+    top: 0;
+    width: min(100vw, 420px) !important;
+    max-width: 100vw;
+  }
+
+  .application-run-detail__resize-handle {
+    display: none;
+  }
+
+  .application-run-detail__conversation-pane {
+    height: calc(100vh - 130px);
+    min-height: 320px;
+  }
 }

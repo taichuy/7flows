@@ -1,9 +1,5 @@
 .application-logs-page {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(360px, 440px);
-  gap: 16px;
   width: 100%;
-  align-items: start;
 }
 
 .application-logs-page__list {
@@ -20,10 +16,4 @@
 
 .application-logs-page__list .application-runs-table__row--active > td {
   background: rgba(0, 217, 146, 0.08);
-}
-
-@media (max-width: 1180px) {
-  .application-logs-page {
-    grid-template-columns: 1fr;
-  }
 }
