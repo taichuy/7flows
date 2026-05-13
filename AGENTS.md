@@ -8,12 +8,6 @@
 .agents/skills 是项目 skill 源目录,其他skills只作为本地镜像
 如果没有注册，请自行更新到对应约定目录
 
-# 本项目 skills
-1.`frontend-development`：前端页面、UI 结构、工作区流程、节点开发、schema UI、交互和视觉结构变更时使用。
-2.`frontend-logic-design`：前端信息架构、导航层级、入口、下钻路径或同类对象行为不清晰时使用。
-3.`backend-development`：后端 API、状态流转、模块边界、核心业务逻辑、状态写入口和一致性设计变更时使用。
-4.`test-driven-development`：功能、缺陷、重构或行为变化可用自动化测试覆盖时，在实现前使用。
-5.`qa-evaluation`：进入自检、验收、回归、交付或质量评估阶段时使用，输出证据驱动的 QA 结论。
 
 # 质量控制
 1.进入自检、验收、回归或交付阶段时，使用skill `qa-evaluation`；
