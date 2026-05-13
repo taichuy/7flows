@@ -106,6 +106,17 @@ describe('debug preview responsive layout CSS', () => {
     ).not.toMatch(/grid-template-columns:[^;]*\d+px/);
   });
 
+  test('keeps workflow node title and metric on one row', () => {
+    const nodeMain = cssBlock(
+      debugMessageCss,
+      '.agent-flow-editor__debug-workflow-node-main'
+    );
+
+    expect(nodeMain).toMatch(/display:\s*inline-flex/);
+    expect(nodeMain).toMatch(/align-items:\s*baseline/);
+    expect(nodeMain).not.toMatch(/display:\s*grid/);
+  });
+
   test('keeps icon and submit affordances relative to text scale', () => {
     expect(
       cssBlock(debugMessageCss, '.agent-flow-editor__debug-workflow-node-icon')
