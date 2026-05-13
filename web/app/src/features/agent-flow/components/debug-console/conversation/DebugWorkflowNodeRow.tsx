@@ -46,9 +46,20 @@ function readOutputTotalTokens(outputPayload: unknown) {
   return typeof totalTokens === 'number' ? totalTokens : null;
 }
 
+function formatDuration(durationMs: number) {
+  if (durationMs < 1000) {
+    return `${durationMs} ms`;
+  }
+
+  const seconds = durationMs / 1000;
+  const roundedSeconds = Math.round(seconds * 10) / 10;
+  return `${Number.isInteger(roundedSeconds) ? roundedSeconds.toFixed(0) : roundedSeconds.toFixed(1)} s`;
+}
+
 function metricText(item: AgentFlowTraceItem) {
   const tokens = readOutputTotalTokens(item.outputPayload);
-  const duration = item.durationMs == null ? null : `${item.durationMs} ms`;
+  const duration =
+    item.durationMs == null ? null : formatDuration(item.durationMs);
 
   if (typeof tokens === 'number' && duration) {
     return `${tokens} tokens · ${duration}`;
