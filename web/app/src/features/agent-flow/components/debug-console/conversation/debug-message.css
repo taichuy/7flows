@@ -160,27 +160,32 @@
   background: transparent;
 }
 
-.agent-flow-editor__debug-workflow-collapse-list > .ant-collapse-item {
+.agent-flow-editor__debug-workflow-node-item {
   border: 1px solid #dbe7e4;
   border-radius: 0.75rem;
   background: #ffffff;
   box-shadow: 0 6px 14px rgba(15, 23, 42, 0.06);
+  overflow: hidden;
 }
 
-.agent-flow-editor__debug-workflow-collapse-list
-  > .ant-collapse-item
-  > .ant-collapse-header {
+.agent-flow-editor__debug-workflow-node-item[data-selected='true'] {
+  border-color: #8fd6bd;
+  background: #e9fbf3;
+}
+
+.agent-flow-editor__debug-workflow-node-trigger {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
+  gap: clamp(0.35rem, 1.6cqw, 0.5rem);
+  width: 100%;
   min-height: 2.625rem;
   padding: clamp(0.4rem, 1.8cqw, 0.5rem);
-}
-
-.agent-flow-editor__debug-workflow-collapse-list .ant-collapse-content {
-  border-top: 1px solid #eef2f6;
-}
-
-.agent-flow-editor__debug-workflow-collapse-list .ant-collapse-content-box {
-  padding: clamp(0.5rem, 2cqw, 0.625rem);
+  border: 0;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  text-align: left;
 }
 
 .agent-flow-editor__debug-workflow-row {
@@ -254,4 +259,7 @@
 .agent-flow-editor__debug-workflow-node-detail {
   display: grid;
   gap: 0.5rem;
+  padding: clamp(0.5rem, 2cqw, 0.625rem);
+  border-top: 1px solid #eef2f6;
+  background: #ffffff;
 }

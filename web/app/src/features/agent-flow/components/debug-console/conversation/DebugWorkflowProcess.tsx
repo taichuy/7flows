@@ -1,10 +1,10 @@
 import { useState } from 'react';
 import { DownOutlined, RightOutlined } from '@ant-design/icons';
-import { Collapse, Typography } from 'antd';
+import { Typography } from 'antd';
 
 import type { AgentFlowTraceItem } from '../../../api/runtime';
 import { NodeRunPayloadSections } from '../../detail/last-run/NodeRunIOCard';
-import { DebugWorkflowNodeRow, StatusIcon } from './DebugWorkflowNodeRow';
+import { DebugWorkflowNodeItem, StatusIcon } from './DebugWorkflowNodeRow';
 import { getTraceItemKey } from './debug-workflow-trace-utils';
 
 function workflowStatus(items: AgentFlowTraceItem[]) {
@@ -39,6 +39,9 @@ export function DebugWorkflowProcess({
   onLoadArtifact?: (artifactRef: string) => Promise<unknown>;
 }) {
   const [expanded, setExpanded] = useState(true);
+  const [expandedNodeKeys, setExpandedNodeKeys] = useState<Set<string>>(
+    () => new Set()
+  );
 
   if (items.length === 0) {
     return null;
@@ -69,15 +72,30 @@ export function DebugWorkflowProcess({
         )}
       </button>
       {expanded ? (
-        <Collapse
-          bordered={false}
-          className="agent-flow-editor__debug-workflow-collapse-list"
-          expandIconPosition="end"
-          items={items.map((item) => {
-            return {
-              key: getTraceItemKey(item),
-              label: <DebugWorkflowNodeRow item={item} />,
-              children: (
+        <div className="agent-flow-editor__debug-workflow-collapse-list">
+          {items.map((item) => {
+            const itemKey = getTraceItemKey(item);
+            const nodeExpanded = expandedNodeKeys.has(itemKey);
+
+            return (
+              <DebugWorkflowNodeItem
+                key={itemKey}
+                expanded={nodeExpanded}
+                item={item}
+                onToggle={() => {
+                  setExpandedNodeKeys((current) => {
+                    const next = new Set(current);
+
+                    if (next.has(itemKey)) {
+                      next.delete(itemKey);
+                    } else {
+                      next.add(itemKey);
+                    }
+
+                    return next;
+                  });
+                }}
+              >
                 <div className="agent-flow-editor__debug-workflow-node-detail">
                   <NodeRunPayloadSections
                     inputPayload={item.inputPayload}
@@ -86,10 +104,10 @@ export function DebugWorkflowProcess({
                     onLoadArtifact={onLoadArtifact}
                   />
                 </div>
-              )
-            };
+              </DebugWorkflowNodeItem>
+            );
           })}
-        />
+        </div>
       ) : null}
     </div>
   );

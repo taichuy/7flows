@@ -84,24 +84,6 @@
   gap: 8px;
 }
 
-.agent-flow-editor__conversation-log-node-trigger.ant-btn {
-  display: block;
-  width: 100%;
-  height: auto;
-  min-height: 44px;
-  padding: 8px 10px;
-  border-color: #dbe7e4;
-  border-radius: 12px;
-  background: #ffffff;
-  box-shadow: 0 6px 14px rgba(15, 23, 42, 0.06);
-  text-align: left;
-}
-
-.agent-flow-editor__conversation-log-node-trigger.ant-btn[aria-pressed='true'] {
-  border-color: #8fd6bd;
-  background: #e9fbf3;
-}
-
 .agent-flow-editor__conversation-log-node-detail-header {
   display: flex;
   align-items: center;

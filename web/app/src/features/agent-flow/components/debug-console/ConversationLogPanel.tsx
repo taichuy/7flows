@@ -1,11 +1,11 @@
-import { useEffect, useMemo, useState } from 'react';
-import { Button, Descriptions, Empty, Space, Tabs, Typography } from 'antd';
+import { useEffect, useState } from 'react';
+import { Descriptions, Empty, Space, Tabs, Typography } from 'antd';
 
 import type { AgentFlowDebugMessage } from '../../api/runtime';
 import { AgentFlowDockPanel } from '../editor/AgentFlowDockPanel';
 import { NodeRunPayloadSections } from '../detail/last-run/NodeRunIOCard';
 import {
-  DebugWorkflowNodeRow,
+  DebugWorkflowNodeItem,
   NodeTypeIcon
 } from './conversation/DebugWorkflowNodeRow';
 import {
@@ -121,28 +121,13 @@ function ConversationTrace({
   message: AgentFlowDebugMessage;
   onLoadArtifact?: (artifactRef: string) => Promise<unknown>;
 }) {
-  const [selectedNodeKey, setSelectedNodeKey] = useState<string | null>(
-    message.traceSummary[0] ? getTraceItemKey(message.traceSummary[0]) : null
-  );
-  const selectedNode = useMemo(() => {
-    if (message.traceSummary.length === 0) {
-      return null;
-    }
-
-    return (
-      message.traceSummary.find(
-        (item) => getTraceItemKey(item) === selectedNodeKey
-      ) ?? message.traceSummary[0]
-    );
-  }, [message.traceSummary, selectedNodeKey]);
+  const [expandedNodeKey, setExpandedNodeKey] = useState<string | null>(null);
 
   useEffect(() => {
-    setSelectedNodeKey(
-      message.traceSummary[0] ? getTraceItemKey(message.traceSummary[0]) : null
-    );
-  }, [message.id, message.traceSummary]);
+    setExpandedNodeKey(null);
+  }, [message.id]);
 
-  if (message.traceSummary.length === 0 || !selectedNode) {
+  if (message.traceSummary.length === 0) {
     return (
       <div className="agent-flow-editor__conversation-log-empty">
         <Empty
@@ -161,44 +146,48 @@ function ConversationTrace({
       >
         {message.traceSummary.map((item) => {
           const itemKey = getTraceItemKey(item);
-          const selected = itemKey === getTraceItemKey(selectedNode);
+          const nodeExpanded = itemKey === expandedNodeKey;
 
           return (
-            <Button
+            <DebugWorkflowNodeItem
               key={itemKey}
-              aria-pressed={selected}
-              className="agent-flow-editor__conversation-log-node-trigger"
-              onClick={() => setSelectedNodeKey(itemKey)}
+              expanded={nodeExpanded}
+              item={item}
+              selected={nodeExpanded}
+              onToggle={() =>
+                setExpandedNodeKey((current) =>
+                  current === itemKey ? null : itemKey
+                )
+              }
             >
-              <DebugWorkflowNodeRow item={item} />
-            </Button>
+              <section
+                aria-label={`${nodeDisplayName(item)} 节点详情`}
+                className="agent-flow-editor__conversation-log-node-detail"
+              >
+                <div className="agent-flow-editor__conversation-log-node-detail-header">
+                  <Space size={8}>
+                    <NodeTypeIcon nodeType={item.nodeType} />
+                    <Typography.Text strong>
+                      {nodeDisplayName(item)}
+                    </Typography.Text>
+                  </Space>
+                  <Typography.Text type="secondary">
+                    {item.nodeType}
+                  </Typography.Text>
+                </div>
+                <div className="agent-flow-editor__conversation-log-json-list">
+                  <NodeRunPayloadSections
+                    debugPayload={item.debugPayload ?? {}}
+                    inputPayload={item.inputPayload}
+                    outputPayload={item.outputPayload}
+                    onLoadArtifact={onLoadArtifact}
+                  />
+                </div>
+              </section>
+            </DebugWorkflowNodeItem>
           );
         })}
       </div>
-      <section
-        aria-label={`${nodeDisplayName(selectedNode)} 节点详情`}
-        className="agent-flow-editor__conversation-log-node-detail"
-      >
-        <div className="agent-flow-editor__conversation-log-node-detail-header">
-          <Space size={8}>
-            <NodeTypeIcon nodeType={selectedNode.nodeType} />
-            <Typography.Text strong>
-              {nodeDisplayName(selectedNode)}
-            </Typography.Text>
-          </Space>
-          <Typography.Text type="secondary">
-            {selectedNode.nodeType}
-          </Typography.Text>
-        </div>
-        <div className="agent-flow-editor__conversation-log-json-list">
-          <NodeRunPayloadSections
-            debugPayload={selectedNode.debugPayload ?? {}}
-            inputPayload={selectedNode.inputPayload}
-            outputPayload={selectedNode.outputPayload}
-            onLoadArtifact={onLoadArtifact}
-          />
-        </div>
-      </section>
     </div>
   );
 }

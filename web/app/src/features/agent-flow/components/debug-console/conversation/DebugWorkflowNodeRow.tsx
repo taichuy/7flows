@@ -1,13 +1,17 @@
 import {
   CheckCircleFilled,
+  DownOutlined,
   LoadingOutlined,
+  RightOutlined,
   WarningFilled
 } from '@ant-design/icons';
 import { Tag, Typography } from 'antd';
+import type { ReactNode } from 'react';
 
 import type { AgentFlowTraceItem } from '../../../api/runtime';
 import { getAgentFlowNodeTypeIcon } from '../../../lib/node-type-icons';
 import { nodeDisplayName } from './debug-workflow-trace-utils';
+import './debug-message.css';
 
 function statusTone(status: string) {
   switch (status) {
@@ -124,5 +128,42 @@ export function DebugWorkflowNodeRow({ item }: { item: AgentFlowTraceItem }) {
       </Tag>
       <StatusIcon status={item.status} />
     </span>
+  );
+}
+
+export function DebugWorkflowNodeItem({
+  item,
+  expanded,
+  selected = false,
+  children,
+  onToggle
+}: {
+  item: AgentFlowTraceItem;
+  expanded: boolean;
+  selected?: boolean;
+  children: ReactNode;
+  onToggle: () => void;
+}) {
+  return (
+    <div
+      className="agent-flow-editor__debug-workflow-node-item"
+      data-expanded={expanded ? 'true' : 'false'}
+      data-selected={selected ? 'true' : 'false'}
+    >
+      <button
+        aria-expanded={expanded}
+        className="agent-flow-editor__debug-workflow-node-trigger"
+        onClick={onToggle}
+        type="button"
+      >
+        <DebugWorkflowNodeRow item={item} />
+        {expanded ? (
+          <DownOutlined className="agent-flow-editor__debug-workflow-collapse" />
+        ) : (
+          <RightOutlined className="agent-flow-editor__debug-workflow-collapse" />
+        )}
+      </button>
+      {expanded ? children : null}
+    </div>
   );
 }

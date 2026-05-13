@@ -138,7 +138,13 @@ describe('debug conversation log panel', () => {
     fireEvent.click(screen.getByRole('button', { name: '查看对话日志' }));
     const panel = screen.getByRole('complementary', { name: '对话日志' });
     fireEvent.click(within(panel).getByRole('tab', { name: '追踪' }));
-    fireEvent.click(within(panel).getByRole('button', { name: /LLM/ }));
+    const llmTraceNode = within(panel).getByRole('button', { name: /LLM/ });
+
+    expect(llmTraceNode).toHaveAttribute('aria-expanded', 'false');
+
+    fireEvent.click(llmTraceNode);
+
+    expect(llmTraceNode).toHaveAttribute('aria-expanded', 'true');
 
     const nodeDetail = within(panel).getByRole('region', {
       name: 'LLM 节点详情'
