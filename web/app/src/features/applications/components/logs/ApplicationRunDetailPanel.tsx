@@ -10,10 +10,20 @@ import {
   Timeline,
   Typography
 } from 'antd';
-import { useEffect, useState } from 'react';
 
 import { JsonPreviewBlock } from '../../../../shared/ui/json-preview/JsonPreviewBlock';
 import { useAuthStore } from '../../../../state/auth-store';
+import { DebugConversationPane } from '../../../agent-flow/components/debug-console/conversation/DebugConversationPane';
+import type {
+  AgentFlowDebugMessage,
+  AgentFlowDebugMessageStatus,
+  AgentFlowRunContext
+} from '../../../agent-flow/api/runtime';
+import {
+  extractAssistantOutputText,
+  mapRunDetailToTrace
+} from '../../../agent-flow/lib/debug-console/run-detail-mapper';
+import type { AgentFlowDebugSessionStatus } from '../../../agent-flow/hooks/runtime/useAgentFlowDebugSession';
 import {
   applicationRunDetailQueryKey,
   completeCallbackTask,
@@ -150,49 +160,77 @@ function findNamedString(
   return null;
 }
 
-function extractEventText(payload: unknown) {
-  if (!isRecord(payload)) {
-    return '';
-  }
-
-  for (const key of ['text', 'delta']) {
-    const value = payload[key];
-
-    if (typeof value === 'string') {
-      return value;
-    }
-  }
-
-  return '';
+function StatusTag({ status }: { status: string }) {
+  return <Tag color={STATUS_COLOR[status] ?? 'default'}>{status}</Tag>;
 }
 
-function collectTextDeltas(detail: ApplicationRunDetail) {
-  const text = detail.events
-    .filter((event) => event.event_type === 'text_delta')
-    .sort((left, right) => left.sequence - right.sequence)
-    .map((event) => extractEventText(event.payload))
-    .join('');
-
-  return text.trim().length > 0 ? text : null;
+function mapRunStatusToMessageStatus(
+  status: string
+): AgentFlowDebugMessageStatus {
+  switch (status) {
+    case 'succeeded':
+      return 'completed';
+    case 'waiting_callback':
+      return 'waiting_callback';
+    case 'waiting_human':
+      return 'waiting_human';
+    case 'cancelled':
+      return 'cancelled';
+    case 'failed':
+      return 'failed';
+    default:
+      return 'running';
+  }
 }
 
-function findPreferredOutputText(payload: unknown): string | null {
-  if (!isRecord(payload)) {
-    return null;
+function mapRunStatusToSessionStatus(
+  status: string
+): AgentFlowDebugSessionStatus {
+  switch (status) {
+    case 'succeeded':
+      return 'completed';
+    case 'waiting_callback':
+      return 'waiting_callback';
+    case 'waiting_human':
+      return 'waiting_human';
+    case 'cancelled':
+      return 'cancelled';
+    case 'failed':
+      return 'failed';
+    case 'running':
+      return 'running';
+    default:
+      return 'completed';
   }
-
-  for (const key of ['answer', 'text', 'content', 'message']) {
-    const value = payload[key];
-
-    if (typeof value === 'string' && value.trim().length > 0) {
-      return value;
-    }
-  }
-
-  return null;
 }
 
-function buildConversation(detail: ApplicationRunDetail) {
+function buildRunContext(detail: ApplicationRunDetail): AgentFlowRunContext {
+  return {
+    environmentLabel: 'draft',
+    remembered: false,
+    fields: [
+      {
+        nodeId: detail.flow_run.target_node_id ?? 'flow-run',
+        nodeLabel: '运行输入',
+        key: 'query',
+        title: '输入',
+        valueType: 'string',
+        value:
+          findNamedString(detail.flow_run.input_payload, [
+            'query',
+            'question',
+            'prompt',
+            'message',
+            'input'
+          ]) ?? ''
+      }
+    ]
+  };
+}
+
+function buildConversationMessages(
+  detail: ApplicationRunDetail
+): AgentFlowDebugMessage[] {
   const userContent =
     findNamedString(detail.flow_run.input_payload, [
       'query',
@@ -201,143 +239,55 @@ function buildConversation(detail: ApplicationRunDetail) {
       'message',
       'input'
     ]) ?? summarizeValue(detail.flow_run.input_payload);
-  const preferredNodeOutput =
-    [...detail.node_runs]
-      .reverse()
-      .map((nodeRun) => findFirstString(nodeRun.output_payload))
-      .find((value): value is string => Boolean(value)) ?? null;
   const assistantContent =
-    collectTextDeltas(detail) ??
-    findPreferredOutputText(detail.flow_run.output_payload) ??
-    findFirstString(detail.flow_run.output_payload) ??
-    preferredNodeOutput ??
-    (detail.flow_run.error_payload
-      ? summarizeValue(detail.flow_run.error_payload)
-      : '暂无输出');
+    extractAssistantOutputText(detail) ||
+    findFirstString(detail.flow_run.output_payload) ||
+    '暂无输出';
+  const rawOutput =
+    Object.keys(detail.flow_run.output_payload).length > 0
+      ? detail.flow_run.output_payload
+      : null;
 
-  return { userContent, assistantContent };
-}
-
-function StatusTag({ status }: { status: string }) {
-  return <Tag color={STATUS_COLOR[status] ?? 'default'}>{status}</Tag>;
+  return [
+    {
+      id: `user-${detail.flow_run.id}`,
+      role: 'user',
+      content: userContent,
+      status: 'completed',
+      runId: detail.flow_run.id,
+      rawOutput: null,
+      traceSummary: []
+    },
+    {
+      id: `assistant-${detail.flow_run.id}`,
+      role: 'assistant',
+      content: assistantContent,
+      status: mapRunStatusToMessageStatus(detail.flow_run.status),
+      runId: detail.flow_run.id,
+      rawOutput,
+      traceSummary: mapRunDetailToTrace(detail)
+    }
+  ];
 }
 
 function RunConversation({ detail }: { detail: ApplicationRunDetail }) {
-  const { userContent, assistantContent } = buildConversation(detail);
-
   return (
     <section aria-label="AI 对话" className="application-run-detail__section">
       <div className="application-run-detail__section-header">
         <Typography.Title level={5}>AI 对话</Typography.Title>
       </div>
-      <div className="application-run-detail__conversation">
-        <article className="application-run-detail__message application-run-detail__message--user">
-          <Typography.Text strong>User</Typography.Text>
-          <Typography.Paragraph>{userContent}</Typography.Paragraph>
-        </article>
-        <article className="application-run-detail__message application-run-detail__message--ai">
-          <Typography.Text strong>AI</Typography.Text>
-          <Typography.Paragraph>{assistantContent}</Typography.Paragraph>
-        </article>
-      </div>
-    </section>
-  );
-}
-
-function NodeRunList({ detail }: { detail: ApplicationRunDetail }) {
-  const [expandedNodeRunId, setExpandedNodeRunId] = useState<string | null>(
-    null
-  );
-
-  useEffect(() => {
-    setExpandedNodeRunId(null);
-  }, [detail.flow_run.id]);
-
-  return (
-    <section className="application-run-detail__section">
-      <div className="application-run-detail__section-header">
-        <Typography.Title level={5}>工作流节点</Typography.Title>
-        <Typography.Text type="secondary">
-          {detail.node_runs.length} 个节点
-        </Typography.Text>
-      </div>
-      {detail.node_runs.length === 0 ? (
-        <Empty
-          description="本次运行没有节点记录"
-          image={Empty.PRESENTED_IMAGE_SIMPLE}
+      <div className="application-run-detail__conversation-pane">
+        <DebugConversationPane
+          messages={buildConversationMessages(detail)}
+          runContext={buildRunContext(detail)}
+          showComposer={false}
+          status={mapRunStatusToSessionStatus(detail.flow_run.status)}
+          stopping={false}
+          onChangeQuery={() => {}}
+          onStopRun={() => {}}
+          onSubmitPrompt={() => {}}
         />
-      ) : (
-        <div className="application-run-detail__node-list">
-          {detail.node_runs.map((nodeRun) => {
-            const expanded = expandedNodeRunId === nodeRun.id;
-
-            return (
-              <div
-                className="application-run-detail__node-item"
-                key={nodeRun.id}
-              >
-                <button
-                  aria-expanded={expanded}
-                  className="application-run-detail__node-button"
-                  onClick={() =>
-                    setExpandedNodeRunId((current) =>
-                      current === nodeRun.id ? null : nodeRun.id
-                    )
-                  }
-                  type="button"
-                >
-                  <span className="application-run-detail__node-main">
-                    <span className="application-run-detail__node-title">
-                      {nodeRun.node_alias}
-                    </span>
-                    <span className="application-run-detail__node-meta">
-                      {nodeRun.node_type} · {nodeRun.node_id}
-                    </span>
-                  </span>
-                  <span className="application-run-detail__node-side">
-                    <StatusTag status={nodeRun.status} />
-                    <span className="application-run-detail__node-time">
-                      {formatTimestamp(nodeRun.started_at)}
-                    </span>
-                  </span>
-                </button>
-                {expanded ? (
-                  <section
-                    aria-label={`${nodeRun.node_alias} 节点输入输出`}
-                    className="application-run-detail__node-detail"
-                  >
-                    <JsonPreviewBlock
-                      height="180px"
-                      title="输入"
-                      value={nodeRun.input_payload}
-                    />
-                    <JsonPreviewBlock
-                      height="180px"
-                      title="输出"
-                      value={nodeRun.output_payload}
-                    />
-                    {nodeRun.error_payload ? (
-                      <JsonPreviewBlock
-                        height="160px"
-                        title="错误"
-                        value={nodeRun.error_payload}
-                      />
-                    ) : null}
-                    {Object.keys(nodeRun.metrics_payload).length > 0 ? (
-                      <JsonPreviewBlock
-                        defaultCollapsed
-                        height="160px"
-                        title="指标"
-                        value={nodeRun.metrics_payload}
-                      />
-                    ) : null}
-                  </section>
-                ) : null}
-              </div>
-            );
-          })}
-        </div>
-      )}
+      </div>
     </section>
   );
 }
@@ -448,7 +398,6 @@ function renderDetail(detail: ApplicationRunDetail) {
   return (
     <div className="application-run-detail__content">
       <RunConversation detail={detail} />
-      <NodeRunList detail={detail} />
       <RunMetadata detail={detail} />
       <RunArtifacts detail={detail} />
       <RunTimeline detail={detail} />

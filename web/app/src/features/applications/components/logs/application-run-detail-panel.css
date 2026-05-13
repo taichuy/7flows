@@ -34,6 +34,11 @@
   min-height: 280px;
 }
 
+.application-run-detail__section:first-child {
+  grid-column: 1 / -1;
+  min-height: 440px;
+}
+
 .application-run-detail__section-header {
   display: flex;
   align-items: center;
@@ -46,105 +51,128 @@
   margin: 0;
 }
 
-.application-run-detail__conversation {
+.application-run-detail__conversation-pane {
+  min-height: 380px;
+  overflow: hidden;
+  border: 1px solid var(--ant-color-border-secondary);
+  border-radius: 8px;
+  background: #f8fafd;
+}
+
+.application-run-detail__conversation-pane
+  .agent-flow-editor__debug-console-pane {
+  display: flex;
+  height: 100%;
+  min-height: 380px;
+  flex-direction: column;
+}
+
+.application-run-detail__conversation-pane
+  .agent-flow-editor__debug-conversation-pane {
+  gap: 0;
+  background: #f8fafd;
+}
+
+.application-run-detail__conversation-pane
+  .agent-flow-editor__debug-messages {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
+  overflow: auto;
+  padding: 16px;
+}
+
+.application-run-detail__conversation-pane
+  .agent-flow-editor__debug-message-list {
   display: flex;
   flex-direction: column;
   gap: 12px;
 }
 
-.application-run-detail__message {
-  max-width: min(100%, 680px);
-  border: 1px solid var(--ant-color-border-secondary);
-  border-radius: 8px;
-  padding: 12px 14px;
-}
-
-.application-run-detail__message .ant-typography {
-  margin-bottom: 0;
-  white-space: pre-wrap;
-}
-
-.application-run-detail__message--user {
-  align-self: flex-end;
-  background: var(--ant-color-fill-quaternary);
-}
-
-.application-run-detail__message--ai {
-  align-self: flex-start;
-  background: var(--ant-color-bg-container);
-}
-
-.application-run-detail__node-list {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-
-.application-run-detail__node-item {
-  overflow: hidden;
-  border: 1px solid var(--ant-color-border-secondary);
-  border-radius: 8px;
-  background: var(--ant-color-bg-container);
-}
-
-.application-run-detail__node-button {
-  display: flex;
-  width: 100%;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16px;
-  border: 0;
-  background: transparent;
-  padding: 12px 14px;
-  color: inherit;
-  cursor: pointer;
-  text-align: left;
-}
-
-.application-run-detail__node-button:hover {
-  background: var(--ant-color-fill-quaternary);
-}
-
-.application-run-detail__node-button[aria-expanded='true'] {
-  background: var(--ant-color-fill-quaternary);
-}
-
-.application-run-detail__node-main,
-.application-run-detail__node-side {
-  display: flex;
-  min-width: 0;
-  align-items: center;
-  gap: 10px;
-}
-
-.application-run-detail__node-main {
-  flex: 1 1 auto;
-}
-
-.application-run-detail__node-side {
+.application-run-detail__conversation-pane
+  .agent-flow-editor__debug-bottom-sentinel {
+  block-size: 1px;
   flex: 0 0 auto;
 }
 
-.application-run-detail__node-title {
-  color: var(--ant-color-text-heading);
-  font-weight: 600;
+.application-run-detail__conversation-pane .agent-flow-editor__debug-message {
+  display: flex;
+  width: 100%;
+  gap: 10px;
 }
 
-.application-run-detail__node-meta,
-.application-run-detail__node-time {
-  overflow: hidden;
-  color: var(--ant-color-text-tertiary);
-  font-size: 12px;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+.application-run-detail__conversation-pane
+  .agent-flow-editor__debug-message--assistant {
+  flex-direction: column;
+  margin-right: auto;
 }
 
-.application-run-detail__node-detail {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+.application-run-detail__conversation-pane
+  .agent-flow-editor__debug-message--user {
+  justify-content: flex-end;
+  margin-left: auto;
+}
+
+.application-run-detail__conversation-pane
+  .agent-flow-editor__debug-message-main {
+  min-width: 0;
+  max-width: 100%;
+}
+
+.application-run-detail__conversation-pane
+  .agent-flow-editor__debug-message--assistant
+  .agent-flow-editor__debug-message-main {
+  display: flex;
+  width: 100%;
+  flex-direction: column;
   gap: 12px;
-  border-top: 1px solid var(--ant-color-border-secondary);
-  padding: 12px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.96);
+  padding: 14px;
+  box-shadow: 0 12px 32px rgba(15, 23, 42, 0.06);
+}
+
+.application-run-detail__conversation-pane
+  .agent-flow-editor__debug-message--user
+  .agent-flow-editor__debug-message-main {
+  max-width: min(32rem, 82%);
+}
+
+.application-run-detail__conversation-pane
+  .agent-flow-editor__debug-message-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+.application-run-detail__conversation-pane
+  .agent-flow-editor__debug-message--user
+  .agent-flow-editor__debug-message-header {
+  justify-content: flex-end;
+}
+
+.application-run-detail__conversation-pane
+  .agent-flow-editor__debug-message--user
+  .agent-flow-editor__debug-message-content.ant-typography {
+  margin: 0;
+  border-radius: 8px;
+  background: #dbeafe;
+  padding: 10px 14px;
+  color: #111827;
+  line-height: 1.5;
+  white-space: pre-wrap;
+}
+
+.application-run-detail__conversation-pane
+  .agent-flow-editor__debug-message-action-row {
+  display: flex;
+  justify-content: flex-end;
+  width: 100%;
+  min-height: 26px;
+  margin-top: -4px;
+  padding: 0 8px;
 }
 
 .application-run-detail__json-grid {
@@ -160,25 +188,14 @@
 }
 
 @media (max-width: 720px) {
-  .application-run-detail__header,
-  .application-run-detail__node-button,
-  .application-run-detail__node-main,
-  .application-run-detail__node-side {
+  .application-run-detail__header {
     align-items: flex-start;
   }
 
-  .application-run-detail__header,
-  .application-run-detail__node-button {
+  .application-run-detail__header {
     flex-direction: column;
   }
 
-  .application-run-detail__node-main,
-  .application-run-detail__node-side {
-    width: 100%;
-    flex-wrap: wrap;
-  }
-
-  .application-run-detail__node-detail,
   .application-run-detail__json-grid {
     grid-template-columns: 1fr;
   }

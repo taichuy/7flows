@@ -22,7 +22,8 @@ export function DebugConversationPane({
   onLoadArtifact,
   onOpenMessageLog,
   onStopRun,
-  onSubmitPrompt
+  onSubmitPrompt,
+  showComposer = true
 }: {
   status: AgentFlowDebugSessionStatus;
   stopping: boolean;
@@ -33,6 +34,7 @@ export function DebugConversationPane({
   onOpenMessageLog?: (message: AgentFlowDebugMessage) => void;
   onStopRun: () => void;
   onSubmitPrompt: (prompt: string) => void;
+  showComposer?: boolean;
 }) {
   const messagesRef = useRef<HTMLDivElement | null>(null);
   const messageListRef = useRef<HTMLDivElement | null>(null);
@@ -156,15 +158,17 @@ export function DebugConversationPane({
           />
         </div>
       </div>
-      <DebugComposer
-        disabled={composerDisabled}
-        submitting={stopAvailable}
-        stopping={stopping}
-        value={typeof queryField?.value === 'string' ? queryField.value : ''}
-        onChange={onChangeQuery}
-        onStop={onStopRun}
-        onSubmit={onSubmitPrompt}
-      />
+      {showComposer ? (
+        <DebugComposer
+          disabled={composerDisabled}
+          submitting={stopAvailable}
+          stopping={stopping}
+          value={typeof queryField?.value === 'string' ? queryField.value : ''}
+          onChange={onChangeQuery}
+          onStop={onStopRun}
+          onSubmit={onSubmitPrompt}
+        />
+      ) : null}
     </div>
   );
 }

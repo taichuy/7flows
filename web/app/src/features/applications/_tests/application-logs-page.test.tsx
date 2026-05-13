@@ -141,11 +141,13 @@ describe('ApplicationLogsPage', () => {
     expect(
       await screen.findByRole('heading', { name: '运行详情' })
     ).toBeInTheDocument();
-    const conversation = screen.getByRole('region', { name: 'AI 对话' });
+    const conversation = screen.getByTestId('debug-conversation-messages');
     expect(within(conversation).getByText('User')).toBeInTheDocument();
     expect(within(conversation).getByText('总结退款政策')).toBeInTheDocument();
-    expect(within(conversation).getByText('AI')).toBeInTheDocument();
     expect(within(conversation).getByText('退款政策摘要')).toBeInTheDocument();
+    expect(
+      within(conversation).queryByPlaceholderText('和 Bot 聊天')
+    ).not.toBeInTheDocument();
 
     const nodeButton = screen.getByRole('button', { name: /LLM.*llm/ });
     expect(nodeButton).toHaveAttribute('aria-expanded', 'false');
@@ -153,11 +155,10 @@ describe('ApplicationLogsPage', () => {
     fireEvent.click(nodeButton);
 
     expect(nodeButton).toHaveAttribute('aria-expanded', 'true');
-    const nodeDetail = screen.getByRole('region', { name: 'LLM 节点输入输出' });
-    expect(within(nodeDetail).getByLabelText('输入 JSON')).toHaveTextContent(
+    expect(screen.getByLabelText('输入 JSON')).toHaveTextContent(
       'user_prompt'
     );
-    expect(within(nodeDetail).getByLabelText('输出 JSON')).toHaveTextContent(
+    expect(screen.getByLabelText('输出 JSON')).toHaveTextContent(
       '退款政策摘要'
     );
   }, 20_000);
