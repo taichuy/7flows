@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { Empty, Result, Space, Splitter, Typography } from 'antd';
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 import type { AgentFlowDebugMessage } from '../../agent-flow/api/runtime';
 import { ConversationLogPanel } from '../../agent-flow/components/debug-console/ConversationLogPanel';
@@ -20,10 +20,77 @@ export function ApplicationLogsPage({
   const [selectedRunId, setSelectedRunId] = useState<string | null>(null);
   const [openConversationLogMessage, setOpenConversationLogMessage] =
     useState<AgentFlowDebugMessage | null>(null);
+  const [splitterHeight, setSplitterHeight] = useState<number | null>(null);
+  const listRef = useRef<HTMLElement | null>(null);
+  const splitterRef = useRef<HTMLDivElement | null>(null);
   const runsQuery = useQuery({
     queryKey: applicationRunsQueryKey(applicationId),
     queryFn: () => fetchApplicationRuns(applicationId)
   });
+
+  useEffect(() => {
+    if (!selectedRunId) {
+      setSplitterHeight(null);
+      return;
+    }
+
+    function updateSplitterHeight() {
+      const listElement = listRef.current;
+      const splitterElement = splitterRef.current;
+
+      if (!listElement || !splitterElement) {
+        return;
+      }
+
+      const tableElement =
+        listElement.querySelector<HTMLElement>('.ant-table-wrapper') ??
+        listElement;
+      const tableHeight = Math.round(
+        tableElement.getBoundingClientRect().height
+      );
+
+      if (tableHeight <= 0) {
+        return;
+      }
+
+      const availableHeight = Math.floor(
+        window.innerHeight - splitterElement.getBoundingClientRect().top
+      );
+      const nextHeight =
+        availableHeight > 0
+          ? Math.min(tableHeight, availableHeight)
+          : tableHeight;
+
+      setSplitterHeight((currentHeight) =>
+        currentHeight === nextHeight ? currentHeight : nextHeight
+      );
+    }
+
+    updateSplitterHeight();
+
+    const resizeObserver =
+      typeof ResizeObserver === 'undefined'
+        ? null
+        : new ResizeObserver(updateSplitterHeight);
+
+    if (resizeObserver && listRef.current) {
+      resizeObserver.observe(listRef.current);
+
+      const tableElement =
+        listRef.current.querySelector<HTMLElement>('.ant-table-wrapper');
+
+      if (tableElement) {
+        resizeObserver.observe(tableElement);
+      }
+    }
+
+    window.addEventListener('resize', updateSplitterHeight);
+
+    return () => {
+      resizeObserver?.disconnect();
+      window.removeEventListener('resize', updateSplitterHeight);
+    };
+  }, [runsQuery.data, selectedRunId]);
 
   function selectRun(runId: string | null) {
     setSelectedRunId(runId);
@@ -47,7 +114,7 @@ export function ApplicationLogsPage({
     </div>
   );
   const logsList = (
-    <section className="application-logs-page__list">
+    <section className="application-logs-page__list" ref={listRef}>
       {runsQuery.data.length === 0 ? (
         <Empty
           description="当前应用还没有运行记录"
@@ -80,6 +147,8 @@ export function ApplicationLogsPage({
       <div
         className="application-logs-page__splitter"
         data-testid="application-logs-splitter"
+        ref={splitterRef}
+        style={splitterHeight ? { height: splitterHeight } : undefined}
       >
         <Splitter className="application-logs-page__splitter-control">
           <Splitter.Panel

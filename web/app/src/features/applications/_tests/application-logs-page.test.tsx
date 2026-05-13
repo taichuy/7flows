@@ -7,7 +7,7 @@ import {
 } from '@testing-library/react';
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
-import { beforeEach, describe, expect, test, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 
 const runtimeApi = vi.hoisted(() => ({
   applicationRunsQueryKey: (applicationId: string) =>
@@ -102,6 +102,8 @@ function sampleRunDetail() {
 }
 
 describe('ApplicationLogsPage', () => {
+  let getBoundingClientRectSpy: { mockRestore: () => void } | undefined;
+
   beforeEach(() => {
     runtimeApi.fetchApplicationRuns.mockReset();
     runtimeApi.fetchApplicationRunDetail.mockReset();
@@ -117,6 +119,11 @@ describe('ApplicationLogsPage', () => {
       }
     ]);
     runtimeApi.fetchApplicationRunDetail.mockResolvedValue(sampleRunDetail());
+  });
+
+  afterEach(() => {
+    getBoundingClientRectSpy?.mockRestore();
+    getBoundingClientRectSpy = undefined;
   });
 
   test('expands selected run with Ant Splitter without reserving empty space', async () => {
@@ -217,7 +224,7 @@ describe('ApplicationLogsPage', () => {
     ).not.toBeInTheDocument();
   }, 20_000);
 
-  test('sizes the docked detail layout to the section viewport bottom', async () => {
+  test('does not pin the docked detail layout to viewport height', async () => {
     const cssSource = await readFile(
       path.resolve(
         process.cwd(),
@@ -226,11 +233,69 @@ describe('ApplicationLogsPage', () => {
       'utf8'
     );
 
-    expect(cssSource).toContain(
-      '.application-logs-page--detail-open {\n' +
-        '  display: flex;\n' +
-        '  height: calc(100vh - 32px);'
-    );
+    expect(cssSource).not.toContain('height: calc(100vh - 32px);');
     expect(cssSource).not.toContain('height: calc(100vh - 120px);');
+  });
+
+  test('matches the docked detail height to the runs table height', async () => {
+    getBoundingClientRectSpy = vi
+      .spyOn(HTMLElement.prototype, 'getBoundingClientRect')
+      .mockImplementation(function getBoundingClientRect(this: HTMLElement) {
+        if (this.classList.contains('application-logs-page__splitter')) {
+          return {
+            bottom: 120,
+            height: 0,
+            left: 0,
+            right: 0,
+            top: 120,
+            width: 1200,
+            x: 0,
+            y: 120,
+            toJSON: () => ({})
+          };
+        }
+
+        if (this.classList.contains('ant-table-wrapper')) {
+          return {
+            bottom: 760,
+            height: 640,
+            left: 0,
+            right: 0,
+            top: 120,
+            width: 900,
+            x: 0,
+            y: 120,
+            toJSON: () => ({})
+          };
+        }
+
+        return {
+          bottom: 0,
+          height: 0,
+          left: 0,
+          right: 0,
+          top: 0,
+          width: 0,
+          x: 0,
+          y: 0,
+          toJSON: () => ({})
+        };
+      });
+
+    render(
+      <AppProviders>
+        <ApplicationLogsPage applicationId="app-1" />
+      </AppProviders>
+    );
+
+    expect(await screen.findByRole('table')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: '查看运行详情' }));
+
+    await waitFor(() => {
+      expect(screen.getByTestId('application-logs-splitter')).toHaveStyle({
+        height: '640px'
+      });
+    });
   });
 });
