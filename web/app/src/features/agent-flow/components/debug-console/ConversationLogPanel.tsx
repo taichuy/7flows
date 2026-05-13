@@ -1,59 +1,18 @@
 import { useEffect, useMemo, useState } from 'react';
-import {
-  Button,
-  Descriptions,
-  Empty,
-  Space,
-  Tabs,
-  Tag,
-  Typography
-} from 'antd';
+import { Button, Descriptions, Empty, Space, Tabs, Typography } from 'antd';
 
-import type {
-  AgentFlowDebugMessage,
-  AgentFlowTraceItem
-} from '../../api/runtime';
-import { getAgentFlowNodeTypeIcon } from '../../lib/node-type-icons';
+import type { AgentFlowDebugMessage } from '../../api/runtime';
 import { AgentFlowDockPanel } from '../editor/AgentFlowDockPanel';
 import { NodeRunPayloadSections } from '../detail/last-run/NodeRunIOCard';
+import {
+  DebugWorkflowNodeRow,
+  NodeTypeIcon
+} from './conversation/DebugWorkflowNodeRow';
+import {
+  getTraceItemKey,
+  nodeDisplayName
+} from './conversation/debug-workflow-trace-utils';
 import './conversation-log-panel.css';
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return Boolean(value && typeof value === 'object' && !Array.isArray(value));
-}
-
-function nodeDisplayName(item: AgentFlowTraceItem) {
-  if (item.nodeType === 'start') {
-    return '用户输入';
-  }
-
-  if (item.nodeType === 'answer') {
-    return '直接回复';
-  }
-
-  return item.nodeAlias;
-}
-
-function metricText(item: AgentFlowTraceItem) {
-  const duration = item.durationMs == null ? null : `${item.durationMs} ms`;
-  const metricsPayload = item.metricsPayload;
-  const tokenValue =
-    isRecord(metricsPayload) &&
-    (typeof metricsPayload.total_tokens === 'number' ||
-      typeof metricsPayload.total_tokens === 'string')
-      ? metricsPayload.total_tokens
-      : null;
-
-  if (tokenValue && duration) {
-    return `${tokenValue} tokens · ${duration}`;
-  }
-
-  if (tokenValue) {
-    return `${tokenValue} tokens`;
-  }
-
-  return duration ?? '进行中';
-}
 
 function buildDetailInput(message: AgentFlowDebugMessage) {
   const firstTraceItem = message.traceSummary[0];
@@ -163,9 +122,7 @@ function ConversationTrace({
   onLoadArtifact?: (artifactRef: string) => Promise<unknown>;
 }) {
   const [selectedNodeKey, setSelectedNodeKey] = useState<string | null>(
-    message.traceSummary[0]?.nodeRunId ??
-      message.traceSummary[0]?.nodeId ??
-      null
+    message.traceSummary[0] ? getTraceItemKey(message.traceSummary[0]) : null
   );
   const selectedNode = useMemo(() => {
     if (message.traceSummary.length === 0) {
@@ -174,16 +131,14 @@ function ConversationTrace({
 
     return (
       message.traceSummary.find(
-        (item) => (item.nodeRunId ?? item.nodeId) === selectedNodeKey
+        (item) => getTraceItemKey(item) === selectedNodeKey
       ) ?? message.traceSummary[0]
     );
   }, [message.traceSummary, selectedNodeKey]);
 
   useEffect(() => {
     setSelectedNodeKey(
-      message.traceSummary[0]?.nodeRunId ??
-        message.traceSummary[0]?.nodeId ??
-        null
+      message.traceSummary[0] ? getTraceItemKey(message.traceSummary[0]) : null
     );
   }, [message.id, message.traceSummary]);
 
@@ -205,34 +160,17 @@ function ConversationTrace({
         className="agent-flow-editor__conversation-log-node-list"
       >
         {message.traceSummary.map((item) => {
-          const itemKey = item.nodeRunId ?? item.nodeId;
-          const selected =
-            itemKey === (selectedNode.nodeRunId ?? selectedNode.nodeId);
+          const itemKey = getTraceItemKey(item);
+          const selected = itemKey === getTraceItemKey(selectedNode);
 
           return (
             <Button
               key={itemKey}
               aria-pressed={selected}
-              className="agent-flow-editor__conversation-log-node"
-              type={selected ? 'primary' : 'default'}
+              className="agent-flow-editor__conversation-log-node-trigger"
               onClick={() => setSelectedNodeKey(itemKey)}
             >
-              <span
-                aria-label={`${item.nodeType} 节点类型`}
-                className="agent-flow-editor__conversation-log-node-icon"
-                role="img"
-              >
-                {getAgentFlowNodeTypeIcon(item.nodeType)}
-              </span>
-              <span className="agent-flow-editor__conversation-log-node-main">
-                <Typography.Text strong>
-                  {nodeDisplayName(item)}
-                </Typography.Text>
-                <Typography.Text type="secondary">
-                  {metricText(item)}
-                </Typography.Text>
-              </span>
-              <Tag>{item.status}</Tag>
+              <DebugWorkflowNodeRow item={item} />
             </Button>
           );
         })}
@@ -243,13 +181,7 @@ function ConversationTrace({
       >
         <div className="agent-flow-editor__conversation-log-node-detail-header">
           <Space size={8}>
-            <span
-              aria-label={`${selectedNode.nodeType} 节点类型`}
-              className="agent-flow-editor__conversation-log-node-icon"
-              role="img"
-            >
-              {getAgentFlowNodeTypeIcon(selectedNode.nodeType)}
-            </span>
+            <NodeTypeIcon nodeType={selectedNode.nodeType} />
             <Typography.Text strong>
               {nodeDisplayName(selectedNode)}
             </Typography.Text>

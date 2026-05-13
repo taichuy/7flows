@@ -84,39 +84,22 @@
   gap: 8px;
 }
 
-.agent-flow-editor__conversation-log-node.ant-btn {
-  display: grid;
-  grid-template-columns: auto minmax(0, 1fr) auto;
-  align-items: center;
+.agent-flow-editor__conversation-log-node-trigger.ant-btn {
+  display: block;
   width: 100%;
   height: auto;
   min-height: 44px;
   padding: 8px 10px;
+  border-color: #dbe7e4;
+  border-radius: 12px;
+  background: #ffffff;
+  box-shadow: 0 6px 14px rgba(15, 23, 42, 0.06);
   text-align: left;
 }
 
-.agent-flow-editor__conversation-log-node-icon {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 28px;
-  height: 28px;
-  border-radius: 8px;
-  background: #eff6ff;
-  color: #2563eb;
-}
-
-.agent-flow-editor__conversation-log-node-main {
-  display: flex;
-  min-width: 0;
-  flex-direction: column;
-  gap: 2px;
-}
-
-.agent-flow-editor__conversation-log-node-main .ant-typography {
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
+.agent-flow-editor__conversation-log-node-trigger.ant-btn[aria-pressed='true'] {
+  border-color: #8fd6bd;
+  background: #e9fbf3;
 }
 
 .agent-flow-editor__conversation-log-node-detail-header {

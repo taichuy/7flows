@@ -153,5 +153,8 @@ describe('debug conversation log panel', () => {
     expect(within(nodeDetail).getByLabelText('输出 JSON')).toHaveTextContent(
       '你好，我可以帮你。'
     );
+    expect(
+      within(panel).getAllByTestId('debug-workflow-node-row')
+    ).toHaveLength(2);
   });
 });
