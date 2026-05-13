@@ -2,16 +2,11 @@ import { ArrowLeftOutlined } from '@ant-design/icons';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   Button,
-  Descriptions,
-  Empty,
   Result,
   Space,
-  Tag,
-  Timeline,
   Typography
 } from 'antd';
 
-import { JsonPreviewBlock } from '../../../../shared/ui/json-preview/JsonPreviewBlock';
 import { useAuthStore } from '../../../../state/auth-store';
 import { DebugConversationPane } from '../../../agent-flow/components/debug-console/conversation/DebugConversationPane';
 import type {
@@ -33,23 +28,6 @@ import {
 } from '../../api/runtime';
 import { ApplicationRunResumeCard } from './ApplicationRunResumeCard';
 import './application-run-detail-panel.css';
-
-const STATUS_COLOR: Record<string, string> = {
-  succeeded: 'green',
-  failed: 'red',
-  running: 'blue',
-  waiting_human: 'gold',
-  waiting_callback: 'orange',
-  cancelled: 'default'
-};
-
-function formatTimestamp(value: string | null | undefined) {
-  if (!value) {
-    return '未结束';
-  }
-
-  return new Date(value).toLocaleString('zh-CN', { hour12: false });
-}
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return Boolean(value && typeof value === 'object' && !Array.isArray(value));
@@ -158,10 +136,6 @@ function findNamedString(
   }
 
   return null;
-}
-
-function StatusTag({ status }: { status: string }) {
-  return <Tag color={STATUS_COLOR[status] ?? 'default'}>{status}</Tag>;
 }
 
 function mapRunStatusToMessageStatus(
@@ -292,115 +266,10 @@ function RunConversation({ detail }: { detail: ApplicationRunDetail }) {
   );
 }
 
-function RunMetadata({ detail }: { detail: ApplicationRunDetail }) {
-  return (
-    <section className="application-run-detail__section">
-      <div className="application-run-detail__section-header">
-        <Typography.Title level={5}>运行摘要</Typography.Title>
-      </div>
-      <Descriptions
-        column={{ xs: 1, sm: 1, md: 2 }}
-        items={[
-          {
-            key: 'run_id',
-            label: '运行 ID',
-            children: detail.flow_run.id
-          },
-          {
-            key: 'status',
-            label: '运行状态',
-            children: <StatusTag status={detail.flow_run.status} />
-          },
-          {
-            key: 'mode',
-            label: '运行模式',
-            children: detail.flow_run.run_mode
-          },
-          {
-            key: 'target',
-            label: '目标节点',
-            children: detail.flow_run.target_node_id ?? '全流'
-          },
-          {
-            key: 'started_at',
-            label: '开始时间',
-            children: formatTimestamp(detail.flow_run.started_at)
-          },
-          {
-            key: 'finished_at',
-            label: '结束时间',
-            children: formatTimestamp(detail.flow_run.finished_at)
-          }
-        ]}
-        size="small"
-      />
-    </section>
-  );
-}
-
-function RunArtifacts({ detail }: { detail: ApplicationRunDetail }) {
-  return (
-    <section className="application-run-detail__section">
-      <div className="application-run-detail__section-header">
-        <Typography.Title level={5}>运行输入输出</Typography.Title>
-      </div>
-      <div className="application-run-detail__json-grid">
-        <JsonPreviewBlock
-          defaultCollapsed
-          height="180px"
-          title="运行输入"
-          value={detail.flow_run.input_payload}
-        />
-        <JsonPreviewBlock
-          defaultCollapsed
-          height="180px"
-          title="运行输出"
-          value={detail.flow_run.output_payload}
-        />
-      </div>
-    </section>
-  );
-}
-
-function RunTimeline({ detail }: { detail: ApplicationRunDetail }) {
-  return (
-    <section className="application-run-detail__section">
-      <div className="application-run-detail__section-header">
-        <Typography.Title level={5}>事件时间线</Typography.Title>
-      </div>
-      {detail.events.length === 0 ? (
-        <Empty
-          description="本次运行没有事件"
-          image={Empty.PRESENTED_IMAGE_SIMPLE}
-        />
-      ) : (
-        <Timeline
-          items={detail.events.map((event) => ({
-            children: (
-              <Space direction="vertical" size={2}>
-                <Typography.Text strong>{event.event_type}</Typography.Text>
-                <Typography.Text type="secondary">
-                  {formatTimestamp(event.created_at)}
-                </Typography.Text>
-                <Typography.Text type="secondary">
-                  {summarizeValue(event.payload)}
-                </Typography.Text>
-              </Space>
-            )
-          }))}
-        />
-      )}
-    </section>
-  );
-}
-
 function renderDetail(detail: ApplicationRunDetail) {
   return (
     <div className="application-run-detail__content">
       <RunConversation detail={detail} />
-      <RunMetadata detail={detail} />
-      <RunArtifacts detail={detail} />
-      <RunTimeline detail={detail} />
     </div>
   );
 }

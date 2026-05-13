@@ -148,6 +148,9 @@ describe('ApplicationLogsPage', () => {
     expect(
       within(conversation).queryByPlaceholderText('和 Bot 聊天')
     ).not.toBeInTheDocument();
+    expect(screen.queryByText('运行摘要')).not.toBeInTheDocument();
+    expect(screen.queryByText('运行输入输出')).not.toBeInTheDocument();
+    expect(screen.queryByText('事件时间线')).not.toBeInTheDocument();
 
     const nodeButton = screen.getByRole('button', { name: /LLM.*llm/ });
     expect(nodeButton).toHaveAttribute('aria-expanded', 'false');
