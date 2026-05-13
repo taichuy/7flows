@@ -26,7 +26,7 @@ api/apps/api-server/.env
 # 官方维护目录，临时迁过来统一开发，但是不提交到线上仓库他有自己独立的维护仓库
 1flowbase-official-plugins/*
 
-# 仅维护.agent/skills，.claude/skills 自己维护
+# 仅维护 .agents/skills；.claude/skills 是本地消费镜像，不提交
 .claude/skills
 .aionrs/*
 docs/superpowers/specs/1flowbase/2026-04-21-1flowbase-product-vision.md

@@ -59,6 +59,20 @@ test('tooling index dispatches hotspot-review subcommand', async () => {
   assert.deepEqual(capturedArgv, ['--since', '1 day ago']);
 });
 
+test('tooling index passes subcommand help through to the subcommand', async () => {
+  let capturedArgv = null;
+
+  const status = await main(['claude-skill-sync', '--help'], {
+    runClaudeSkillSyncImpl(argv) {
+      capturedArgv = argv;
+      return 0;
+    },
+  });
+
+  assert.equal(status, 0);
+  assert.deepEqual(capturedArgv, ['--help']);
+});
+
 test('tooling index rejects unknown subcommands', async () => {
   await assert.rejects(
     () => main(['unknown']),

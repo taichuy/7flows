@@ -65,7 +65,7 @@ function runRuntimeGate(argv = [], deps = {}) {
 }
 
 function parseToolingCliArgs(argv) {
-  if (argv.includes('-h') || argv.includes('--help') || argv.length === 0) {
+  if (argv.length === 0 || argv[0] === '-h' || argv[0] === '--help') {
     return {
       help: true,
       command: null,

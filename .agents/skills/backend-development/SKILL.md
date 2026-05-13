@@ -1,6 +1,6 @@
 ---
 name: backend-development
-description: Use when building or changing backend APIs, state transitions, module boundaries, or core business logic and need to control coupling and consistency
+description: Use for 1flowbase backend work in api/: implementing, fixing, refactoring, reviewing, or planning Rust/Axum APIs, routes, services, repositories, storage adapters, migrations, domain models, state transitions, write paths, module boundaries, permissions, HostExtension/RuntimeExtension boundaries, or core business logic. Also use when a request mentions 后端, 接口, API, Rust, Axum, service, repository, storage, 状态一致性, 数据一致性, 状态机, 写入口, or backend coupling and consistency.
 ---
 
 # Backend Development

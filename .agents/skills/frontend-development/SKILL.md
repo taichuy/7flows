@@ -1,6 +1,6 @@
 ---
 name: frontend-development
-description: Use when building or changing 1flowbase frontend/UI pages, page requirements, workspace flows, node development, schema UI, interactions, visual structure, or component boundaries, or when UI requests are vague, image-led, or need requirement refinement before implementation
+description: Use for 1flowbase frontend work in web/: implementing, fixing, refactoring, reviewing, or planning UI pages, app shell, routes, navigation, workspace flows, node UI, schema UI, components, interactions, responsive layout, visual structure, or frontend state boundaries. Also use when a request mentions UI/UX, page改版, 样式, 交互, 前端, React, Ant Design, screenshot/image-led changes, vague page requirements, or requirement refinement before implementation.
 ---
 
 # Frontend Development
@@ -43,16 +43,16 @@ description: Use when building or changing 1flowbase frontend/UI pages, page req
 
 ## Quick Reference
 
-- 需求整理工作流与输出要求：[requirement-refinement.md](/home/taichu/git/1flowbase/.agents/skills/frontend-development/references/requirement-refinement.md)
-- 交互架构 gate 与升级条件：[interaction-architecture-gate.md](/home/taichu/git/1flowbase/.agents/skills/frontend-development/references/interaction-architecture-gate.md)
-- 需求提炼方法论：[extraction-framework.md](/home/taichu/git/1flowbase/.agents/skills/frontend-development/references/extraction-framework.md)
-- 面向用户的回复模板：[skill-template.md](/home/taichu/git/1flowbase/.agents/skills/frontend-development/references/skill-template.md)
-- 是否需要先沟通、哪些场景需要升级决策：[communication-gate.md](/home/taichu/git/1flowbase/.agents/skills/frontend-development/references/communication-gate.md)
-- 页面 recipe、工作区语法与交互规则：[workspace-rules.md](/home/taichu/git/1flowbase/.agents/skills/frontend-development/references/workspace-rules.md)
-- 目录落点、接口消费与 `schema ui` 分层：[placement-rules.md](/home/taichu/git/1flowbase/.agents/skills/frontend-development/references/placement-rules.md)
-- 视觉基线与风格边界：[visual-baseline.md](/home/taichu/git/1flowbase/.agents/skills/frontend-development/references/visual-baseline.md)
-- 浏览器级验证与运行态证据：[browser-verification.md](/home/taichu/git/1flowbase/.agents/skills/frontend-development/references/browser-verification.md)
-- 复查清单与反模式：[review-checklist.md](/home/taichu/git/1flowbase/.agents/skills/frontend-development/references/review-checklist.md)、[anti-patterns.md](/home/taichu/git/1flowbase/.agents/skills/frontend-development/references/anti-patterns.md)
+- 需求整理工作流与输出要求：`references/requirement-refinement.md`
+- 交互架构 gate 与升级条件：`references/interaction-architecture-gate.md`
+- 需求提炼方法论：`references/extraction-framework.md`
+- 面向用户的回复模板：`references/skill-template.md`
+- 是否需要先沟通、哪些场景需要升级决策：`references/communication-gate.md`
+- 页面 recipe、工作区语法与交互规则：`references/workspace-rules.md`
+- 目录落点、接口消费与 `schema ui` 分层：`references/placement-rules.md`
+- 视觉基线与风格边界：`references/visual-baseline.md`
+- 浏览器级验证与运行态证据：`references/browser-verification.md`
+- 复查清单与反模式：`references/review-checklist.md`、`references/anti-patterns.md`
 - 示例与压力场景：`examples/`
 - 命中结构性问题后的完整信息架构诊断：`frontend-logic-design`
 - 前端测试资源限制统一读取仓库根 `.1flowbase.verify.local.json`；调整 `turbo` 并发或 `vitest` worker 时，同步维护 `.1flowbase.verify.local.json.example`，不要把并发重新写死进 `package.json`
