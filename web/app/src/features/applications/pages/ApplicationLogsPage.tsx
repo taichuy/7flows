@@ -30,7 +30,13 @@ export function ApplicationLogsPage({
   }
 
   return (
-    <div className="application-logs-page">
+    <div
+      className={
+        selectedRunId
+          ? 'application-logs-page application-logs-page--detail-open'
+          : 'application-logs-page'
+      }
+    >
       <section className="application-logs-page__list">
         <Space direction="vertical" size="large" style={{ width: '100%' }}>
           <div>
@@ -54,11 +60,13 @@ export function ApplicationLogsPage({
           )}
         </Space>
       </section>
-      <ApplicationRunDetailPanel
-        applicationId={applicationId}
-        onClose={() => setSelectedRunId(null)}
-        runId={selectedRunId}
-      />
+      {selectedRunId ? (
+        <ApplicationRunDetailPanel
+          applicationId={applicationId}
+          onClose={() => setSelectedRunId(null)}
+          runId={selectedRunId}
+        />
+      ) : null}
     </div>
   );
 }

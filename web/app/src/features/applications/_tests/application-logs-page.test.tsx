@@ -117,7 +117,7 @@ describe('ApplicationLogsPage', () => {
     runtimeApi.fetchApplicationRunDetail.mockResolvedValue(sampleRunDetail());
   });
 
-  test('opens selected run in a resizable detail drawer without reserving empty space', async () => {
+  test('expands selected run as a resizable sibling detail pane without reserving empty space', async () => {
     render(
       <AppProviders>
         <ApplicationLogsPage applicationId="app-1" />
@@ -126,7 +126,7 @@ describe('ApplicationLogsPage', () => {
 
     expect(await screen.findByRole('table')).toBeInTheDocument();
     expect(
-      screen.queryByRole('dialog', { name: '运行详情' })
+      screen.queryByRole('complementary', { name: '运行详情' })
     ).not.toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: '查看运行详情' }));
@@ -137,9 +137,13 @@ describe('ApplicationLogsPage', () => {
         'run-1'
       );
     });
+    const detailPane = await screen.findByRole('complementary', {
+      name: '运行详情'
+    });
+    expect(detailPane).toBeInTheDocument();
     expect(
-      await screen.findByRole('dialog', { name: '运行详情' })
-    ).toBeInTheDocument();
+      screen.queryByRole('dialog', { name: '运行详情' })
+    ).not.toBeInTheDocument();
     expect(screen.getByRole('table')).toBeInTheDocument();
     expect(
       screen.queryByRole('button', { name: '返回日志' })
@@ -147,14 +151,13 @@ describe('ApplicationLogsPage', () => {
     const resizeHandle = screen.getByRole('separator', {
       name: '调整运行详情宽度'
     });
-    const detailDrawer = screen.getByRole('dialog', { name: '运行详情' });
-    expect(detailDrawer).toHaveStyle({ width: '480px' });
+    expect(detailPane).toHaveStyle({ width: '480px' });
 
     fireEvent.mouseDown(resizeHandle, { clientX: 900 });
     fireEvent.mouseMove(window, { clientX: 760 });
     fireEvent.mouseUp(window);
 
-    expect(detailDrawer).toHaveStyle({ width: '620px' });
+    expect(detailPane).toHaveStyle({ width: '620px' });
 
     const conversation = await screen.findByTestId('debug-conversation-messages');
     expect(within(conversation).getByText('User')).toBeInTheDocument();
@@ -183,7 +186,7 @@ describe('ApplicationLogsPage', () => {
     fireEvent.click(screen.getByRole('button', { name: '关闭运行详情' }));
 
     expect(
-      screen.queryByRole('dialog', { name: '运行详情' })
+      screen.queryByRole('complementary', { name: '运行详情' })
     ).not.toBeInTheDocument();
   }, 20_000);
 });

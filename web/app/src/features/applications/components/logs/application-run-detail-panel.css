@@ -1,18 +1,14 @@
 .application-run-detail {
-  position: fixed;
-  z-index: 30;
-  top: 72px;
-  right: 0;
-  bottom: 0;
+  position: relative;
   display: flex;
   flex-direction: column;
   gap: 16px;
   min-width: 0;
   max-width: calc(100vw - 96px);
-  border-left: 1px solid var(--ant-color-border-secondary);
+  border: 1px solid var(--ant-color-border-secondary);
+  border-radius: 8px;
   background: var(--ant-color-bg-container);
   padding: 16px;
-  box-shadow: -18px 0 42px rgba(15, 23, 42, 0.14);
 }
 
 .application-run-detail__resize-handle {
@@ -197,7 +193,6 @@
 
 @media (max-width: 720px) {
   .application-run-detail {
-    top: 0;
     width: min(100vw, 420px) !important;
     max-width: 100vw;
   }

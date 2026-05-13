@@ -428,7 +428,6 @@ export function ApplicationRunDetailPanel({
     <aside
       aria-label="运行详情"
       className="application-run-detail"
-      role="dialog"
       style={{ width: `${drawerWidth}px` }}
     >
       <div
