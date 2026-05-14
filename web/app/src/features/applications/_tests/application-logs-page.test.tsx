@@ -702,7 +702,7 @@ describe('ApplicationLogsPage', () => {
       /\.application-logs-page__stack\s*\{[^}]*display:\s*flex;[^}]*flex-direction:\s*column;[^}]*height:\s*100%;/s
     );
     expect(cssSource).toMatch(
-      /\.application-logs-page__list\s*\{[^}]*flex:\s*1 1 auto;[^}]*min-height:\s*0;[^}]*overflow:\s*auto;/s
+      /\.application-logs-page__list\s*\{[^}]*display:\s*flex;[^}]*flex-direction:\s*column;[^}]*flex:\s*1 1 auto;[^}]*min-height:\s*0;[^}]*overflow:\s*auto;/s
     );
   });
 
