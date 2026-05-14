@@ -1,4 +1,4 @@
-use crate::_tests::support::{login_and_capture_cookie, test_app};
+use crate::_tests::support::{login_and_capture_cookie, test_app, test_app_with_database_url};
 use axum::{
     body::{to_bytes, Body},
     http::{Request, StatusCode},
@@ -132,6 +132,107 @@ async fn replace_member_roles(
         .unwrap();
 
     assert_eq!(response.status(), StatusCode::NO_CONTENT);
+}
+
+async fn create_model(app: &axum::Router, cookie: &str, csrf: &str, code: &str) -> String {
+    let response = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/console/models")
+                .header("cookie", cookie)
+                .header("x-csrf-token", csrf)
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    json!({
+                        "scope_kind": "workspace",
+                        "code": code,
+                        "title": code
+                    })
+                    .to_string(),
+                ))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+
+    assert_eq!(response.status(), StatusCode::CREATED);
+    let body = to_bytes(response.into_body(), usize::MAX).await.unwrap();
+    let payload: Value = serde_json::from_slice(&body).unwrap();
+    payload["data"]["id"].as_str().unwrap().to_string()
+}
+
+async fn create_scope_grant(
+    app: &axum::Router,
+    cookie: &str,
+    csrf: &str,
+    model_id: &str,
+) -> String {
+    let response = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri(format!("/api/console/models/{model_id}/scope-grants"))
+                .header("cookie", cookie)
+                .header("x-csrf-token", csrf)
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    json!({
+                        "scope_kind": "system",
+                        "scope_id": domain::SYSTEM_SCOPE_ID,
+                        "enabled": true,
+                        "permission_profile": "scope_all"
+                    })
+                    .to_string(),
+                ))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+
+    assert_eq!(response.status(), StatusCode::CREATED);
+    let body = to_bytes(response.into_body(), usize::MAX).await.unwrap();
+    let payload: Value = serde_json::from_slice(&body).unwrap();
+    payload["data"]["id"].as_str().unwrap().to_string()
+}
+
+async fn create_api_key(app: &axum::Router, cookie: &str, csrf: &str, model_id: &str) -> String {
+    let response = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/console/api-keys")
+                .header("cookie", cookie)
+                .header("x-csrf-token", csrf)
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    json!({
+                        "name": "docs dynamic data model key",
+                        "scope_kind": "system",
+                        "scope_id": domain::SYSTEM_SCOPE_ID,
+                        "permissions": [{
+                            "data_model_id": model_id,
+                            "list": true,
+                            "get": true,
+                            "create": true,
+                            "update": true,
+                            "delete": true
+                        }]
+                    })
+                    .to_string(),
+                ))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+
+    assert_eq!(response.status(), StatusCode::CREATED);
+    let body = to_bytes(response.into_body(), usize::MAX).await.unwrap();
+    let payload: Value = serde_json::from_slice(&body).unwrap();
+    payload["data"]["token"].as_str().unwrap().to_string()
 }
 
 #[tokio::test]
@@ -321,4 +422,151 @@ async fn docs_category_route_returns_404_for_unknown_category() {
         .unwrap();
 
     assert_eq!(response.status(), StatusCode::NOT_FOUND);
+}
+
+#[tokio::test]
+async fn docs_routes_append_dynamic_data_model_api_category_and_specs() {
+    let (app, _database_url) = test_app_with_database_url().await;
+    let (cookie, csrf) = login_and_capture_cookie(&app, "root", "change-me").await;
+
+    let ready_model_id = create_model(&app, &cookie, &csrf, "docs_ready_orders").await;
+    create_scope_grant(&app, &cookie, &csrf, &ready_model_id).await;
+    create_api_key(&app, &cookie, &csrf, &ready_model_id).await;
+
+    let hidden_model_id = create_model(&app, &cookie, &csrf, "docs_hidden_orders").await;
+    assert_ne!(ready_model_id, hidden_model_id);
+
+    let catalog_response = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .uri("/api/console/docs/catalog")
+                .header("cookie", &cookie)
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(catalog_response.status(), StatusCode::OK);
+    let catalog_payload: Value = serde_json::from_slice(
+        &to_bytes(catalog_response.into_body(), usize::MAX)
+            .await
+            .unwrap(),
+    )
+    .unwrap();
+    let dynamic_category = catalog_payload["data"]["categories"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|category| category["id"] == json!("data-model-apis"))
+        .cloned()
+        .expect("dynamic data model api category should exist");
+    assert_eq!(dynamic_category["label"], json!("Data Model APIs"));
+    assert_eq!(dynamic_category["operation_count"], json!(5));
+
+    let operations_response = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .uri("/api/console/docs/categories/data-model-apis/operations")
+                .header("cookie", &cookie)
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(operations_response.status(), StatusCode::OK);
+    let operations_payload: Value = serde_json::from_slice(
+        &to_bytes(operations_response.into_body(), usize::MAX)
+            .await
+            .unwrap(),
+    )
+    .unwrap();
+    let operations = operations_payload["data"]["operations"]
+        .as_array()
+        .unwrap()
+        .to_vec();
+    assert_eq!(operations.len(), 5);
+    assert!(operations.iter().all(|operation| {
+        operation["path"]
+            .as_str()
+            .is_some_and(|path| path.contains("/api/runtime/models/docs_ready_orders/records"))
+    }));
+    assert!(!operations.iter().any(|operation| {
+        operation["path"]
+            .as_str()
+            .is_some_and(|path| path.contains("docs_hidden_orders"))
+    }));
+
+    let category_spec_response = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .uri("/api/console/docs/categories/data-model-apis/openapi.json")
+                .header("cookie", &cookie)
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(category_spec_response.status(), StatusCode::OK);
+    let category_spec: Value = serde_json::from_slice(
+        &to_bytes(category_spec_response.into_body(), usize::MAX)
+            .await
+            .unwrap(),
+    )
+    .unwrap();
+    assert!(
+        category_spec["paths"]["/api/runtime/models/docs_ready_orders/records"]["get"].is_object()
+    );
+    assert!(
+        category_spec["paths"]["/api/runtime/models/docs_ready_orders/records/{id}"]["patch"]
+            .is_object()
+    );
+    assert!(category_spec["paths"]
+        .get("/api/runtime/models/docs_hidden_orders/records")
+        .is_none());
+
+    let list_operation = operations
+        .iter()
+        .find(|operation| {
+            operation["method"] == json!("GET")
+                && operation["path"] == json!("/api/runtime/models/docs_ready_orders/records")
+        })
+        .expect("list operation should exist");
+    let list_operation_id = list_operation["id"].as_str().unwrap();
+
+    let operation_spec_response = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .uri(format!(
+                    "/api/console/docs/operations/{list_operation_id}/openapi.json"
+                ))
+                .header("cookie", &cookie)
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(operation_spec_response.status(), StatusCode::OK);
+    let operation_spec: Value = serde_json::from_slice(
+        &to_bytes(operation_spec_response.into_body(), usize::MAX)
+            .await
+            .unwrap(),
+    )
+    .unwrap();
+    assert!(
+        operation_spec["paths"]["/api/runtime/models/docs_ready_orders/records"]["get"].is_object()
+    );
+    assert!(operation_spec["paths"]
+        .get("/api/runtime/models/{model_code}/records")
+        .is_none());
+    assert!(
+        operation_spec["paths"]["/api/runtime/models/docs_ready_orders/records"]["post"].is_null()
+    );
+    assert_eq!(
+        operation_spec["components"]["securitySchemes"]["apiKeyBearer"]["scheme"],
+        json!("bearer")
+    );
 }
