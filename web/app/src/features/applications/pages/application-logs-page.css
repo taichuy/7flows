@@ -1,7 +1,16 @@
 .application-logs-page {
+  height: calc(100vh - 120px);
   max-width: 100%;
   width: 100%;
   min-width: 0;
+}
+
+.application-logs-page__stack {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  height: 100%;
+  min-height: 0;
 }
 
 .application-logs-page__header {
@@ -28,33 +37,45 @@
   width: 180px;
 }
 
-.application-logs-page__filter-select--sort {
-  width: 220px;
-}
-
 .application-logs-page__filter-search {
   width: min(320px, 100%);
 }
 
 .application-logs-page__list {
-  height: 100%;
+  flex: 1 1 auto;
   min-width: 0;
   min-height: 0;
   overflow: auto;
 }
 
 .application-logs-page__list .ant-table-wrapper {
-  height: 100%;
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
   min-width: 0;
   min-height: 0;
 }
 
 .application-logs-page__list .ant-spin-nested-loading,
 .application-logs-page__list .ant-spin-container,
-.application-logs-page__list .ant-table,
-.application-logs-page__list .ant-table-container {
-  height: 100%;
+.application-logs-page__list .ant-table {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
   min-height: 0;
+}
+
+.application-logs-page__list .ant-spin-nested-loading,
+.application-logs-page__list .ant-spin-container,
+.application-logs-page__list .ant-table-container {
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+.application-logs-page__list .ant-table-pagination.ant-pagination {
+  flex: 0 0 auto;
+  margin: 12px 0 0;
+  padding-bottom: 4px;
 }
 
 .application-logs-page__list .application-runs-table__row--active > td {
@@ -216,6 +237,10 @@
 }
 
 @media (max-width: 720px) {
+  .application-logs-page {
+    height: auto;
+  }
+
   .application-logs-floating-window {
     max-width: calc(100vw - 16px);
     max-height: calc(100vh - 16px);

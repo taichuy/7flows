@@ -298,6 +298,73 @@ impl PgControlPlaneStore {
         rows.into_iter().map(map_application_run_summary).collect()
     }
 
+    async fn list_application_runs_page(
+        &self,
+        application_id: Uuid,
+        input: control_plane::ports::ListApplicationRunsPageInput,
+    ) -> Result<control_plane::ports::ApplicationRunSummaryPage> {
+        let page = input.page.max(1);
+        let page_size = input.page_size.clamp(1, 100);
+        let offset = (page - 1) * page_size;
+        let created_after = input.created_after;
+
+        let total = sqlx::query_scalar::<_, i64>(
+            r#"
+            select count(*)
+            from flow_runs
+            where application_id = $1
+              and ($2::timestamptz is null or created_at >= $2)
+            "#,
+        )
+        .bind(application_id)
+        .bind(created_after)
+        .fetch_one(self.pool())
+        .await?;
+
+        let rows = sqlx::query(
+            r#"
+            select
+                id,
+                run_mode,
+                status,
+                target_node_id,
+                title,
+                input_payload,
+                external_user,
+                (
+                    select users.account
+                    from users
+                    where users.id = flow_runs.created_by
+                ) as authorized_account,
+                started_at,
+                finished_at,
+                created_at,
+                updated_at
+            from flow_runs
+            where application_id = $1
+              and ($2::timestamptz is null or created_at >= $2)
+            order by created_at desc, id desc
+            limit $3 offset $4
+            "#,
+        )
+        .bind(application_id)
+        .bind(created_after)
+        .bind(page_size)
+        .bind(offset)
+        .fetch_all(self.pool())
+        .await?;
+
+        Ok(control_plane::ports::ApplicationRunSummaryPage {
+            items: rows
+                .into_iter()
+                .map(map_application_run_summary)
+                .collect::<Result<Vec<_>>>()?,
+            total,
+            page,
+            page_size,
+        })
+    }
+
     async fn get_application_run_detail(
         &self,
         application_id: Uuid,

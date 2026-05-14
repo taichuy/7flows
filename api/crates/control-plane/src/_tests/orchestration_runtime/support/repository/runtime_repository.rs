@@ -1191,11 +1191,37 @@ impl OrchestrationRuntimeRepository for InMemoryOrchestrationRuntimeRepository {
             .collect::<Vec<_>>();
         runs.sort_by(|left, right| {
             right
-                .started_at
-                .cmp(&left.started_at)
+                .created_at
+                .cmp(&left.created_at)
                 .then_with(|| right.id.cmp(&left.id))
         });
         Ok(runs)
+    }
+
+    async fn list_application_runs_page(
+        &self,
+        application_id: Uuid,
+        input: control_plane::ports::ListApplicationRunsPageInput,
+    ) -> Result<control_plane::ports::ApplicationRunSummaryPage> {
+        let page = input.page.max(1);
+        let page_size = input.page_size.clamp(1, 100);
+        let offset = ((page - 1) * page_size) as usize;
+        let mut runs = self.list_application_runs(application_id).await?;
+        if let Some(created_after) = input.created_after {
+            runs.retain(|run| run.created_at >= created_after);
+        }
+        let total = runs.len() as i64;
+        let items = runs
+            .drain(offset.min(runs.len())..)
+            .take(page_size as usize)
+            .collect::<Vec<_>>();
+
+        Ok(control_plane::ports::ApplicationRunSummaryPage {
+            items,
+            total,
+            page,
+            page_size,
+        })
     }
 
     async fn get_application_run_detail(

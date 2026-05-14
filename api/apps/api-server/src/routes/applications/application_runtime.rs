@@ -22,7 +22,7 @@ use control_plane::{
 };
 use serde::{Deserialize, Serialize};
 use storage_durable::MainDurableStore;
-use time::format_description::well_known::Rfc3339;
+use time::{format_description::well_known::Rfc3339, Duration, OffsetDateTime};
 use tokio::{sync::mpsc, task::JoinHandle};
 use tracing::{error, warn};
 use utoipa::ToSchema;
@@ -245,6 +245,13 @@ pub struct DebugRunStreamQuery {
     pub last_event_id: Option<String>,
 }
 
+#[derive(Debug, Deserialize, Default, ToSchema)]
+pub struct ApplicationRunsQuery {
+    pub page: Option<i64>,
+    pub page_size: Option<i64>,
+    pub time_range_days: Option<i64>,
+}
+
 #[derive(Debug, Deserialize, ToSchema)]
 pub struct ResumeFlowRunBody {
     pub checkpoint_id: String,
@@ -263,12 +270,20 @@ pub struct FlowRunSummaryResponse {
     pub status: String,
     pub target_node_id: Option<String>,
     pub title: String,
-    pub user_id: Option<String>,
+    pub expand_id: Option<String>,
     pub authorized_account: Option<String>,
     pub started_at: String,
     pub finished_at: Option<String>,
     pub created_at: String,
     pub updated_at: String,
+}
+
+#[derive(Debug, Serialize, ToSchema)]
+pub struct FlowRunSummaryPageResponse {
+    pub items: Vec<FlowRunSummaryResponse>,
+    pub total: i64,
+    pub page: i64,
+    pub page_size: i64,
 }
 
 #[derive(Debug, Serialize, ToSchema)]
@@ -282,7 +297,7 @@ pub struct FlowRunResponse {
     pub status: String,
     pub target_node_id: Option<String>,
     pub title: String,
-    pub user_id: Option<String>,
+    pub expand_id: Option<String>,
     pub authorized_account: Option<String>,
     pub input_payload: serde_json::Value,
     pub output_payload: serde_json::Value,
@@ -459,13 +474,23 @@ fn to_flow_run_summary_response(summary: domain::ApplicationRunSummary) -> FlowR
         status: summary.status.as_str().to_string(),
         target_node_id: summary.target_node_id,
         title: summary.title,
-        user_id: summary.user_id,
+        expand_id: summary.user_id,
         authorized_account: summary.authorized_account,
         started_at: format_time(summary.started_at),
         finished_at: format_optional_time(summary.finished_at),
         created_at: format_time(summary.created_at),
         updated_at: format_time(summary.updated_at),
     }
+}
+
+fn application_runs_created_after(query: &ApplicationRunsQuery) -> Option<OffsetDateTime> {
+    let days = query.time_range_days?;
+
+    if days <= 0 {
+        return None;
+    }
+
+    Some(OffsetDateTime::now_utc() - Duration::days(days))
 }
 
 fn to_flow_run_response(run: domain::FlowRunRecord) -> FlowRunResponse {
@@ -479,7 +504,7 @@ fn to_flow_run_response(run: domain::FlowRunRecord) -> FlowRunResponse {
         status: run.status.as_str().to_string(),
         target_node_id: run.target_node_id,
         title: run.title,
-        user_id: run.external_user,
+        expand_id: run.external_user,
         authorized_account: run.authorized_account,
         input_payload: run.input_payload,
         output_payload: run.output_payload,
@@ -1165,10 +1190,13 @@ pub async fn get_runtime_debug_artifact(
     get,
     path = "/api/console/applications/{id}/logs/runs",
     params(
-        ("id" = String, Path, description = "Application id")
+        ("id" = String, Path, description = "Application id"),
+        ("page" = Option<i64>, Query, description = "1-based page number"),
+        ("page_size" = Option<i64>, Query, description = "Page size"),
+        ("time_range_days" = Option<i64>, Query, description = "Optional created-at day window")
     ),
     responses(
-        (status = 200, body = [FlowRunSummaryResponse]),
+        (status = 200, body = FlowRunSummaryPageResponse),
         (status = 401, body = crate::error_response::ErrorBody),
         (status = 403, body = crate::error_response::ErrorBody),
         (status = 404, body = crate::error_response::ErrorBody)
@@ -1178,20 +1206,33 @@ pub async fn list_application_runs(
     State(state): State<Arc<ApiState>>,
     headers: HeaderMap,
     Path(id): Path<Uuid>,
-) -> Result<Json<ApiSuccess<Vec<FlowRunSummaryResponse>>>, ApiError> {
+    Query(query): Query<ApplicationRunsQuery>,
+) -> Result<Json<ApiSuccess<FlowRunSummaryPageResponse>>, ApiError> {
     let context = require_session(&state, &headers).await?;
     ensure_application_visible(&state, context.user.id, id).await?;
 
-    let runs = <MainDurableStore as OrchestrationRuntimeRepository>::list_application_runs(
-        &state.store,
-        id,
-    )
-    .await?
-    .into_iter()
-    .map(to_flow_run_summary_response)
-    .collect();
+    let runs_page =
+        <MainDurableStore as OrchestrationRuntimeRepository>::list_application_runs_page(
+            &state.store,
+            id,
+            control_plane::ports::ListApplicationRunsPageInput {
+                page: query.page.unwrap_or(1),
+                page_size: query.page_size.unwrap_or(20),
+                created_after: application_runs_created_after(&query),
+            },
+        )
+        .await?;
 
-    Ok(Json(ApiSuccess::new(runs)))
+    Ok(Json(ApiSuccess::new(FlowRunSummaryPageResponse {
+        items: runs_page
+            .items
+            .into_iter()
+            .map(to_flow_run_summary_response)
+            .collect(),
+        total: runs_page.total,
+        page: runs_page.page,
+        page_size: runs_page.page_size,
+    })))
 }
 
 #[utoipa::path(

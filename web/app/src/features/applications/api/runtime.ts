@@ -3,6 +3,7 @@ import {
   getConsoleApplicationRunDetail,
   getConsoleApplicationRuns,
   getConsoleRuntimeDebugStream,
+  type ConsoleApplicationRunsPage,
   resumeConsoleFlowRun,
   type ConsoleApplicationRunDetail,
   type ConsoleApplicationRunSummary,
@@ -12,12 +13,30 @@ import {
 import { getApplicationsApiBaseUrl } from './applications';
 
 export type ApplicationRunSummary = ConsoleApplicationRunSummary;
+export type ApplicationRunsPage = ConsoleApplicationRunsPage;
 export type ApplicationRunDetail = ConsoleApplicationRunDetail;
 export type ApplicationRuntimeDebugStreamPart = RuntimeDebugStreamPart;
 export type { RuntimeDebugStreamPart };
 
-export const applicationRunsQueryKey = (applicationId: string) =>
-  ['applications', applicationId, 'runtime', 'runs'] as const;
+export interface FetchApplicationRunsInput {
+  page: number;
+  pageSize: number;
+  timeRangeDays?: number | null;
+}
+
+export const applicationRunsQueryKey = (
+  applicationId: string,
+  input: FetchApplicationRunsInput
+) =>
+  [
+    'applications',
+    applicationId,
+    'runtime',
+    'runs',
+    input.page,
+    input.pageSize,
+    input.timeRangeDays ?? 'all'
+  ] as const;
 
 export const applicationRunDetailQueryKey = (
   applicationId: string,
@@ -37,8 +56,19 @@ export const applicationRuntimeDebugStreamQueryKey = (
     'debug-stream'
   ] as const;
 
-export function fetchApplicationRuns(applicationId: string) {
-  return getConsoleApplicationRuns(applicationId, getApplicationsApiBaseUrl());
+export function fetchApplicationRuns(
+  applicationId: string,
+  input: FetchApplicationRunsInput
+) {
+  return getConsoleApplicationRuns(
+    applicationId,
+    {
+      page: input.page,
+      page_size: input.pageSize,
+      time_range_days: input.timeRangeDays ?? undefined
+    },
+    getApplicationsApiBaseUrl()
+  );
 }
 
 export function fetchApplicationRunDetail(applicationId: string, runId: string) {

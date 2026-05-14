@@ -742,6 +742,11 @@ pub trait OrchestrationRuntimeRepository: Send + Sync {
         &self,
         application_id: Uuid,
     ) -> anyhow::Result<Vec<domain::ApplicationRunSummary>>;
+    async fn list_application_runs_page(
+        &self,
+        application_id: Uuid,
+        input: ListApplicationRunsPageInput,
+    ) -> anyhow::Result<ApplicationRunSummaryPage>;
     async fn get_application_run_detail(
         &self,
         application_id: Uuid,
@@ -752,6 +757,21 @@ pub trait OrchestrationRuntimeRepository: Send + Sync {
         application_id: Uuid,
         node_id: &str,
     ) -> anyhow::Result<Option<domain::NodeLastRun>>;
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct ListApplicationRunsPageInput {
+    pub page: i64,
+    pub page_size: i64,
+    pub created_after: Option<OffsetDateTime>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ApplicationRunSummaryPage {
+    pub items: Vec<domain::ApplicationRunSummary>,
+    pub total: i64,
+    pub page: i64,
+    pub page_size: i64,
 }
 
 #[derive(Debug, Clone, PartialEq)]

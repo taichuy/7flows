@@ -1,7 +1,7 @@
 import { SearchOutlined } from '@ant-design/icons';
 import { useQueries, useQuery } from '@tanstack/react-query';
-import { Empty, Input, Result, Select, Space, Typography } from 'antd';
-import { useState } from 'react';
+import { Empty, Input, Result, Select, Typography } from 'antd';
+import { useEffect, useState } from 'react';
 
 import type { AgentFlowDebugMessage } from '../../agent-flow/api/runtime';
 import { ConversationLogPanel } from '../../agent-flow/components/debug-console/ConversationLogPanel';
@@ -24,9 +24,9 @@ const FLOATING_WINDOW_RIGHT = 32;
 const FLOATING_WINDOW_MIN_WIDTH = 360;
 const FLOATING_WINDOW_MAX_HEIGHT = 720;
 const DEFAULT_TIME_RANGE = '7';
+const PAGE_SIZE = 20;
 
 type ApplicationLogTimeRange = '1' | '7' | '28' | '90' | '365' | 'all';
-type ApplicationLogSortField = 'created_at' | 'updated_at';
 type SearchableRunSummary = ApplicationRunSummary & {
   answer?: unknown;
   input_payload?: unknown;
@@ -46,14 +46,6 @@ const TIME_RANGE_OPTIONS: Array<{
   { label: '过去 3 月', value: '90' },
   { label: '过去 12 月', value: '365' },
   { label: '所有时间', value: 'all' }
-];
-
-const SORT_FIELD_OPTIONS: Array<{
-  label: string;
-  value: ApplicationLogSortField;
-}> = [
-  { label: '创建时间', value: 'created_at' },
-  { label: '更新时间', value: 'updated_at' }
 ];
 
 function getViewportSize() {
@@ -104,43 +96,6 @@ function getConversationLogInitialRect() {
   };
 }
 
-function getRunCreatedAt(run: ApplicationRunSummary) {
-  return run.created_at;
-}
-
-function getRunUpdatedAt(run: ApplicationRunSummary) {
-  return run.updated_at;
-}
-
-function toTime(value: string | null | undefined) {
-  if (!value) {
-    return 0;
-  }
-
-  const time = new Date(value).getTime();
-
-  return Number.isFinite(time) ? time : 0;
-}
-
-function runMatchesTimeRange(
-  run: ApplicationRunSummary,
-  timeRange: ApplicationLogTimeRange
-) {
-  if (timeRange === 'all') {
-    return true;
-  }
-
-  const days = Number(timeRange);
-
-  if (!Number.isFinite(days)) {
-    return true;
-  }
-
-  const cutoff = Date.now() - days * 24 * 60 * 60 * 1000;
-
-  return toTime(getRunCreatedAt(run)) >= cutoff;
-}
-
 function stringifySearchValue(value: unknown): string {
   if (value === null || value === undefined) {
     return '';
@@ -167,7 +122,7 @@ function getRunSummarySearchText(run: ApplicationRunSummary) {
   return [
     run.id,
     run.title,
-    run.user_id,
+    run.expand_id,
     run.authorized_account,
     run.run_mode,
     run.status,
@@ -202,24 +157,6 @@ function getRunDetailSearchText(detail: ApplicationRunDetail | undefined) {
     .toLowerCase();
 }
 
-function sortRuns(
-  runs: ApplicationRunSummary[],
-  sortField: ApplicationLogSortField
-) {
-  return [...runs].sort((leftRun, rightRun) => {
-    const leftTime =
-      sortField === 'created_at'
-        ? toTime(getRunCreatedAt(leftRun))
-        : toTime(getRunUpdatedAt(leftRun));
-    const rightTime =
-      sortField === 'created_at'
-        ? toTime(getRunCreatedAt(rightRun))
-        : toTime(getRunUpdatedAt(rightRun));
-
-    return rightTime - leftTime;
-  });
-}
-
 export function ApplicationLogsPage({
   applicationId
 }: {
@@ -231,16 +168,26 @@ export function ApplicationLogsPage({
   const [timeRange, setTimeRange] =
     useState<ApplicationLogTimeRange>(DEFAULT_TIME_RANGE);
   const [keywordSearch, setKeywordSearch] = useState('');
-  const [sortField, setSortField] =
-    useState<ApplicationLogSortField>('created_at');
+  const [page, setPage] = useState(1);
   const [activeFloatingWindow, setActiveFloatingWindow] = useState<
     'conversation-log' | 'run-detail'
   >('run-detail');
   const runsQuery = useQuery({
-    queryKey: applicationRunsQueryKey(applicationId),
-    queryFn: () => fetchApplicationRuns(applicationId)
+    queryKey: applicationRunsQueryKey(applicationId, {
+      page,
+      pageSize: PAGE_SIZE,
+      timeRangeDays: timeRange === 'all' ? null : Number(timeRange)
+    }),
+    queryFn: () =>
+      fetchApplicationRuns(applicationId, {
+        page,
+        pageSize: PAGE_SIZE,
+        timeRangeDays: timeRange === 'all' ? null : Number(timeRange)
+      })
   });
-  const runs = runsQuery.data ?? [];
+  const runsPage = runsQuery.data;
+  const runs = runsPage?.items ?? [];
+  const total = runsPage?.total ?? 0;
   const normalizedKeyword = keywordSearch.trim().toLowerCase();
   const runDetailQueries = useQueries({
     queries: runs.map((run) => ({
@@ -259,26 +206,25 @@ export function ApplicationLogsPage({
     }
   });
 
-  const visibleRuns = sortRuns(
-    runs
-      .filter((run) => runMatchesTimeRange(run, timeRange))
-      .filter((run) => {
-        if (!normalizedKeyword) {
-          return true;
-        }
+  const visibleRuns = runs.filter((run) => {
+    if (!normalizedKeyword) {
+      return true;
+    }
 
-        return (
-          getRunSummarySearchText(run).includes(normalizedKeyword) ||
-          getRunDetailSearchText(runDetailsById.get(run.id)).includes(
-            normalizedKeyword
-          )
-        );
-      }),
-    sortField
-  );
+    return (
+      getRunSummarySearchText(run).includes(normalizedKeyword) ||
+      getRunDetailSearchText(runDetailsById.get(run.id)).includes(
+        normalizedKeyword
+      )
+    );
+  });
   const searchingRunDetails =
     Boolean(normalizedKeyword) &&
     runDetailQueries.some((query) => query.isFetching);
+
+  useEffect(() => {
+    setPage(1);
+  }, [applicationId, timeRange]);
 
   function selectRun(runId: string | null) {
     setSelectedRunId(runId);
@@ -317,14 +263,9 @@ export function ApplicationLogsPage({
           value={keywordSearch}
           onChange={(event) => setKeywordSearch(event.target.value)}
         />
-        <Select<ApplicationLogSortField>
-          aria-label="排序字段"
-          className="application-logs-page__filter-select application-logs-page__filter-select--sort"
-          options={SORT_FIELD_OPTIONS}
-          prefix="排序："
-          value={sortField}
-          onChange={setSortField}
-        />
+        <Typography.Text type="secondary">
+          默认按创建时间倒序展示，最新运行优先。
+        </Typography.Text>
       </div>
     </div>
   );
@@ -346,8 +287,12 @@ export function ApplicationLogsPage({
       ) : (
         <ApplicationRunsTable
           loading={searchingRunDetails}
+          page={page}
+          pageSize={PAGE_SIZE}
+          total={total}
           runs={visibleRuns}
           selectedRunId={selectedRunId}
+          onPageChange={setPage}
           onSelectRun={selectRun}
         />
       )}
@@ -356,10 +301,10 @@ export function ApplicationLogsPage({
 
   return (
     <div className="application-logs-page" data-testid="application-logs-page">
-      <Space direction="vertical" size="large" style={{ width: '100%' }}>
+      <div className="application-logs-page__stack">
         {logsHeader}
         {logsList}
-      </Space>
+      </div>
       {openConversationLogMessage ? (
         <ApplicationLogsFloatingWindow
           active={activeFloatingWindow === 'conversation-log'}

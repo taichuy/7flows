@@ -196,6 +196,7 @@ use utoipa::OpenApi;
         crate::routes::application_runtime::CompleteCallbackTaskBody,
         crate::routes::application_runtime::DebugVariableSnapshotResponse,
         crate::routes::application_runtime::FlowRunResponse,
+        crate::routes::application_runtime::FlowRunSummaryPageResponse,
         crate::routes::application_runtime::FlowRunSummaryResponse,
         crate::routes::application_runtime::NodeLastRunResponse,
         crate::routes::application_runtime::NodeRunResponse,

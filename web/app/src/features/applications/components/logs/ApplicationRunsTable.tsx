@@ -20,13 +20,21 @@ function formatTimestamp(value: string | null | undefined) {
 
 export function ApplicationRunsTable({
   loading = false,
+  page,
+  pageSize,
+  total,
   runs,
   selectedRunId,
+  onPageChange,
   onSelectRun
 }: {
   loading?: boolean;
+  page: number;
+  pageSize: number;
+  total: number;
   runs: ApplicationRunSummary[];
   selectedRunId?: string | null;
+  onPageChange: (page: number) => void;
   onSelectRun: (runId: string) => void;
 }) {
   return (
@@ -34,7 +42,14 @@ export function ApplicationRunsTable({
       rowKey="id"
       dataSource={runs}
       loading={loading}
-      pagination={false}
+      pagination={{
+        current: page,
+        pageSize,
+        total,
+        showSizeChanger: false,
+        showTotal: (paginationTotal) => `共 ${paginationTotal} 条`,
+        onChange: onPageChange
+      }}
       rowClassName={(record) =>
         record.id === selectedRunId ? 'application-runs-table__row--active' : ''
       }
@@ -47,8 +62,8 @@ export function ApplicationRunsTable({
           render: (value: string | null | undefined) => value ?? '-'
         },
         {
-          title: 'user_id',
-          dataIndex: 'user_id',
+          title: 'expand_id',
+          dataIndex: 'expand_id',
           width: 180,
           ellipsis: true,
           render: (value: string | null) => value ?? '-'

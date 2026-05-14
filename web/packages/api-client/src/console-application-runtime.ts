@@ -14,12 +14,25 @@ export interface ConsoleApplicationRunSummary {
   status: string;
   target_node_id: string | null;
   title?: string;
-  user_id?: string | null;
+  expand_id?: string | null;
   authorized_account?: string | null;
   started_at: string;
   finished_at: string | null;
   created_at: string;
   updated_at: string;
+}
+
+export interface ConsoleApplicationRunsPage {
+  items: ConsoleApplicationRunSummary[];
+  total: number;
+  page: number;
+  page_size: number;
+}
+
+export interface GetConsoleApplicationRunsInput {
+  page?: number;
+  page_size?: number;
+  time_range_days?: number;
 }
 
 export interface ConsoleFlowRunDetail {
@@ -33,7 +46,7 @@ export interface ConsoleFlowRunDetail {
   status: string;
   target_node_id: string | null;
   title?: string;
-  user_id?: string | null;
+  expand_id?: string | null;
   authorized_account?: string | null;
   input_payload: Record<string, unknown>;
   output_payload: Record<string, unknown>;
@@ -936,10 +949,22 @@ export function completeConsoleCallbackTask(
 
 export function getConsoleApplicationRuns(
   applicationId: string,
+  input: GetConsoleApplicationRunsInput = {},
   baseUrl?: string
 ) {
-  return apiFetch<ConsoleApplicationRunSummary[]>({
-    path: `/api/console/applications/${applicationId}/logs/runs`,
+  const page = input.page ?? 1;
+  const pageSize = input.page_size ?? 20;
+  const searchParams = new URLSearchParams({
+    page: String(page),
+    page_size: String(pageSize)
+  });
+  if (input.time_range_days !== undefined) {
+    searchParams.set('time_range_days', String(input.time_range_days));
+  }
+  return apiFetch<ConsoleApplicationRunsPage>({
+    path:
+      `/api/console/applications/${applicationId}/logs/runs?` +
+      searchParams.toString(),
     baseUrl
   });
 }

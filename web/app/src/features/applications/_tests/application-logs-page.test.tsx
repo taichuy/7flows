@@ -10,8 +10,19 @@ import path from 'node:path';
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 
 const runtimeApi = vi.hoisted(() => ({
-  applicationRunsQueryKey: (applicationId: string) =>
-    ['applications', applicationId, 'runtime', 'runs'] as const,
+  applicationRunsQueryKey: (
+    applicationId: string,
+    input?: { page: number; pageSize: number; timeRangeDays?: number | null }
+  ) =>
+    [
+      'applications',
+      applicationId,
+      'runtime',
+      'runs',
+      input?.page ?? 1,
+      input?.pageSize ?? 20,
+      input?.timeRangeDays ?? 'all'
+    ] as const,
   applicationRunDetailQueryKey: (applicationId: string, runId: string) =>
     ['applications', applicationId, 'runtime', 'runs', runId] as const,
   fetchApplicationRuns: vi.fn(),
@@ -25,6 +36,19 @@ vi.mock('../api/runtime', () => runtimeApi);
 import { AppProviders } from '../../../app/AppProviders';
 import { ApplicationLogsPage } from '../pages/ApplicationLogsPage';
 
+function applicationRunsPage<T>(items: T[], overrides?: Partial<{
+  total: number;
+  page: number;
+  page_size: number;
+}>) {
+  return {
+    items,
+    total: overrides?.total ?? items.length,
+    page: overrides?.page ?? 1,
+    page_size: overrides?.page_size ?? 20
+  };
+}
+
 function sampleRunDetail() {
   return {
     flow_run: {
@@ -37,7 +61,7 @@ function sampleRunDetail() {
       status: 'succeeded',
       target_node_id: 'node-llm',
       title: '公开 API 退款总结',
-      user_id: 'customer-42',
+      expand_id: 'customer-42',
       authorized_account: 'root',
       input_payload: { 'node-start.query': '总结退款政策' },
       output_payload: {
@@ -119,21 +143,23 @@ describe('ApplicationLogsPage', () => {
     runtimeApi.fetchApplicationRuns.mockReset();
     runtimeApi.fetchApplicationRunDetail.mockReset();
 
-    runtimeApi.fetchApplicationRuns.mockResolvedValue([
-      {
-        id: 'run-1',
-        run_mode: 'published_api_run' as const,
-        status: 'succeeded',
-        target_node_id: 'node-llm',
-        title: '公开 API 退款总结',
-        user_id: 'customer-42',
-        authorized_account: 'root',
-        started_at: '2026-04-17T09:00:00Z',
-        finished_at: '2026-04-17T09:00:01Z',
-        created_at: '2026-04-17T09:00:00Z',
-        updated_at: '2026-04-17T09:00:01Z'
-      }
-    ]);
+    runtimeApi.fetchApplicationRuns.mockResolvedValue(
+      applicationRunsPage([
+        {
+          id: 'run-1',
+          run_mode: 'published_api_run' as const,
+          status: 'succeeded',
+          target_node_id: 'node-llm',
+          title: '公开 API 退款总结',
+          expand_id: 'customer-42',
+          authorized_account: 'root',
+          started_at: '2026-04-17T09:00:00Z',
+          finished_at: '2026-04-17T09:00:01Z',
+          created_at: '2026-04-17T09:00:00Z',
+          updated_at: '2026-04-17T09:00:01Z'
+        }
+      ])
+    );
     runtimeApi.fetchApplicationRunDetail.mockResolvedValue(sampleRunDetail());
   });
 
@@ -159,6 +185,12 @@ describe('ApplicationLogsPage', () => {
     expect(screen.getByText('公开 API 退款总结')).toBeInTheDocument();
     expect(screen.getByText('customer-42')).toBeInTheDocument();
     expect(screen.getByText('root')).toBeInTheDocument();
+    expect(within(screen.getByRole('table')).getByText('expand_id')).toBeInTheDocument();
+    expect(runtimeApi.fetchApplicationRuns).toHaveBeenCalledWith('app-1', {
+      page: 1,
+      pageSize: 20,
+      timeRangeDays: 7
+    });
     expect(
       screen.queryByRole('complementary', { name: '运行详情' })
     ).not.toBeInTheDocument();
@@ -191,7 +223,7 @@ describe('ApplicationLogsPage', () => {
     const meta = screen.getByTestId('application-run-detail-meta');
     expect(within(meta).getByText('标题')).toBeInTheDocument();
     expect(within(meta).getByText('公开 API 退款总结')).toBeInTheDocument();
-    expect(within(meta).getByText('user_id')).toBeInTheDocument();
+    expect(within(meta).getByText('expand_id')).toBeInTheDocument();
     expect(within(meta).getByText('customer-42')).toBeInTheDocument();
     expect(within(meta).getByText('授权人')).toBeInTheDocument();
     expect(within(meta).getByText('root')).toBeInTheDocument();
@@ -426,39 +458,66 @@ describe('ApplicationLogsPage', () => {
     });
   }, 20_000);
 
-  test('filters application logs by time range, keyword, and sort field', async () => {
-    runtimeApi.fetchApplicationRuns.mockResolvedValue([
-      {
-        id: 'run-refund',
-        run_mode: 'debug_flow_run' as const,
-        status: 'succeeded',
-        target_node_id: null,
-        started_at: '2026-04-17T10:00:00Z',
-        finished_at: '2026-04-17T10:05:00Z',
-        created_at: '2026-04-17T10:00:00Z',
-        updated_at: '2026-04-17T10:05:00Z'
-      },
-      {
-        id: 'run-weather',
-        run_mode: 'debug_flow_run' as const,
-        status: 'succeeded',
-        target_node_id: null,
-        started_at: '2026-04-17T09:00:00Z',
-        finished_at: '2026-04-17T12:00:00Z',
-        created_at: '2026-04-17T09:00:00Z',
-        updated_at: '2026-04-17T12:00:00Z'
-      },
-      {
-        id: 'run-old',
-        run_mode: 'debug_flow_run' as const,
-        status: 'succeeded',
-        target_node_id: null,
-        started_at: '2026-03-01T09:00:00Z',
-        finished_at: '2026-03-01T09:02:00Z',
-        created_at: '2026-03-01T09:00:00Z',
-        updated_at: '2026-03-01T09:02:00Z'
-      }
-    ]);
+  test('filters application logs by time range and keyword within the current page', async () => {
+    runtimeApi.fetchApplicationRuns
+      .mockResolvedValueOnce(
+        applicationRunsPage([
+          {
+            id: 'run-refund',
+            run_mode: 'debug_flow_run' as const,
+            status: 'succeeded',
+            target_node_id: null,
+            started_at: '2026-04-17T10:00:00Z',
+            finished_at: '2026-04-17T10:05:00Z',
+            created_at: '2026-04-17T10:00:00Z',
+            updated_at: '2026-04-17T10:05:00Z'
+          },
+          {
+            id: 'run-weather',
+            run_mode: 'debug_flow_run' as const,
+            status: 'succeeded',
+            target_node_id: null,
+            started_at: '2026-04-17T09:00:00Z',
+            finished_at: '2026-04-17T12:00:00Z',
+            created_at: '2026-04-17T09:00:00Z',
+            updated_at: '2026-04-17T12:00:00Z'
+          }
+        ])
+      )
+      .mockResolvedValueOnce(
+        applicationRunsPage([
+          {
+            id: 'run-refund',
+            run_mode: 'debug_flow_run' as const,
+            status: 'succeeded',
+            target_node_id: null,
+            started_at: '2026-04-17T10:00:00Z',
+            finished_at: '2026-04-17T10:05:00Z',
+            created_at: '2026-04-17T10:00:00Z',
+            updated_at: '2026-04-17T10:05:00Z'
+          },
+          {
+            id: 'run-weather',
+            run_mode: 'debug_flow_run' as const,
+            status: 'succeeded',
+            target_node_id: null,
+            started_at: '2026-04-17T09:00:00Z',
+            finished_at: '2026-04-17T12:00:00Z',
+            created_at: '2026-04-17T09:00:00Z',
+            updated_at: '2026-04-17T12:00:00Z'
+          },
+          {
+            id: 'run-old',
+            run_mode: 'debug_flow_run' as const,
+            status: 'succeeded',
+            target_node_id: null,
+            started_at: '2026-03-01T09:00:00Z',
+            finished_at: '2026-03-01T09:02:00Z',
+            created_at: '2026-03-01T09:00:00Z',
+            updated_at: '2026-03-01T09:02:00Z'
+          }
+        ])
+      );
     runtimeApi.fetchApplicationRunDetail.mockImplementation(
       async (_applicationId: string, runId: string) => {
         const detail = sampleRunDetail();
@@ -507,8 +566,6 @@ describe('ApplicationLogsPage', () => {
     expect(screen.queryByText('run-old')).not.toBeInTheDocument();
     expect(screen.getByRole('combobox', { name: '时间间隔' })).toBeInTheDocument();
     expect(screen.getByText('过去 7 天')).toBeInTheDocument();
-    expect(screen.getByRole('combobox', { name: '排序字段' })).toBeInTheDocument();
-    expect(screen.getByText('创建时间')).toBeInTheDocument();
     expect(within(screen.getByRole('table')).getByText('更新时间'))
       .toBeInTheDocument();
     expect(screen.getByText('2026/4/17 18:05:00')).toBeInTheDocument();
@@ -530,18 +587,79 @@ describe('ApplicationLogsPage', () => {
     fireEvent.mouseDown(screen.getByRole('combobox', { name: '时间间隔' }));
     fireEvent.click(await screen.findByText('所有时间'));
 
+    await waitFor(() => {
+      expect(runtimeApi.fetchApplicationRuns).toHaveBeenLastCalledWith('app-1', {
+        page: 1,
+        pageSize: 20,
+        timeRangeDays: null
+      });
+    });
     expect(await screen.findByText('run-old')).toBeInTheDocument();
+  });
 
-    fireEvent.mouseDown(screen.getByRole('combobox', { name: '排序字段' }));
-    const updatedAtOptions = await screen.findAllByText('更新时间');
-    fireEvent.click(updatedAtOptions[updatedAtOptions.length - 1]);
+  test('requests 20 runs per page and refetches when pagination changes', async () => {
+    runtimeApi.fetchApplicationRuns
+      .mockResolvedValueOnce(
+        applicationRunsPage(
+          Array.from({ length: 20 }, (_, index) => ({
+            id: `run-${index + 1}`,
+            run_mode: 'debug_flow_run' as const,
+            status: 'succeeded',
+            target_node_id: null,
+            title: `title-${index + 1}`,
+            expand_id: null,
+            authorized_account: 'root',
+            started_at: `2026-04-17T09:${String(index).padStart(2, '0')}:00Z`,
+            finished_at: `2026-04-17T09:${String(index).padStart(2, '0')}:30Z`,
+            created_at: `2026-04-17T09:${String(index).padStart(2, '0')}:00Z`,
+            updated_at: `2026-04-17T09:${String(index).padStart(2, '0')}:30Z`
+          })),
+          { total: 42, page: 1, page_size: 20 }
+        )
+      )
+      .mockResolvedValueOnce(
+        applicationRunsPage(
+          Array.from({ length: 20 }, (_, index) => ({
+            id: `run-${index + 21}`,
+            run_mode: 'debug_flow_run' as const,
+            status: 'succeeded',
+            target_node_id: null,
+            title: `title-${index + 21}`,
+            expand_id: null,
+            authorized_account: 'root',
+            started_at: `2026-04-16T09:${String(index).padStart(2, '0')}:00Z`,
+            finished_at: `2026-04-16T09:${String(index).padStart(2, '0')}:30Z`,
+            created_at: `2026-04-16T09:${String(index).padStart(2, '0')}:00Z`,
+            updated_at: `2026-04-16T09:${String(index).padStart(2, '0')}:30Z`
+          })),
+          { total: 42, page: 2, page_size: 20 }
+        )
+      );
+
+    render(
+      <AppProviders>
+        <ApplicationLogsPage applicationId="app-1" />
+      </AppProviders>
+    );
+
+    expect(await screen.findByText('title-1')).toBeInTheDocument();
+    expect(runtimeApi.fetchApplicationRuns).toHaveBeenNthCalledWith(1, 'app-1', {
+      page: 1,
+      pageSize: 20,
+      timeRangeDays: 7
+    });
+    expect(screen.getByText('共 42 条')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByTitle('2'));
 
     await waitFor(() => {
-      const tableText = screen.getByRole('table').textContent ?? '';
-      expect(tableText.indexOf('run-weather')).toBeLessThan(
-        tableText.indexOf('run-refund')
-      );
+      expect(runtimeApi.fetchApplicationRuns).toHaveBeenNthCalledWith(2, 'app-1', {
+        page: 2,
+        pageSize: 20,
+        timeRangeDays: 7
+      });
     });
+    expect(await screen.findByText('title-21')).toBeInTheDocument();
   });
 
   test('uses floating window CSS instead of a docked splitter override', async () => {
@@ -566,6 +684,26 @@ describe('ApplicationLogsPage', () => {
     );
     expect(cssSource).toContain('cursor: move;');
     expect(cssSource).not.toContain('position: static;');
+  });
+
+  test('pins the logs page list to the remaining viewport height', async () => {
+    const cssSource = await readFile(
+      path.resolve(
+        process.cwd(),
+        'src/features/applications/pages/application-logs-page.css'
+      ),
+      'utf8'
+    );
+
+    expect(cssSource).toMatch(
+      /\.application-logs-page\s*\{[^}]*height:\s*calc\(100vh - 120px\);/s
+    );
+    expect(cssSource).toMatch(
+      /\.application-logs-page__stack\s*\{[^}]*display:\s*flex;[^}]*flex-direction:\s*column;[^}]*height:\s*100%;/s
+    );
+    expect(cssSource).toMatch(
+      /\.application-logs-page__list\s*\{[^}]*flex:\s*1 1 auto;[^}]*min-height:\s*0;[^}]*overflow:\s*auto;/s
+    );
   });
 
   test('keeps the runs table layout unchanged while floating windows are open', async () => {

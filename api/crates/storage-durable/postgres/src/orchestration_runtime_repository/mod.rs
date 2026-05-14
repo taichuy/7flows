@@ -420,6 +420,14 @@ impl OrchestrationRuntimeRepository for PgControlPlaneStore {
         PgControlPlaneStore::list_application_runs(self, application_id).await
     }
 
+    async fn list_application_runs_page(
+        &self,
+        application_id: Uuid,
+        input: control_plane::ports::ListApplicationRunsPageInput,
+    ) -> Result<control_plane::ports::ApplicationRunSummaryPage> {
+        PgControlPlaneStore::list_application_runs_page(self, application_id, input).await
+    }
+
     async fn get_application_run_detail(
         &self,
         application_id: Uuid,
