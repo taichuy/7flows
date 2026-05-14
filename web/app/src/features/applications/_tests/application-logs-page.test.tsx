@@ -157,7 +157,7 @@ describe('ApplicationLogsPage', () => {
     expect(
       screen.queryByRole('dialog', { name: '运行详情' })
     ).not.toBeInTheDocument();
-    expect(screen.getByRole('table')).toBeInTheDocument();
+    expect(screen.getAllByRole('table').length).toBeGreaterThan(0);
     expect(
       screen.queryByRole('button', { name: '返回日志' })
     ).not.toBeInTheDocument();
@@ -238,6 +238,9 @@ describe('ApplicationLogsPage', () => {
 
     expect(cssSource).toContain('flex: 1 1 auto;');
     expect(cssSource).not.toContain('height: auto;');
+    expect(cssSource).toContain(
+      'height: var(--application-runs-table-body-height);'
+    );
   });
 
   test('matches the docked detail height to viewport remaining height', async () => {
@@ -253,6 +256,20 @@ describe('ApplicationLogsPage', () => {
             right: 0,
             top: 120,
             width: 1200,
+            x: 0,
+            y: 120,
+            toJSON: () => ({})
+          };
+        }
+
+        if (this.classList.contains('ant-table-thead')) {
+          return {
+            bottom: 176,
+            height: 56,
+            left: 0,
+            right: 0,
+            top: 120,
+            width: 900,
             x: 0,
             y: 120,
             toJSON: () => ({})
@@ -299,6 +316,9 @@ describe('ApplicationLogsPage', () => {
     await waitFor(() => {
       expect(screen.getByTestId('application-logs-splitter')).toHaveStyle({
         height: '800px'
+      });
+      expect(document.querySelector('.ant-table-body')).toHaveStyle({
+        maxHeight: '744px'
       });
     });
   });

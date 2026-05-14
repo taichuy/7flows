@@ -17,10 +17,12 @@ function formatTimestamp(value: string) {
 export function ApplicationRunsTable({
   runs,
   selectedRunId,
+  scrollY,
   onSelectRun
 }: {
   runs: ApplicationRunSummary[];
   selectedRunId?: string | null;
+  scrollY?: number;
   onSelectRun: (runId: string) => void;
 }) {
   return (
@@ -31,6 +33,7 @@ export function ApplicationRunsTable({
       rowClassName={(record) =>
         record.id === selectedRunId ? 'application-runs-table__row--active' : ''
       }
+      scroll={scrollY ? { y: scrollY } : undefined}
       columns={[
         {
           title: '运行 ID',

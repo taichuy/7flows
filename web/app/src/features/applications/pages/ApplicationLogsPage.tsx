@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { Empty, Result, Space, Splitter, Typography } from 'antd';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, type CSSProperties } from 'react';
 
 import type { AgentFlowDebugMessage } from '../../agent-flow/api/runtime';
 import { ConversationLogPanel } from '../../agent-flow/components/debug-console/ConversationLogPanel';
@@ -21,6 +21,10 @@ export function ApplicationLogsPage({
   const [openConversationLogMessage, setOpenConversationLogMessage] =
     useState<AgentFlowDebugMessage | null>(null);
   const [splitterHeight, setSplitterHeight] = useState<number | null>(null);
+  const [runsTableBodyHeight, setRunsTableBodyHeight] = useState<number | null>(
+    null
+  );
+  const listRef = useRef<HTMLElement | null>(null);
   const splitterRef = useRef<HTMLDivElement | null>(null);
   const runsQuery = useQuery({
     queryKey: applicationRunsQueryKey(applicationId),
@@ -30,10 +34,11 @@ export function ApplicationLogsPage({
   useEffect(() => {
     if (!selectedRunId) {
       setSplitterHeight(null);
+      setRunsTableBodyHeight(null);
       return;
     }
 
-    function updateSplitterHeight() {
+    function updateWorkspaceMeasurements() {
       const splitterElement = splitterRef.current;
 
       if (!splitterElement) {
@@ -51,24 +56,45 @@ export function ApplicationLogsPage({
       setSplitterHeight((currentHeight) =>
         currentHeight === availableHeight ? currentHeight : availableHeight
       );
+
+      const tableHeaderElement = splitterElement.querySelector<HTMLElement>(
+        '.application-logs-page__list .ant-table-thead'
+      );
+      const tableHeaderHeight =
+        Math.ceil(tableHeaderElement?.getBoundingClientRect().height ?? 0) ||
+        56;
+      const nextRunsTableBodyHeight = Math.max(
+        160,
+        availableHeight - tableHeaderHeight
+      );
+
+      setRunsTableBodyHeight((currentHeight) =>
+        currentHeight === nextRunsTableBodyHeight
+          ? currentHeight
+          : nextRunsTableBodyHeight
+      );
     }
 
-    updateSplitterHeight();
+    updateWorkspaceMeasurements();
 
     const resizeObserver =
       typeof ResizeObserver === 'undefined'
         ? null
-        : new ResizeObserver(updateSplitterHeight);
+        : new ResizeObserver(updateWorkspaceMeasurements);
 
     if (resizeObserver && splitterRef.current) {
       resizeObserver.observe(splitterRef.current);
     }
 
-    window.addEventListener('resize', updateSplitterHeight);
+    if (resizeObserver && listRef.current) {
+      resizeObserver.observe(listRef.current);
+    }
+
+    window.addEventListener('resize', updateWorkspaceMeasurements);
 
     return () => {
       resizeObserver?.disconnect();
-      window.removeEventListener('resize', updateSplitterHeight);
+      window.removeEventListener('resize', updateWorkspaceMeasurements);
     };
   }, [selectedRunId]);
 
@@ -93,8 +119,19 @@ export function ApplicationLogsPage({
       </Typography.Paragraph>
     </div>
   );
+  const isDetailOpen = Boolean(selectedRunId);
+  const logsListStyle =
+    isDetailOpen && runsTableBodyHeight
+      ? ({
+          '--application-runs-table-body-height': `${runsTableBodyHeight}px`
+        } as CSSProperties)
+      : undefined;
   const logsList = (
-    <section className="application-logs-page__list">
+    <section
+      className="application-logs-page__list"
+      ref={listRef}
+      style={logsListStyle}
+    >
       {runsQuery.data.length === 0 ? (
         <Empty
           description="当前应用还没有运行记录"
@@ -104,6 +141,9 @@ export function ApplicationLogsPage({
         <ApplicationRunsTable
           runs={runsQuery.data}
           selectedRunId={selectedRunId}
+          scrollY={
+            isDetailOpen ? (runsTableBodyHeight ?? undefined) : undefined
+          }
           onSelectRun={selectRun}
         />
       )}
