@@ -187,7 +187,10 @@ export function ApplicationLogsFloatingWindow({
     window.addEventListener('mouseup', cleanup);
   }
 
-  function startWidthResize(event: ReactMouseEvent<HTMLDivElement>) {
+  function startWidthResize(
+    edge: 'left' | 'right',
+    event: ReactMouseEvent<HTMLDivElement>
+  ) {
     if (event.button !== 0) {
       return;
     }
@@ -196,7 +199,9 @@ export function ApplicationLogsFloatingWindow({
     onActivate();
 
     const startX = event.clientX;
+    const startLeft = rect.left;
     const startWidth = rect.width;
+    const startRight = startLeft + startWidth;
     const previousCursor = document.body.style.cursor;
     const previousUserSelect = document.body.style.userSelect;
 
@@ -205,12 +210,28 @@ export function ApplicationLogsFloatingWindow({
     document.body.style.userSelect = 'none';
 
     const handleMouseMove = (moveEvent: MouseEvent) => {
+      const deltaX = moveEvent.clientX - startX;
+      const nextLeft =
+        edge === 'left'
+          ? clamp(
+              startLeft + deltaX,
+              FLOATING_WINDOW_MARGIN,
+              startRight - minWidth
+            )
+          : startLeft;
+
       setRect((current) =>
         clampRect(
-          {
-            ...current,
-            width: startWidth + moveEvent.clientX - startX
-          },
+          edge === 'left'
+            ? {
+                ...current,
+                left: nextLeft,
+                width: startRight - nextLeft
+              }
+            : {
+                ...current,
+                width: startWidth + deltaX
+              },
           minWidth,
           minHeight
         )
@@ -299,7 +320,14 @@ export function ApplicationLogsFloatingWindow({
         aria-orientation="vertical"
         className="application-logs-floating-window__resize application-logs-floating-window__resize--right"
         role="separator"
-        onMouseDown={startWidthResize}
+        onMouseDown={(event) => startWidthResize('right', event)}
+      />
+      <div
+        aria-label={`从左侧调整${title}宽度`}
+        aria-orientation="vertical"
+        className="application-logs-floating-window__resize application-logs-floating-window__resize--left"
+        role="separator"
+        onMouseDown={(event) => startWidthResize('left', event)}
       />
       <div
         aria-label={`向下调整${title}高度`}

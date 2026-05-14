@@ -195,6 +195,12 @@ describe('ApplicationLogsPage', () => {
     expect(
       within(screen.getByTestId('application-logs-floating-run-detail')).getByRole(
         'separator',
+        { name: '从左侧调整运行详情宽度' }
+      )
+    ).toBeInTheDocument();
+    expect(
+      within(screen.getByTestId('application-logs-floating-run-detail')).getByRole(
+        'separator',
         { name: '向下调整运行详情高度' }
       )
     ).toBeInTheDocument();
@@ -323,6 +329,27 @@ describe('ApplicationLogsPage', () => {
 
     fireEvent.mouseDown(
       within(detailWindow).getByRole('separator', {
+        name: '从左侧调整运行详情宽度'
+      }),
+      {
+        button: 0,
+        clientX: 644,
+        clientY: 240
+      }
+    );
+    fireEvent.mouseMove(window, {
+      clientX: 584,
+      clientY: 240
+    });
+    fireEvent.mouseUp(window);
+
+    expect(detailWindow).toHaveStyle({
+      left: '584px',
+      width: '634px'
+    });
+
+    fireEvent.mouseDown(
+      within(detailWindow).getByRole('separator', {
         name: '向下调整运行详情高度'
       }),
       {
@@ -338,6 +365,8 @@ describe('ApplicationLogsPage', () => {
     fireEvent.mouseUp(window);
 
     expect(detailWindow).toHaveStyle({ height: '648px' });
+    expect(await screen.findByTestId('debug-conversation-messages'))
+      .toBeInTheDocument();
   }, 20_000);
 
   test('uses floating window CSS instead of a docked splitter override', async () => {
@@ -357,6 +386,9 @@ describe('ApplicationLogsPage', () => {
     expect(cssSource).toContain('width: 100%;');
     expect(cssSource).toContain('.application-logs-floating-window');
     expect(cssSource).toContain('position: fixed;');
+    expect(cssSource).toContain(
+      '.application-logs-floating-window__resize--left'
+    );
     expect(cssSource).toContain('cursor: move;');
     expect(cssSource).not.toContain('position: static;');
   });

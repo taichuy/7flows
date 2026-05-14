@@ -143,6 +143,14 @@
   cursor: ew-resize;
 }
 
+.application-logs-floating-window__resize--left {
+  top: 0;
+  bottom: 10px;
+  left: 0;
+  width: 10px;
+  cursor: ew-resize;
+}
+
 .application-logs-floating-window__resize--bottom {
   right: 10px;
   bottom: 0;
@@ -152,6 +160,7 @@
 }
 
 .application-logs-floating-window__resize--right::before,
+.application-logs-floating-window__resize--left::before,
 .application-logs-floating-window__resize--bottom::before {
   content: '';
   position: absolute;
@@ -164,6 +173,13 @@
   top: 16px;
   right: 4px;
   bottom: 16px;
+  width: 2px;
+}
+
+.application-logs-floating-window__resize--left::before {
+  top: 16px;
+  bottom: 16px;
+  left: 4px;
   width: 2px;
 }
 
