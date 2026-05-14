@@ -232,6 +232,9 @@ fn invalid_native_field(value: &Value) -> Option<&'static str> {
     if field("conversation").is_some_and(|value| !value.is_object()) {
         return Some("conversation");
     }
+    if field("user_id").is_some_and(|value| !value.is_string()) {
+        return Some("user_id");
+    }
     if field("response_mode").is_some_and(|value| !value.is_string()) {
         return Some("response_mode");
     }
@@ -243,6 +246,9 @@ fn invalid_native_field(value: &Value) -> Option<&'static str> {
     }
     if field("metadata").is_some_and(|value| !value.is_object()) {
         return Some("metadata");
+    }
+    if field("title").is_some_and(|value| !value.is_string()) {
+        return Some("title");
     }
     if field("compatibility_mode").is_some_and(|value| !value.is_string()) {
         return Some("compatibility_mode");

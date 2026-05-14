@@ -117,6 +117,7 @@ impl PgControlPlaneStore {
                 document_hash,
                 run_mode,
                 target_node_id,
+                title,
                 status,
                 input_payload,
                 output_payload,

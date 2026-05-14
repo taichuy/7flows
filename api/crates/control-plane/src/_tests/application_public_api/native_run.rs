@@ -150,6 +150,18 @@ fn native_run_request_validates_public_native_fields() {
 }
 
 #[test]
+fn native_run_request_accepts_user_id_and_title() {
+    let mut payload = native_request(json!("any-provider/any-model"));
+    payload["user_id"] = json!("external-user-123");
+    payload["title"] = json!("Quarterly support escalation");
+
+    let accepted: NativeRunRequest = serde_json::from_value(payload).unwrap();
+
+    assert_eq!(accepted.user_id.as_deref(), Some("external-user-123"));
+    assert_eq!(accepted.title.as_deref(), Some("Quarterly support escalation"));
+}
+
+#[test]
 fn native_run_request_rejects_invalid_public_native_fields() {
     for (field, invalid_value) in [
         ("query", json!(false)),
@@ -157,10 +169,12 @@ fn native_run_request_rejects_invalid_public_native_fields() {
         ("history", json!({ "role": "user" })),
         ("attachments", json!({ "id": "file-1" })),
         ("conversation", json!("not-object")),
+        ("user_id", json!({ "id": "external-user-123" })),
         ("response_mode", json!(["blocking"])),
         ("stream_options", json!("not-object")),
         ("execution", json!("not-object")),
         ("metadata", json!("not-object")),
+        ("title", json!([ "Quarterly support escalation" ])),
     ] {
         let mut payload = native_request(json!("any-model"));
         payload[field] = invalid_value;

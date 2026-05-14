@@ -209,6 +209,7 @@ async fn seed_flow_run_with_mode(
             document_hash: "test-document-hash".to_string(),
             run_mode,
             target_node_id,
+            title: "总结退款政策".to_string(),
             status: FlowRunStatus::Running,
             input_payload: json!({ "node-start": { "query": "总结退款政策" } }),
             started_at,
@@ -325,6 +326,7 @@ async fn orchestration_runtime_repository_round_trips_published_public_run_metad
             document_hash: compiled.document_hash.clone(),
             run_mode: FlowRunMode::PublishedApiRun,
             target_node_id: None,
+            title: "Customer hello".to_string(),
             status: FlowRunStatus::Running,
             input_payload: json!({ "message": "hello" }),
             started_at,
@@ -344,6 +346,7 @@ async fn orchestration_runtime_repository_round_trips_published_public_run_metad
     assert_eq!(created.run_mode.as_str(), "published_api_run");
     assert_eq!(created.api_key_id, Some(api_key_id));
     assert_eq!(created.publication_version_id, Some(publication_version_id));
+    assert_eq!(created.title, "Customer hello");
     assert_eq!(created.external_user.as_deref(), Some("external-user-1"));
     assert_eq!(
         created.external_conversation_id.as_deref(),
@@ -363,6 +366,7 @@ async fn orchestration_runtime_repository_round_trips_published_public_run_metad
     .unwrap();
     assert_eq!(fetched.api_key_id, Some(api_key_id));
     assert_eq!(fetched.publication_version_id, Some(publication_version_id));
+    assert_eq!(fetched.title, "Customer hello");
     assert_eq!(fetched.external_user.as_deref(), Some("external-user-1"));
     assert_eq!(
         fetched.external_conversation_id.as_deref(),
@@ -389,6 +393,7 @@ async fn orchestration_runtime_repository_round_trips_published_public_run_metad
         completed.publication_version_id,
         Some(publication_version_id)
     );
+    assert_eq!(completed.title, "Customer hello");
     assert_eq!(completed.external_user.as_deref(), Some("external-user-1"));
     assert_eq!(
         completed.external_conversation_id.as_deref(),
@@ -778,6 +783,7 @@ async fn creates_flow_run_shell_and_attaches_compiled_plan() {
             document_hash: "test-document-hash".to_string(),
             run_mode: FlowRunMode::DebugFlowRun,
             target_node_id: None,
+            title: "hello".to_string(),
             status: FlowRunStatus::Queued,
             input_payload: json!({ "node-start": { "query": "hello" } }),
             started_at: OffsetDateTime::now_utc(),
@@ -887,6 +893,7 @@ async fn compiled_plan_rows_are_immutable_per_compile_and_attach_checks_document
             document_hash: "document-hash-a".to_string(),
             run_mode: FlowRunMode::DebugFlowRun,
             target_node_id: None,
+            title: "hello".to_string(),
             status: FlowRunStatus::Queued,
             input_payload: json!({ "node-start": { "query": "hello" } }),
             started_at: OffsetDateTime::now_utc(),
@@ -940,6 +947,7 @@ async fn creates_flow_run_shell_and_attaches_compiled_plan_rejects_already_attac
             document_hash: "test-document-hash".to_string(),
             run_mode: FlowRunMode::DebugFlowRun,
             target_node_id: None,
+            title: "hello".to_string(),
             status: FlowRunStatus::Queued,
             input_payload: json!({ "node-start": { "query": "hello" } }),
             started_at: OffsetDateTime::now_utc(),
@@ -1018,6 +1026,7 @@ async fn creates_flow_run_shell_and_attaches_compiled_plan_rejects_mismatched_co
             document_hash: "test-document-hash".to_string(),
             run_mode: FlowRunMode::DebugFlowRun,
             target_node_id: None,
+            title: "hello".to_string(),
             status: FlowRunStatus::Queued,
             input_payload: json!({ "node-start": { "query": "hello" } }),
             started_at: OffsetDateTime::now_utc(),

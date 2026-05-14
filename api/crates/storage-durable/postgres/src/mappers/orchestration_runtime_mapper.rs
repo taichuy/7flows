@@ -28,6 +28,7 @@ pub struct StoredFlowRunRow {
     pub document_hash: String,
     pub run_mode: String,
     pub target_node_id: Option<String>,
+    pub title: String,
     pub status: String,
     pub input_payload: serde_json::Value,
     pub output_payload: serde_json::Value,
@@ -327,6 +328,8 @@ pub struct StoredApplicationRunSummaryRow {
     pub run_mode: String,
     pub status: String,
     pub target_node_id: Option<String>,
+    pub title: String,
+    pub input_payload: serde_json::Value,
     pub started_at: OffsetDateTime,
     pub finished_at: Option<OffsetDateTime>,
     pub created_at: OffsetDateTime,
@@ -352,6 +355,10 @@ impl PgOrchestrationRuntimeMapper {
     }
 
     pub fn to_flow_run_record(row: StoredFlowRunRow) -> Result<domain::FlowRunRecord> {
+        let title = control_plane::flow_run_title::display_flow_run_title(
+            &row.title,
+            &row.input_payload,
+        );
         Ok(domain::FlowRunRecord {
             id: row.id,
             application_id: row.application_id,
@@ -363,6 +370,7 @@ impl PgOrchestrationRuntimeMapper {
             document_hash: row.document_hash,
             run_mode: parse_flow_run_mode(&row.run_mode)?,
             target_node_id: row.target_node_id,
+            title,
             status: parse_flow_run_status(&row.status)?,
             input_payload: row.input_payload,
             output_payload: row.output_payload,
@@ -692,6 +700,10 @@ impl PgOrchestrationRuntimeMapper {
             run_mode: parse_flow_run_mode(&row.run_mode)?,
             status: parse_flow_run_status(&row.status)?,
             target_node_id: row.target_node_id,
+            title: control_plane::flow_run_title::display_flow_run_title(
+                &row.title,
+                &row.input_payload,
+            ),
             started_at: row.started_at,
             finished_at: row.finished_at,
             created_at: row.created_at,

@@ -6,6 +6,7 @@ use uuid::Uuid;
 use crate::{
     errors::ControlPlaneError,
     flow::FlowService,
+    flow_run_title::display_flow_run_title,
     ports::{
         AppendBillingSessionInput, AppendCostLedgerInput, AppendCreditLedgerInput,
         AppendRunEventInput, AttachCompiledPlanToFlowRunInput, CreateFlowRunShellInput,
@@ -144,6 +145,7 @@ where
             document_hash,
             run_mode: domain::FlowRunMode::DebugFlowRun,
             target_node_id: None,
+            title: display_flow_run_title("", &command.input_payload),
             status: domain::FlowRunStatus::Queued,
             input_payload: command.input_payload,
             started_at: OffsetDateTime::now_utc(),

@@ -244,6 +244,12 @@ impl DocTextResolver {
                 "application_public_api.native.create_run.request.conversation",
                 DocsLocale::ZhHans,
             ) => "外部会话元数据，例如用户或会话 ID。",
+            ("application_public_api.native.create_run.request.user_id", DocsLocale::ZhHans) => {
+                "显式外部用户 ID。会写入公开运行日志，并优先于 conversation.user。"
+            }
+            ("application_public_api.native.create_run.request.title", DocsLocale::ZhHans) => {
+                "运行标题。未传时默认使用用户输入，并截断到 255 个字符。"
+            }
             (
                 "application_public_api.native.create_run.request.stream_options",
                 DocsLocale::ZhHans,
@@ -254,6 +260,10 @@ impl DocTextResolver {
             ("application_public_api.native.create_run.request.metadata", DocsLocale::ZhHans) => {
                 "调用方元数据，会随公开运行持久化。"
             }
+            (
+                "application_public_api.anthropic.message.request.metadata",
+                DocsLocale::ZhHans,
+            ) => "附加元数据。metadata.user_id 会映射为公开运行的外部用户标识。",
             (
                 "application_public_api.native.resume_run.request.callback_task_id",
                 DocsLocale::ZhHans,
@@ -294,6 +304,12 @@ impl DocTextResolver {
             ("application_public_api.native.create_run.request.conversation", DocsLocale::EnUs) => {
                 "External conversation metadata such as user or conversation id."
             }
+            ("application_public_api.native.create_run.request.user_id", DocsLocale::EnUs) => {
+                "Explicit external user id persisted on the public run and preferred over conversation.user."
+            }
+            ("application_public_api.native.create_run.request.title", DocsLocale::EnUs) => {
+                "Run title. Defaults to the user query and is truncated to 255 characters."
+            }
             (
                 "application_public_api.native.create_run.request.stream_options",
                 DocsLocale::EnUs,
@@ -306,6 +322,10 @@ impl DocTextResolver {
             ("application_public_api.native.create_run.request.metadata", DocsLocale::EnUs) => {
                 "Caller metadata persisted with the public run."
             }
+            (
+                "application_public_api.anthropic.message.request.metadata",
+                DocsLocale::EnUs,
+            ) => "Additional metadata. metadata.user_id maps to the public run external user id.",
             (
                 "application_public_api.native.resume_run.request.callback_task_id",
                 DocsLocale::EnUs,
@@ -509,6 +529,8 @@ fn operation_request_body(operation: &PublicOperation, docs: &DocTextResolver) -
             native_create_run_schema(docs),
             json!({
                 "query": "Summarize the incident",
+                "user_id": "external-user-1",
+                "title": "Customer incident summary",
                 "response_mode": "blocking",
                 "inputs": {"priority": "high"},
                 "conversation": {"user": "external-user-1"},
@@ -545,6 +567,7 @@ fn operation_request_body(operation: &PublicOperation, docs: &DocTextResolver) -
                 "model": "provider/model",
                 "max_tokens": 512,
                 "messages": [{"role": "user", "content": "Hello"}],
+                "metadata": {"user_id": "external-user-1"},
                 "stream": false
             }),
         )),
@@ -965,6 +988,15 @@ fn native_create_run_schema(docs: &DocTextResolver) -> Value {
                 "additionalProperties": true,
                 "description": docs.field_description("application_public_api.native.create_run.request.conversation")
             },
+            "user_id": {
+                "type": "string",
+                "description": docs.field_description("application_public_api.native.create_run.request.user_id")
+            },
+            "title": {
+                "type": "string",
+                "maxLength": 255,
+                "description": docs.field_description("application_public_api.native.create_run.request.title")
+            },
             "response_mode": {
                 "type": "string",
                 "enum": ["blocking", "streaming"],
@@ -1174,7 +1206,15 @@ fn anthropic_message_schema(docs: &DocTextResolver) -> Value {
                 "items": anthropic_tool_schema()
             },
             "tool_choice": {"type": "object", "additionalProperties": true},
-            "metadata": {"type": "object", "additionalProperties": true}
+            "metadata": {
+                "type": "object",
+                "properties": {
+                    "user_id": {"type": "string"},
+                    "trace_id": {"type": "string"}
+                },
+                "additionalProperties": true,
+                "description": docs.field_description("application_public_api.anthropic.message.request.metadata")
+            }
         }
     })
 }

@@ -231,6 +231,27 @@ async fn native_run_route_accepts_any_string_model_and_preserves_metadata_withou
 }
 
 #[tokio::test]
+async fn native_run_route_accepts_user_id_alias_and_returns_default_title_metadata() {
+    let app = test_app().await;
+    let token = setup_published_native_app(&app, "Native Route User Alias App").await;
+    let mut body = native_run_body(json!("provider/model:any-public-string"));
+    body["user_id"] = json!("external-user-123");
+
+    let response = post_native_run(&app, &token, body).await;
+
+    assert_eq!(response.status(), StatusCode::CREATED);
+    let payload = response_json(response).await;
+    assert_eq!(
+        payload["data"]["metadata"]["external_user"],
+        json!("external-user-123")
+    );
+    assert_eq!(
+        payload["data"]["metadata"]["title"],
+        json!("Summarize the incident")
+    );
+}
+
+#[tokio::test]
 async fn native_run_route_rejects_non_string_model_json_values() {
     let app = test_app().await;
     let token = setup_published_native_app(&app, "Native Route Invalid Model App").await;
@@ -261,10 +282,12 @@ async fn native_run_route_validates_public_native_request_fields() {
         ("history", json!({ "role": "user" })),
         ("attachments", json!({ "id": "file-1" })),
         ("conversation", json!("not-object")),
+        ("user_id", json!({ "id": "external-user-123" })),
         ("response_mode", json!(["blocking"])),
         ("stream_options", json!("not-object")),
         ("execution", json!("not-object")),
         ("metadata", json!("not-object")),
+        ("title", json!([ "Quarterly support escalation" ])),
     ] {
         let mut body = native_run_body(json!("any-model"));
         body[field] = invalid_value;

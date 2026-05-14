@@ -1224,6 +1224,7 @@ impl run_service::ApplicationPublishedFlowRunRepository for ApplicationPublicApi
             document_hash: input.document_hash.clone(),
             run_mode: input.run_mode,
             target_node_id: input.target_node_id.clone(),
+            title: input.title.clone(),
             status: input.status,
             input_payload: input.input_payload.clone(),
             output_payload: serde_json::json!({}),

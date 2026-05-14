@@ -20,6 +20,7 @@ use crate::ports::{
     ApiKeyRepository, ApplicationCompiledPlanRepository, ApplicationPublicationRepository,
     ApplicationRepository, AuthRepository, CacheStore,
 };
+use crate::flow_run_title::build_flow_run_title;
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct NativeRunRequest {
@@ -35,6 +36,8 @@ pub struct NativeRunRequest {
     #[serde(default, deserialize_with = "deserialize_native_object")]
     pub conversation: NativeObject,
     #[serde(default, deserialize_with = "deserialize_optional_string_reject_null")]
+    pub user_id: Option<String>,
+    #[serde(default, deserialize_with = "deserialize_optional_string_reject_null")]
     pub response_mode: Option<String>,
     #[serde(default, deserialize_with = "deserialize_native_object")]
     pub stream_options: NativeObject,
@@ -42,6 +45,8 @@ pub struct NativeRunRequest {
     pub execution: NativeObject,
     #[serde(default, deserialize_with = "deserialize_native_object")]
     pub metadata: NativeObject,
+    #[serde(default, deserialize_with = "deserialize_optional_string_reject_null")]
+    pub title: Option<String>,
     #[serde(default, deserialize_with = "deserialize_optional_string_reject_null")]
     pub compatibility_mode: Option<String>,
 }
@@ -466,14 +471,20 @@ fn build_run_metadata(request: &NativeRunRequest) -> Value {
         .or_else(|| string_field(&request.execution, "compatibility_mode"))
         .or_else(|| string_field(&request.metadata, "compatibility_mode"));
     let idempotency_key = string_field(&request.execution, "idempotency_key");
-    let external_user = string_field(&request.conversation, "user");
+    let external_user = request
+        .user_id
+        .clone()
+        .or_else(|| string_field(&request.conversation, "user"));
     let external_conversation_id = string_field(&request.conversation, "id");
     let external_trace_id = string_field(&request.metadata, "trace_id");
+    let title = build_flow_run_title(request.title.as_deref(), &request.query);
 
     json!({
         "model": request.model,
         "execution": request.execution.as_value(),
         "metadata": request.metadata.as_value(),
+        "title": title,
+        "user_id": external_user,
         "compatibility_mode": compatibility_mode,
         "idempotency_key": idempotency_key,
         "external_user": external_user,
@@ -489,6 +500,8 @@ fn build_run_metadata(request: &NativeRunRequest) -> Value {
 
 fn durable_metadata_from_flow_run(flow_run: &domain::FlowRunRecord) -> Value {
     json!({
+        "title": flow_run.title,
+        "user_id": flow_run.external_user,
         "external_user": flow_run.external_user,
         "external_conversation_id": flow_run.external_conversation_id,
         "external_trace_id": flow_run.external_trace_id,

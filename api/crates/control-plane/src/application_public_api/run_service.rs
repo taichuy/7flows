@@ -19,6 +19,7 @@ use super::{
 };
 use crate::{
     audit::audit_log,
+    flow_run_title::build_flow_run_title,
     ports::{
         ApiKeyRepository, ApplicationCompiledPlanRepository, ApplicationPublicationRepository,
         ApplicationRepository, AuthRepository, CacheStore, CreateFlowRunInput,
@@ -118,6 +119,7 @@ where
                 document_hash: publication.document_hash.clone(),
                 run_mode: domain::FlowRunMode::PublishedApiRun,
                 target_node_id: None,
+                title: build_flow_run_title(request.title.as_deref(), &request.query),
                 status: domain::FlowRunStatus::Queued,
                 input_payload: mapped.node_input_payload,
                 started_at,
@@ -319,9 +321,16 @@ where
         api_key_id: Uuid,
         mut request: NativeRunRequest,
     ) -> std::result::Result<NativeRunRequest, NativeRunValidationError> {
-        let Some(external_user) = request.conversation.string("user") else {
+        let Some(external_user) = request
+            .user_id
+            .clone()
+            .or_else(|| request.conversation.string("user"))
+        else {
             return Ok(request);
         };
+        request
+            .conversation
+            .insert_string("user", external_user.clone());
         let external_conversation_id = request
             .conversation
             .string("id")

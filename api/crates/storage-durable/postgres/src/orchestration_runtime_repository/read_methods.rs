@@ -274,6 +274,8 @@ impl PgControlPlaneStore {
                 run_mode,
                 status,
                 target_node_id,
+                title,
+                input_payload,
                 started_at,
                 finished_at,
                 created_at,

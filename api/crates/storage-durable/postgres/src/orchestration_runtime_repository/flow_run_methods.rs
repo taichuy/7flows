@@ -84,6 +84,7 @@ impl PgControlPlaneStore {
                 document_hash,
                 run_mode,
                 target_node_id,
+                title,
                 status,
                 input_payload,
                 api_key_id,
@@ -99,7 +100,7 @@ impl PgControlPlaneStore {
             ) values (
                 $1, $2, $3, $4, $5, $6, $7, $8, $9, $10,
                 $11, $12, $13, $14, $15, $16, $17, $18, $19,
-                $20, $21, $22
+                $20, $21, $22, $23
             )
             returning
                 id,
@@ -112,6 +113,7 @@ impl PgControlPlaneStore {
                 document_hash,
                 run_mode,
                 target_node_id,
+                title,
                 status,
                 input_payload,
                 output_payload,
@@ -140,6 +142,7 @@ impl PgControlPlaneStore {
         .bind(&input.document_hash)
         .bind(input.run_mode.as_str())
         .bind(input.target_node_id.as_deref())
+        .bind(&input.title)
         .bind(input.status.as_str())
         .bind(&input.input_payload)
         .bind(input.api_key_id)
@@ -175,6 +178,7 @@ impl PgControlPlaneStore {
                 document_hash,
                 run_mode,
                 target_node_id,
+                title,
                 status,
                 input_payload,
                 api_key_id,
@@ -190,7 +194,7 @@ impl PgControlPlaneStore {
             ) values (
                 $1, $2, $3, $4, null, $5, $6, $7, $8, $9,
                 $10, $11, $12, $13, $14, $15, $16, $17, $18,
-                $19, $20, $21
+                $19, $20, $21, $22
             )
             returning
                 id,
@@ -203,6 +207,7 @@ impl PgControlPlaneStore {
                 document_hash,
                 run_mode,
                 target_node_id,
+                title,
                 status,
                 input_payload,
                 output_payload,
@@ -230,6 +235,7 @@ impl PgControlPlaneStore {
         .bind(&input.document_hash)
         .bind(input.run_mode.as_str())
         .bind(input.target_node_id.as_deref())
+        .bind(&input.title)
         .bind(input.status.as_str())
         .bind(&input.input_payload)
         .bind(input.api_key_id)
@@ -280,6 +286,7 @@ impl PgControlPlaneStore {
                 flow_runs.document_hash,
                 flow_runs.run_mode,
                 flow_runs.target_node_id,
+                flow_runs.title,
                 flow_runs.status,
                 flow_runs.input_payload,
                 flow_runs.output_payload,
@@ -336,6 +343,7 @@ impl PgControlPlaneStore {
                 document_hash,
                 run_mode,
                 target_node_id,
+                title,
                 status,
                 input_payload,
                 output_payload,
@@ -391,6 +399,7 @@ impl PgControlPlaneStore {
                 document_hash,
                 run_mode,
                 target_node_id,
+                title,
                 status,
                 input_payload,
                 output_payload,
@@ -547,6 +556,7 @@ impl PgControlPlaneStore {
                 document_hash,
                 run_mode,
                 target_node_id,
+                title,
                 status,
                 input_payload,
                 output_payload,
@@ -602,6 +612,7 @@ impl PgControlPlaneStore {
                 document_hash,
                 run_mode,
                 target_node_id,
+                title,
                 status,
                 input_payload,
                 output_payload,

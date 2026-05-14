@@ -26,6 +26,7 @@ pub(super) async fn fetch_flow_run_for_application(
             document_hash,
             run_mode,
             target_node_id,
+            title,
             status,
             input_payload,
             output_payload,

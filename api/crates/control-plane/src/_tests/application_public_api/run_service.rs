@@ -109,6 +109,7 @@ async fn start_native_run_creates_published_api_flow_run_from_frozen_publication
     );
     assert_eq!(flow_run.document_hash, publication.document_hash);
     assert_eq!(flow_run.publication_version_id, Some(publication.id));
+    assert_eq!(flow_run.title, "Summarize the incident");
     assert_eq!(flow_run.external_user.as_deref(), Some("customer-1"));
     assert_eq!(
         flow_run.external_conversation_id.as_deref(),
@@ -126,6 +127,59 @@ async fn start_native_run_creates_published_api_flow_run_from_frozen_publication
         })
     );
     assert_eq!(result.metadata["model"], json!("public-model/pass-through"));
+}
+
+#[tokio::test]
+async fn start_native_run_uses_user_id_alias_and_truncates_title() {
+    let harness = ApplicationPublicApiTestHarness::new();
+    let repository = harness.repository();
+    let application = harness.seed_application(actor_user_id(), "Aliased Native User App");
+    let token = issue_key(&harness, application.id).await;
+    ApplicationPublicationService::new(repository.clone())
+        .publish_active_version(PublishApplicationCommand {
+            actor_user_id: actor_user_id(),
+            application_id: application.id,
+            mapping: published_mapping(),
+            api_enabled: true,
+        })
+        .await
+        .unwrap();
+    let service = ApplicationPublishedRunService::new(repository.clone());
+    let long_query = "Q".repeat(300);
+    let expected_title = "Q".repeat(255);
+
+    let result = service
+        .start_native_run(CreateNativeRunCommand {
+            bearer_token: token,
+            request: serde_json::from_value(json!({
+                "query": long_query,
+                "model": "public-model/pass-through",
+                "inputs": {
+                    "priority": "high"
+                },
+                "user_id": "customer-alias-1",
+                "response_mode": "blocking",
+                "execution": {},
+                "metadata": {
+                    "trace_id": "trace-1"
+                }
+            }))
+            .unwrap(),
+        })
+        .await
+        .unwrap();
+    let flow_run = repository
+        .get_flow_run(application.id, result.id)
+        .await
+        .unwrap()
+        .expect("published flow run should be durable");
+
+    assert_eq!(flow_run.external_user.as_deref(), Some("customer-alias-1"));
+    assert!(flow_run
+        .external_conversation_id
+        .as_deref()
+        .is_some_and(|value| value.starts_with("conv_")));
+    assert_eq!(flow_run.title, expected_title);
 }
 
 #[tokio::test]

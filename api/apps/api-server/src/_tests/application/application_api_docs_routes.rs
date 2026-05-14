@@ -256,6 +256,14 @@ async fn application_api_docs_operation_specs_include_request_parameters() {
         json!(["blocking", "streaming"])
     );
     assert_eq!(
+        create_run_body["properties"]["user_id"]["type"],
+        json!("string")
+    );
+    assert_eq!(
+        create_run_body["properties"]["title"]["maxLength"],
+        json!(255)
+    );
+    assert_eq!(
         create_run_body["properties"]["attachments"]["items"]["properties"]["value"]["type"],
         json!("string")
     );
@@ -324,6 +332,10 @@ async fn application_api_docs_operation_specs_include_request_parameters() {
         anthropic_body["properties"]["messages"]["items"]["properties"]["content"]["oneOf"][1]
             ["items"]["properties"]["type"]["enum"],
         json!(["text", "tool_use", "tool_result"])
+    );
+    assert_eq!(
+        anthropic_body["properties"]["metadata"]["properties"]["user_id"]["type"],
+        json!("string")
     );
 
     let get_run_spec = app
@@ -483,6 +495,11 @@ async fn application_api_docs_specs_follow_requested_locale() {
         spec_payload["paths"]["/api/1flowbase/runs"]["post"]["requestBody"]["content"]
             ["application/json"]["schema"]["properties"]["query"]["description"],
         json!("用户输入，会映射到当前应用发布配置中的 query target。")
+    );
+    assert_eq!(
+        spec_payload["paths"]["/api/1flowbase/runs"]["post"]["requestBody"]["content"]
+            ["application/json"]["schema"]["properties"]["title"]["description"],
+        json!("运行标题。未传时默认使用用户输入，并截断到 255 个字符。")
     );
     assert_eq!(
         spec_payload["paths"]["/api/1flowbase/runs"]["post"]["responses"]["201"]["description"],

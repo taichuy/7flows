@@ -1024,6 +1024,10 @@ async fn application_runtime_routes_start_node_preview_and_query_logs() {
         list_payload["data"][0]["id"].as_str(),
         Some(flow_run_id.as_str())
     );
+    assert_eq!(
+        list_payload["data"][0]["title"].as_str(),
+        Some("总结退款政策")
+    );
     assert!(list_payload["data"][0]["created_at"].is_string());
     assert!(list_payload["data"][0]["updated_at"].is_string());
 
@@ -1047,6 +1051,10 @@ async fn application_runtime_routes_start_node_preview_and_query_logs() {
     assert_eq!(
         detail_payload["data"]["flow_run"]["id"].as_str(),
         Some(flow_run_id.as_str())
+    );
+    assert_eq!(
+        detail_payload["data"]["flow_run"]["title"].as_str(),
+        Some("总结退款政策")
     );
     assert_eq!(
         detail_payload["data"]["node_runs"][0]["node_alias"].as_str(),

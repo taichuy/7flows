@@ -12,6 +12,7 @@ pub mod errors;
 pub mod external_agent_bridge;
 pub mod file_management;
 pub mod flow;
+pub mod flow_run_title;
 pub mod host_extension;
 pub mod host_extension_boot;
 pub mod host_extension_inventory;

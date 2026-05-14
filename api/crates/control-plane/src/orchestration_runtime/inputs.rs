@@ -8,6 +8,7 @@ use crate::ports::{
     CompleteFlowRunInput, CompleteNodeRunInput, CreateFlowRunInput, CreateNodeRunInput,
     UpsertCompiledPlanInput,
 };
+use crate::flow_run_title::display_flow_run_title;
 
 use super::payloads::persisted_node_output_payload;
 
@@ -74,6 +75,7 @@ pub(super) fn build_flow_run_input(
         document_hash: flow_document_hash(document),
         run_mode: domain::FlowRunMode::DebugNodePreview,
         target_node_id: Some(command.node_id.clone()),
+        title: display_flow_run_title("", &command.input_payload),
         status: domain::FlowRunStatus::Running,
         input_payload: command.input_payload.clone(),
         started_at,
