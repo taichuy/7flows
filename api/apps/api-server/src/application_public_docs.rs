@@ -23,6 +23,7 @@ struct PublicOperation {
     method: &'static str,
     path: &'static str,
     category_id: &'static str,
+    doc_key: &'static str,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -123,6 +124,259 @@ pub fn build_application_public_docs_operation_spec(
         .map(|operation| openapi_spec(context, vec![operation]))
 }
 
+#[derive(Debug, Clone, Copy)]
+struct DocTextResolver {
+    locale: DocsLocale,
+}
+
+impl DocTextResolver {
+    fn new(locale: DocsLocale) -> Self {
+        Self { locale }
+    }
+
+    fn operation_summary(&self, doc_key: &str) -> &'static str {
+        match (doc_key, self.locale) {
+            ("application_public_api.native.create_run", DocsLocale::ZhHans) => "创建原生公开运行",
+            ("application_public_api.native.get_run", DocsLocale::ZhHans) => "获取原生公开运行",
+            ("application_public_api.native.cancel_run", DocsLocale::ZhHans) => "取消原生公开运行",
+            ("application_public_api.native.resume_run", DocsLocale::ZhHans) => "恢复原生公开运行",
+            ("application_public_api.native.upload_file", DocsLocale::ZhHans) => "上传原生公开文件",
+            ("application_public_api.openai.chat_completion", DocsLocale::ZhHans) => {
+                "创建 OpenAI 兼容聊天补全"
+            }
+            ("application_public_api.anthropic.message", DocsLocale::ZhHans) => {
+                "创建 Anthropic 兼容消息"
+            }
+            ("application_public_api.native.create_run", DocsLocale::EnUs) => {
+                "Create Native public run"
+            }
+            ("application_public_api.native.get_run", DocsLocale::EnUs) => "Get Native public run",
+            ("application_public_api.native.cancel_run", DocsLocale::EnUs) => {
+                "Cancel Native public run"
+            }
+            ("application_public_api.native.resume_run", DocsLocale::EnUs) => {
+                "Resume Native public run"
+            }
+            ("application_public_api.native.upload_file", DocsLocale::EnUs) => {
+                "Upload Native public file"
+            }
+            ("application_public_api.openai.chat_completion", DocsLocale::EnUs) => {
+                "Create OpenAI-compatible chat completion"
+            }
+            ("application_public_api.anthropic.message", DocsLocale::EnUs) => {
+                "Create Anthropic-compatible message"
+            }
+            _ => "Public API operation",
+        }
+    }
+
+    fn operation_description(&self, doc_key: &str) -> &'static str {
+        match (doc_key, self.locale) {
+            ("application_public_api.native.create_run", DocsLocale::ZhHans) => {
+                "基于当前应用的活跃发布版本创建一次运行。"
+            }
+            ("application_public_api.native.get_run", DocsLocale::ZhHans) => {
+                "读取由当前应用 API 密钥创建的公开运行。"
+            }
+            ("application_public_api.native.cancel_run", DocsLocale::ZhHans) => {
+                "取消由当前应用 API 密钥创建的公开运行。"
+            }
+            ("application_public_api.native.resume_run", DocsLocale::ZhHans) => {
+                "完成原生公开运行中等待回调的任务。"
+            }
+            ("application_public_api.native.upload_file", DocsLocale::ZhHans) => {
+                "上传可供原生公开运行使用的文件。"
+            }
+            ("application_public_api.openai.chat_completion", DocsLocale::ZhHans) => {
+                "将 OpenAI Chat Completions 请求适配为原生公开运行。"
+            }
+            ("application_public_api.anthropic.message", DocsLocale::ZhHans) => {
+                "将 Anthropic Messages 请求适配为原生公开运行。"
+            }
+            ("application_public_api.native.create_run", DocsLocale::EnUs) => {
+                "Creates a run against the active published application version."
+            }
+            ("application_public_api.native.get_run", DocsLocale::EnUs) => {
+                "Reads a public run created by this application API key."
+            }
+            ("application_public_api.native.cancel_run", DocsLocale::EnUs) => {
+                "Cancels a public run created by this application API key."
+            }
+            ("application_public_api.native.resume_run", DocsLocale::EnUs) => {
+                "Completes a waiting callback task for a Native public run."
+            }
+            ("application_public_api.native.upload_file", DocsLocale::EnUs) => {
+                "Uploads a file for use by Native public runs."
+            }
+            ("application_public_api.openai.chat_completion", DocsLocale::EnUs) => {
+                "Adapts an OpenAI Chat Completions request to a Native public run."
+            }
+            ("application_public_api.anthropic.message", DocsLocale::EnUs) => {
+                "Adapts an Anthropic Messages request to a Native public run."
+            }
+            _ => "Public API operation.",
+        }
+    }
+
+    fn field_description(&self, key: &str) -> &'static str {
+        match (key, self.locale) {
+            ("application_public_api.native.create_run.request.query", DocsLocale::ZhHans) => {
+                "用户输入，会映射到当前应用发布配置中的 query target。"
+            }
+            ("application_public_api.native.create_run.request.model", DocsLocale::ZhHans) => {
+                "可选模型标识，会通过应用 API 映射传入运行。"
+            }
+            ("application_public_api.native.create_run.request.inputs", DocsLocale::ZhHans) => {
+                "附加输入对象，会通过应用 API 映射写入目标节点。"
+            }
+            ("application_public_api.native.create_run.request.history", DocsLocale::ZhHans) => {
+                "可供发布运行使用的会话历史。"
+            }
+            (
+                "application_public_api.native.create_run.request.attachments",
+                DocsLocale::ZhHans,
+            ) => "可供发布运行使用的文件或外部资源。",
+            (
+                "application_public_api.native.create_run.request.attachments.value",
+                DocsLocale::ZhHans,
+            ) => "当前附件来源对应的值。",
+            (
+                "application_public_api.native.create_run.request.conversation",
+                DocsLocale::ZhHans,
+            ) => "外部会话元数据，例如用户或会话 ID。",
+            (
+                "application_public_api.native.create_run.request.stream_options",
+                DocsLocale::ZhHans,
+            ) => "流式返回选项，include_workflow_events=public 会启用公开工作流事件。",
+            ("application_public_api.native.create_run.request.execution", DocsLocale::ZhHans) => {
+                "发布运行的执行选项。"
+            }
+            ("application_public_api.native.create_run.request.metadata", DocsLocale::ZhHans) => {
+                "调用方元数据，会随公开运行持久化。"
+            }
+            (
+                "application_public_api.native.resume_run.request.callback_task_id",
+                DocsLocale::ZhHans,
+            ) => "required_action 返回的回调任务 ID。",
+            (
+                "application_public_api.native.upload_file.request.file_table_id",
+                DocsLocale::ZhHans,
+            ) => "目标文件表 ID。",
+            ("application_public_api.native.upload_file.request.file", DocsLocale::ZhHans) => {
+                "要上传的文件二进制内容。"
+            }
+            (
+                "application_public_api.openai.chat_completion.request.stream",
+                DocsLocale::ZhHans,
+            )
+            | ("application_public_api.anthropic.message.request.stream", DocsLocale::ZhHans) => {
+                "true 会将请求映射为流式响应模式。"
+            }
+            ("application_public_api.native.create_run.request.query", DocsLocale::EnUs) => {
+                "User input mapped to the published application's query target."
+            }
+            ("application_public_api.native.create_run.request.model", DocsLocale::EnUs) => {
+                "Optional model identifier passed through application mapping."
+            }
+            ("application_public_api.native.create_run.request.inputs", DocsLocale::EnUs) => {
+                "Additional input values mapped by the application API mapping."
+            }
+            ("application_public_api.native.create_run.request.history", DocsLocale::EnUs) => {
+                "Conversation history entries available to the published run."
+            }
+            ("application_public_api.native.create_run.request.attachments", DocsLocale::EnUs) => {
+                "Files or external assets available to the published run."
+            }
+            (
+                "application_public_api.native.create_run.request.attachments.value",
+                DocsLocale::EnUs,
+            ) => "Attachment value for the selected source.",
+            ("application_public_api.native.create_run.request.conversation", DocsLocale::EnUs) => {
+                "External conversation metadata such as user or conversation id."
+            }
+            (
+                "application_public_api.native.create_run.request.stream_options",
+                DocsLocale::EnUs,
+            ) => {
+                "Streaming options. include_workflow_events=public enables public workflow events."
+            }
+            ("application_public_api.native.create_run.request.execution", DocsLocale::EnUs) => {
+                "Execution options for the published run."
+            }
+            ("application_public_api.native.create_run.request.metadata", DocsLocale::EnUs) => {
+                "Caller metadata persisted with the public run."
+            }
+            (
+                "application_public_api.native.resume_run.request.callback_task_id",
+                DocsLocale::EnUs,
+            ) => "Callback task id returned in required_action.",
+            (
+                "application_public_api.native.upload_file.request.file_table_id",
+                DocsLocale::EnUs,
+            ) => "Target file table id.",
+            ("application_public_api.native.upload_file.request.file", DocsLocale::EnUs) => {
+                "File binary content."
+            }
+            ("application_public_api.openai.chat_completion.request.stream", DocsLocale::EnUs)
+            | ("application_public_api.anthropic.message.request.stream", DocsLocale::EnUs) => {
+                "true maps the request to streaming response mode."
+            }
+            _ => "Field value.",
+        }
+    }
+
+    fn response_description(&self, key: &str) -> &'static str {
+        match (key, self.locale) {
+            ("compatible_response", DocsLocale::ZhHans) => "兼容响应",
+            ("native_run", DocsLocale::ZhHans) => "原生运行",
+            ("native_run_created", DocsLocale::ZhHans) => "原生运行已创建",
+            ("file_uploaded", DocsLocale::ZhHans) => "文件已上传",
+            ("invalid_request", DocsLocale::ZhHans) => "请求无效",
+            ("invalid_application_api_key", DocsLocale::ZhHans) => "应用 API 密钥无效",
+            ("forbidden", DocsLocale::ZhHans) => "无权访问该公开资源",
+            ("not_found", DocsLocale::ZhHans) => "公开资源不存在",
+            ("application_not_published_or_run_state_not_supported", DocsLocale::ZhHans) => {
+                "应用未发布，或运行状态不支持当前操作"
+            }
+            ("compatible_response", DocsLocale::EnUs) => "Compatible response",
+            ("native_run", DocsLocale::EnUs) => "Native run",
+            ("native_run_created", DocsLocale::EnUs) => "Native run created",
+            ("file_uploaded", DocsLocale::EnUs) => "File uploaded",
+            ("invalid_request", DocsLocale::EnUs) => "Invalid request",
+            ("invalid_application_api_key", DocsLocale::EnUs) => "Invalid application API key",
+            ("forbidden", DocsLocale::EnUs) => "Forbidden public resource",
+            ("not_found", DocsLocale::EnUs) => "Public resource not found",
+            ("application_not_published_or_run_state_not_supported", DocsLocale::EnUs) => {
+                "Application is not published or run state is not supported"
+            }
+            _ => "Response",
+        }
+    }
+
+    fn unsupported_notes(&self, category_id: &str) -> &'static str {
+        match (category_id, self.locale) {
+            (OPENAI_CATEGORY_ID, DocsLocale::ZhHans) => {
+                "此 v1 兼容端点暂不支持：tools、tool_choice、function_call、音频输出、图片/文件内容和多模态生成。如需查看 required_action 或恢复运行，请使用原生 API。"
+            }
+            (ANTHROPIC_CATEGORY_ID, DocsLocale::ZhHans) => {
+                "此 v1 兼容端点会接受并忽略顶层 tools/tool_choice；暂不支持：tool_result blocks、computer use、image/document blocks 和等待态恢复。如需查看 required_action 或恢复运行，请使用原生 API。"
+            }
+            (_, DocsLocale::ZhHans) => {
+                "原生 API 支持查看 required_action 并恢复运行。公开路径不会包含 application_id。"
+            }
+            (OPENAI_CATEGORY_ID, DocsLocale::EnUs) => {
+                "Unsupported in this v1 compatible endpoint: tools, tool_choice, function_call, audio output, image/file content, and multimodal generation. Use the Native API for required_action inspection and resume."
+            }
+            (ANTHROPIC_CATEGORY_ID, DocsLocale::EnUs) => {
+                "This v1 compatible endpoint accepts and ignores top-level tools/tool_choice. Unsupported: tool_result blocks, computer use, image/document blocks, and waiting-state resume. Use the Native API for required_action inspection and resume."
+            }
+            (_, DocsLocale::EnUs) => {
+                "Native API supports required_action inspection and resume. Public paths never include application_id."
+            }
+        }
+    }
+}
+
 fn category_label(category_id: &str, locale: DocsLocale) -> Option<&'static str> {
     match (category_id, locale) {
         (NATIVE_CATEGORY_ID, DocsLocale::ZhHans) => Some("应用原生 API"),
@@ -136,14 +390,15 @@ fn category_label(category_id: &str, locale: DocsLocale) -> Option<&'static str>
 }
 
 fn to_catalog_operation(operation: PublicOperation, locale: DocsLocale) -> DocsCatalogOperation {
+    let docs = DocTextResolver::new(locale);
     let category_label =
         category_label(operation.category_id, locale).unwrap_or(operation.category_id);
     DocsCatalogOperation {
         id: operation.id.to_string(),
         method: operation.method.to_string(),
         path: operation.path.to_string(),
-        summary: Some(operation_summary(operation.id, locale).to_string()),
-        description: Some(operation_description(operation.id, locale).to_string()),
+        summary: Some(docs.operation_summary(operation.doc_key).to_string()),
+        description: Some(docs.operation_description(operation.doc_key).to_string()),
         tags: vec![category_label.to_string()],
         group: category_label.to_string(),
         deprecated: false,
@@ -211,18 +466,13 @@ fn openapi_spec(context: &ApplicationPublicDocsContext, operations: Vec<PublicOp
 }
 
 fn operation_openapi_spec(operation: &PublicOperation, locale: DocsLocale) -> Value {
+    let docs = DocTextResolver::new(locale);
     let mut spec = json!({
         "operationId": operation.id,
-        "summary": operation_summary(operation.id, locale),
-        "description": format!("{}\n\n{}", operation_description(operation.id, locale), unsupported_notes(operation.category_id, locale)),
+        "summary": docs.operation_summary(operation.doc_key),
+        "description": format!("{}\n\n{}", docs.operation_description(operation.doc_key), docs.unsupported_notes(operation.category_id)),
         "tags": [category_label(operation.category_id, locale).unwrap_or(operation.category_id)],
-        "responses": {
-            "200": {"description": response_description("compatible_response", locale)},
-            "201": {"description": response_description("native_run_created", locale)},
-            "400": {"description": response_description("invalid_request", locale)},
-            "401": {"description": response_description("invalid_application_api_key", locale)},
-            "409": {"description": response_description("application_not_published_or_run_state_not_supported", locale)}
-        },
+        "responses": operation_responses(operation, &docs),
         "security": operation_security(operation.category_id)
     });
     let spec_object = spec.as_object_mut().expect("operation spec object");
@@ -230,7 +480,7 @@ fn operation_openapi_spec(operation: &PublicOperation, locale: DocsLocale) -> Va
     if !parameters.is_empty() {
         spec_object.insert("parameters".to_string(), Value::Array(parameters));
     }
-    if let Some(request_body) = operation_request_body(operation) {
+    if let Some(request_body) = operation_request_body(operation, &docs) {
         spec_object.insert("requestBody".to_string(), request_body);
     }
     spec
@@ -253,10 +503,10 @@ fn operation_parameters(operation: &PublicOperation) -> Vec<Value> {
     parameters
 }
 
-fn operation_request_body(operation: &PublicOperation) -> Option<Value> {
+fn operation_request_body(operation: &PublicOperation, docs: &DocTextResolver) -> Option<Value> {
     match operation.id {
         "applicationNativeCreateRun" => Some(json_request_body(
-            native_create_run_schema(),
+            native_create_run_schema(docs),
             json!({
                 "query": "Summarize the incident",
                 "response_mode": "blocking",
@@ -266,7 +516,7 @@ fn operation_request_body(operation: &PublicOperation) -> Option<Value> {
             }),
         )),
         "applicationNativeResumeRun" => Some(json_request_body(
-            native_resume_run_schema(),
+            native_resume_run_schema(docs),
             json!({
                 "callback_task_id": "00000000-0000-0000-0000-000000000000",
                 "response_payload": {},
@@ -277,12 +527,12 @@ fn operation_request_body(operation: &PublicOperation) -> Option<Value> {
             "required": true,
             "content": {
                 "multipart/form-data": {
-                    "schema": native_file_upload_schema()
+                    "schema": native_file_upload_schema(docs)
                 }
             }
         })),
         "applicationOpenAiCreateChatCompletion" => Some(json_request_body(
-            openai_chat_completion_schema(),
+            openai_chat_completion_schema(docs),
             json!({
                 "model": "provider/model",
                 "messages": [{"role": "user", "content": "Hello"}],
@@ -290,7 +540,7 @@ fn operation_request_body(operation: &PublicOperation) -> Option<Value> {
             }),
         )),
         "applicationAnthropicCreateMessage" => Some(json_request_body(
-            anthropic_message_schema(),
+            anthropic_message_schema(docs),
             json!({
                 "model": "provider/model",
                 "max_tokens": 512,
@@ -300,6 +550,124 @@ fn operation_request_body(operation: &PublicOperation) -> Option<Value> {
         )),
         _ => None,
     }
+}
+
+fn operation_responses(operation: &PublicOperation, docs: &DocTextResolver) -> Value {
+    match operation.id {
+        "applicationNativeCreateRun" => native_responses(docs, "201"),
+        "applicationNativeGetRun" | "applicationNativeCancelRun" | "applicationNativeResumeRun" => {
+            native_responses(docs, "200")
+        }
+        "applicationNativeUploadFile" => native_upload_responses(docs),
+        "applicationOpenAiCreateChatCompletion" => openai_responses(docs),
+        "applicationAnthropicCreateMessage" => anthropic_responses(docs),
+        _ => json!({}),
+    }
+}
+
+fn native_responses(docs: &DocTextResolver, success_status: &'static str) -> Value {
+    let mut responses = serde_json::Map::new();
+    responses.insert(
+        success_status.to_string(),
+        json_response(
+            docs.response_description(if success_status == "201" {
+                "native_run_created"
+            } else {
+                "native_run"
+            }),
+            api_success_schema(native_run_response_schema()),
+        ),
+    );
+    responses.insert(
+        "400".to_string(),
+        json_response(
+            docs.response_description("invalid_request"),
+            native_error_body_schema(),
+        ),
+    );
+    responses.insert(
+        "401".to_string(),
+        json_response(
+            docs.response_description("invalid_application_api_key"),
+            native_error_body_schema(),
+        ),
+    );
+    responses.insert(
+        "403".to_string(),
+        json_response(
+            docs.response_description("forbidden"),
+            native_error_body_schema(),
+        ),
+    );
+    responses.insert(
+        "404".to_string(),
+        json_response(
+            docs.response_description("not_found"),
+            native_error_body_schema(),
+        ),
+    );
+    responses.insert(
+        "409".to_string(),
+        json_response(
+            docs.response_description("application_not_published_or_run_state_not_supported"),
+            native_error_body_schema(),
+        ),
+    );
+    Value::Object(responses)
+}
+
+fn native_upload_responses(docs: &DocTextResolver) -> Value {
+    json!({
+        "201": json_response(
+            docs.response_description("file_uploaded"),
+            api_success_schema(uploaded_file_response_schema())
+        ),
+        "400": json_response(docs.response_description("invalid_request"), native_error_body_schema()),
+        "401": json_response(docs.response_description("invalid_application_api_key"), native_error_body_schema())
+    })
+}
+
+fn openai_responses(docs: &DocTextResolver) -> Value {
+    json!({
+        "200": json_response(
+            docs.response_description("compatible_response"),
+            openai_chat_completion_response_schema()
+        ),
+        "400": json_response(docs.response_description("invalid_request"), openai_error_body_schema()),
+        "401": json_response(docs.response_description("invalid_application_api_key"), openai_error_body_schema()),
+        "403": json_response(docs.response_description("forbidden"), openai_error_body_schema()),
+        "409": json_response(
+            docs.response_description("application_not_published_or_run_state_not_supported"),
+            openai_error_body_schema()
+        )
+    })
+}
+
+fn anthropic_responses(docs: &DocTextResolver) -> Value {
+    json!({
+        "200": json_response(
+            docs.response_description("compatible_response"),
+            anthropic_message_response_schema()
+        ),
+        "400": json_response(docs.response_description("invalid_request"), anthropic_error_body_schema()),
+        "401": json_response(docs.response_description("invalid_application_api_key"), anthropic_error_body_schema()),
+        "403": json_response(docs.response_description("forbidden"), anthropic_error_body_schema()),
+        "409": json_response(
+            docs.response_description("application_not_published_or_run_state_not_supported"),
+            anthropic_error_body_schema()
+        )
+    })
+}
+
+fn json_response(description: &'static str, schema: Value) -> Value {
+    json!({
+        "description": description,
+        "content": {
+            "application/json": {
+                "schema": schema
+            }
+        }
+    })
 }
 
 fn json_request_body(schema: Value, example: Value) -> Value {
@@ -314,38 +682,206 @@ fn json_request_body(schema: Value, example: Value) -> Value {
     })
 }
 
-fn native_create_run_schema() -> Value {
+fn api_success_schema(data_schema: Value) -> Value {
+    json!({
+        "type": "object",
+        "required": ["data"],
+        "properties": {
+            "data": data_schema,
+            "meta": {
+                "oneOf": [
+                    {"type": "object", "additionalProperties": true},
+                    {"type": "null"}
+                ]
+            }
+        }
+    })
+}
+
+fn native_run_response_schema() -> Value {
+    json!({
+        "type": "object",
+        "required": ["id", "application_id", "api_key_id", "publication_version_id", "status", "node_input_payload", "metadata", "created_at"],
+        "properties": {
+            "id": {"type": "string", "format": "uuid"},
+            "application_id": {"type": "string", "format": "uuid"},
+            "api_key_id": {"type": "string", "format": "uuid"},
+            "publication_version_id": {"type": "string", "format": "uuid"},
+            "status": {"type": "string"},
+            "node_input_payload": {"type": "object", "additionalProperties": true},
+            "metadata": {"type": "object", "additionalProperties": true},
+            "answer": {"oneOf": [{"type": "string"}, {"type": "null"}]},
+            "required_action": {"oneOf": [{"type": "object", "additionalProperties": true}, {"type": "null"}]},
+            "usage": {"oneOf": [{"type": "object", "additionalProperties": true}, {"type": "null"}]},
+            "error": {"oneOf": [{"type": "object", "additionalProperties": true}, {"type": "null"}]},
+            "created_at": {"type": "string", "format": "date-time"}
+        }
+    })
+}
+
+fn native_error_body_schema() -> Value {
+    json!({
+        "type": "object",
+        "required": ["code", "message"],
+        "properties": {
+            "code": {"type": "string"},
+            "message": {"type": "string"}
+        }
+    })
+}
+
+fn uploaded_file_response_schema() -> Value {
+    json!({
+        "type": "object",
+        "required": ["storage_id", "record"],
+        "properties": {
+            "storage_id": {"type": "string"},
+            "record": {"type": "object", "additionalProperties": true}
+        }
+    })
+}
+
+fn openai_chat_completion_response_schema() -> Value {
+    json!({
+        "type": "object",
+        "required": ["id", "object", "created", "model", "choices", "usage"],
+        "properties": {
+            "id": {"type": "string"},
+            "object": {"type": "string", "enum": ["chat.completion"]},
+            "created": {"type": "integer"},
+            "model": {"type": "string"},
+            "choices": {
+                "type": "array",
+                "items": {
+                    "type": "object",
+                    "required": ["index", "message", "finish_reason"],
+                    "properties": {
+                        "index": {"type": "integer"},
+                        "message": {
+                            "type": "object",
+                            "required": ["role", "content"],
+                            "properties": {
+                                "role": {"type": "string", "enum": ["assistant"]},
+                                "content": {"type": "string"}
+                            }
+                        },
+                        "finish_reason": {"type": "string"}
+                    }
+                }
+            },
+            "usage": {
+                "type": "object",
+                "properties": {
+                    "prompt_tokens": {"type": "integer"},
+                    "completion_tokens": {"type": "integer"},
+                    "total_tokens": {"type": "integer"}
+                }
+            }
+        }
+    })
+}
+
+fn openai_error_body_schema() -> Value {
+    json!({
+        "type": "object",
+        "required": ["error"],
+        "properties": {
+            "error": {
+                "type": "object",
+                "required": ["message", "type", "code"],
+                "properties": {
+                    "message": {"type": "string"},
+                    "type": {"type": "string"},
+                    "param": {"oneOf": [{"type": "string"}, {"type": "null"}]},
+                    "code": {"type": "string"}
+                }
+            }
+        }
+    })
+}
+
+fn anthropic_message_response_schema() -> Value {
+    json!({
+        "type": "object",
+        "required": ["id", "type", "role", "model", "content", "stop_reason", "usage"],
+        "properties": {
+            "id": {"type": "string"},
+            "type": {"type": "string", "enum": ["message"]},
+            "role": {"type": "string", "enum": ["assistant"]},
+            "model": {"type": "string"},
+            "content": {
+                "type": "array",
+                "items": {
+                    "type": "object",
+                    "required": ["type", "text"],
+                    "properties": {
+                        "type": {"type": "string", "enum": ["text"]},
+                        "text": {"type": "string"}
+                    }
+                }
+            },
+            "stop_reason": {"type": "string"},
+            "usage": {
+                "type": "object",
+                "properties": {
+                    "input_tokens": {"type": "integer"},
+                    "output_tokens": {"type": "integer"}
+                }
+            }
+        }
+    })
+}
+
+fn anthropic_error_body_schema() -> Value {
+    json!({
+        "type": "object",
+        "required": ["type", "error"],
+        "properties": {
+            "type": {"type": "string", "enum": ["error"]},
+            "error": {
+                "type": "object",
+                "required": ["type", "message"],
+                "properties": {
+                    "type": {"type": "string"},
+                    "message": {"type": "string"}
+                }
+            }
+        }
+    })
+}
+
+fn native_create_run_schema(docs: &DocTextResolver) -> Value {
     json!({
         "type": "object",
         "required": ["query"],
         "properties": {
             "query": {
                 "type": "string",
-                "description": "User input mapped to the published application's query target."
+                "description": docs.field_description("application_public_api.native.create_run.request.query")
             },
             "model": {
                 "type": "string",
-                "description": "Optional model identifier passed through application mapping."
+                "description": docs.field_description("application_public_api.native.create_run.request.model")
             },
             "inputs": {
                 "type": "object",
                 "additionalProperties": true,
-                "description": "Additional input values mapped by the application API mapping."
+                "description": docs.field_description("application_public_api.native.create_run.request.inputs")
             },
             "history": {
                 "type": "array",
                 "items": {"type": "object", "additionalProperties": true},
-                "description": "Conversation history entries available to the published run."
+                "description": docs.field_description("application_public_api.native.create_run.request.history")
             },
             "attachments": {
                 "type": "array",
-                "items": native_attachment_schema(),
-                "description": "Files or external assets available to the published run."
+                "items": native_attachment_schema(docs),
+                "description": docs.field_description("application_public_api.native.create_run.request.attachments")
             },
             "conversation": {
                 "type": "object",
                 "additionalProperties": true,
-                "description": "External conversation metadata such as user or conversation id."
+                "description": docs.field_description("application_public_api.native.create_run.request.conversation")
             },
             "response_mode": {
                 "type": "string",
@@ -355,23 +891,23 @@ fn native_create_run_schema() -> Value {
             "stream_options": {
                 "type": "object",
                 "additionalProperties": true,
-                "description": "Streaming options. include_workflow_events=public enables public workflow events."
+                "description": docs.field_description("application_public_api.native.create_run.request.stream_options")
             },
             "execution": {
                 "type": "object",
                 "additionalProperties": true,
-                "description": "Execution options for the published run."
+                "description": docs.field_description("application_public_api.native.create_run.request.execution")
             },
             "metadata": {
                 "type": "object",
                 "additionalProperties": true,
-                "description": "Caller metadata persisted with the public run."
+                "description": docs.field_description("application_public_api.native.create_run.request.metadata")
             }
         }
     })
 }
 
-fn native_attachment_schema() -> Value {
+fn native_attachment_schema(docs: &DocTextResolver) -> Value {
     json!({
         "type": "object",
         "properties": {
@@ -381,7 +917,7 @@ fn native_attachment_schema() -> Value {
             },
             "value": {
                 "type": "string",
-                "description": "Attachment value for the selected source."
+                "description": docs.field_description("application_public_api.native.create_run.request.attachments.value")
             },
             "name": {"type": "string"},
             "mime_type": {"type": "string"},
@@ -390,7 +926,7 @@ fn native_attachment_schema() -> Value {
     })
 }
 
-fn native_resume_run_schema() -> Value {
+fn native_resume_run_schema(docs: &DocTextResolver) -> Value {
     json!({
         "type": "object",
         "required": ["callback_task_id"],
@@ -398,7 +934,7 @@ fn native_resume_run_schema() -> Value {
             "callback_task_id": {
                 "type": "string",
                 "format": "uuid",
-                "description": "Callback task id returned in required_action."
+                "description": docs.field_description("application_public_api.native.resume_run.request.callback_task_id")
             },
             "response_payload": {
                 "type": "object",
@@ -414,7 +950,7 @@ fn native_resume_run_schema() -> Value {
     })
 }
 
-fn native_file_upload_schema() -> Value {
+fn native_file_upload_schema(docs: &DocTextResolver) -> Value {
     json!({
         "type": "object",
         "required": ["file_table_id", "file"],
@@ -422,18 +958,18 @@ fn native_file_upload_schema() -> Value {
             "file_table_id": {
                 "type": "string",
                 "format": "uuid",
-                "description": "Target file table id."
+                "description": docs.field_description("application_public_api.native.upload_file.request.file_table_id")
             },
             "file": {
                 "type": "string",
                 "format": "binary",
-                "description": "File binary content."
+                "description": docs.field_description("application_public_api.native.upload_file.request.file")
             }
         }
     })
 }
 
-fn openai_chat_completion_schema() -> Value {
+fn openai_chat_completion_schema(docs: &DocTextResolver) -> Value {
     json!({
         "type": "object",
         "required": ["model", "messages"],
@@ -467,7 +1003,7 @@ fn openai_chat_completion_schema() -> Value {
             },
             "stream": {
                 "type": "boolean",
-                "description": "true maps the request to streaming response mode."
+                "description": docs.field_description("application_public_api.openai.chat_completion.request.stream")
             },
             "user": {"type": "string"},
             "metadata": {"type": "object", "additionalProperties": true}
@@ -475,7 +1011,7 @@ fn openai_chat_completion_schema() -> Value {
     })
 }
 
-fn anthropic_message_schema() -> Value {
+fn anthropic_message_schema(docs: &DocTextResolver) -> Value {
     json!({
         "type": "object",
         "required": ["model", "messages"],
@@ -511,7 +1047,7 @@ fn anthropic_message_schema() -> Value {
             },
             "stream": {
                 "type": "boolean",
-                "description": "true maps the request to streaming response mode."
+                "description": docs.field_description("application_public_api.anthropic.message.request.stream")
             },
             "metadata": {"type": "object", "additionalProperties": true}
         }
@@ -599,121 +1135,10 @@ fn mapping_summary(publication: &ApplicationPublicationVersionRecord) -> Value {
     })
 }
 
-fn operation_summary(operation_id: &str, locale: DocsLocale) -> &'static str {
-    match (operation_id, locale) {
-        ("applicationNativeCreateRun", DocsLocale::ZhHans) => "创建原生公开运行",
-        ("applicationNativeGetRun", DocsLocale::ZhHans) => "获取原生公开运行",
-        ("applicationNativeCancelRun", DocsLocale::ZhHans) => "取消原生公开运行",
-        ("applicationNativeResumeRun", DocsLocale::ZhHans) => "恢复原生公开运行",
-        ("applicationNativeUploadFile", DocsLocale::ZhHans) => "上传原生公开文件",
-        ("applicationOpenAiCreateChatCompletion", DocsLocale::ZhHans) => "创建 OpenAI 兼容聊天补全",
-        ("applicationAnthropicCreateMessage", DocsLocale::ZhHans) => "创建 Anthropic 兼容消息",
-        ("applicationNativeCreateRun", DocsLocale::EnUs) => "Create Native public run",
-        ("applicationNativeGetRun", DocsLocale::EnUs) => "Get Native public run",
-        ("applicationNativeCancelRun", DocsLocale::EnUs) => "Cancel Native public run",
-        ("applicationNativeResumeRun", DocsLocale::EnUs) => "Resume Native public run",
-        ("applicationNativeUploadFile", DocsLocale::EnUs) => "Upload Native public file",
-        ("applicationOpenAiCreateChatCompletion", DocsLocale::EnUs) => {
-            "Create OpenAI-compatible chat completion"
-        }
-        ("applicationAnthropicCreateMessage", DocsLocale::EnUs) => {
-            "Create Anthropic-compatible message"
-        }
-        _ => "Public API operation",
-    }
-}
-
-fn operation_description(operation_id: &str, locale: DocsLocale) -> &'static str {
-    match (operation_id, locale) {
-        ("applicationNativeCreateRun", DocsLocale::ZhHans) => {
-            "基于当前应用的活跃发布版本创建一次运行。"
-        }
-        ("applicationNativeGetRun", DocsLocale::ZhHans) => {
-            "读取由当前应用 API 密钥创建的公开运行。"
-        }
-        ("applicationNativeCancelRun", DocsLocale::ZhHans) => {
-            "取消由当前应用 API 密钥创建的公开运行。"
-        }
-        ("applicationNativeResumeRun", DocsLocale::ZhHans) => "完成原生公开运行中等待回调的任务。",
-        ("applicationNativeUploadFile", DocsLocale::ZhHans) => "上传可供原生公开运行使用的文件。",
-        ("applicationOpenAiCreateChatCompletion", DocsLocale::ZhHans) => {
-            "将 OpenAI Chat Completions 请求适配为原生公开运行。"
-        }
-        ("applicationAnthropicCreateMessage", DocsLocale::ZhHans) => {
-            "将 Anthropic Messages 请求适配为原生公开运行。"
-        }
-        ("applicationNativeCreateRun", DocsLocale::EnUs) => {
-            "Creates a run against the active published application version."
-        }
-        ("applicationNativeGetRun", DocsLocale::EnUs) => {
-            "Reads a public run created by this application API key."
-        }
-        ("applicationNativeCancelRun", DocsLocale::EnUs) => {
-            "Cancels a public run created by this application API key."
-        }
-        ("applicationNativeResumeRun", DocsLocale::EnUs) => {
-            "Completes a waiting callback task for a Native public run."
-        }
-        ("applicationNativeUploadFile", DocsLocale::EnUs) => {
-            "Uploads a file for use by Native public runs."
-        }
-        ("applicationOpenAiCreateChatCompletion", DocsLocale::EnUs) => {
-            "Adapts an OpenAI Chat Completions request to a Native public run."
-        }
-        ("applicationAnthropicCreateMessage", DocsLocale::EnUs) => {
-            "Adapts an Anthropic Messages request to a Native public run."
-        }
-        _ => "Public API operation.",
-    }
-}
-
-fn response_description(key: &str, locale: DocsLocale) -> &'static str {
-    match (key, locale) {
-        ("compatible_response", DocsLocale::ZhHans) => "兼容响应",
-        ("native_run_created", DocsLocale::ZhHans) => "原生运行已创建",
-        ("invalid_request", DocsLocale::ZhHans) => "请求无效",
-        ("invalid_application_api_key", DocsLocale::ZhHans) => "应用 API 密钥无效",
-        ("application_not_published_or_run_state_not_supported", DocsLocale::ZhHans) => {
-            "应用未发布，或运行状态不支持当前操作"
-        }
-        ("compatible_response", DocsLocale::EnUs) => "Compatible response",
-        ("native_run_created", DocsLocale::EnUs) => "Native run created",
-        ("invalid_request", DocsLocale::EnUs) => "Invalid request",
-        ("invalid_application_api_key", DocsLocale::EnUs) => "Invalid application API key",
-        ("application_not_published_or_run_state_not_supported", DocsLocale::EnUs) => {
-            "Application is not published or run state is not supported"
-        }
-        _ => "Response",
-    }
-}
-
 fn security_scheme_description(locale: DocsLocale) -> &'static str {
     match locale {
         DocsLocale::ZhHans => "使用在当前应用 API 页签中创建的应用 API 密钥。",
         DocsLocale::EnUs => "Use an application API key created from this application API tab.",
-    }
-}
-
-fn unsupported_notes(category_id: &str, locale: DocsLocale) -> &'static str {
-    match (category_id, locale) {
-        (OPENAI_CATEGORY_ID, DocsLocale::ZhHans) => {
-            "此 v1 兼容端点暂不支持：tools、tool_choice、function_call、音频输出、图片/文件内容和多模态生成。如需查看 required_action 或恢复运行，请使用原生 API。"
-        }
-        (ANTHROPIC_CATEGORY_ID, DocsLocale::ZhHans) => {
-            "此 v1 兼容端点会接受并忽略顶层 tools/tool_choice；暂不支持：tool_result blocks、computer use、image/document blocks 和等待态恢复。如需查看 required_action 或恢复运行，请使用原生 API。"
-        }
-        (_, DocsLocale::ZhHans) => {
-            "原生 API 支持查看 required_action 并恢复运行。公开路径不会包含 application_id。"
-        }
-        (OPENAI_CATEGORY_ID, DocsLocale::EnUs) => {
-            "Unsupported in this v1 compatible endpoint: tools, tool_choice, function_call, audio output, image/file content, and multimodal generation. Use the Native API for required_action inspection and resume."
-        }
-        (ANTHROPIC_CATEGORY_ID, DocsLocale::EnUs) => {
-            "This v1 compatible endpoint accepts and ignores top-level tools/tool_choice. Unsupported: tool_result blocks, computer use, image/document blocks, and waiting-state resume. Use the Native API for required_action inspection and resume."
-        }
-        (_, DocsLocale::EnUs) => {
-            "Native API supports required_action inspection and resume. Public paths never include application_id."
-        }
     }
 }
 
@@ -724,42 +1149,49 @@ fn public_operations() -> Vec<PublicOperation> {
             method: "POST",
             path: "/api/1flowbase/runs",
             category_id: NATIVE_CATEGORY_ID,
+            doc_key: "application_public_api.native.create_run",
         },
         PublicOperation {
             id: "applicationNativeGetRun",
             method: "GET",
             path: "/api/1flowbase/runs/{run_id}",
             category_id: NATIVE_CATEGORY_ID,
+            doc_key: "application_public_api.native.get_run",
         },
         PublicOperation {
             id: "applicationNativeCancelRun",
             method: "POST",
             path: "/api/1flowbase/runs/{run_id}/cancel",
             category_id: NATIVE_CATEGORY_ID,
+            doc_key: "application_public_api.native.cancel_run",
         },
         PublicOperation {
             id: "applicationNativeResumeRun",
             method: "POST",
             path: "/api/1flowbase/runs/{run_id}/resume",
             category_id: NATIVE_CATEGORY_ID,
+            doc_key: "application_public_api.native.resume_run",
         },
         PublicOperation {
             id: "applicationNativeUploadFile",
             method: "POST",
             path: "/api/1flowbase/files",
             category_id: NATIVE_CATEGORY_ID,
+            doc_key: "application_public_api.native.upload_file",
         },
         PublicOperation {
             id: "applicationOpenAiCreateChatCompletion",
             method: "POST",
             path: "/v1/chat/completions",
             category_id: OPENAI_CATEGORY_ID,
+            doc_key: "application_public_api.openai.chat_completion",
         },
         PublicOperation {
             id: "applicationAnthropicCreateMessage",
             method: "POST",
             path: "/v1/messages",
             category_id: ANTHROPIC_CATEGORY_ID,
+            doc_key: "application_public_api.anthropic.message",
         },
     ]
 }

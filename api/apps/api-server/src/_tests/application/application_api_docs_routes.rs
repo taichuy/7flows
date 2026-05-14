@@ -353,6 +353,42 @@ async fn application_api_docs_operation_specs_include_request_parameters() {
         json!("uuid")
     );
     assert_eq!(upload_body["properties"]["file"]["format"], json!("binary"));
+
+    let create_run_post = &create_run_payload["paths"]["/api/1flowbase/runs"]["post"];
+    assert_eq!(
+        create_run_post["responses"]["201"]["content"]["application/json"]["schema"]["properties"]
+            ["data"]["properties"]["status"]["type"],
+        json!("string")
+    );
+    assert_eq!(
+        create_run_post["responses"]["400"]["content"]["application/json"]["schema"]["properties"]
+            ["code"]["type"],
+        json!("string")
+    );
+
+    let openai_post = &openai_payload["paths"]["/v1/chat/completions"]["post"];
+    assert_eq!(
+        openai_post["responses"]["200"]["content"]["application/json"]["schema"]["properties"]
+            ["choices"]["items"]["properties"]["message"]["properties"]["content"]["type"],
+        json!("string")
+    );
+    assert_eq!(
+        openai_post["responses"]["400"]["content"]["application/json"]["schema"]["properties"]
+            ["error"]["properties"]["message"]["type"],
+        json!("string")
+    );
+
+    let anthropic_post = &anthropic_payload["paths"]["/v1/messages"]["post"];
+    assert_eq!(
+        anthropic_post["responses"]["200"]["content"]["application/json"]["schema"]["properties"]
+            ["content"]["items"]["properties"]["text"]["type"],
+        json!("string")
+    );
+    assert_eq!(
+        anthropic_post["responses"]["400"]["content"]["application/json"]["schema"]["properties"]
+            ["error"]["properties"]["message"]["type"],
+        json!("string")
+    );
 }
 
 #[tokio::test]
@@ -388,6 +424,15 @@ async fn application_api_docs_specs_follow_requested_locale() {
     assert_eq!(
         spec_payload["paths"]["/api/1flowbase/runs"]["post"]["summary"],
         json!("创建原生公开运行")
+    );
+    assert_eq!(
+        spec_payload["paths"]["/api/1flowbase/runs"]["post"]["requestBody"]["content"]
+            ["application/json"]["schema"]["properties"]["query"]["description"],
+        json!("用户输入，会映射到当前应用发布配置中的 query target。")
+    );
+    assert_eq!(
+        spec_payload["paths"]["/api/1flowbase/runs"]["post"]["responses"]["201"]["description"],
+        json!("原生运行已创建")
     );
     assert_eq!(
         spec_payload["components"]["securitySchemes"]["applicationApiKey"]["description"],
