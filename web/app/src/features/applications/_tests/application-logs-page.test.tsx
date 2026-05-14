@@ -693,7 +693,7 @@ describe('ApplicationLogsPage', () => {
     expect(cssSource).not.toContain('position: static;');
   });
 
-  test('pins the logs page list to the remaining viewport height', async () => {
+  test('pins the logs page list to the parent full-height layout instead of a nested viewport calc', async () => {
     const cssSource = await readFile(
       path.resolve(
         process.cwd(),
@@ -702,14 +702,29 @@ describe('ApplicationLogsPage', () => {
       'utf8'
     );
 
+    expect(cssSource).not.toContain('calc(100vh - 120px)');
     expect(cssSource).toMatch(
-      /\.application-logs-page\s*\{[^}]*height:\s*calc\(100vh - 120px\);/s
+      /\.application-logs-page\s*\{[^}]*height:\s*100%;[^}]*min-height:\s*0;[^}]*box-sizing:\s*border-box;/s
     );
     expect(cssSource).toMatch(
       /\.application-logs-page__stack\s*\{[^}]*display:\s*flex;[^}]*flex-direction:\s*column;[^}]*height:\s*100%;/s
     );
     expect(cssSource).toMatch(
       /\.application-logs-page__list\s*\{[^}]*display:\s*flex;[^}]*flex-direction:\s*column;[^}]*flex:\s*1 1 auto;[^}]*min-height:\s*0;[^}]*overflow-x:\s*hidden;[^}]*overflow-y:\s*auto;/s
+    );
+  });
+
+  test('renders logs inside the full section layout height chain', async () => {
+    const pageSource = await readFile(
+      path.resolve(
+        process.cwd(),
+        'src/features/applications/pages/ApplicationDetailPage.tsx'
+      ),
+      'utf8'
+    );
+
+    expect(pageSource).toMatch(
+      /contentWidth=\{[\s\S]*requestedSectionKey === 'orchestration' \|\| requestedSectionKey === 'logs'[\s\S]*\? 'full'[\s\S]*: 'wide'[\s\S]*\}/
     );
   });
 

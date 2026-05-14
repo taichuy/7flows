@@ -1,12 +1,16 @@
 .application-logs-page {
-  height: calc(100vh - 120px);
+  height: 100%;
   max-width: 100%;
   width: 100%;
+  min-height: 0;
   min-width: 0;
+  box-sizing: border-box;
+  padding: 32px 0;
 }
 
 .application-logs-page__stack {
   display: flex;
+  flex: 1 1 auto;
   flex-direction: column;
   gap: 24px;
   height: 100%;
@@ -242,6 +246,7 @@
 @media (max-width: 720px) {
   .application-logs-page {
     height: auto;
+    padding: 0;
   }
 
   .application-logs-floating-window {
