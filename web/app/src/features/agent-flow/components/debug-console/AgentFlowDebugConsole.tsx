@@ -15,6 +15,7 @@ import { DebugConversationPane } from './conversation/DebugConversationPane';
 export function AgentFlowDebugConsole({
   ariaLabel,
   closeLabel,
+  composerUiOnly = false,
   messages,
   runContext,
   showClearAction = true,
@@ -33,6 +34,7 @@ export function AgentFlowDebugConsole({
 }: {
   ariaLabel?: string;
   closeLabel?: string;
+  composerUiOnly?: boolean;
   messages: AgentFlowDebugMessage[];
   runContext: AgentFlowRunContext;
   showClearAction?: boolean;
@@ -97,6 +99,7 @@ export function AgentFlowDebugConsole({
         onClose={onClose}
       >
         <DebugConversationPane
+          composerUiOnly={composerUiOnly}
           messages={messages}
           runContext={runContext}
           status={status}

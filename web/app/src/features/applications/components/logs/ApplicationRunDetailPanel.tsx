@@ -255,10 +255,11 @@ function RunConversation({
       <AgentFlowDebugConsole
         ariaLabel="运行详情预览"
         closeLabel="关闭运行详情"
+        composerUiOnly
         messages={buildConversationMessages(detail)}
         runContext={runContext}
         showClearAction={false}
-        showComposer={false}
+        showComposer
         status={mapRunStatusToSessionStatus(detail.flow_run.status)}
         stopping={false}
         subtitle={detail.flow_run.id}

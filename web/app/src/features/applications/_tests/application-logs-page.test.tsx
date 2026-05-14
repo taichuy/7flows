@@ -210,9 +210,16 @@ describe('ApplicationLogsPage', () => {
     expect(within(conversation).getByText('User')).toBeInTheDocument();
     expect(within(conversation).getByText('总结退款政策')).toBeInTheDocument();
     expect(within(conversation).getByText('退款政策摘要')).toBeInTheDocument();
-    expect(
-      within(conversation).queryByPlaceholderText('和 Bot 聊天')
-    ).not.toBeInTheDocument();
+    const composerInput = screen.getByPlaceholderText('和 Bot 聊天');
+    expect(composerInput).toBeInTheDocument();
+    fireEvent.change(composerInput, {
+      target: { value: '这只是日志页的输入 UI' }
+    });
+    expect(composerInput).toHaveValue('这只是日志页的输入 UI');
+    fireEvent.click(screen.getByRole('button', { name: '发送调试消息' }));
+    expect(composerInput).toHaveValue('');
+    expect(runtimeApi.resumeFlowRun).not.toHaveBeenCalled();
+    expect(runtimeApi.completeCallbackTask).not.toHaveBeenCalled();
     expect(screen.queryByText('运行摘要')).not.toBeInTheDocument();
     expect(screen.queryByText('运行输入输出')).not.toBeInTheDocument();
     expect(screen.queryByText('事件时间线')).not.toBeInTheDocument();

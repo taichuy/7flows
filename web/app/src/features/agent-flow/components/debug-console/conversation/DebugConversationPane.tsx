@@ -1,5 +1,5 @@
 import { Empty, Typography } from 'antd';
-import { useCallback, useLayoutEffect, useRef } from 'react';
+import { useCallback, useLayoutEffect, useRef, useState } from 'react';
 
 import type {
   AgentFlowDebugMessage,
@@ -14,6 +14,7 @@ function getQueryField(runContext: AgentFlowRunContext) {
 }
 
 export function DebugConversationPane({
+  composerUiOnly = false,
   status,
   stopping,
   runContext,
@@ -34,8 +35,10 @@ export function DebugConversationPane({
   onOpenMessageLog?: (message: AgentFlowDebugMessage) => void;
   onStopRun: () => void;
   onSubmitPrompt: (prompt: string) => void;
+  composerUiOnly?: boolean;
   showComposer?: boolean;
 }) {
+  const [uiOnlyComposerValue, setUiOnlyComposerValue] = useState('');
   const messagesRef = useRef<HTMLDivElement | null>(null);
   const messageListRef = useRef<HTMLDivElement | null>(null);
   const bottomRef = useRef<HTMLDivElement | null>(null);
@@ -160,13 +163,23 @@ export function DebugConversationPane({
       </div>
       {showComposer ? (
         <DebugComposer
-          disabled={composerDisabled}
-          submitting={stopAvailable}
-          stopping={stopping}
-          value={typeof queryField?.value === 'string' ? queryField.value : ''}
-          onChange={onChangeQuery}
-          onStop={onStopRun}
-          onSubmit={onSubmitPrompt}
+          disabled={composerUiOnly ? false : composerDisabled}
+          submitting={composerUiOnly ? false : stopAvailable}
+          stopping={composerUiOnly ? false : stopping}
+          value={
+            composerUiOnly
+              ? uiOnlyComposerValue
+              : typeof queryField?.value === 'string'
+                ? queryField.value
+                : ''
+          }
+          onChange={composerUiOnly ? setUiOnlyComposerValue : onChangeQuery}
+          onStop={composerUiOnly ? () => {} : onStopRun}
+          onSubmit={
+            composerUiOnly
+              ? () => setUiOnlyComposerValue('')
+              : onSubmitPrompt
+          }
         />
       ) : null}
     </div>
