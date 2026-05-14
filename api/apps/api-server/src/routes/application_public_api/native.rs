@@ -61,6 +61,7 @@ pub struct NativeRunResponse {
     pub metadata: Value,
     pub answer: Option<String>,
     pub required_action: Option<Value>,
+    pub tool_calls: Option<Value>,
     pub usage: Option<Value>,
     pub error: Option<Value>,
     pub created_at: String,
@@ -265,6 +266,7 @@ pub(crate) fn to_native_run_response(run: NativeRunResult) -> NativeRunResponse 
         required_action: run
             .required_action
             .and_then(|value| serde_json::to_value(value).ok()),
+        tool_calls: run.tool_calls,
         usage: run.usage.and_then(|value| serde_json::to_value(value).ok()),
         error: run.error.and_then(|value| serde_json::to_value(value).ok()),
         created_at: run.created_at.to_string(),

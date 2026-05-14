@@ -356,19 +356,19 @@ impl DocTextResolver {
     fn unsupported_notes(&self, category_id: &str) -> &'static str {
         match (category_id, self.locale) {
             (OPENAI_CATEGORY_ID, DocsLocale::ZhHans) => {
-                "此 v1 兼容端点暂不支持：tools、tool_choice、function_call、音频输出、图片/文件内容和多模态生成。如需查看 required_action 或恢复运行，请使用原生 API。"
+                "此 v1 兼容端点支持 tools、tool_choice、function_call 字段透传，支持返回 tool_calls；暂不支持音频输出、图片/文件内容和多模态生成。如需查看 required_action 或恢复运行，请使用原生 API。"
             }
             (ANTHROPIC_CATEGORY_ID, DocsLocale::ZhHans) => {
-                "此 v1 兼容端点会接受并忽略顶层 tools/tool_choice；暂不支持：tool_result blocks、computer use、image/document blocks 和等待态恢复。如需查看 required_action 或恢复运行，请使用原生 API。"
+                "此 v1 兼容端点支持顶层 tools/tool_choice 透传，支持 tool_use / tool_result 文本块；暂不支持 computer use、image/document blocks 和等待态恢复。如需查看 required_action 或恢复运行，请使用原生 API。"
             }
             (_, DocsLocale::ZhHans) => {
                 "原生 API 支持查看 required_action 并恢复运行。公开路径不会包含 application_id。"
             }
             (OPENAI_CATEGORY_ID, DocsLocale::EnUs) => {
-                "Unsupported in this v1 compatible endpoint: tools, tool_choice, function_call, audio output, image/file content, and multimodal generation. Use the Native API for required_action inspection and resume."
+                "This v1 compatible endpoint passes through tools, tool_choice, and function_call fields and can return tool_calls. Unsupported: audio output, image/file content, and multimodal generation. Use the Native API for required_action inspection and resume."
             }
             (ANTHROPIC_CATEGORY_ID, DocsLocale::EnUs) => {
-                "This v1 compatible endpoint accepts and ignores top-level tools/tool_choice. Unsupported: tool_result blocks, computer use, image/document blocks, and waiting-state resume. Use the Native API for required_action inspection and resume."
+                "This v1 compatible endpoint passes through top-level tools/tool_choice and supports text tool_use/tool_result blocks. Unsupported: computer use, image/document blocks, and waiting-state resume. Use the Native API for required_action inspection and resume."
             }
             (_, DocsLocale::EnUs) => {
                 "Native API supports required_action inspection and resume. Public paths never include application_id."
@@ -712,6 +712,7 @@ fn native_run_response_schema() -> Value {
             "metadata": {"type": "object", "additionalProperties": true},
             "answer": {"oneOf": [{"type": "string"}, {"type": "null"}]},
             "required_action": {"oneOf": [{"type": "object", "additionalProperties": true}, {"type": "null"}]},
+            "tool_calls": {"oneOf": [{"type": "array", "items": tool_call_schema()}, {"type": "null"}]},
             "usage": {"oneOf": [{"type": "object", "additionalProperties": true}, {"type": "null"}]},
             "error": {"oneOf": [{"type": "object", "additionalProperties": true}, {"type": "null"}]},
             "created_at": {"type": "string", "format": "date-time"}
@@ -741,6 +742,80 @@ fn uploaded_file_response_schema() -> Value {
     })
 }
 
+fn tool_call_schema() -> Value {
+    json!({
+        "type": "object",
+        "properties": {
+            "id": {"type": "string"},
+            "type": {"type": "string"},
+            "name": {"type": "string"},
+            "arguments": {
+                "oneOf": [
+                    {"type": "object", "additionalProperties": true},
+                    {"type": "array"},
+                    {"type": "string"},
+                    {"type": "number"},
+                    {"type": "boolean"},
+                    {"type": "null"}
+                ]
+            }
+        },
+        "additionalProperties": true
+    })
+}
+
+fn openai_tool_call_schema() -> Value {
+    json!({
+        "type": "object",
+        "required": ["id", "type", "function"],
+        "properties": {
+            "id": {"type": "string"},
+            "type": {"type": "string", "enum": ["function"]},
+            "function": {
+                "type": "object",
+                "required": ["name", "arguments"],
+                "properties": {
+                    "name": {"type": "string"},
+                    "arguments": {"type": "string"}
+                }
+            }
+        }
+    })
+}
+
+fn openai_tool_schema() -> Value {
+    json!({
+        "type": "object",
+        "required": ["type", "function"],
+        "properties": {
+            "type": {"type": "string", "enum": ["function"]},
+            "function": {
+                "type": "object",
+                "required": ["name"],
+                "properties": {
+                    "name": {"type": "string"},
+                    "description": {"type": "string"},
+                    "parameters": {"type": "object", "additionalProperties": true}
+                }
+            }
+        },
+        "additionalProperties": true
+    })
+}
+
+fn anthropic_tool_schema() -> Value {
+    json!({
+        "type": "object",
+        "required": ["name"],
+        "properties": {
+            "name": {"type": "string"},
+            "description": {"type": "string"},
+            "input_schema": {"type": "object", "additionalProperties": true}
+        },
+        "additionalProperties": true
+    })
+}
+
 fn openai_chat_completion_response_schema() -> Value {
     json!({
         "type": "object",
@@ -762,10 +837,14 @@ fn openai_chat_completion_response_schema() -> Value {
                             "required": ["role", "content"],
                             "properties": {
                                 "role": {"type": "string", "enum": ["assistant"]},
-                                "content": {"type": "string"}
+                                "content": {"oneOf": [{"type": "string"}, {"type": "null"}]},
+                                "tool_calls": {
+                                    "type": "array",
+                                    "items": openai_tool_call_schema()
+                                }
                             }
                         },
-                        "finish_reason": {"type": "string"}
+                        "finish_reason": {"type": "string", "enum": ["stop", "tool_calls"]}
                     }
                 }
             },
@@ -813,14 +892,17 @@ fn anthropic_message_response_schema() -> Value {
                 "type": "array",
                 "items": {
                     "type": "object",
-                    "required": ["type", "text"],
+                    "required": ["type"],
                     "properties": {
-                        "type": {"type": "string", "enum": ["text"]},
-                        "text": {"type": "string"}
+                        "type": {"type": "string", "enum": ["text", "tool_use"]},
+                        "text": {"type": "string"},
+                        "id": {"type": "string"},
+                        "name": {"type": "string"},
+                        "input": {"type": "object", "additionalProperties": true}
                     }
                 }
             },
-            "stop_reason": {"type": "string"},
+            "stop_reason": {"type": "string", "enum": ["end_turn", "tool_use"]},
             "usage": {
                 "type": "object",
                 "properties": {
@@ -982,10 +1064,11 @@ fn openai_chat_completion_schema(docs: &DocTextResolver) -> Value {
                     "type": "object",
                     "required": ["role", "content"],
                     "properties": {
-                        "role": {"type": "string", "enum": ["system", "user", "assistant"]},
+                        "role": {"type": "string", "enum": ["system", "user", "assistant", "tool"]},
                         "content": {
                             "oneOf": [
                                 {"type": "string"},
+                                {"type": "null"},
                                 {
                                     "type": "array",
                                     "items": {
@@ -997,6 +1080,12 @@ fn openai_chat_completion_schema(docs: &DocTextResolver) -> Value {
                                     }
                                 }
                             ]
+                        },
+                        "name": {"type": "string"},
+                        "tool_call_id": {"type": "string"},
+                        "tool_calls": {
+                            "type": "array",
+                            "items": openai_tool_call_schema()
                         }
                     }
                 }
@@ -1006,6 +1095,22 @@ fn openai_chat_completion_schema(docs: &DocTextResolver) -> Value {
                 "description": docs.field_description("application_public_api.openai.chat_completion.request.stream")
             },
             "user": {"type": "string"},
+            "tools": {
+                "type": "array",
+                "items": openai_tool_schema()
+            },
+            "tool_choice": {
+                "oneOf": [
+                    {"type": "string", "enum": ["none", "auto", "required"]},
+                    {"type": "object", "additionalProperties": true}
+                ]
+            },
+            "function_call": {
+                "oneOf": [
+                    {"type": "string", "enum": ["none", "auto"]},
+                    {"type": "object", "additionalProperties": true}
+                ]
+            },
             "metadata": {"type": "object", "additionalProperties": true}
         }
     })
@@ -1035,8 +1140,23 @@ fn anthropic_message_schema(docs: &DocTextResolver) -> Value {
                                     "items": {
                                         "type": "object",
                                         "properties": {
-                                            "type": {"type": "string", "enum": ["text"]},
-                                            "text": {"type": "string"}
+                                            "type": {"type": "string", "enum": ["text", "tool_use", "tool_result"]},
+                                            "text": {"type": "string"},
+                                            "id": {"type": "string"},
+                                            "name": {"type": "string"},
+                                            "input": {"type": "object", "additionalProperties": true},
+                                            "tool_use_id": {"type": "string"},
+                                            "is_error": {"type": "boolean"},
+                                            "content": {
+                                                "oneOf": [
+                                                    {"type": "string"},
+                                                    {
+                                                        "type": "array",
+                                                        "items": {"type": "object", "additionalProperties": true}
+                                                    },
+                                                    {"type": "object", "additionalProperties": true}
+                                                ]
+                                            }
                                         }
                                     }
                                 }
@@ -1049,6 +1169,11 @@ fn anthropic_message_schema(docs: &DocTextResolver) -> Value {
                 "type": "boolean",
                 "description": docs.field_description("application_public_api.anthropic.message.request.stream")
             },
+            "tools": {
+                "type": "array",
+                "items": anthropic_tool_schema()
+            },
+            "tool_choice": {"type": "object", "additionalProperties": true},
             "metadata": {"type": "object", "additionalProperties": true}
         }
     })

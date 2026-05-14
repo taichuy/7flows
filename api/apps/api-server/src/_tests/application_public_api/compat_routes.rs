@@ -251,11 +251,12 @@ async fn openai_chat_completions_accepts_bearer_and_preserves_model() {
 }
 
 #[tokio::test]
-async fn openai_chat_completions_returns_openai_error_for_unsupported_tools() {
+async fn openai_chat_completions_accepts_tools_for_agent_framework_compatibility() {
     let app = test_app().await;
-    let token = setup_published_app(&app, "OpenAI Unsupported Route App").await;
+    let token = setup_published_app(&app, "OpenAI Tool Compatible Route App").await;
     let mut body = openai_body(false);
     body["tools"] = json!([{"type": "function", "function": {"name": "lookup"}}]);
+    body["tool_choice"] = json!("auto");
 
     let response = post_json(
         &app,
@@ -265,10 +266,10 @@ async fn openai_chat_completions_returns_openai_error_for_unsupported_tools() {
     )
     .await;
 
-    assert_eq!(response.status(), StatusCode::BAD_REQUEST);
+    assert_eq!(response.status(), StatusCode::OK);
     let payload = response_json(response).await;
-    assert_eq!(payload["error"]["code"], json!("unsupported_feature"));
-    assert_eq!(payload["error"]["param"], json!("tools"));
+    assert_eq!(payload["object"], json!("chat.completion"));
+    assert_eq!(payload["model"], json!("provider/custom-model:latest"));
 }
 
 #[tokio::test]

@@ -14,7 +14,7 @@ use control_plane::application_public_api::{
     },
 };
 use serde::Serialize;
-use serde_json::Value;
+use serde_json::{json, Value};
 use utoipa::ToSchema;
 
 use crate::{
@@ -110,7 +110,23 @@ pub struct OpenAiChatCompletionChoice {
 #[derive(Debug, Serialize, ToSchema)]
 pub struct OpenAiChatMessage {
     pub role: &'static str,
-    pub content: String,
+    pub content: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub tool_calls: Option<Vec<OpenAiToolCall>>,
+}
+
+#[derive(Debug, Serialize, ToSchema)]
+pub struct OpenAiToolCall {
+    pub id: String,
+    #[serde(rename = "type")]
+    pub call_type: &'static str,
+    pub function: OpenAiToolCallFunction,
+}
+
+#[derive(Debug, Serialize, ToSchema)]
+pub struct OpenAiToolCallFunction {
+    pub name: String,
+    pub arguments: String,
 }
 
 #[derive(Debug, Default, Serialize, ToSchema)]
@@ -181,6 +197,12 @@ async fn create_native_run(
 }
 
 fn to_openai_response(run: NativeRunResult, model: String) -> OpenAiChatCompletionResponse {
+    let tool_calls = openai_tool_calls(run.tool_calls.as_ref());
+    let finish_reason = if tool_calls.is_some() {
+        "tool_calls"
+    } else {
+        "stop"
+    };
     OpenAiChatCompletionResponse {
         id: format!("chatcmpl-{}", run.id),
         object: "chat.completion",
@@ -190,12 +212,45 @@ fn to_openai_response(run: NativeRunResult, model: String) -> OpenAiChatCompleti
             index: 0,
             message: OpenAiChatMessage {
                 role: "assistant",
-                content: run.answer.unwrap_or_default(),
+                content: if tool_calls.is_some() {
+                    run.answer
+                } else {
+                    Some(run.answer.unwrap_or_default())
+                },
+                tool_calls,
             },
-            finish_reason: "stop",
+            finish_reason,
         }],
         usage: openai_usage(run.usage),
     }
+}
+
+fn openai_tool_calls(tool_calls: Option<&Value>) -> Option<Vec<OpenAiToolCall>> {
+    let calls = tool_calls?.as_array()?;
+    let mapped = calls
+        .iter()
+        .filter_map(|call| {
+            let name = call.get("name").and_then(Value::as_str)?;
+            let id = call
+                .get("id")
+                .and_then(Value::as_str)
+                .unwrap_or("tool_call")
+                .to_string();
+            let arguments = call.get("arguments").cloned().unwrap_or_else(|| json!({}));
+            Some(OpenAiToolCall {
+                id,
+                call_type: "function",
+                function: OpenAiToolCallFunction {
+                    name: name.to_string(),
+                    arguments: match arguments {
+                        Value::String(value) => value,
+                        value => value.to_string(),
+                    },
+                },
+            })
+        })
+        .collect::<Vec<_>>();
+    (!mapped.is_empty()).then_some(mapped)
 }
 
 fn openai_usage(
@@ -208,5 +263,51 @@ fn openai_usage(
         prompt_tokens: usage.prompt_tokens.unwrap_or_default(),
         completion_tokens: usage.completion_tokens.unwrap_or_default(),
         total_tokens: usage.total_tokens.unwrap_or_default(),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use control_plane::application_public_api::native::NativeRunStatus;
+    use time::OffsetDateTime;
+    use uuid::Uuid;
+
+    #[test]
+    fn openai_response_projects_native_tool_calls() {
+        let run = NativeRunResult {
+            id: Uuid::nil(),
+            application_id: Uuid::nil(),
+            api_key_id: Uuid::nil(),
+            publication_version_id: Uuid::nil(),
+            status: NativeRunStatus::Succeeded,
+            node_input_payload: json!({}),
+            metadata: json!({}),
+            answer: None,
+            required_action: None,
+            tool_calls: Some(json!([
+                {
+                    "id": "call_123",
+                    "name": "lookup_order",
+                    "arguments": {"order_id": "order_123"}
+                }
+            ])),
+            usage: None,
+            error: None,
+            created_at: OffsetDateTime::UNIX_EPOCH,
+        };
+
+        let payload = serde_json::to_value(to_openai_response(run, "provider/model".into()))
+            .expect("openai response serializes");
+
+        assert_eq!(payload["choices"][0]["finish_reason"], json!("tool_calls"));
+        assert_eq!(
+            payload["choices"][0]["message"]["tool_calls"][0]["function"]["name"],
+            json!("lookup_order")
+        );
+        assert_eq!(
+            payload["choices"][0]["message"]["tool_calls"][0]["function"]["arguments"],
+            json!("{\"order_id\":\"order_123\"}")
+        );
     }
 }

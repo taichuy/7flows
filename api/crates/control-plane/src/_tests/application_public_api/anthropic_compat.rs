@@ -112,6 +112,10 @@ fn tools_are_accepted_for_agent_framework_compatibility() {
 
     assert_eq!(native.query, "Final question");
     assert_eq!(native.model.as_deref(), Some("claude-compatible-custom"));
+    assert_eq!(
+        native.inputs.as_value()["compatibility"]["tools"][0]["name"],
+        json!("lookup_order")
+    );
 }
 
 #[test]
@@ -125,12 +129,28 @@ fn tool_choice_is_accepted_for_agent_framework_compatibility() {
     let native = map_messages_request(request).unwrap();
 
     assert_eq!(native.query, "Final question");
+    assert_eq!(
+        native.inputs.as_value()["compatibility"]["tool_choice"]["name"],
+        json!("lookup_order")
+    );
 }
 
 #[test]
-fn tool_result_blocks_return_unsupported_feature() {
+fn tool_use_and_tool_result_blocks_map_to_native_history_and_query() {
     let mut request = base_request();
     request["messages"] = json!([
+        {"role": "user", "content": "Find order"},
+        {
+            "role": "assistant",
+            "content": [
+                {
+                    "type": "tool_use",
+                    "id": "toolu_123",
+                    "name": "lookup_order",
+                    "input": {"order_id": "order_123"}
+                }
+            ]
+        },
         {
             "role": "user",
             "content": [
@@ -143,7 +163,27 @@ fn tool_result_blocks_return_unsupported_feature() {
         }
     ]);
 
-    assert_unsupported_feature(request);
+    let native = map_messages_request(request).unwrap();
+
+    assert_eq!(native.query, "Order found");
+    assert_eq!(
+        native.history,
+        vec![
+            json!({"role": "user", "content": "Find order"}),
+            json!({
+                "role": "assistant",
+                "content": "",
+                "content_blocks": [
+                    {
+                        "type": "tool_use",
+                        "id": "toolu_123",
+                        "name": "lookup_order",
+                        "input": {"order_id": "order_123"}
+                    }
+                ]
+            })
+        ]
+    );
 }
 
 #[test]

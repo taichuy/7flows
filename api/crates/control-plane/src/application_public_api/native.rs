@@ -127,6 +127,8 @@ pub struct NativeRunResult {
     #[serde(default)]
     pub required_action: Option<NativeRequiredAction>,
     #[serde(default)]
+    pub tool_calls: Option<Value>,
+    #[serde(default)]
     pub usage: Option<NativeUsage>,
     #[serde(default)]
     pub error: Option<NativeError>,

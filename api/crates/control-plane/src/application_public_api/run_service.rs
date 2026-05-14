@@ -420,6 +420,7 @@ pub fn native_result_from_flow_run(
         metadata,
         answer: extract_answer(&flow_run.output_payload),
         required_action: None,
+        tool_calls: extract_tool_calls(&flow_run.output_payload),
         usage: extract_usage(&flow_run.output_payload),
         error,
         created_at: flow_run.created_at,
@@ -433,6 +434,13 @@ fn extract_answer(output_payload: &Value) -> Option<String> {
         .or_else(|| output_payload.get("output"))
         .and_then(Value::as_str)
         .map(ToOwned::to_owned)
+}
+
+fn extract_tool_calls(output_payload: &Value) -> Option<Value> {
+    output_payload
+        .get("tool_calls")
+        .filter(|value| value.is_array())
+        .cloned()
 }
 
 fn extract_usage(output_payload: &Value) -> Option<super::native::NativeUsage> {

@@ -54,18 +54,20 @@ pub fn map_chat_completion_request(request: Value) -> Result<NativeRunRequest, O
             .get("role")
             .and_then(Value::as_str)
             .ok_or_else(|| OpenAiCompatError::invalid("messages", "message role is required"))?;
-        let content = openai_text_content(message.get("content").ok_or_else(|| {
-            OpenAiCompatError::invalid("messages", "message content is required")
-        })?)?;
+        let content = openai_message_text(message)?;
         if index == last_user_index {
             continue;
         }
-        history.push(serde_json::json!({ "role": role, "content": content }));
+        let mut history_entry = serde_json::json!({ "role": role, "content": content });
+        if let Some(tool_calls) = message.get("tool_calls").filter(|value| value.is_array()) {
+            history_entry["tool_calls"] = tool_calls.clone();
+        }
+        if let Some(tool_call_id) = message.get("tool_call_id").and_then(Value::as_str) {
+            history_entry["tool_call_id"] = Value::String(tool_call_id.to_string());
+        }
+        history.push(history_entry);
     }
-    let query =
-        openai_text_content(messages[last_user_index].get("content").ok_or_else(|| {
-            OpenAiCompatError::invalid("messages", "message content is required")
-        })?)?;
+    let query = openai_message_text(&messages[last_user_index])?;
 
     let response_mode = object
         .get("stream")
@@ -82,10 +84,16 @@ pub fn map_chat_completion_request(request: Value) -> Result<NativeRunRequest, O
         .filter(|value| value.is_object())
         .cloned()
         .unwrap_or_else(|| serde_json::json!({}));
+    let compatibility = compatibility_payload(object);
+    let mut metadata = metadata;
+    if !compatibility.is_null() {
+        metadata["compatibility"] = compatibility.clone();
+    }
 
     let mut native = serde_json::json!({
         "query": query,
         "model": model,
+        "inputs": compatibility_inputs(compatibility),
         "history": history,
         "conversation": conversation,
         "response_mode": response_mode,
@@ -104,18 +112,44 @@ pub fn map_chat_completion_request(request: Value) -> Result<NativeRunRequest, O
 }
 
 fn reject_unsupported(request: &Value) -> Result<(), OpenAiCompatError> {
-    for field in [
-        "tools",
-        "tool_choice",
-        "function_call",
-        "audio",
-        "modalities",
-    ] {
+    for field in ["audio", "modalities"] {
         if request.get(field).is_some() {
             return Err(OpenAiCompatError::unsupported(field));
         }
     }
     Ok(())
+}
+
+fn compatibility_payload(object: &serde_json::Map<String, Value>) -> Value {
+    let mut compatibility = serde_json::Map::new();
+    for key in ["tools", "tool_choice", "function_call"] {
+        if let Some(value) = object.get(key) {
+            compatibility.insert(key.to_string(), value.clone());
+        }
+    }
+    if compatibility.is_empty() {
+        Value::Null
+    } else {
+        Value::Object(compatibility)
+    }
+}
+
+fn compatibility_inputs(compatibility: Value) -> Value {
+    if compatibility.is_null() {
+        return serde_json::json!({});
+    }
+    serde_json::json!({ "compatibility": compatibility })
+}
+
+fn openai_message_text(message: &Value) -> Result<String, OpenAiCompatError> {
+    match message.get("content") {
+        Some(Value::Null) | None if message.get("tool_calls").is_some() => Ok(String::new()),
+        Some(content) => openai_text_content(content),
+        None => Err(OpenAiCompatError::invalid(
+            "messages",
+            "message content is required",
+        )),
+    }
 }
 
 fn openai_text_content(content: &Value) -> Result<String, OpenAiCompatError> {

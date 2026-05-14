@@ -182,7 +182,7 @@ async fn application_api_docs_category_and_operation_specs_use_public_paths_only
     let description = spec_payload["paths"]["/v1/chat/completions"]["post"]["description"]
         .as_str()
         .unwrap();
-    assert!(description.contains("Unsupported in this v1 compatible endpoint"));
+    assert!(description.contains("passes through tools, tool_choice, and function_call"));
 }
 
 #[tokio::test]
@@ -282,6 +282,19 @@ async fn application_api_docs_operation_specs_include_request_parameters() {
         openai_body["properties"]["messages"]["items"]["required"],
         json!(["role", "content"])
     );
+    assert_eq!(
+        openai_body["properties"]["messages"]["items"]["properties"]["role"]["enum"],
+        json!(["system", "user", "assistant", "tool"])
+    );
+    assert!(openai_body["properties"].get("tools").is_some());
+    assert!(openai_body["properties"].get("tool_choice").is_some());
+    assert!(openai_body["properties"].get("function_call").is_some());
+    assert!(openai_body["properties"]["messages"]["items"]["properties"]
+        .get("tool_calls")
+        .is_some());
+    assert!(openai_body["properties"]["messages"]["items"]["properties"]
+        .get("tool_call_id")
+        .is_some());
 
     let anthropic_spec = app
         .clone()
@@ -304,6 +317,13 @@ async fn application_api_docs_operation_specs_include_request_parameters() {
     assert_eq!(
         anthropic_body["properties"]["max_tokens"]["type"],
         json!("integer")
+    );
+    assert!(anthropic_body["properties"].get("tools").is_some());
+    assert!(anthropic_body["properties"].get("tool_choice").is_some());
+    assert_eq!(
+        anthropic_body["properties"]["messages"]["items"]["properties"]["content"]["oneOf"][1]
+            ["items"]["properties"]["type"]["enum"],
+        json!(["text", "tool_use", "tool_result"])
     );
 
     let get_run_spec = app
@@ -360,6 +380,12 @@ async fn application_api_docs_operation_specs_include_request_parameters() {
             ["data"]["properties"]["status"]["type"],
         json!("string")
     );
+    assert!(
+        create_run_post["responses"]["201"]["content"]["application/json"]["schema"]["properties"]
+            ["data"]["properties"]
+            .get("tool_calls")
+            .is_some()
+    );
     assert_eq!(
         create_run_post["responses"]["400"]["content"]["application/json"]["schema"]["properties"]
             ["code"]["type"],
@@ -369,8 +395,26 @@ async fn application_api_docs_operation_specs_include_request_parameters() {
     let openai_post = &openai_payload["paths"]["/v1/chat/completions"]["post"];
     assert_eq!(
         openai_post["responses"]["200"]["content"]["application/json"]["schema"]["properties"]
-            ["choices"]["items"]["properties"]["message"]["properties"]["content"]["type"],
-        json!("string")
+            ["choices"]["items"]["properties"]["message"]["properties"]["content"]["oneOf"][1]
+            ["type"],
+        json!("null")
+    );
+    assert_eq!(
+        openai_post["responses"]["200"]["content"]["application/json"]["schema"]["properties"]
+            ["choices"]["items"]["properties"]["finish_reason"]["enum"],
+        json!(["stop", "tool_calls"])
+    );
+    assert!(
+        openai_post["responses"]["200"]["content"]["application/json"]["schema"]["properties"]
+            ["choices"]["items"]["properties"]["message"]["properties"]
+            .get("tool_calls")
+            .is_some()
+    );
+    assert_eq!(
+        openai_post["responses"]["200"]["content"]["application/json"]["schema"]["properties"]
+            ["choices"]["items"]["properties"]["message"]["properties"]["tool_calls"]["items"]
+            ["properties"]["type"]["enum"],
+        json!(["function"])
     );
     assert_eq!(
         openai_post["responses"]["400"]["content"]["application/json"]["schema"]["properties"]
@@ -381,8 +425,18 @@ async fn application_api_docs_operation_specs_include_request_parameters() {
     let anthropic_post = &anthropic_payload["paths"]["/v1/messages"]["post"];
     assert_eq!(
         anthropic_post["responses"]["200"]["content"]["application/json"]["schema"]["properties"]
-            ["content"]["items"]["properties"]["text"]["type"],
-        json!("string")
+            ["content"]["items"]["properties"]["type"]["enum"],
+        json!(["text", "tool_use"])
+    );
+    assert_eq!(
+        anthropic_post["responses"]["200"]["content"]["application/json"]["schema"]["properties"]
+            ["stop_reason"]["enum"],
+        json!(["end_turn", "tool_use"])
+    );
+    assert_eq!(
+        anthropic_post["responses"]["200"]["content"]["application/json"]["schema"]["properties"]
+            ["content"]["items"]["properties"]["input"]["type"],
+        json!("object")
     );
     assert_eq!(
         anthropic_post["responses"]["400"]["content"]["application/json"]["schema"]["properties"]

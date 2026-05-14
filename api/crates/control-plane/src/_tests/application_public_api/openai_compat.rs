@@ -116,7 +116,7 @@ fn model_maps_exactly_without_validation() {
 }
 
 #[test]
-fn tools_return_unsupported_feature() {
+fn tools_map_to_native_compatibility_inputs_and_metadata() {
     let mut request = base_request();
     request["tools"] = json!([
         {
@@ -127,24 +127,80 @@ fn tools_return_unsupported_feature() {
             }
         }
     ]);
+    request["tool_choice"] = json!({"type": "function", "function": {"name": "lookup_order"}});
 
-    assert_unsupported_feature(request, "tools");
+    let native = map_chat_completion_request(request).unwrap();
+
+    assert_eq!(
+        native.inputs.as_value()["compatibility"]["tools"][0]["function"]["name"],
+        json!("lookup_order")
+    );
+    assert_eq!(
+        native.inputs.as_value()["compatibility"]["tool_choice"]["function"]["name"],
+        json!("lookup_order")
+    );
+    assert_eq!(
+        native.metadata.as_value()["compatibility"]["tool_choice"]["function"]["name"],
+        json!("lookup_order")
+    );
 }
 
 #[test]
-fn tool_choice_returns_unsupported_feature() {
+fn tool_messages_map_to_native_history() {
     let mut request = base_request();
-    request["tool_choice"] = json!("auto");
+    request["messages"] = json!([
+        {"role": "user", "content": "Find order"},
+        {
+            "role": "assistant",
+            "content": null,
+            "tool_calls": [
+                {
+                    "id": "call_123",
+                    "type": "function",
+                    "function": {"name": "lookup_order", "arguments": "{\"order_id\":\"order_123\"}"}
+                }
+            ]
+        },
+        {"role": "tool", "tool_call_id": "call_123", "content": "{\"status\":\"shipped\"}"}
+    ]);
 
-    assert_unsupported_feature(request, "tool_choice");
+    let native = map_chat_completion_request(request).unwrap();
+
+    assert_eq!(native.query, "Find order");
+    assert_eq!(
+        native.history,
+        vec![
+            json!({
+                "role": "assistant",
+                "content": "",
+                "tool_calls": [
+                    {
+                        "id": "call_123",
+                        "type": "function",
+                        "function": {"name": "lookup_order", "arguments": "{\"order_id\":\"order_123\"}"}
+                    }
+                ]
+            }),
+            json!({
+                "role": "tool",
+                "content": "{\"status\":\"shipped\"}",
+                "tool_call_id": "call_123"
+            })
+        ]
+    );
 }
 
 #[test]
-fn function_call_returns_unsupported_feature() {
+fn legacy_function_call_maps_to_native_compatibility_inputs() {
     let mut request = base_request();
     request["function_call"] = json!({"name": "lookup_order"});
 
-    assert_unsupported_feature(request, "function_call");
+    let native = map_chat_completion_request(request).unwrap();
+
+    assert_eq!(
+        native.inputs.as_value()["compatibility"]["function_call"]["name"],
+        json!("lookup_order")
+    );
 }
 
 #[test]
