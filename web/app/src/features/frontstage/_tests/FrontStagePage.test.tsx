@@ -355,6 +355,50 @@ describe('FrontStagePage', () => {
     expect(onNavigatePage).toHaveBeenLastCalledWith('page-2');
   });
 
+  test('falls back to workspace-level route when selected nested group is deleted and no pages remain', () => {
+    authenticate(['frontstage.page.design']);
+    const onNavigatePage = vi.fn();
+
+    renderPageWithInitialTree(
+      [
+        {
+          id: 'group-root',
+          title: '分组 一级',
+          kind: 'group',
+          children: [
+            {
+              id: 'group-inner',
+              title: '分组 二级',
+              kind: 'group',
+              children: [
+                {
+                  id: 'page-inside',
+                  title: '页面 嵌套',
+                  kind: 'page'
+                }
+              ]
+            }
+          ]
+        }
+      ],
+      'page-inside',
+      onNavigatePage
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: '进入设计模式' }));
+
+    const rootGroup = screen.getByText('分组 一级').closest('li');
+    if (!rootGroup) {
+      throw new Error('expected root group list item to exist');
+    }
+
+    fireEvent.click(within(rootGroup).getByRole('button', { name: '删除' }));
+
+    expect(screen.queryByText('页面 嵌套')).not.toBeInTheDocument();
+    expect(screen.getByText('当前未选中页面')).toBeInTheDocument();
+    expect(onNavigatePage).toHaveBeenCalledWith(undefined);
+  });
+
   test('renames node title in design mode', () => {
     authenticate(['frontstage.page.design']);
     renderPage();
