@@ -81,6 +81,12 @@ describe('FrontStagePage', () => {
     renderPage('page-1');
 
     const designButton = screen.getByRole('button', { name: '进入设计模式' });
+    expect(screen.queryByRole('button', { name: '新增区块' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: '页面管理' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: '当前页面设置' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'JS Block 试运行' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: '保存设计' })).not.toBeInTheDocument();
+
     fireEvent.click(designButton);
     expect(screen.getByRole('button', { name: '退出设计模式' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: '新增区块' })).toBeInTheDocument();
@@ -92,6 +98,13 @@ describe('FrontStagePage', () => {
     expect(screen.getByRole('button', { name: '新建页面' })).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: '退出设计模式' }));
     expect(screen.getByRole('button', { name: '进入设计模式' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: '新增区块' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: '页面管理' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: '当前页面设置' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'JS Block 试运行' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: '保存设计' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: '新建分组' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: '新建页面' })).not.toBeInTheDocument();
   });
 
   test('supports adding and deleting page tree nodes in design mode', () => {
