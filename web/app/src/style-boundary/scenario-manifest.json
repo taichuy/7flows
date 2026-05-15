@@ -371,8 +371,13 @@
       "web/app/src/features/applications/pages/ApplicationLogsPage.tsx",
       "web/app/src/features/applications/pages/application-logs-page.css",
       "web/app/src/features/applications/components/logs/ApplicationRunsTable.tsx",
+      "web/app/src/features/applications/components/logs/application-runs-table-columns.tsx",
+      "web/app/src/features/applications/components/logs/useApplicationRunsTableConfiguration.ts",
       "web/app/src/features/applications/components/logs/ApplicationRunDetailPanel.tsx",
-      "web/app/src/features/applications/components/logs/application-run-detail-panel.css"
+      "web/app/src/features/applications/components/logs/application-run-detail-panel.css",
+      "web/app/src/shared/ui/data-table/DataTable.tsx",
+      "web/app/src/shared/ui/data-table/data-table-state.ts",
+      "web/app/src/shared/ui/data-table/data-table.css"
     ],
     "boundaryNodes": [
       {
@@ -382,6 +387,26 @@
           {
             "property": "display",
             "expected": "block"
+          }
+        ]
+      },
+      {
+        "id": "application-logs-data-table",
+        "selector": ".application-runs-table.data-table",
+        "propertyAssertions": [
+          {
+            "property": "display",
+            "expected": "flex"
+          }
+        ]
+      },
+      {
+        "id": "application-logs-data-table-scroll",
+        "selector": ".application-runs-table .data-table__scroll-area",
+        "propertyAssertions": [
+          {
+            "property": "overflow-x",
+            "expected": "auto"
           }
         ]
       }

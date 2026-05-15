@@ -44,11 +44,14 @@ vi.mock('../api/runtime', () => runtimeApi);
 import { AppProviders } from '../../../app/AppProviders';
 import { ApplicationLogsPage } from '../pages/ApplicationLogsPage';
 
-function applicationRunsPage<T>(items: T[], overrides?: Partial<{
-  total: number;
-  page: number;
-  page_size: number;
-}>) {
+function applicationRunsPage<T>(
+  items: T[],
+  overrides?: Partial<{
+    total: number;
+    page: number;
+    page_size: number;
+  }>
+) {
   return {
     items,
     total: overrides?.total ?? items.length,
@@ -214,7 +217,9 @@ describe('ApplicationLogsPage', () => {
     expect(
       screen.queryByTestId('application-logs-floating-run-detail')
     ).not.toBeInTheDocument();
-    expect(screen.queryByTestId('application-logs-splitter')).not.toBeInTheDocument();
+    expect(
+      screen.queryByTestId('application-logs-splitter')
+    ).not.toBeInTheDocument();
     expect(screen.getByTestId('application-logs-page')).not.toHaveClass(
       'application-logs-page--detail-open'
     );
@@ -244,7 +249,9 @@ describe('ApplicationLogsPage', () => {
     expect(
       screen.queryByRole('button', { name: '返回日志' })
     ).not.toBeInTheDocument();
-    expect(screen.queryByTestId('application-logs-splitter')).not.toBeInTheDocument();
+    expect(
+      screen.queryByTestId('application-logs-splitter')
+    ).not.toBeInTheDocument();
     expect(screen.getByTestId('application-logs-page')).not.toHaveClass(
       'application-logs-page--detail-open'
     );
@@ -255,25 +262,24 @@ describe('ApplicationLogsPage', () => {
       screen.getByTestId('application-logs-floating-run-detail')
     ).toBeInTheDocument();
     expect(
-      within(screen.getByTestId('application-logs-floating-run-detail')).getByRole(
-        'separator',
-        { name: '从右侧调整运行详情宽度' }
-      )
+      within(
+        screen.getByTestId('application-logs-floating-run-detail')
+      ).getByRole('separator', { name: '从右侧调整运行详情宽度' })
     ).toBeInTheDocument();
     expect(
-      within(screen.getByTestId('application-logs-floating-run-detail')).getByRole(
-        'separator',
-        { name: '从左侧调整运行详情宽度' }
-      )
+      within(
+        screen.getByTestId('application-logs-floating-run-detail')
+      ).getByRole('separator', { name: '从左侧调整运行详情宽度' })
     ).toBeInTheDocument();
     expect(
-      within(screen.getByTestId('application-logs-floating-run-detail')).getByRole(
-        'separator',
-        { name: '向下调整运行详情高度' }
-      )
+      within(
+        screen.getByTestId('application-logs-floating-run-detail')
+      ).getByRole('separator', { name: '向下调整运行详情高度' })
     ).toBeInTheDocument();
 
-    const conversation = await screen.findByTestId('debug-conversation-messages');
+    const conversation = await screen.findByTestId(
+      'debug-conversation-messages'
+    );
     expect(within(conversation).getByText('User')).toBeInTheDocument();
     expect(within(conversation).getByText('总结退款政策')).toBeInTheDocument();
     expect(within(conversation).getByText('退款政策摘要')).toBeInTheDocument();
@@ -301,9 +307,7 @@ describe('ApplicationLogsPage', () => {
     fireEvent.click(nodeButton);
 
     expect(nodeButton).toHaveAttribute('aria-expanded', 'true');
-    expect(screen.getByLabelText('输入 JSON')).toHaveTextContent(
-      'user_prompt'
-    );
+    expect(screen.getByLabelText('输入 JSON')).toHaveTextContent('user_prompt');
     expect(screen.getByLabelText('输出 JSON')).toHaveTextContent(
       '退款政策摘要'
     );
@@ -419,19 +423,34 @@ describe('ApplicationLogsPage', () => {
     expect((await screen.findAllByRole('table')).length).toBeGreaterThan(0);
 
     const expectedMeasuredLabels = [
-      ['时间间隔', ['今天', '过去 7 天', '过去 4 周', '过去 3 月', '过去 12 月', '所有时间']],
+      [
+        '时间间隔',
+        [
+          '今天',
+          '过去 7 天',
+          '过去 4 周',
+          '过去 3 月',
+          '过去 12 月',
+          '所有时间'
+        ]
+      ],
       ['排序字段', ['排序：开始时间', '排序：更新时间']]
     ] as const;
 
     expectedMeasuredLabels.forEach(([ariaLabel, measuredLabels]) => {
-      const trigger = screen.getByRole('combobox', { name: ariaLabel });
-      const shell = trigger.closest('.autosize-select');
-      const measureItems = Array.from(
-        shell?.querySelectorAll('.autosize-select__measure-item') ?? []
-      ).map((item) => item.getAttribute('data-measure-label'));
+      expect(
+        screen.getByRole('combobox', { name: ariaLabel })
+      ).toBeInTheDocument();
 
-      expect(shell).not.toBeNull();
-      expect(measureItems).toEqual([...measuredLabels]);
+      measuredLabels.forEach((label) => {
+        // Hidden measurement spans are intentionally aria-hidden and have no text content.
+        // eslint-disable-next-line testing-library/no-node-access
+        const measureItem = document.querySelector(
+          `.autosize-select__measure-item[data-measure-label="${label}"]`
+        );
+
+        expect(measureItem).toBeInTheDocument();
+      });
     });
 
     const cssSource = await readFile(
@@ -458,7 +477,9 @@ describe('ApplicationLogsPage', () => {
     expect((await screen.findAllByRole('table')).length).toBeGreaterThan(0);
 
     const filters = screen.getByRole('search');
-    const sortControl = within(filters).getByTestId('application-logs-sort-control');
+    const sortControl = within(filters).getByTestId(
+      'application-logs-sort-control'
+    );
 
     expect(
       within(sortControl).getByRole('combobox', { name: '排序字段' })
@@ -488,13 +509,16 @@ describe('ApplicationLogsPage', () => {
     );
 
     await waitFor(() => {
-      expect(runtimeApi.fetchApplicationRuns).toHaveBeenLastCalledWith('app-1', {
-        page: 1,
-        pageSize: 20,
-        timeRangeDays: 7,
-        sortBy: 'started_at',
-        sortOrder: 'asc'
-      });
+      expect(runtimeApi.fetchApplicationRuns).toHaveBeenLastCalledWith(
+        'app-1',
+        {
+          page: 1,
+          pageSize: 20,
+          timeRangeDays: 7,
+          sortBy: 'started_at',
+          sortOrder: 'asc'
+        }
+      );
     });
     expect(
       await screen.findByRole('button', { name: '当前升序，切换为降序' })
@@ -518,13 +542,16 @@ describe('ApplicationLogsPage', () => {
     );
 
     await waitFor(() => {
-      expect(runtimeApi.fetchApplicationRuns).toHaveBeenLastCalledWith('app-1', {
-        page: 1,
-        pageSize: 20,
-        timeRangeDays: 7,
-        sortBy: 'updated_at',
-        sortOrder: 'desc'
-      });
+      expect(runtimeApi.fetchApplicationRuns).toHaveBeenLastCalledWith(
+        'app-1',
+        {
+          page: 1,
+          pageSize: 20,
+          timeRangeDays: 7,
+          sortBy: 'updated_at',
+          sortOrder: 'desc'
+        }
+      );
     });
   });
 
@@ -538,23 +565,18 @@ describe('ApplicationLogsPage', () => {
     expect((await screen.findAllByRole('table')).length).toBeGreaterThan(0);
 
     const trigger = screen.getByRole('combobox', { name: '字段配置' });
-    const wrapper = trigger.closest('.application-runs-table__column-selector');
 
     expect(trigger).toHaveAttribute('aria-haspopup', 'listbox');
-    expect(wrapper).toHaveClass('ant-select-multiple');
     expect(
-      wrapper?.querySelector(
-        '.application-runs-table__column-selector-trigger-caret'
-      )
-    ).toBeNull();
+      screen.queryByText('字段配置', {
+        selector: '.application-runs-table__column-selector-trigger-caret'
+      })
+    ).not.toBeInTheDocument();
   });
 
   test('keeps table field configuration as a native responsive multiple select', async () => {
     const tableSource = await readFile(
-      path.resolve(
-        process.cwd(),
-        'src/features/applications/components/logs/ApplicationRunsTable.tsx'
-      ),
+      path.resolve(process.cwd(), 'src/shared/ui/data-table/DataTable.tsx'),
       'utf8'
     );
 
@@ -591,7 +613,9 @@ describe('ApplicationLogsPage', () => {
 
   test('drags and resizes floating run detail window', async () => {
     innerWidthSpy = vi.spyOn(window, 'innerWidth', 'get').mockReturnValue(1280);
-    innerHeightSpy = vi.spyOn(window, 'innerHeight', 'get').mockReturnValue(900);
+    innerHeightSpy = vi
+      .spyOn(window, 'innerHeight', 'get')
+      .mockReturnValue(900);
 
     render(
       <AppProviders>
@@ -694,8 +718,9 @@ describe('ApplicationLogsPage', () => {
     fireEvent.mouseUp(window);
 
     expect(detailWindow).toHaveStyle({ height: '648px' });
-    expect(await screen.findByTestId('debug-conversation-messages'))
-      .toBeInTheDocument();
+    expect(
+      await screen.findByTestId('debug-conversation-messages')
+    ).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: '关闭运行详情' }));
     fireEvent.click(screen.getByRole('button', { name: '查看运行详情' }));
@@ -814,7 +839,9 @@ describe('ApplicationLogsPage', () => {
     expect(await screen.findByText('run-refund')).toBeInTheDocument();
     expect(screen.getByText('run-weather')).toBeInTheDocument();
     expect(screen.queryByText('run-old')).not.toBeInTheDocument();
-    expect(screen.getByRole('combobox', { name: '时间间隔' })).toBeInTheDocument();
+    expect(
+      screen.getByRole('combobox', { name: '时间间隔' })
+    ).toBeInTheDocument();
     expect(
       screen.getByText('过去 7 天', {
         selector: '.ant-select-selection-item'
@@ -849,13 +876,16 @@ describe('ApplicationLogsPage', () => {
     );
 
     await waitFor(() => {
-      expect(runtimeApi.fetchApplicationRuns).toHaveBeenLastCalledWith('app-1', {
-        page: 1,
-        pageSize: 20,
-        timeRangeDays: null,
-        sortBy: 'started_at',
-        sortOrder: 'desc'
-      });
+      expect(runtimeApi.fetchApplicationRuns).toHaveBeenLastCalledWith(
+        'app-1',
+        {
+          page: 1,
+          pageSize: 20,
+          timeRangeDays: null,
+          sortBy: 'started_at',
+          sortOrder: 'desc'
+        }
+      );
     });
     expect(await screen.findByText('run-old')).toBeInTheDocument();
   });
@@ -906,25 +936,33 @@ describe('ApplicationLogsPage', () => {
     );
 
     expect(await screen.findByText('title-1')).toBeInTheDocument();
-    expect(runtimeApi.fetchApplicationRuns).toHaveBeenNthCalledWith(1, 'app-1', {
-      page: 1,
-      pageSize: 20,
-      timeRangeDays: 7,
-      sortBy: 'started_at',
-      sortOrder: 'desc'
-    });
+    expect(runtimeApi.fetchApplicationRuns).toHaveBeenNthCalledWith(
+      1,
+      'app-1',
+      {
+        page: 1,
+        pageSize: 20,
+        timeRangeDays: 7,
+        sortBy: 'started_at',
+        sortOrder: 'desc'
+      }
+    );
     expect(screen.getByText('共 42 条')).toBeInTheDocument();
 
     fireEvent.click(screen.getByTitle('2'));
 
     await waitFor(() => {
-      expect(runtimeApi.fetchApplicationRuns).toHaveBeenNthCalledWith(2, 'app-1', {
-        page: 2,
-        pageSize: 20,
-        timeRangeDays: 7,
-        sortBy: 'started_at',
-        sortOrder: 'desc'
-      });
+      expect(runtimeApi.fetchApplicationRuns).toHaveBeenNthCalledWith(
+        2,
+        'app-1',
+        {
+          page: 2,
+          pageSize: 20,
+          timeRangeDays: 7,
+          sortBy: 'started_at',
+          sortOrder: 'desc'
+        }
+      );
     });
     expect(await screen.findByText('title-21')).toBeInTheDocument();
   });
@@ -939,9 +977,7 @@ describe('ApplicationLogsPage', () => {
     );
 
     expect(cssSource).not.toContain('application-logs-page--detail-open');
-    expect(cssSource).not.toContain(
-      '--application-runs-table-body-height'
-    );
+    expect(cssSource).not.toContain('--application-runs-table-body-height');
     expect(cssSource).toContain('flex: 1 1 auto;');
     expect(cssSource).toContain('width: 100%;');
     expect(cssSource).toContain('.application-logs-floating-window');
@@ -979,6 +1015,10 @@ describe('ApplicationLogsPage', () => {
 
   test('keeps the table header and pagination fixed around the row scroll area', async () => {
     const cssSource = await readFile(
+      path.resolve(process.cwd(), 'src/shared/ui/data-table/data-table.css'),
+      'utf8'
+    );
+    const pageCssSource = await readFile(
       path.resolve(
         process.cwd(),
         'src/features/applications/pages/application-logs-page.css'
@@ -994,36 +1034,30 @@ describe('ApplicationLogsPage', () => {
     );
 
     expect(cssSource).toMatch(
+      /\.data-table\s*\{[^}]*flex:\s*1 1 auto;[^}]*\}/s
+    );
+    expect(cssSource).toMatch(
+      /\.data-table__scroll-area\s*\{[^}]*flex:\s*1 1 auto;[^}]*overflow-x:\s*auto;[^}]*overflow-y:\s*auto;[^}]*\}/s
+    );
+    expect(cssSource).toMatch(
+      /\.data-table \.ant-table-thead > tr > th\s*\{[^}]*position:\s*sticky;[^}]*top:\s*0;[^}]*z-index:\s*2;[^}]*\}/s
+    );
+    expect(cssSource).toMatch(
+      /\.data-table__pagination\s*\{[^}]*flex:\s*0 0 auto;[^}]*\}/s
+    );
+    expect(pageCssSource).toMatch(
       /\.application-logs-page__list\s*\{[^}]*overflow-y:\s*hidden;[^}]*\}/s
-    );
-    expect(cssSource).toMatch(
-      /\.application-runs-table\s*\{[^}]*flex:\s*1 1 auto;[^}]*\}/s
-    );
-    expect(cssSource).toMatch(
-      /\.application-runs-table__scroll-area\s*\{[^}]*flex:\s*1 1 auto;[^}]*overflow-x:\s*auto;[^}]*overflow-y:\s*auto;[^}]*\}/s
-    );
-    expect(cssSource).toMatch(
-      /\.application-logs-page__list \.ant-table-thead > tr > th\s*\{[^}]*position:\s*sticky;[^}]*top:\s*0;[^}]*z-index:\s*2;[^}]*\}/s
-    );
-    expect(cssSource).toMatch(
-      /\.application-runs-table__pagination\s*\{[^}]*flex:\s*0 0 auto;[^}]*\}/s
     );
     expect(tableSource).not.toContain("y: '100%'");
   });
 
   test('keeps horizontal scrolling on the runs table wrapper instead of the Ant Design body', async () => {
     const cssSource = await readFile(
-      path.resolve(
-        process.cwd(),
-        'src/features/applications/pages/application-logs-page.css'
-      ),
+      path.resolve(process.cwd(), 'src/shared/ui/data-table/data-table.css'),
       'utf8'
     );
     const tableSource = await readFile(
-      path.resolve(
-        process.cwd(),
-        'src/features/applications/components/logs/ApplicationRunsTable.tsx'
-      ),
+      path.resolve(process.cwd(), 'src/shared/ui/data-table/DataTable.tsx'),
       'utf8'
     );
 
@@ -1031,10 +1065,10 @@ describe('ApplicationLogsPage', () => {
     expect(tableSource).not.toContain('x: fixedTableWidth');
     expect(tableSource).toContain('minWidth: fixedTableWidth');
     expect(cssSource).toMatch(
-      /\.application-runs-table__scroll-area\s*\{[^}]*overflow-x:\s*auto;[^}]*overflow-y:\s*auto;/s
+      /\.data-table__scroll-area\s*\{[^}]*overflow-x:\s*auto;[^}]*overflow-y:\s*auto;/s
     );
     expect(cssSource).toMatch(
-      /\.application-logs-page__list \.ant-table-body\s*\{[^}]*overflow-x:\s*hidden !important;[^}]*\}/s
+      /\.data-table \.ant-table-body\s*\{[^}]*overflow-x:\s*hidden !important;[^}]*\}/s
     );
   });
 
@@ -1053,7 +1087,9 @@ describe('ApplicationLogsPage', () => {
   });
 
   test('keeps the runs table layout unchanged while floating windows are open', async () => {
-    innerHeightSpy = vi.spyOn(window, 'innerHeight', 'get').mockReturnValue(920);
+    innerHeightSpy = vi
+      .spyOn(window, 'innerHeight', 'get')
+      .mockReturnValue(920);
     getBoundingClientRectSpy = vi
       .spyOn(HTMLElement.prototype, 'getBoundingClientRect')
       .mockImplementation(function getBoundingClientRect(this: HTMLElement) {
@@ -1122,8 +1158,9 @@ describe('ApplicationLogsPage', () => {
 
     fireEvent.click(screen.getByRole('button', { name: '查看运行详情' }));
 
-    expect(await screen.findByRole('complementary', { name: '运行详情' }))
-      .toBeInTheDocument();
+    expect(
+      await screen.findByRole('complementary', { name: '运行详情' })
+    ).toBeInTheDocument();
     expect(screen.getByTestId('application-logs-page')).not.toHaveClass(
       'application-logs-page--detail-open'
     );

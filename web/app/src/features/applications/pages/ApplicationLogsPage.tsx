@@ -24,9 +24,9 @@ import { ApplicationRunDetailPanel } from '../components/logs/ApplicationRunDeta
 import { ApplicationLogsFloatingWindow } from '../components/logs/ApplicationLogsFloatingWindow';
 import {
   ApplicationRunsTable,
-  ApplicationRunsTableColumnSettings,
-  useApplicationRunsTableConfiguration
+  ApplicationRunsTableColumnSettings
 } from '../components/logs/ApplicationRunsTable';
+import { useApplicationRunsTableConfiguration } from '../components/logs/useApplicationRunsTableConfiguration';
 import './application-logs-page.css';
 
 const FLOATING_WINDOW_TOP = 112;
@@ -64,13 +64,6 @@ const RUN_SORT_FIELD_OPTIONS: Array<{
 }> = [
   { label: '开始时间', value: 'started_at' },
   { label: '更新时间', value: 'updated_at' }
-];
-const RUN_SORT_ORDER_OPTIONS: Array<{
-  label: string;
-  value: ApplicationRunSortOrder;
-}> = [
-  { label: '降序', value: 'desc' },
-  { label: '升序', value: 'asc' }
 ];
 const DEFAULT_SORT_BY: ApplicationRunSortField = 'started_at';
 const DEFAULT_SORT_ORDER: ApplicationRunSortOrder = 'desc';
@@ -121,10 +114,7 @@ function getConversationLogInitialRect() {
   const runDetailRect = getRunDetailInitialRect();
 
   return {
-    left:
-      runDetailRect.left -
-      FLOATING_WINDOW_MIN_WIDTH -
-      FLOATING_WINDOW_GAP,
+    left: runDetailRect.left - FLOATING_WINDOW_MIN_WIDTH - FLOATING_WINDOW_GAP,
     top: FLOATING_WINDOW_TOP,
     width: FLOATING_WINDOW_MIN_WIDTH,
     height: getFloatingWindowHeight()
@@ -351,15 +341,9 @@ export function ApplicationLogsPage({
       data-testid="application-logs-list"
     >
       {runs.length === 0 ? (
-        <Empty
-          image={Empty.PRESENTED_IMAGE_SIMPLE}
-          description={null}
-        />
+        <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description={null} />
       ) : visibleRuns.length === 0 && !searchingRunDetails ? (
-        <Empty
-          image={Empty.PRESENTED_IMAGE_SIMPLE}
-          description={null}
-        />
+        <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description={null} />
       ) : (
         <ApplicationRunsTable
           loading={searchingRunDetails}

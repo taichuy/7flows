@@ -684,8 +684,7 @@ function seedStyleBoundaryApplicationFetch() {
           data: {
             id: 'key-created',
             name: 'Production client',
-            token:
-              'sk-019e1a463b39-AbCdEfGhIjKlMnOpQrStUvWxYz0123456789ABCD',
+            token: 'sk-019e1a463b39-AbCdEfGhIjKlMnOpQrStUvWxYz0123456789ABCD',
             token_prefix: 'sk-019e1a463b39',
             creator_user_id: 'user-1',
             enabled: true,
@@ -876,16 +875,26 @@ function seedStyleBoundaryApplicationFetch() {
     ) {
       return new Response(
         JSON.stringify({
-          data: [
-            {
-              id: 'run-1',
-              run_mode: 'debug_flow_run',
-              status: 'succeeded',
-              target_node_id: null,
-              started_at: '2026-05-10T09:00:00Z',
-              finished_at: '2026-05-10T09:00:03Z'
-            }
-          ],
+          data: {
+            items: [
+              {
+                id: 'run-1',
+                run_mode: 'debug_flow_run',
+                status: 'succeeded',
+                target_node_id: null,
+                title: 'Boundary run',
+                expand_id: 'boundary-expand',
+                authorized_account: 'root',
+                started_at: '2026-05-10T09:00:00Z',
+                finished_at: '2026-05-10T09:00:03Z',
+                created_at: '2026-05-10T09:00:00Z',
+                updated_at: '2026-05-10T09:00:03Z'
+              }
+            ],
+            total: 1,
+            page: 1,
+            page_size: 20
+          },
           meta: null
         }),
         {
