@@ -1,4 +1,4 @@
-use crate::_tests::support::{login_and_capture_cookie, test_app};
+use crate::_tests::support::{create_member, login_and_capture_cookie, seed_workspace, test_app_with_database_url};
 use axum::{
     body::{to_bytes, Body},
     http::{Request, StatusCode},
@@ -55,6 +55,38 @@ async fn list_frontstage_pages_route_returns_empty_tree_for_accessible_workspace
         .as_array()
         .expect("frontstage pages should return array");
     assert!(pages.is_empty());
+}
+
+#[tokio::test]
+async fn list_frontstage_pages_route_rejects_inaccessible_workspace() {
+    let (app, database_url) = test_app_with_database_url().await;
+    let no_access_workspace_id = seed_workspace(&database_url, "No Access Workspace").await;
+    let (root_cookie, root_csrf) = login_and_capture_cookie(&app, "root", "change-me").await;
+
+    create_member(
+        &app,
+        &root_cookie,
+        &root_csrf,
+        "frontstage-visitor",
+        "temp-pass",
+    )
+    .await;
+
+    let (visitor_cookie, _) = login_and_capture_cookie(&app, "frontstage-visitor", "temp-pass").await;
+
+    let response = app
+        .oneshot(
+            Request::builder()
+                .method("GET")
+                .uri(format!("/api/console/frontstage/{no_access_workspace_id}/pages"))
+                .header("cookie", &visitor_cookie)
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+
+    assert_eq!(response.status(), StatusCode::FORBIDDEN);
 }
 
 #[tokio::test]
