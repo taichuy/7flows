@@ -289,6 +289,14 @@ export const FrontStagePage: FC<FrontStagePageProps> = ({
   }, [actor, me]);
 
   useEffect(() => {
+    if (!initialPageTree) {
+      return;
+    }
+
+    setPageTree(normalizePageTree(initialPageTree));
+  }, [initialPageTree]);
+
+  useEffect(() => {
     if (pageId) {
       if (isPageInTree(pageTree, pageId)) {
         setSelectedPageId(pageId);

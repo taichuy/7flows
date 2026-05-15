@@ -565,6 +565,56 @@ describe('FrontStagePage', () => {
     expect(onNavigatePage).toHaveBeenCalledWith(undefined);
   });
 
+  test('synchronizes page tree when initialPageTree updates', () => {
+    authenticate(['frontstage.page.design']);
+    const onNavigatePage = vi.fn();
+    const renderResult = render(
+      <AppProviders>
+        <FrontStagePage workspaceId="workspace-1" onNavigatePage={onNavigatePage} />
+      </AppProviders>
+    );
+
+    expect(screen.getByText('当前未选中页面')).toBeInTheDocument();
+    expect(screen.queryByText('分组 一级')).not.toBeInTheDocument();
+    expect(onNavigatePage).not.toHaveBeenCalled();
+
+    renderResult.rerender(
+      <AppProviders>
+        <FrontStagePage
+          workspaceId="workspace-1"
+          onNavigatePage={onNavigatePage}
+          initialPageTree={[
+            {
+              id: 'group-root',
+              title: '分组 一级',
+              kind: 'group',
+              children: [
+                {
+                  id: 'group-inner',
+                  title: '分组 二级',
+                  kind: 'group',
+                  children: [
+                    {
+                      id: 'page-1',
+                      title: '页面 内页',
+                      kind: 'page'
+                    }
+                  ]
+                }
+              ]
+            }
+          ]}
+        />
+      </AppProviders>
+    );
+
+    expect(screen.getByText('分组 一级')).toBeInTheDocument();
+    expect(screen.queryByText('分组 二级')).not.toBeInTheDocument();
+    expect(screen.getByText('页面 内页')).toBeInTheDocument();
+    expect(screen.getByText('当前页面：page-1')).toBeInTheDocument();
+    expect(onNavigatePage).toHaveBeenCalledWith('page-1');
+  });
+
   test('shows manager shell and canvas placeholders', () => {
     authenticate(['frontstage.page.design']);
     renderPage('page-1');
