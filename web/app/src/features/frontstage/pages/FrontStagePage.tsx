@@ -185,9 +185,13 @@ export const FrontStagePage: FC<FrontStagePageProps> = ({ workspaceId, pageId, o
       background: isSelected ? '#e6f7ff' : 'transparent',
       cursor: isPageNode ? 'pointer' : 'default'
     } as const;
+    const buttonStyle = {
+      marginLeft: 8,
+      marginRight: 8
+    } as const;
 
     nodes.push(
-      <div
+      <li
         key={node.id}
         style={rowStyle}
         onClick={() => {
@@ -208,21 +212,33 @@ export const FrontStagePage: FC<FrontStagePageProps> = ({ workspaceId, pageId, o
           }
         }}
       >
-        <div style={{ overflow: 'hidden' }}>
+        <div
+          style={{
+            overflow: 'hidden',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between'
+          }}
+        >
           <Typography.Text style={{ fontSize: 12 }}>{node.title}</Typography.Text>
           <Typography.Text type="secondary" style={{ fontSize: 11, display: 'block' }}>
             {node.kind === 'group' ? '分组节点' : '页面节点'}
           </Typography.Text>
         </div>
         {canEnterDesignMode && isDesignMode && isPageNode ? (
-          <Button size="small" danger onClick={(event) => {
+          <Button
+            style={buttonStyle}
+            size="small"
+            danger
+            onClick={(event) => {
             event.stopPropagation();
             handleDeleteNode(node.id);
-          }}>
+          }}
+          >
             删除
           </Button>
         ) : null}
-      </div>
+      </li>
     );
 
     if (node.children && node.children.length > 0) {
@@ -292,9 +308,9 @@ export const FrontStagePage: FC<FrontStagePageProps> = ({ workspaceId, pageId, o
             </Space>
           ) : null}
           {pageTree.length > 0 ? (
-            <div>
+            <ul style={{ listStyle: 'none', margin: 0, padding: 0 }}>
               {pageTree.flatMap((node) => renderTreeNode(node))}
-            </div>
+            </ul>
           ) : (
             <Empty
               image={Empty.PRESENTED_IMAGE_SIMPLE}
