@@ -766,4 +766,37 @@ describe('FrontStagePage', () => {
     fireEvent.click(screen.getByRole('button', { name: '重试' }));
     expect(onRetryLoadPageTree).toHaveBeenCalledTimes(1);
   });
+
+  test('shows partial error banner when page tree load fails but cached tree exists', () => {
+    authenticate(['frontstage.page.design']);
+
+    const onRetryLoadPageTree = vi.fn();
+
+    render(
+      <AppProviders>
+        <FrontStagePage
+          workspaceId="workspace-1"
+          pageId="page-1"
+          initialPageTree={[
+            {
+              id: 'page-1',
+              title: '页面 内页',
+              kind: 'page'
+            }
+          ]}
+          hasPageTreeLoadError
+          onRetryLoadPageTree={onRetryLoadPageTree}
+        />
+      </AppProviders>
+    );
+
+    expect(screen.getByText('页面树加载失败')).toBeInTheDocument();
+    expect(
+      screen.getByText('页面树加载失败，当前页面树仍可查看；请点击“重试”恢复最新数据。')
+    ).toBeInTheDocument();
+    expect(screen.getByText('当前页面：页面 内页')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: '重试' }));
+    expect(onRetryLoadPageTree).toHaveBeenCalledTimes(1);
+  });
 });

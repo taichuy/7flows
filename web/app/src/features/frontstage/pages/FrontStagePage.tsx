@@ -1,4 +1,4 @@
-import { Button, Divider, Empty, Flex, Layout, Space, Typography } from 'antd';
+import { Alert, Button, Divider, Empty, Flex, Layout, Space, Typography } from 'antd';
 import type { FC } from 'react';
 import { useEffect, useMemo, useState } from 'react';
 
@@ -449,6 +449,23 @@ export const FrontStagePage: FC<FrontStagePageProps> = ({
     );
   }
 
+  const renderPageTreeErrorBanner = hasPageTreeLoadError ? (
+    <Alert
+      style={{ marginBottom: 12 }}
+      message="页面树加载失败"
+      description="页面树加载失败，当前页面树仍可查看；请点击“重试”恢复最新数据。"
+      type="error"
+      showIcon
+      action={
+        onRetryLoadPageTree ? (
+          <Button size="small" onClick={() => onRetryLoadPageTree()}>
+            重试
+          </Button>
+        ) : null
+      }
+    />
+  ) : null;
+
   const handleAddGroup = () => {
     setPageTree((prev) => [
       ...prev,
@@ -719,6 +736,7 @@ export const FrontStagePage: FC<FrontStagePageProps> = ({
       </Flex>
 
       <Divider style={{ margin: '0 0 16px' }} />
+      {renderPageTreeErrorBanner}
 
       {canEnterDesignMode && isDesignMode ? (
         <Space wrap size={8} style={{ marginBottom: 12 }}>
