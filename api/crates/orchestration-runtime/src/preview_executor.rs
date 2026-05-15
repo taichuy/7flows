@@ -122,6 +122,18 @@ where
                 execution.debug_payload,
                 execution.provider_events,
             )
+        } else if node.node_type == "code" {
+            (
+                json!({}),
+                Some(json!({
+                    "error_code": "node_type_not_implemented",
+                    "node_type": node.node_type,
+                    "message": "code nodes are not implemented in preview runtime",
+                })),
+                json!({ "preview_mode": true, "waiting": "code" }),
+                json!({}),
+                Vec::new(),
+            )
         } else {
             (
                 Value::Null,

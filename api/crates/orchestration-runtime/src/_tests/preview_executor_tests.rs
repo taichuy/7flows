@@ -214,3 +214,39 @@ async fn preview_executor_resolves_bindings_renders_prompt_and_calls_provider() 
     assert!(captured_input.model_parameters.is_empty());
     assert_eq!(captured_input.response_format, None);
 }
+
+#[tokio::test]
+async fn preview_executor_code_node_not_implemented_returns_error() {
+    let mut plan = sample_compiled_plan();
+    if let Some(node) = plan.nodes.get_mut("node-llm") {
+        node.node_type = "code".to_string();
+    }
+
+    let invoker = StubPreviewInvoker {
+        captured_input: Arc::new(Mutex::new(None)),
+    };
+    let outcome = preview_executor::run_node_preview(
+        &plan,
+        "node-llm",
+        &serde_json::json!({ "node-start": { "query": "退款流程是什么？" } }),
+        &invoker,
+    )
+    .await
+    .unwrap();
+
+    assert_eq!(outcome.target_node_id, "node-llm");
+    assert!(outcome.is_failed());
+    let error_payload = outcome
+        .error_payload
+        .expect("code node should return preview error payload");
+    assert_eq!(error_payload["error_code"], "node_type_not_implemented");
+    assert_eq!(error_payload["node_type"], "code");
+    assert_eq!(
+        error_payload["message"],
+        "code nodes are not implemented in preview runtime"
+    );
+    assert_eq!(outcome.metrics_payload["preview_mode"], true);
+    assert_eq!(outcome.metrics_payload["waiting"], "code");
+    assert_eq!(outcome.node_output, serde_json::json!({}));
+    assert!(outcome.provider_events.is_empty());
+}
