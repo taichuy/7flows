@@ -110,10 +110,37 @@ test('quality gate workflow supports dispatch targets and nightly latest CI defa
   assert.match(workflow, /QUALITY_GATE_SCOPE: \$\{\{ github\.event_name == 'workflow_dispatch' && inputs\.scope \|\| 'ci' \}\}/u);
   assert.match(workflow, /QUALITY_GATE_REPORT_TYPE: \$\{\{ github\.event_name == 'workflow_dispatch' && inputs\.report_type \|\| 'ci' \}\}/u);
   assert.match(workflow, /QUALITY_GATE_SCHEDULED_ENVIRONMENT: nightly-latest/u);
-  assert.match(workflow, /with:\n\s+ref: \$\{\{ env\.QUALITY_GATE_TARGET_BRANCH \}\}/u);
   assert.match(workflow, /GITHUB_REF_NAME: \$\{\{ env\.QUALITY_GATE_TARGET_BRANCH \}\}/u);
   assert.match(workflow, /GITHUB_SHA: \$\{\{ env\.QUALITY_GATE_TARGET_SHA \}\}/u);
   assert.match(workflow, /environment: \$\{\{ github\.event_name == 'schedule' && env\.QUALITY_GATE_SCHEDULED_ENVIRONMENT \|\| inputs\.environment \}\}/u);
+});
+
+test('quality gate workflow runs ci scope as parallel component gates before one published aggregate report', () => {
+  const workflow = readQualityGateWorkflow();
+
+  assert.match(workflow, /repo-gate:\n\s+if: \$\{\{ github\.event_name == 'schedule' \|\| \(github\.event_name == 'workflow_dispatch' && inputs\.scope == 'ci'\) \}\}/u);
+  assert.match(workflow, /backend-consistency-gate:\n\s+if: \$\{\{ github\.event_name == 'schedule' \|\| \(github\.event_name == 'workflow_dispatch' && inputs\.scope == 'ci'\) \}\}/u);
+  assert.match(workflow, /coverage-gate:\n\s+if: \$\{\{ github\.event_name == 'schedule' \|\| \(github\.event_name == 'workflow_dispatch' && inputs\.scope == 'ci'\) \}\}/u);
+  assert.match(workflow, /aggregate:\n\s+if: \$\{\{ always\(\) && \(github\.event_name == 'schedule' \|\| \(github\.event_name == 'workflow_dispatch' && inputs\.scope == 'ci'\)\) \}\}/u);
+  assert.match(workflow, /aggregate:\n(?:.*\n)*?\s+needs:\n\s+- repo-gate\n\s+- backend-consistency-gate\n\s+- coverage-gate/u);
+  assert.match(workflow, /scope: repo/u);
+  assert.match(workflow, /scope: backend-consistency/u);
+  assert.match(workflow, /scope: coverage/u);
+  assert.match(workflow, /publish_issue: "false"/u);
+  assert.match(workflow, /INPUT_PUBLISH_ISSUE: "true"/u);
+  assert.match(workflow, /node scripts\/node\/github-quality-gate-aggregate\.js/u);
+  assert.match(workflow, /name: test-governance-repo/u);
+  assert.match(workflow, /name: test-governance-backend-consistency/u);
+  assert.match(workflow, /name: test-governance-coverage/u);
+  assert.match(workflow, /name: test-governance-artifacts/u);
+});
+
+test('quality gate workflow keeps non-ci dispatch scopes on a single targeted job', () => {
+  const workflow = readQualityGateWorkflow();
+
+  assert.match(workflow, /single-scope-gate:\n\s+if: \$\{\{ github\.event_name == 'workflow_dispatch' && inputs\.scope != 'ci' \}\}/u);
+  assert.match(workflow, /scope: \$\{\{ env\.QUALITY_GATE_SCOPE \}\}/u);
+  assert.match(workflow, /publish_issue: "true"/u);
 });
 
 test('quality gate action clears stale middleware containers before starting postgres', () => {

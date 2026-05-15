@@ -51,8 +51,10 @@ env:
   QUALITY_GATE_SCHEDULED_ENVIRONMENT: nightly-latest
 
 jobs:
-  quality-gate:
+  single-scope-gate:
+    if: ${{ github.event_name == 'workflow_dispatch' && inputs.scope != 'ci' }}
     runs-on: ubuntu-latest
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@v5
         with:
@@ -80,6 +82,137 @@ jobs:
           environment: ${{ github.event_name == 'schedule' && env.QUALITY_GATE_SCHEDULED_ENVIRONMENT || inputs.environment }}
           publish_issue: "true"
           github_token: ${{ secrets.GITHUB_TOKEN }}
+      - uses: actions/upload-artifact@v6
+        if: always()
+        with:
+          name: test-governance-artifacts
+          path: tmp/test-governance
+
+  repo-gate:
+    if: ${{ github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && inputs.scope == 'ci') }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ env.QUALITY_GATE_TARGET_BRANCH }}
+      - name: Resolve quality gate target SHA
+        run: echo "QUALITY_GATE_TARGET_SHA=$(git rev-parse HEAD)" >> "$GITHUB_ENV"
+      - uses: pnpm/action-setup@v5
+        with:
+          version: 10
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: web/pnpm-lock.yaml
+      - run: pnpm --dir web install --frozen-lockfile
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: ./.github/actions/quality-gate
+        env:
+          GITHUB_REF_NAME: ${{ env.QUALITY_GATE_TARGET_BRANCH }}
+          GITHUB_SHA: ${{ env.QUALITY_GATE_TARGET_SHA }}
+        with:
+          scope: repo
+          report_type: ${{ env.QUALITY_GATE_REPORT_TYPE }}
+          environment: ${{ github.event_name == 'schedule' && env.QUALITY_GATE_SCHEDULED_ENVIRONMENT || inputs.environment }}
+          publish_issue: "false"
+      - uses: actions/upload-artifact@v6
+        if: always()
+        with:
+          name: test-governance-repo
+          path: tmp/test-governance
+
+  backend-consistency-gate:
+    if: ${{ github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && inputs.scope == 'ci') }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ env.QUALITY_GATE_TARGET_BRANCH }}
+      - name: Resolve quality gate target SHA
+        run: echo "QUALITY_GATE_TARGET_SHA=$(git rev-parse HEAD)" >> "$GITHUB_ENV"
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: ./.github/actions/quality-gate
+        env:
+          GITHUB_REF_NAME: ${{ env.QUALITY_GATE_TARGET_BRANCH }}
+          GITHUB_SHA: ${{ env.QUALITY_GATE_TARGET_SHA }}
+        with:
+          scope: backend-consistency
+          report_type: ${{ env.QUALITY_GATE_REPORT_TYPE }}
+          environment: ${{ github.event_name == 'schedule' && env.QUALITY_GATE_SCHEDULED_ENVIRONMENT || inputs.environment }}
+          publish_issue: "false"
+      - uses: actions/upload-artifact@v6
+        if: always()
+        with:
+          name: test-governance-backend-consistency
+          path: tmp/test-governance
+
+  coverage-gate:
+    if: ${{ github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && inputs.scope == 'ci') }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ env.QUALITY_GATE_TARGET_BRANCH }}
+      - name: Resolve quality gate target SHA
+        run: echo "QUALITY_GATE_TARGET_SHA=$(git rev-parse HEAD)" >> "$GITHUB_ENV"
+      - uses: pnpm/action-setup@v5
+        with:
+          version: 10
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: web/pnpm-lock.yaml
+      - run: pnpm --dir web install --frozen-lockfile
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: taiki-e/install-action@cargo-llvm-cov
+      - uses: ./.github/actions/quality-gate
+        env:
+          GITHUB_REF_NAME: ${{ env.QUALITY_GATE_TARGET_BRANCH }}
+          GITHUB_SHA: ${{ env.QUALITY_GATE_TARGET_SHA }}
+        with:
+          scope: coverage
+          report_type: ${{ env.QUALITY_GATE_REPORT_TYPE }}
+          environment: ${{ github.event_name == 'schedule' && env.QUALITY_GATE_SCHEDULED_ENVIRONMENT || inputs.environment }}
+          publish_issue: "false"
+      - uses: actions/upload-artifact@v6
+        if: always()
+        with:
+          name: test-governance-coverage
+          path: tmp/test-governance
+
+  aggregate:
+    if: ${{ always() && (github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && inputs.scope == 'ci')) }}
+    needs:
+      - repo-gate
+      - backend-consistency-gate
+      - coverage-gate
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ env.QUALITY_GATE_TARGET_BRANCH }}
+      - name: Resolve quality gate target SHA
+        run: echo "QUALITY_GATE_TARGET_SHA=$(git rev-parse HEAD)" >> "$GITHUB_ENV"
+      - uses: actions/download-artifact@v6
+        with:
+          pattern: test-governance-*
+          path: tmp/test-governance/parallel
+          merge-multiple: false
+      - run: node scripts/node/github-quality-gate-aggregate.js
+        env:
+          GITHUB_REF_NAME: ${{ env.QUALITY_GATE_TARGET_BRANCH }}
+          GITHUB_SHA: ${{ env.QUALITY_GATE_TARGET_SHA }}
+          INPUT_ARTIFACT_ROOT: tmp/test-governance/parallel
+          INPUT_REPORT_TYPE: ${{ env.QUALITY_GATE_REPORT_TYPE }}
+          INPUT_ENVIRONMENT: ${{ github.event_name == 'schedule' && env.QUALITY_GATE_SCHEDULED_ENVIRONMENT || inputs.environment }}
+          INPUT_PUBLISH_ISSUE: "true"
+          INPUT_GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - uses: actions/upload-artifact@v6
         if: always()
         with:
