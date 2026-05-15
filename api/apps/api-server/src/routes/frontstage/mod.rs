@@ -1,4 +1,8 @@
-use std::{cmp::Ordering, collections::HashMap, sync::Arc};
+use std::{
+    cmp::Ordering,
+    collections::{HashMap, HashSet},
+    sync::Arc,
+};
 
 use axum::{
     extract::{Path, State},
@@ -123,6 +127,8 @@ fn parse_frontstage_page_kind(
 fn build_frontstage_page_tree(
     mut records: Vec<FrontstagePageRecord>,
 ) -> Vec<FrontstagePageTreeNodeResponse> {
+    let existing_ids = records.iter().map(|record| record.id).collect::<HashSet<_>>();
+
     records.sort_by(|left, right| {
         let parent_cmp = left.parent_id.cmp(&right.parent_id);
         if parent_cmp != Ordering::Equal {
@@ -139,8 +145,13 @@ fn build_frontstage_page_tree(
 
     let mut nodes_by_parent: HashMap<Option<Uuid>, Vec<FrontstagePageTreeNode>> = HashMap::new();
     for record in records {
+        let parent_id = match record.parent_id {
+            Some(parent_id) if existing_ids.contains(&parent_id) => Some(parent_id),
+            _ => None,
+        };
+
         nodes_by_parent
-            .entry(record.parent_id)
+            .entry(parent_id)
             .or_default()
             .push(FrontstagePageTreeNode {
                 id: record.id,
@@ -156,28 +167,42 @@ fn build_frontstage_page_tree(
     fn flatten_group_children(
         group_id: Uuid,
         nodes_by_parent: &HashMap<Option<Uuid>, Vec<FrontstagePageTreeNode>>,
+        visiting_groups: &mut HashSet<Uuid>,
     ) -> Vec<FrontstagePageTreeNodeResponse> {
-        nodes_by_parent
-            .get(&Some(group_id))
-            .map(|children| {
-                let mut output = Vec::with_capacity(children.len());
-                for child in children {
-                    if child.node.kind == FrontstagePageTreeNodeKind::Page {
-                        output.push(child.node.clone());
-                    } else {
-                        output.extend(flatten_group_children(child.id, nodes_by_parent));
-                    }
+        if !visiting_groups.insert(group_id) {
+            return vec![];
+        }
+
+        let mut output = vec![];
+
+        if let Some(children) = nodes_by_parent.get(&Some(group_id)) {
+            output.reserve(children.len());
+            for child in children {
+                if child.node.kind == FrontstagePageTreeNodeKind::Page {
+                    output.push(child.node.clone());
+                    continue;
                 }
 
-                output
-            })
-            .unwrap_or_default()
+                output.extend(flatten_group_children(
+                    child.id,
+                    nodes_by_parent,
+                    visiting_groups
+                ));
+            }
+        }
+
+        visiting_groups.remove(&group_id);
+        output
     }
 
     let mut roots = nodes_by_parent.remove(&None).unwrap_or_default();
     for root in &mut roots {
         if root.node.kind == FrontstagePageTreeNodeKind::Group {
-            root.node.children = flatten_group_children(root.id, &nodes_by_parent);
+            root.node.children = flatten_group_children(
+                root.id,
+                &nodes_by_parent,
+                &mut HashSet::new()
+            );
         }
     }
 
@@ -234,6 +259,80 @@ mod tests {
         assert_eq!(output[0].children.len(), 1);
         assert_eq!(output[0].children[0].id, nested_page_id.to_string());
         assert_eq!(output[0].children[0].kind, FrontstagePageTreeNodeKind::Page);
+        assert_eq!(output[1].id, root_page_id.to_string());
+    }
+
+    #[test]
+    fn build_frontstage_page_tree_sanitizes_orphan_parent_as_root() {
+        let orphan_parent_id = Uuid::from_str("11111111-1111-1111-1111-111111111111").unwrap();
+        let orphan_page_id = Uuid::from_str("11111111-1111-1111-1111-111111111112").unwrap();
+        let root_page_id = Uuid::from_str("11111111-1111-1111-1111-111111111113").unwrap();
+
+        let output = build_frontstage_page_tree(vec![
+            FrontstagePageRecord {
+                id: orphan_page_id,
+                title: Some("Orphan".to_string()),
+                kind: FrontstagePageTreeNodeKind::Page,
+                parent_id: Some(orphan_parent_id),
+                rank: Some("a".to_string()),
+            },
+            FrontstagePageRecord {
+                id: root_page_id,
+                title: Some("Root".to_string()),
+                kind: FrontstagePageTreeNodeKind::Page,
+                parent_id: None,
+                rank: Some("b".to_string()),
+            },
+        ]);
+
+        assert_eq!(output.len(), 2);
+        assert_eq!(output[0].id, orphan_page_id.to_string());
+        assert_eq!(output[0].kind, FrontstagePageTreeNodeKind::Page);
+        assert_eq!(output[1].id, root_page_id.to_string());
+    }
+
+    #[test]
+    fn build_frontstage_page_tree_handles_group_cycles_without_infinite_loop() {
+        let group_a_id = Uuid::from_str("11111111-1111-1111-1111-111111111111").unwrap();
+        let group_b_id = Uuid::from_str("11111111-1111-1111-1111-111111111112").unwrap();
+        let root_group_id = Uuid::from_str("11111111-1111-1111-1111-111111111113").unwrap();
+        let root_page_id = Uuid::from_str("11111111-1111-1111-1111-111111111114").unwrap();
+
+        let output = build_frontstage_page_tree(vec![
+            FrontstagePageRecord {
+                id: group_a_id,
+                title: Some("Group A".to_string()),
+                kind: FrontstagePageTreeNodeKind::Group,
+                parent_id: Some(group_b_id),
+                rank: Some("a".to_string()),
+            },
+            FrontstagePageRecord {
+                id: group_b_id,
+                title: Some("Group B".to_string()),
+                kind: FrontstagePageTreeNodeKind::Group,
+                parent_id: Some(group_a_id),
+                rank: Some("a".to_string()),
+            },
+            FrontstagePageRecord {
+                id: root_group_id,
+                title: Some("Root Group".to_string()),
+                kind: FrontstagePageTreeNodeKind::Group,
+                parent_id: None,
+                rank: Some("a".to_string()),
+            },
+            FrontstagePageRecord {
+                id: root_page_id,
+                title: Some("Root Page".to_string()),
+                kind: FrontstagePageTreeNodeKind::Page,
+                parent_id: None,
+                rank: Some("c".to_string()),
+            },
+        ]);
+
+        assert_eq!(output.len(), 2);
+        assert_eq!(output[0].id, root_group_id.to_string());
+        assert_eq!(output[0].kind, FrontstagePageTreeNodeKind::Group);
+        assert_eq!(output[0].children.len(), 0);
         assert_eq!(output[1].id, root_page_id.to_string());
     }
 }
