@@ -76,6 +76,11 @@ pub fn permission_catalog() -> Vec<PermissionDefinition> {
     );
     push_permissions(
         &mut permissions,
+        "ui_block",
+        &[("javascript", &["native"])],
+    );
+    push_permissions(
+        &mut permissions,
         "state_model",
         &[
             ("view", &["own", "all"]),
