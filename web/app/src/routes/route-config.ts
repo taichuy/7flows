@@ -21,6 +21,19 @@ export const APP_ROUTES: AppRouteDefinition[] = [
     guard: 'session-required'
   },
   {
+    id: 'frontstage',
+    path: '/frontstage',
+    navLabel: '前台',
+    chromeSlot: 'primary',
+    selectedMatchers: [
+      (pathname) =>
+        pathname === '/frontstage' ||
+        /^\/frontstage\/[^/]+(\/[^/]+)?$/.test(pathname)
+    ],
+    permissionKey: 'route_page.view.all',
+    guard: 'session-required'
+  },
+  {
     id: 'application-detail',
     path: '/applications',
     navLabel: null,

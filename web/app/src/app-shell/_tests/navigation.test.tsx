@@ -10,6 +10,7 @@ describe('Navigation', () => {
     const nav = await screen.findByRole('navigation', { name: 'Primary' });
 
     expect(within(nav).getByRole('link', { name: '工作台' })).toBeInTheDocument();
+    expect(within(nav).getByRole('link', { name: '前台' })).toBeInTheDocument();
     expect(within(nav).getByRole('link', { name: '子系统' })).toBeInTheDocument();
     expect(within(nav).getByRole('link', { name: '工具' })).toBeInTheDocument();
     expect(within(nav).queryByRole('link', { name: '设置' })).not.toBeInTheDocument();

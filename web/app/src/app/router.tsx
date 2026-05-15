@@ -15,12 +15,14 @@ import { SignInPage } from '../features/auth/pages/SignInPage';
 import type { ApplicationSectionKey } from '../features/applications/lib/application-sections';
 import { EmbeddedAppsPage } from '../features/embedded-apps/pages/EmbeddedAppsPage';
 import { HomePage } from '../features/home/pages/HomePage';
+import { FrontStagePage } from '../features/frontstage/pages/FrontStagePage';
 import type { MeSectionKey } from '../features/me/lib/me-sections';
 import { MePage } from '../features/me/pages/MePage';
 import type { SettingsSectionKey } from '../features/settings/lib/settings-sections';
 import { ToolsPage } from '../features/tools/pages/ToolsPage';
 import { RouteGuard } from '../routes/route-guards';
 import { LoadingState } from '../shared/ui/loading-state/LoadingState';
+import { useAuthStore } from '../state/auth-store';
 
 const ApplicationDetailPage = lazy(() =>
   import('../features/applications/pages/ApplicationDetailPage').then((module) => ({
@@ -215,6 +217,38 @@ function renderMeRoute(requestedSectionKey?: MeSectionKey) {
   );
 }
 
+function renderFrontStageRoute({
+  workspaceId,
+  pageId
+}: {
+  workspaceId: string;
+  pageId?: string;
+}) {
+  return (
+    <RouteGuard routeId="frontstage">
+      <LazyRouteBoundary>
+        <FrontStagePage workspaceId={workspaceId} pageId={pageId} />
+      </LazyRouteBoundary>
+    </RouteGuard>
+  );
+}
+
+function FrontStageWorkspaceRedirect() {
+  const workspaceId = useAuthStore((state) => state.actor?.current_workspace_id);
+
+  if (!workspaceId) {
+    return <Navigate to="/" replace />;
+  }
+
+  return (
+    <Navigate
+      to="/frontstage/$workspaceId"
+      params={{ workspaceId }}
+      replace
+    />
+  );
+}
+
 const settingsIndexRoute = createRoute({
   getParentRoute: () => shellRoute,
   path: '/settings',
@@ -299,6 +333,35 @@ const meSecurityRoute = createRoute({
   component: () => renderMeRoute('security')
 });
 
+const frontstageWorkspaceRootRoute = createRoute({
+  getParentRoute: () => shellRoute,
+  path: '/frontstage',
+  component: FrontStageWorkspaceRedirect,
+  notFoundComponent: NotFoundPage
+});
+
+const frontstageWorkspaceRoute = createRoute({
+  getParentRoute: () => shellRoute,
+  path: '/frontstage/$workspaceId',
+  notFoundComponent: NotFoundPage,
+  component: () => {
+    const { workspaceId } = frontstageWorkspaceRoute.useParams();
+
+    return renderFrontStageRoute({ workspaceId });
+  }
+});
+
+const frontstageWorkspacePageRoute = createRoute({
+  getParentRoute: () => shellRoute,
+  path: '/frontstage/$workspaceId/$pageId',
+  notFoundComponent: NotFoundPage,
+  component: () => {
+    const { pageId, workspaceId } = frontstageWorkspacePageRoute.useParams();
+
+    return renderFrontStageRoute({ workspaceId, pageId });
+  }
+});
+
 const signInRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/sign-in',
@@ -330,7 +393,10 @@ const routeTree = rootRoute.addChildren([
     settingsRolesRoute,
     meIndexRoute,
     meProfileRoute,
-    meSecurityRoute
+    meSecurityRoute,
+    frontstageWorkspaceRootRoute,
+    frontstageWorkspaceRoute,
+    frontstageWorkspacePageRoute
   ]),
   signInRoute
 ]);

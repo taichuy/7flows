@@ -7,6 +7,7 @@ export interface HealthResponse {
 export type AppRouteId =
   | 'home'
   | 'application-detail'
+  | 'frontstage'
   | 'embedded-apps'
   | 'tools'
   | 'settings'

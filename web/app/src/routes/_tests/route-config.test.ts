@@ -6,6 +6,7 @@ describe('route truth layer', () => {
   test('keeps navigation ids, labels, paths, and selected-state logic in one source', () => {
     expect(APP_ROUTES.map((route) => route.id)).toEqual([
       'home',
+      'frontstage',
       'application-detail',
       'embedded-apps',
       'tools',
@@ -19,6 +20,9 @@ describe('route truth layer', () => {
     expect(getSelectedRouteId('/me')).toBe('me');
     expect(getSelectedRouteId('/me/profile')).toBe('me');
     expect(getSelectedRouteId('/me/security')).toBe('me');
+    expect(getSelectedRouteId('/frontstage')).toBe('frontstage');
+    expect(getSelectedRouteId('/frontstage/workspace-1')).toBe('frontstage');
+    expect(getSelectedRouteId('/frontstage/workspace-1/page-1')).toBe('frontstage');
     expect(getSelectedRouteId('/applications/app-1')).toBe('home');
     expect(getSelectedRouteId('/applications/app-1/orchestration')).toBe('home');
     expect(getSelectedRouteId('/applications/app-1/api')).toBe('home');
