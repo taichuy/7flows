@@ -12,7 +12,13 @@ import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 const runtimeApi = vi.hoisted(() => ({
   applicationRunsQueryKey: (
     applicationId: string,
-    input?: { page: number; pageSize: number; timeRangeDays?: number | null }
+    input?: {
+      page?: number;
+      pageSize?: number;
+      timeRangeDays?: number | null;
+      sortBy?: 'started_at' | 'finished_at' | 'created_at';
+      sortOrder?: 'asc' | 'desc';
+    }
   ) =>
     [
       'applications',
@@ -21,7 +27,9 @@ const runtimeApi = vi.hoisted(() => ({
       'runs',
       input?.page ?? 1,
       input?.pageSize ?? 20,
-      input?.timeRangeDays ?? 'all'
+      input?.timeRangeDays ?? 'all',
+      input?.sortBy ?? 'started_at',
+      input?.sortOrder ?? 'desc'
     ] as const,
   applicationRunDetailQueryKey: (applicationId: string, runId: string) =>
     ['applications', applicationId, 'runtime', 'runs', runId] as const,
@@ -193,7 +201,9 @@ describe('ApplicationLogsPage', () => {
     expect(runtimeApi.fetchApplicationRuns).toHaveBeenCalledWith('app-1', {
       page: 1,
       pageSize: 20,
-      timeRangeDays: 7
+      timeRangeDays: 7,
+      sortBy: 'started_at',
+      sortOrder: 'desc'
     });
     expect(
       screen.queryByRole('complementary', { name: '运行详情' })
@@ -350,22 +360,29 @@ describe('ApplicationLogsPage', () => {
       </AppProviders>
     );
 
-    expect(await screen.findAllByRole('table')).toHaveLength(1);
+    expect((await screen.findAllByRole('table')).length).toBeGreaterThan(0);
     expect(
       screen.getByRole('columnheader', {
         name: 'expand_id'
       })
     ).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole('button', { name: '字段配置' }));
-    fireEvent.click(screen.getByRole('checkbox', { name: 'expand_id' }));
+    fireEvent.mouseDown(screen.getByRole('combobox', { name: '字段配置' }));
+    fireEvent.click(
+      await screen.findByText('expand_id', {
+        selector: '.ant-select-item-option-content'
+      })
+    );
 
     await waitFor(() => {
       const stored = window.localStorage.getItem(
         'applicationLogsRunsTableState:app-1'
       );
-      expect(stored).toContain('"visibleColumnKeys":[');
-      expect(stored).not.toContain('"expand_id"');
+      expect(stored).not.toBeNull();
+      const parsed = JSON.parse(stored ?? '{}') as {
+        visibleColumnKeys?: string[];
+      };
+      expect(parsed.visibleColumnKeys).not.toContain('expand_id');
     });
 
     rerender(
@@ -379,6 +396,66 @@ describe('ApplicationLogsPage', () => {
         name: 'expand_id'
       })
     ).not.toBeInTheDocument();
+  });
+
+  test('places table field configuration with the filters', async () => {
+    render(
+      <AppProviders>
+        <ApplicationLogsPage applicationId="app-1" />
+      </AppProviders>
+    );
+
+    expect((await screen.findAllByRole('table')).length).toBeGreaterThan(0);
+    const filters = screen.getByRole('search');
+
+    expect(
+      within(filters).getByRole('combobox', { name: '字段配置' })
+    ).toBeInTheDocument();
+  });
+
+  test('renders table field configuration with Ant Design multiple select', async () => {
+    render(
+      <AppProviders>
+        <ApplicationLogsPage applicationId="app-1" />
+      </AppProviders>
+    );
+
+    expect((await screen.findAllByRole('table')).length).toBeGreaterThan(0);
+
+    const trigger = screen.getByRole('combobox', { name: '字段配置' });
+    const wrapper = trigger.closest('.application-runs-table__column-selector');
+
+    expect(trigger).toHaveAttribute('aria-haspopup', 'listbox');
+    expect(wrapper).toHaveClass('ant-select-multiple');
+    expect(
+      wrapper?.querySelector(
+        '.application-runs-table__column-selector-trigger-caret'
+      )
+    ).not.toBeNull();
+  });
+
+  test('opens table field configuration as a dropdown menu', async () => {
+    render(
+      <AppProviders>
+        <ApplicationLogsPage applicationId="app-1" />
+      </AppProviders>
+    );
+
+    expect((await screen.findAllByRole('table')).length).toBeGreaterThan(0);
+
+    fireEvent.mouseDown(screen.getByRole('combobox', { name: '字段配置' }));
+
+    const fieldListbox = await screen.findByRole('listbox');
+
+    expect(
+      within(fieldListbox).getByRole('option', { name: 'expand_id' })
+    ).toBeInTheDocument();
+    expect(
+      within(fieldListbox).getByRole('option', { name: '运行 ID' })
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole('button', { name: '重置默认字段' })
+    ).toBeInTheDocument();
   });
 
   test('drags and resizes floating run detail window', async () => {
@@ -636,7 +713,9 @@ describe('ApplicationLogsPage', () => {
       expect(runtimeApi.fetchApplicationRuns).toHaveBeenLastCalledWith('app-1', {
         page: 1,
         pageSize: 20,
-        timeRangeDays: null
+        timeRangeDays: null,
+        sortBy: 'started_at',
+        sortOrder: 'desc'
       });
     });
     expect(await screen.findByText('run-old')).toBeInTheDocument();
@@ -691,7 +770,9 @@ describe('ApplicationLogsPage', () => {
     expect(runtimeApi.fetchApplicationRuns).toHaveBeenNthCalledWith(1, 'app-1', {
       page: 1,
       pageSize: 20,
-      timeRangeDays: 7
+      timeRangeDays: 7,
+      sortBy: 'started_at',
+      sortOrder: 'desc'
     });
     expect(screen.getByText('共 42 条')).toBeInTheDocument();
 
@@ -701,7 +782,9 @@ describe('ApplicationLogsPage', () => {
       expect(runtimeApi.fetchApplicationRuns).toHaveBeenNthCalledWith(2, 'app-1', {
         page: 2,
         pageSize: 20,
-        timeRangeDays: 7
+        timeRangeDays: 7,
+        sortBy: 'started_at',
+        sortOrder: 'desc'
       });
     });
     expect(await screen.findByText('title-21')).toBeInTheDocument();
@@ -751,11 +834,11 @@ describe('ApplicationLogsPage', () => {
       /\.application-logs-page__stack\s*\{[^}]*display:\s*flex;[^}]*flex-direction:\s*column;[^}]*height:\s*100%;/s
     );
     expect(cssSource).toMatch(
-      /\.application-logs-page__list\s*\{[^}]*display:\s*flex;[^}]*flex-direction:\s*column;[^}]*flex:\s*1 1 auto;[^}]*min-height:\s*0;[^}]*overflow-x:\s*hidden;[^}]*overflow-y:\s*auto;/s
+      /\.application-logs-page__list\s*\{[^}]*display:\s*flex;[^}]*flex-direction:\s*column;[^}]*flex:\s*1 1 auto;[^}]*min-height:\s*0;[^}]*overflow-x:\s*hidden;[^}]*overflow-y:\s*hidden;/s
     );
   });
 
-  test('keeps the table body scrollable while pagination stays outside the row area', async () => {
+  test('keeps the table header and pagination fixed around the row scroll area', async () => {
     const cssSource = await readFile(
       path.resolve(
         process.cwd(),
@@ -763,15 +846,6 @@ describe('ApplicationLogsPage', () => {
       ),
       'utf8'
     );
-    const tableWrapperBlock = cssSource.match(
-      /\.application-logs-page__list \.ant-table-wrapper\s*\{[\s\S]*?\n\}/
-    )?.[0];
-    const spinContainerBlock = cssSource.match(
-      /\.application-logs-page__list \.ant-spin-container\s*\{[\s\S]*?\n\}/
-    )?.[0];
-    const tableInternalsBlock = cssSource.match(
-      /\.application-logs-page__list \.ant-spin-nested-loading,[\s\S]*?\.application-logs-page__list \.ant-table\s*\{[\s\S]*?\n\}/
-    )?.[0];
     const tableSource = await readFile(
       path.resolve(
         process.cwd(),
@@ -780,13 +854,49 @@ describe('ApplicationLogsPage', () => {
       'utf8'
     );
 
-    expect(tableWrapperBlock).toContain('display: flex;');
-    expect(spinContainerBlock).toContain('display: flex;');
-    expect(tableInternalsBlock).toContain('display: flex;');
     expect(cssSource).toMatch(
-      /\.application-logs-page__list \.ant-table-body\s*\{[^}]*min-height:\s*0;[^}]*\}/s
+      /\.application-logs-page__list\s*\{[^}]*overflow-y:\s*hidden;[^}]*\}/s
     );
-    expect(tableSource).toContain("y: '100%'");
+    expect(cssSource).toMatch(
+      /\.application-runs-table\s*\{[^}]*flex:\s*1 1 auto;[^}]*\}/s
+    );
+    expect(cssSource).toMatch(
+      /\.application-runs-table__scroll-area\s*\{[^}]*flex:\s*1 1 auto;[^}]*overflow-x:\s*auto;[^}]*overflow-y:\s*auto;[^}]*\}/s
+    );
+    expect(cssSource).toMatch(
+      /\.application-logs-page__list \.ant-table-thead > tr > th\s*\{[^}]*position:\s*sticky;[^}]*top:\s*0;[^}]*z-index:\s*2;[^}]*\}/s
+    );
+    expect(cssSource).toMatch(
+      /\.application-runs-table__pagination\s*\{[^}]*flex:\s*0 0 auto;[^}]*\}/s
+    );
+    expect(tableSource).not.toContain("y: '100%'");
+  });
+
+  test('keeps horizontal scrolling on the runs table wrapper instead of the Ant Design body', async () => {
+    const cssSource = await readFile(
+      path.resolve(
+        process.cwd(),
+        'src/features/applications/pages/application-logs-page.css'
+      ),
+      'utf8'
+    );
+    const tableSource = await readFile(
+      path.resolve(
+        process.cwd(),
+        'src/features/applications/components/logs/ApplicationRunsTable.tsx'
+      ),
+      'utf8'
+    );
+
+    expect(tableSource).not.toMatch(/\s+sticky(?:\s|\n|\/?>)/);
+    expect(tableSource).not.toContain('x: fixedTableWidth');
+    expect(tableSource).toContain('minWidth: fixedTableWidth');
+    expect(cssSource).toMatch(
+      /\.application-runs-table__scroll-area\s*\{[^}]*overflow-x:\s*auto;[^}]*overflow-y:\s*auto;/s
+    );
+    expect(cssSource).toMatch(
+      /\.application-logs-page__list \.ant-table-body\s*\{[^}]*overflow-x:\s*hidden !important;[^}]*\}/s
+    );
   });
 
   test('renders logs inside the full section layout height chain', async () => {

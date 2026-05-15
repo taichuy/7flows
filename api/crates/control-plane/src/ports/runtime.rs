@@ -759,11 +759,13 @@ pub trait OrchestrationRuntimeRepository: Send + Sync {
     ) -> anyhow::Result<Option<domain::NodeLastRun>>;
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ListApplicationRunsPageInput {
     pub page: i64,
     pub page_size: i64,
     pub created_after: Option<OffsetDateTime>,
+    pub sort_by: Option<String>,
+    pub sort_order: Option<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

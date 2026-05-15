@@ -33,6 +33,8 @@ export interface GetConsoleApplicationRunsInput {
   page?: number;
   page_size?: number;
   time_range_days?: number;
+  sort_by?: 'created_at' | 'started_at' | 'finished_at' | 'updated_at';
+  sort_order?: 'asc' | 'desc';
 }
 
 export interface ConsoleFlowRunDetail {
@@ -960,6 +962,12 @@ export function getConsoleApplicationRuns(
   });
   if (input.time_range_days !== undefined) {
     searchParams.set('time_range_days', String(input.time_range_days));
+  }
+  if (input.sort_by !== undefined) {
+    searchParams.set('sort_by', input.sort_by);
+  }
+  if (input.sort_order !== undefined) {
+    searchParams.set('sort_order', input.sort_order);
   }
   return apiFetch<ConsoleApplicationRunsPage>({
     path:

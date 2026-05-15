@@ -1,6 +1,6 @@
 import { SearchOutlined } from '@ant-design/icons';
 import { useQueries, useQuery } from '@tanstack/react-query';
-import { Empty, Input, Result, Select, Typography } from 'antd';
+import { Empty, Input, Select } from 'antd';
 import { useEffect, useState } from 'react';
 
 import type { AgentFlowDebugMessage } from '../../agent-flow/api/runtime';
@@ -10,12 +10,18 @@ import {
   applicationRunsQueryKey,
   fetchApplicationRunDetail,
   fetchApplicationRuns,
+  type ApplicationRunSortField,
+  type ApplicationRunSortOrder,
   type ApplicationRunDetail,
   type ApplicationRunSummary
 } from '../api/runtime';
 import { ApplicationRunDetailPanel } from '../components/logs/ApplicationRunDetailPanel';
 import { ApplicationLogsFloatingWindow } from '../components/logs/ApplicationLogsFloatingWindow';
-import { ApplicationRunsTable } from '../components/logs/ApplicationRunsTable';
+import {
+  ApplicationRunsTable,
+  ApplicationRunsTableColumnSettings,
+  useApplicationRunsTableConfiguration
+} from '../components/logs/ApplicationRunsTable';
 import './application-logs-page.css';
 
 const FLOATING_WINDOW_TOP = 112;
@@ -47,6 +53,22 @@ const TIME_RANGE_OPTIONS: Array<{
   { label: '过去 12 月', value: '365' },
   { label: '所有时间', value: 'all' }
 ];
+const RUN_SORT_FIELD_OPTIONS: Array<{
+  label: string;
+  value: ApplicationRunSortField;
+}> = [
+  { label: '开始时间', value: 'started_at' },
+  { label: '更新时间', value: 'updated_at' }
+];
+const RUN_SORT_ORDER_OPTIONS: Array<{
+  label: string;
+  value: ApplicationRunSortOrder;
+}> = [
+  { label: '降序', value: 'desc' },
+  { label: '升序', value: 'asc' }
+];
+const DEFAULT_SORT_BY: ApplicationRunSortField = 'started_at';
+const DEFAULT_SORT_ORDER: ApplicationRunSortOrder = 'desc';
 
 function getViewportSize() {
   if (typeof window === 'undefined') {
@@ -169,20 +191,30 @@ export function ApplicationLogsPage({
     useState<ApplicationLogTimeRange>(DEFAULT_TIME_RANGE);
   const [keywordSearch, setKeywordSearch] = useState('');
   const [page, setPage] = useState(1);
+  const [sortBy, setSortBy] =
+    useState<ApplicationRunSortField>(DEFAULT_SORT_BY);
+  const [sortOrder, setSortOrder] =
+    useState<ApplicationRunSortOrder>(DEFAULT_SORT_ORDER);
   const [activeFloatingWindow, setActiveFloatingWindow] = useState<
     'conversation-log' | 'run-detail'
   >('run-detail');
+  const runsTableConfiguration =
+    useApplicationRunsTableConfiguration(applicationId);
   const runsQuery = useQuery({
     queryKey: applicationRunsQueryKey(applicationId, {
       page,
       pageSize: PAGE_SIZE,
-      timeRangeDays: timeRange === 'all' ? null : Number(timeRange)
+      timeRangeDays: timeRange === 'all' ? null : Number(timeRange),
+      sortBy,
+      sortOrder
     }),
     queryFn: () =>
       fetchApplicationRuns(applicationId, {
         page,
         pageSize: PAGE_SIZE,
-        timeRangeDays: timeRange === 'all' ? null : Number(timeRange)
+        timeRangeDays: timeRange === 'all' ? null : Number(timeRange),
+        sortBy,
+        sortOrder
       })
   });
   const runsPage = runsQuery.data;
@@ -224,7 +256,7 @@ export function ApplicationLogsPage({
 
   useEffect(() => {
     setPage(1);
-  }, [applicationId, timeRange]);
+  }, [applicationId, timeRange, sortBy, sortOrder]);
 
   function selectRun(runId: string | null) {
     setSelectedRunId(runId);
@@ -233,19 +265,15 @@ export function ApplicationLogsPage({
   }
 
   if (runsQuery.isPending) {
-    return <Result status="info" title="正在加载运行日志" />;
+    return null;
   }
 
   if (runsQuery.isError) {
-    return <Result status="error" title="运行日志加载失败" />;
+    return null;
   }
 
   const logsHeader = (
     <div className="application-logs-page__header">
-      <Typography.Title level={4}>运行日志</Typography.Title>
-      <Typography.Paragraph type="secondary">
-        这里展示应用运行记录，点击后可用浮窗查看对话和节点输入输出。
-      </Typography.Paragraph>
       <div className="application-logs-page__filters" role="search">
         <Select<ApplicationLogTimeRange>
           aria-label="时间间隔"
@@ -253,6 +281,20 @@ export function ApplicationLogsPage({
           options={TIME_RANGE_OPTIONS}
           value={timeRange}
           onChange={setTimeRange}
+        />
+        <Select<ApplicationRunSortField>
+          aria-label="排序字段"
+          className="application-logs-page__filter-select"
+          options={RUN_SORT_FIELD_OPTIONS}
+          value={sortBy}
+          onChange={setSortBy}
+        />
+        <Select<ApplicationRunSortOrder>
+          aria-label="排序方向"
+          className="application-logs-page__filter-select"
+          options={RUN_SORT_ORDER_OPTIONS}
+          value={sortOrder}
+          onChange={setSortOrder}
         />
         <Input
           allowClear
@@ -263,9 +305,11 @@ export function ApplicationLogsPage({
           value={keywordSearch}
           onChange={(event) => setKeywordSearch(event.target.value)}
         />
-        <Typography.Text type="secondary">
-          默认按创建时间倒序展示，最新运行优先。
-        </Typography.Text>
+        <div className="application-logs-page__filter-actions">
+          <ApplicationRunsTableColumnSettings
+            configuration={runsTableConfiguration}
+          />
+        </div>
       </div>
     </div>
   );
@@ -276,13 +320,13 @@ export function ApplicationLogsPage({
     >
       {runs.length === 0 ? (
         <Empty
-          description="当前应用还没有运行记录"
           image={Empty.PRESENTED_IMAGE_SIMPLE}
+          description={null}
         />
       ) : visibleRuns.length === 0 && !searchingRunDetails ? (
         <Empty
-          description="没有符合筛选条件的运行记录"
           image={Empty.PRESENTED_IMAGE_SIMPLE}
+          description={null}
         />
       ) : (
         <ApplicationRunsTable
@@ -290,7 +334,7 @@ export function ApplicationLogsPage({
           page={page}
           pageSize={PAGE_SIZE}
           total={total}
-          applicationId={applicationId}
+          configuration={runsTableConfiguration}
           runs={visibleRuns}
           selectedRunId={selectedRunId}
           onPageChange={setPage}

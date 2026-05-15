@@ -307,6 +307,10 @@ impl PgControlPlaneStore {
         let page_size = input.page_size.clamp(1, 100);
         let offset = (page - 1) * page_size;
         let created_after = input.created_after;
+        let order_by = application_runs_page_order_by(
+            input.sort_by.as_deref(),
+            input.sort_order.as_deref(),
+        );
 
         let total = sqlx::query_scalar::<_, i64>(
             r#"
@@ -321,7 +325,7 @@ impl PgControlPlaneStore {
         .fetch_one(self.pool())
         .await?;
 
-        let rows = sqlx::query(
+        let rows = sqlx::query(&format!(
             r#"
             select
                 id,
@@ -343,10 +347,11 @@ impl PgControlPlaneStore {
             from flow_runs
             where application_id = $1
               and ($2::timestamptz is null or created_at >= $2)
-            order by created_at desc, id desc
+            order by {}
             limit $3 offset $4
             "#,
-        )
+            order_by
+        ))
         .bind(application_id)
         .bind(created_after)
         .bind(page_size)
@@ -364,6 +369,31 @@ impl PgControlPlaneStore {
             page_size,
         })
     }
+
+fn application_runs_page_order_by(
+    sort_by: Option<&str>,
+    sort_order: Option<&str>,
+) -> String {
+    let sort_by = sort_by
+        .unwrap_or("created_at")
+        .to_ascii_lowercase();
+    let sort_order = sort_order
+        .unwrap_or("desc")
+        .to_ascii_lowercase();
+    let field = match sort_by.as_str() {
+        "started_at" => "started_at",
+        "finished_at" => "finished_at",
+        "updated_at" => "updated_at",
+        "created_at" => "created_at",
+        _ => "created_at",
+    };
+    let direction = match sort_order.as_str() {
+        "asc" => "asc",
+        _ => "desc",
+    };
+
+    format!("{field} {direction}, id {direction}")
+}
 
     async fn get_application_run_detail(
         &self,

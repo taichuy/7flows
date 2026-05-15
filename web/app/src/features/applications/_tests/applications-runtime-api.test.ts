@@ -44,7 +44,12 @@ describe('applications runtime api', () => {
       'applications',
       'app-1',
       'runtime',
-      'runs'
+      'runs',
+      1,
+      20,
+      'all',
+      'started_at',
+      'desc'
     ]);
     expect(applicationRunDetailQueryKey('app-1', 'run-1')).toEqual([
       'applications',
@@ -70,6 +75,12 @@ describe('applications runtime api', () => {
 
     expect(getConsoleApplicationRuns).toHaveBeenCalledWith(
       'app-1',
+      expect.objectContaining({
+        page: 1,
+        page_size: 20,
+        sort_by: 'started_at',
+        sort_order: 'desc'
+      }),
       'http://127.0.0.1:7800'
     );
     expect(getConsoleApplicationRunDetail).toHaveBeenCalledWith(

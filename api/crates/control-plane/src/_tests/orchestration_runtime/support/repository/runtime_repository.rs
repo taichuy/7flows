@@ -1210,6 +1210,68 @@ impl OrchestrationRuntimeRepository for InMemoryOrchestrationRuntimeRepository {
         if let Some(created_after) = input.created_after {
             runs.retain(|run| run.created_at >= created_after);
         }
+        runs.sort_by(|left, right| {
+            let sort_by = input
+                .sort_by
+                .as_deref()
+                .unwrap_or("created_at")
+                .to_ascii_lowercase();
+            let sort_order = input
+                .sort_order
+                .as_deref()
+                .unwrap_or("desc")
+                .to_ascii_lowercase();
+            let sort_by = sort_by.as_str();
+            let sort_order = sort_order.as_str();
+
+            let order = match sort_order {
+                "asc" => std::cmp::Ordering::Less,
+                "desc" => std::cmp::Ordering::Greater,
+                _ => std::cmp::Ordering::Greater,
+            };
+            let field_order = match sort_by {
+                "started_at" => match order {
+                    std::cmp::Ordering::Less => {
+                        left.started_at.cmp(&right.started_at)
+                    }
+                    std::cmp::Ordering::Greater => {
+                        right.started_at.cmp(&left.started_at)
+                    }
+                    _ => std::cmp::Ordering::Equal,
+                },
+                "finished_at" => match order {
+                    std::cmp::Ordering::Less => left.finished_at.cmp(&right.finished_at),
+                    std::cmp::Ordering::Greater => {
+                        right.finished_at.cmp(&left.finished_at)
+                    }
+                    _ => std::cmp::Ordering::Equal,
+                },
+                "updated_at" => match order {
+                    std::cmp::Ordering::Less => left.updated_at.cmp(&right.updated_at),
+                    std::cmp::Ordering::Greater => {
+                        right.updated_at.cmp(&left.updated_at)
+                    }
+                    _ => std::cmp::Ordering::Equal,
+                },
+                _ => match order {
+                    std::cmp::Ordering::Less => left.created_at.cmp(&right.created_at),
+                    std::cmp::Ordering::Greater => {
+                        right.created_at.cmp(&left.created_at)
+                    }
+                    _ => std::cmp::Ordering::Equal,
+                },
+            };
+
+            if field_order == std::cmp::Ordering::Equal {
+                match order {
+                    std::cmp::Ordering::Less => left.id.cmp(&right.id),
+                    std::cmp::Ordering::Greater => right.id.cmp(&left.id),
+                    _ => std::cmp::Ordering::Equal,
+                }
+            } else {
+                field_order
+            }
+        });
         let total = runs.len() as i64;
         let items = runs
             .drain(offset.min(runs.len())..)

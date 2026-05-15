@@ -17,25 +17,35 @@ export type ApplicationRunsPage = ConsoleApplicationRunsPage;
 export type ApplicationRunDetail = ConsoleApplicationRunDetail;
 export type ApplicationRuntimeDebugStreamPart = RuntimeDebugStreamPart;
 export type { RuntimeDebugStreamPart };
+export type ApplicationRunSortField =
+  | 'created_at'
+  | 'started_at'
+  | 'finished_at'
+  | 'updated_at';
+export type ApplicationRunSortOrder = 'asc' | 'desc';
 
 export interface FetchApplicationRunsInput {
-  page: number;
-  pageSize: number;
+  page?: number;
+  pageSize?: number;
   timeRangeDays?: number | null;
+  sortBy?: ApplicationRunSortField;
+  sortOrder?: ApplicationRunSortOrder;
 }
 
 export const applicationRunsQueryKey = (
   applicationId: string,
-  input: FetchApplicationRunsInput
+  input: FetchApplicationRunsInput = {}
 ) =>
   [
     'applications',
     applicationId,
     'runtime',
     'runs',
-    input.page,
-    input.pageSize,
-    input.timeRangeDays ?? 'all'
+    input.page ?? 1,
+    input.pageSize ?? 20,
+    input.timeRangeDays ?? 'all',
+    input.sortBy ?? 'started_at',
+    input.sortOrder ?? 'desc'
   ] as const;
 
 export const applicationRunDetailQueryKey = (
@@ -58,14 +68,16 @@ export const applicationRuntimeDebugStreamQueryKey = (
 
 export function fetchApplicationRuns(
   applicationId: string,
-  input: FetchApplicationRunsInput
+  input: FetchApplicationRunsInput = {}
 ) {
   return getConsoleApplicationRuns(
     applicationId,
     {
-      page: input.page,
-      page_size: input.pageSize,
-      time_range_days: input.timeRangeDays ?? undefined
+      page: input.page ?? 1,
+      page_size: input.pageSize ?? 20,
+      time_range_days: input.timeRangeDays ?? undefined,
+      sort_by: input.sortBy ?? 'started_at',
+      sort_order: input.sortOrder ?? 'desc'
     },
     getApplicationsApiBaseUrl()
   );

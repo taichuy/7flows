@@ -250,6 +250,8 @@ pub struct ApplicationRunsQuery {
     pub page: Option<i64>,
     pub page_size: Option<i64>,
     pub time_range_days: Option<i64>,
+    pub sort_by: Option<String>,
+    pub sort_order: Option<String>,
 }
 
 #[derive(Debug, Deserialize, ToSchema)]
@@ -491,6 +493,23 @@ fn application_runs_created_after(query: &ApplicationRunsQuery) -> Option<Offset
     }
 
     Some(OffsetDateTime::now_utc() - Duration::days(days))
+}
+
+fn normalize_application_run_sort_by(input: Option<&str>) -> &'static str {
+    match input.unwrap_or("created_at") {
+        "created_at" => "created_at",
+        "started_at" => "started_at",
+        "finished_at" => "finished_at",
+        "updated_at" => "updated_at",
+        _ => "created_at",
+    }
+}
+
+fn normalize_application_run_sort_order(input: Option<&str>) -> &'static str {
+    match input.unwrap_or("desc").to_ascii_lowercase().as_str() {
+        "asc" => "asc",
+        _ => "desc",
+    }
 }
 
 fn to_flow_run_response(run: domain::FlowRunRecord) -> FlowRunResponse {
@@ -1193,7 +1212,9 @@ pub async fn get_runtime_debug_artifact(
         ("id" = String, Path, description = "Application id"),
         ("page" = Option<i64>, Query, description = "1-based page number"),
         ("page_size" = Option<i64>, Query, description = "Page size"),
-        ("time_range_days" = Option<i64>, Query, description = "Optional created-at day window")
+        ("time_range_days" = Option<i64>, Query, description = "Optional created-at day window"),
+        ("sort_by" = Option<String>, Query, description = "Sort field: created_at, started_at, finished_at or updated_at"),
+        ("sort_order" = Option<String>, Query, description = "Sort direction: asc or desc")
     ),
     responses(
         (status = 200, body = FlowRunSummaryPageResponse),
@@ -1219,6 +1240,12 @@ pub async fn list_application_runs(
                 page: query.page.unwrap_or(1),
                 page_size: query.page_size.unwrap_or(20),
                 created_after: application_runs_created_after(&query),
+                sort_by: Some(
+                    normalize_application_run_sort_by(query.sort_by.as_deref()).to_string()
+                ),
+                sort_order: Some(
+                    normalize_application_run_sort_order(query.sort_order.as_deref()).to_string()
+                ),
             },
         )
         .await?;

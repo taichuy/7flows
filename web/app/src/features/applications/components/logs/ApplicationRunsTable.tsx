@@ -1,7 +1,17 @@
-import { CheckOutlined, SettingOutlined } from '@ant-design/icons';
-import { Button, Checkbox, Pagination, Popover, Table, Tag } from 'antd';
+import {
+  CheckOutlined,
+  DownOutlined,
+  SettingOutlined
+} from '@ant-design/icons';
+import { Button, Pagination, Select, Table, Tag } from 'antd';
 import { useEffect, useMemo, useState } from 'react';
-import type { MouseEvent, ReactNode, ThHTMLAttributes } from 'react';
+import type {
+  Dispatch,
+  MouseEvent,
+  ReactNode,
+  SetStateAction,
+  ThHTMLAttributes
+} from 'react';
 import type { ColumnsType } from 'antd/es/table';
 
 import type { ApplicationRunSummary } from '../../api/runtime';
@@ -29,6 +39,13 @@ type RunsTableField = {
 type RunsTableState = {
   visibleColumnKeys: string[];
   columnWidths: Record<string, number>;
+};
+
+export type ApplicationRunsTableConfiguration = {
+  visibleColumnKeys: string[];
+  columnWidths: Record<string, number>;
+  setVisibleColumnKeys: Dispatch<SetStateAction<string[]>>;
+  setColumnWidths: Dispatch<SetStateAction<Record<string, number>>>;
 };
 
 const TABLE_COLUMNS: RunsTableField[] = [
@@ -74,7 +91,7 @@ const TABLE_COLUMNS: RunsTableField[] = [
     title: '目标节点',
     dataIndex: 'target_node_id',
     width: 160,
-    render: (value) => value ?? '全流'
+    render: (value) => typeof value === 'string' && value ? value : '全流'
   },
   {
     key: 'status',
@@ -89,14 +106,14 @@ const TABLE_COLUMNS: RunsTableField[] = [
     title: '开始时间',
     dataIndex: 'started_at',
     width: 200,
-    render: (value: string) => formatTimestamp(value)
+    render: (value) => formatTimestamp(typeof value === 'string' ? value : null)
   },
   {
     key: 'updated_at',
     title: '更新时间',
     dataIndex: 'updated_at',
     width: 200,
-    render: (value: string) => formatTimestamp(value)
+    render: (value) => formatTimestamp(typeof value === 'string' ? value : null)
   },
   {
     key: 'action',
@@ -114,7 +131,6 @@ const DEFAULT_COLUMN_WIDTHS = TABLE_COLUMNS.reduce<Record<string, number>>(
   },
   {}
 );
-
 function getStorageKey(applicationId: string) {
   return `${LOCAL_STORAGE_PREFIX}:${applicationId}`;
 }
@@ -187,6 +203,38 @@ function writeStoredState(applicationId: string, state: RunsTableState) {
   );
 }
 
+export function useApplicationRunsTableConfiguration(
+  applicationId: string
+): ApplicationRunsTableConfiguration {
+  const [visibleColumnKeys, setVisibleColumnKeys] = useState<string[]>(() => {
+    return readStoredState(applicationId).visibleColumnKeys;
+  });
+  const [columnWidths, setColumnWidths] = useState<Record<string, number>>(() => {
+    return readStoredState(applicationId).columnWidths;
+  });
+
+  useEffect(() => {
+    const state = readStoredState(applicationId);
+
+    setVisibleColumnKeys(state.visibleColumnKeys);
+    setColumnWidths(state.columnWidths);
+  }, [applicationId]);
+
+  useEffect(() => {
+    writeStoredState(applicationId, {
+      visibleColumnKeys,
+      columnWidths
+    });
+  }, [applicationId, visibleColumnKeys, columnWidths]);
+
+  return {
+    visibleColumnKeys,
+    columnWidths,
+    setVisibleColumnKeys,
+    setColumnWidths
+  };
+}
+
 type ResizeHeaderCellProps = ThHTMLAttributes<HTMLElement> & {
   onResizeMouseDown?: (event: MouseEvent<HTMLElement>) => void;
 };
@@ -204,8 +252,7 @@ function ResizeHeaderCell({
     >
       <span className="application-runs-table__header-title">{children}</span>
       <span
-        aria-label="调整列宽"
-        role="separator"
+        aria-hidden="true"
         className="application-runs-table__header-resize-handle"
         onMouseDown={onResizeMouseDown}
       />
@@ -221,14 +268,95 @@ function formatTimestamp(value: string | null | undefined) {
   return new Date(value).toLocaleString('zh-CN', { hour12: false });
 }
 
+export function ApplicationRunsTableColumnSettings({
+  configuration
+}: {
+  configuration: ApplicationRunsTableConfiguration;
+}) {
+  const {
+    visibleColumnKeys,
+    setVisibleColumnKeys,
+    setColumnWidths
+  } = configuration;
+
+  function handleColumnsChange(nextVisible: string[]) {
+    if (nextVisible.length === 0) {
+      return;
+    }
+
+    const columnKeys = TABLE_COLUMNS.map((column) => column.key);
+    const next = columnKeys.filter((columnKey) =>
+      nextVisible.includes(columnKey)
+    );
+
+    setVisibleColumnKeys(next);
+  }
+
+  const columnSelectOptions = TABLE_COLUMNS.map((column) => ({
+    label: column.title,
+    value: column.key,
+    disabled:
+      visibleColumnKeys.length === 1 && visibleColumnKeys.includes(column.key)
+  }));
+
+  return (
+    <Select<string[]>
+      aria-label="字段配置"
+      className="application-runs-table__column-selector"
+      classNames={{
+        popup: {
+          root: 'application-runs-table__column-selector-popup'
+        }
+      }}
+      maxTagCount={0}
+      maxTagPlaceholder={() => '字段配置'}
+      mode="multiple"
+      optionFilterProp="label"
+      options={columnSelectOptions}
+      placement="bottomRight"
+      popupMatchSelectWidth={220}
+      prefix={<SettingOutlined aria-hidden="true" />}
+      size="small"
+      suffixIcon={
+        <DownOutlined
+          aria-hidden="true"
+          className="application-runs-table__column-selector-trigger-caret"
+        />
+      }
+      value={visibleColumnKeys}
+      virtual={false}
+      popupRender={(originNode) => (
+        <div>
+          {originNode}
+          <div className="application-runs-table__column-selector-footer">
+            <Button
+              block
+              icon={<CheckOutlined aria-hidden="true" />}
+              size="small"
+              type="text"
+              onClick={() => {
+                setVisibleColumnKeys(DEFAULT_VISIBLE_KEYS);
+                setColumnWidths(DEFAULT_COLUMN_WIDTHS);
+              }}
+            >
+              重置默认字段
+            </Button>
+          </div>
+        </div>
+      )}
+      onChange={handleColumnsChange}
+    />
+  );
+}
+
 export function ApplicationRunsTable({
   loading = false,
-  applicationId,
   page,
   pageSize,
   total,
   runs,
   selectedRunId,
+  configuration,
   onPageChange,
   onSelectRun
 }: {
@@ -238,30 +366,11 @@ export function ApplicationRunsTable({
   total: number;
   runs: ApplicationRunSummary[];
   selectedRunId?: string | null;
+  configuration: ApplicationRunsTableConfiguration;
   onPageChange: (page: number) => void;
   onSelectRun: (runId: string) => void;
-  applicationId: string;
 }) {
-  const [visibleColumnKeys, setVisibleColumnKeys] = useState<string[]>(() => {
-    return readStoredState(applicationId).visibleColumnKeys;
-  });
-  const [columnWidths, setColumnWidths] = useState<Record<string, number>>(() => {
-    return readStoredState(applicationId).columnWidths;
-  });
-
-  useEffect(() => {
-    const state = readStoredState(applicationId);
-
-    setVisibleColumnKeys(state.visibleColumnKeys);
-    setColumnWidths(state.columnWidths);
-  }, [applicationId]);
-
-  useEffect(() => {
-    writeStoredState(applicationId, {
-      visibleColumnKeys: visibleColumnKeys,
-      columnWidths
-    });
-  }, [applicationId, visibleColumnKeys, columnWidths]);
+  const { visibleColumnKeys, columnWidths, setColumnWidths } = configuration;
 
   function startResize(columnKey: string, startWidth: number, event: MouseEvent<HTMLElement>) {
     event.preventDefault();
@@ -308,9 +417,11 @@ export function ApplicationRunsTable({
   }, [visibleColumnKeys]);
 
   const tableColumns = useMemo<ColumnsType<ApplicationRunSummary>>(() => {
-    return TABLE_COLUMNS.filter((column) =>
+    const visibleFields = TABLE_COLUMNS.filter((column) =>
       appliedVisibleColumnKeys.includes(column.key)
-    ).map((column) => {
+    );
+
+    return visibleFields.map((column) => {
       const width =
         columnWidths[column.key] &&
         columnWidths[column.key] >= MIN_COLUMN_WIDTH
@@ -350,88 +461,21 @@ export function ApplicationRunsTable({
 
   const fixedTableWidth = useMemo(() => {
     return tableColumns.reduce((sum, column) => {
-      const fixedWidth = column.width ?? MIN_COLUMN_WIDTH;
+      const fixedWidth =
+        typeof column.width === 'number' ? column.width : MIN_COLUMN_WIDTH;
 
       return sum + fixedWidth;
     }, 0);
   }, [tableColumns]);
 
-  function handleColumnsChange(nextVisible: string[]) {
-    if (nextVisible.length === 0) {
-      return;
-    }
-
-    const next = TABLE_COLUMNS.map((column) => column.key).filter((columnKey) =>
-      nextVisible.includes(columnKey)
-    );
-
-    setVisibleColumnKeys(next);
-  }
-
-  const columnsPopover = (
-    <div className="application-runs-table__column-selector">
-      <Checkbox.Group
-        className="application-runs-table__column-selector-list"
-        value={visibleColumnKeys}
-        onChange={handleColumnsChange}
-      >
-        {TABLE_COLUMNS.map((column) => {
-          return (
-            <Checkbox
-              key={column.key}
-              value={column.key}
-              disabled={
-                visibleColumnKeys.length === 1 &&
-                visibleColumnKeys.includes(column.key)
-              }
-            >
-              {column.title}
-            </Checkbox>
-          );
-        })}
-      </Checkbox.Group>
-      <div className="application-runs-table__column-selector-footer">
-        <Button
-          size="small"
-          type="link"
-          onClick={() => {
-            setVisibleColumnKeys(DEFAULT_VISIBLE_KEYS);
-            setColumnWidths(DEFAULT_COLUMN_WIDTHS);
-          }}
-          icon={<CheckOutlined />}
-        >
-          重置为默认
-        </Button>
-      </div>
-    </div>
-  );
-
   return (
     <section className="application-runs-table">
-      <div className="application-runs-table__toolbar">
-        <Popover
-          className="application-runs-table__column-selector-popover"
-          content={columnsPopover}
-          trigger="click"
-          title="显示的字段"
-          placement="bottomLeft"
-        >
-          <Button size="small" icon={<SettingOutlined />}>
-            字段配置
-          </Button>
-        </Popover>
-      </div>
       <div className="application-runs-table__scroll-area">
         <Table<ApplicationRunSummary>
           rowKey="id"
           dataSource={runs}
           loading={loading}
           style={{ minWidth: fixedTableWidth }}
-          scroll={{
-            x: fixedTableWidth,
-            y: '100%'
-          }}
-          sticky
           tableLayout="fixed"
           components={{
             header: {
