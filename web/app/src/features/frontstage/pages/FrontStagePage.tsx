@@ -1,5 +1,5 @@
 import { Button, Divider, Empty, Flex, Layout, Space, Typography } from 'antd';
-import type { FC, ReactNode } from 'react';
+import type { FC } from 'react';
 import { useEffect, useMemo, useState } from 'react';
 
 import { useAuthStore } from '../../../state/auth-store';
@@ -335,7 +335,6 @@ export const FrontStagePage: FC<FrontStagePageProps> = ({
     level: number = 0,
     parentNodes: FrontStageTreeNode[] = pageTree
   ) => {
-    const nodes: ReactNode[] = [];
     const isPageNode = node.kind === 'page';
     const isSelected = selectedPageId === node.id;
     const canAddPageToGroup = node.kind === 'group' && level === 0;
@@ -358,7 +357,9 @@ export const FrontStagePage: FC<FrontStagePageProps> = ({
       marginRight: 8
     } as const;
 
-    nodes.push(
+    const childNodes = node.children ?? [];
+
+    return (
       <li
         key={node.id}
         style={rowStyle}
@@ -447,22 +448,15 @@ export const FrontStagePage: FC<FrontStagePageProps> = ({
             </Button>
           </>
         ) : null}
+        {childNodes.length > 0 ? (
+          <ul style={{ listStyle: 'none', margin: 0, paddingLeft: 16 }}>
+            {childNodes.map((childNode) =>
+              renderTreeNode(childNode, level + 1, childNodes)
+            )}
+          </ul>
+        ) : null}
       </li>
     );
-
-    if (node.children && node.children.length > 0) {
-      for (const childIndex of node.children.keys()) {
-        nodes.push(
-          ...renderTreeNode(
-            node.children[childIndex],
-            level + 1,
-            node.children
-          )
-        );
-      }
-    }
-
-    return nodes;
   };
 
   return (
