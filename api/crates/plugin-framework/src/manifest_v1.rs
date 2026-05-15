@@ -1,5 +1,6 @@
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
+use std::collections::{BTreeMap, HashSet};
 
 use crate::{
     capability_kind::PluginConsumptionKind,
@@ -59,6 +60,39 @@ pub struct NodeContributionDependencyManifest {
     pub plugin_version_range: String,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct JsDependencyPermissionsManifest {
+    #[serde(default = "default_dependency_permission")]
+    pub network: String,
+    #[serde(default = "default_dependency_permission")]
+    pub filesystem: String,
+    #[serde(default = "default_dependency_permission")]
+    pub env: String,
+}
+
+fn default_dependency_permission() -> String {
+    "none".to_string()
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct JsDependencyManifest {
+    pub alias: String,
+    pub package: String,
+    pub version: String,
+    pub targets: Vec<String>,
+    #[serde(default)]
+    pub artifacts: BTreeMap<String, String>,
+    pub integrity: String,
+    #[serde(default)]
+    pub permissions: JsDependencyPermissionsManifest,
+    #[serde(default)]
+    pub native_addon: bool,
+    #[serde(default)]
+    pub lifecycle_scripts: bool,
+}
+
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct NodeContributionManifest {
@@ -107,6 +141,8 @@ pub struct PluginManifestV1 {
     pub runtime: PluginRuntimeManifest,
     #[serde(default)]
     pub node_contributions: Vec<NodeContributionManifest>,
+    #[serde(default)]
+    pub js_dependencies: Vec<JsDependencyManifest>,
 }
 
 impl PluginManifestV1 {
@@ -205,80 +241,87 @@ fn validate_plugin_manifest(manifest: &PluginManifestV1) -> FrameworkResult<()> 
     }
 
     if manifest.consumption_kind == PluginConsumptionKind::CapabilityPlugin
-        && manifest.node_contributions.is_empty()
+        && !manifest.slot_codes.iter().any(|slot| slot == "node_contribution")
+        && !manifest.slot_codes.iter().any(|slot| slot == "js_dependency_pack")
     {
         return Err(PluginFrameworkError::invalid_provider_package(
-            "capability_plugin must declare node_contributions",
+            "capability_plugin must declare node_contributions or js_dependency_pack",
         ));
     }
 
-    for node_contribution in &manifest.node_contributions {
-        validate_non_empty(
-            &node_contribution.contribution_code,
-            "node_contributions[].contribution_code",
-        )?;
-        validate_non_empty(
-            &node_contribution.node_shell,
-            "node_contributions[].node_shell",
-        )?;
-        validate_non_empty(&node_contribution.category, "node_contributions[].category")?;
-        validate_non_empty(&node_contribution.title, "node_contributions[].title")?;
-        validate_non_empty(
-            &node_contribution.description,
-            "node_contributions[].description",
-        )?;
-        validate_non_empty(&node_contribution.icon, "node_contributions[].icon")?;
-        validate_non_empty(
-            &node_contribution.schema_version,
-            "node_contributions[].schema_version",
-        )?;
-        validate_allowed(
-            &node_contribution.node_shell,
-            "node_contributions[].node_shell",
-            &["action"],
-        )?;
-        validate_allowed(
-            &node_contribution.schema_version,
-            "node_contributions[].schema_version",
-            &["1flowbase.node-contribution/v2"],
-        )?;
-        validate_allowed(
-            &node_contribution.side_effect_policy,
-            "node_contributions[].side_effect_policy",
-            &["none", "external_read", "external_write", "durable_write"],
-        )?;
-        validate_node_contribution_schema_ui(&node_contribution.schema_ui)?;
-        validate_node_contribution_output_schema(&node_contribution.output_schema)?;
-        validate_node_contribution_infra_contracts(&node_contribution.infra_contracts)?;
-        validate_required_auth(&node_contribution.required_auth)?;
-        validate_allowed(
-            &node_contribution.visibility,
-            "node_contributions[].visibility",
-            &["public"],
-        )?;
-        validate_allowed(
-            &node_contribution.dependency.installation_kind,
-            "node_contributions[].dependency.installation_kind",
-            &["optional", "required"],
-        )?;
-        validate_non_empty(
-            &node_contribution.dependency.installation_kind,
-            "node_contributions[].dependency.installation_kind",
-        )?;
-        validate_non_empty(
-            &node_contribution.dependency.plugin_version_range,
-            "node_contributions[].dependency.plugin_version_range",
-        )?;
-        if node_contribution.schema_ui.is_null() {
-            return Err(PluginFrameworkError::invalid_provider_package(
-                "node_contributions[].schema_ui cannot be null",
-            ));
+    if manifest.slot_codes.iter().any(|slot| slot == "node_contribution") {
+        for node_contribution in &manifest.node_contributions {
+            validate_non_empty(
+                &node_contribution.contribution_code,
+                "node_contributions[].contribution_code",
+            )?;
+            validate_non_empty(
+                &node_contribution.node_shell,
+                "node_contributions[].node_shell",
+            )?;
+            validate_non_empty(&node_contribution.category, "node_contributions[].category")?;
+            validate_non_empty(&node_contribution.title, "node_contributions[].title")?;
+            validate_non_empty(
+                &node_contribution.description,
+                "node_contributions[].description",
+            )?;
+            validate_non_empty(&node_contribution.icon, "node_contributions[].icon")?;
+            validate_non_empty(
+                &node_contribution.schema_version,
+                "node_contributions[].schema_version",
+            )?;
+            validate_allowed(
+                &node_contribution.node_shell,
+                "node_contributions[].node_shell",
+                &["action"],
+            )?;
+            validate_allowed(
+                &node_contribution.schema_version,
+                "node_contributions[].schema_version",
+                &["1flowbase.node-contribution/v2"],
+            )?;
+            validate_allowed(
+                &node_contribution.side_effect_policy,
+                "node_contributions[].side_effect_policy",
+                &["none", "external_read", "external_write", "durable_write"],
+            )?;
+            validate_node_contribution_schema_ui(&node_contribution.schema_ui)?;
+            validate_node_contribution_output_schema(&node_contribution.output_schema)?;
+            validate_node_contribution_infra_contracts(&node_contribution.infra_contracts)?;
+            validate_required_auth(&node_contribution.required_auth)?;
+            validate_allowed(
+                &node_contribution.visibility,
+                "node_contributions[].visibility",
+                &["public"],
+            )?;
+            validate_allowed(
+                &node_contribution.dependency.installation_kind,
+                "node_contributions[].dependency.installation_kind",
+                &["optional", "required"],
+            )?;
+            validate_non_empty(
+                &node_contribution.dependency.installation_kind,
+                "node_contributions[].dependency.installation_kind",
+            )?;
+            validate_non_empty(
+                &node_contribution.dependency.plugin_version_range,
+                "node_contributions[].dependency.plugin_version_range",
+            )?;
+            if node_contribution.schema_ui.is_null() {
+                return Err(PluginFrameworkError::invalid_provider_package(
+                    "node_contributions[].schema_ui cannot be null",
+                ));
+            }
+            if node_contribution.output_schema.is_null() {
+                return Err(PluginFrameworkError::invalid_provider_package(
+                    "node_contributions[].output_schema cannot be null",
+                ));
+            }
         }
-        if node_contribution.output_schema.is_null() {
-            return Err(PluginFrameworkError::invalid_provider_package(
-                "node_contributions[].output_schema cannot be null",
-            ));
-        }
+    }
+
+    if manifest.slot_codes.iter().any(|slot| slot == "js_dependency_pack") {
+        validate_js_dependencies(&manifest.js_dependencies)?;
     }
 
     Ok(())
@@ -547,7 +590,7 @@ fn validate_slot_codes(manifest: &PluginManifestV1) -> FrameworkResult<()> {
         "field_computed_value",
     ];
     const HOST_EXTENSION_ALLOWED: &[&str] = &["host_bootstrap"];
-    const CAPABILITY_PLUGIN_ALLOWED: &[&str] = &["node_contribution"];
+    const CAPABILITY_PLUGIN_ALLOWED: &[&str] = &["node_contribution", "js_dependency_pack"];
 
     let allowed = match manifest.consumption_kind {
         PluginConsumptionKind::HostExtension => HOST_EXTENSION_ALLOWED,
@@ -558,6 +601,97 @@ fn validate_slot_codes(manifest: &PluginManifestV1) -> FrameworkResult<()> {
     for slot in &manifest.slot_codes {
         validate_allowed(slot, "slot_codes[]", allowed)?;
     }
+
+    Ok(())
+}
+
+fn validate_js_dependencies(dependencies: &[JsDependencyManifest]) -> FrameworkResult<()> {
+    if dependencies.is_empty() {
+        return Err(PluginFrameworkError::invalid_provider_package(
+            "js_dependency_pack requires at least one js_dependencies entry",
+        ));
+    }
+
+    let mut seen_alias = HashSet::new();
+    for dependency in dependencies {
+        validate_non_empty(&dependency.alias, "js_dependencies[].alias")?;
+        validate_non_empty(&dependency.package, "js_dependencies[].package")?;
+        validate_non_empty(&dependency.version, "js_dependencies[].version")?;
+
+        if dependency.lifecycle_scripts {
+            return Err(PluginFrameworkError::invalid_provider_package(
+                "js_dependency_pack does not support lifecycle_scripts",
+            ));
+        }
+
+        if dependency.native_addon {
+            return Err(PluginFrameworkError::invalid_provider_package(
+                "js_dependency_pack does not support native_addon",
+            ));
+        }
+
+        if !seen_alias.insert(dependency.alias.clone()) {
+            return Err(PluginFrameworkError::invalid_provider_package(format!(
+                "duplicate js dependency alias `{}`",
+                dependency.alias
+            )));
+        }
+
+        validate_non_empty(&dependency.integrity, "js_dependencies[].integrity")?;
+        if !dependency.integrity.starts_with("sha256-") {
+            return Err(PluginFrameworkError::invalid_provider_package(
+                "js_dependencies[].integrity must be sha256-*",
+            ));
+        }
+
+        validate_js_dependency_permissions(&dependency.permissions)?;
+
+        if dependency.targets.is_empty() {
+            return Err(PluginFrameworkError::invalid_provider_package(
+                "js_dependencies[].targets cannot be empty",
+            ));
+        }
+
+        for target in &dependency.targets {
+            validate_allowed(
+                target,
+                "js_dependencies[].targets[]",
+                &["backend_code"],
+            )?;
+
+            let artifact = dependency
+                .artifacts
+                .get(target)
+                .ok_or_else(|| {
+                    PluginFrameworkError::invalid_provider_package(
+                        "js_dependencies[].artifacts must include each declared target",
+                    )
+                })?;
+            validate_non_empty(artifact, "js_dependencies[].artifacts[target]")?;
+        }
+    }
+
+    Ok(())
+}
+
+fn validate_js_dependency_permissions(
+    permissions: &JsDependencyPermissionsManifest,
+) -> FrameworkResult<()> {
+    validate_allowed(
+        &permissions.network,
+        "js_dependencies[].permissions.network",
+        &["none", "deny", "outbound_only"],
+    )?;
+    validate_allowed(
+        &permissions.filesystem,
+        "js_dependencies[].permissions.filesystem",
+        &["none", "deny"],
+    )?;
+    validate_allowed(
+        &permissions.env,
+        "js_dependencies[].permissions.env",
+        &["none", "deny"],
+    )?;
 
     Ok(())
 }

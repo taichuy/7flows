@@ -143,6 +143,225 @@ node_contributions: []
 }
 
 #[test]
+fn plugin_manifest_v1_parses_capability_plugin_with_js_dependency_pack() {
+    let manifest = parse_plugin_manifest(
+        r#"
+manifest_version: 1
+plugin_id: js_zod_pack@0.1.0
+version: 0.1.0
+vendor: acme
+display_name: JS Zod Pack
+description: Example JS dependency pack plugin
+source_kind: uploaded
+trust_level: checksum_only
+consumption_kind: capability_plugin
+execution_mode: declarative_only
+slot_codes:
+  - js_dependency_pack
+binding_targets: []
+selection_mode: manual_select
+minimum_host_version: 0.1.0
+contract_version: 1flowbase.capability/v1
+schema_version: 1flowbase.plugin.manifest/v1
+permissions:
+  network: none
+  secrets: none
+  storage: none
+  mcp: none
+  subprocess: deny
+runtime:
+  protocol: stdio_json
+  entry: bin/js-zod-pack
+js_dependencies:
+  - alias: zod
+    package: zod
+    version: 3.24.0
+    targets:
+      - backend_code
+    artifacts:
+      backend_code: artifacts/zod.backend.mjs
+    integrity: sha256-example
+    permissions:
+      network: deny
+      filesystem: deny
+      env: deny
+    native_addon: false
+    lifecycle_scripts: false
+"#,
+    )
+    .unwrap();
+
+    assert_eq!(manifest.slot_codes, vec!["js_dependency_pack"]);
+    assert_eq!(manifest.consumption_kind, PluginConsumptionKind::CapabilityPlugin);
+    assert_eq!(manifest.js_dependencies.len(), 1);
+    let dep = &manifest.js_dependencies[0];
+    assert_eq!(dep.alias, "zod");
+    assert_eq!(dep.package, "zod");
+    assert_eq!(dep.version, "3.24.0");
+    assert_eq!(dep.targets, vec!["backend_code"]);
+    assert_eq!(dep.artifacts.get("backend_code"), Some(&"artifacts/zod.backend.mjs".to_string()));
+    assert_eq!(dep.permissions.network, "deny");
+    assert_eq!(dep.permissions.filesystem, "deny");
+}
+
+#[test]
+fn plugin_manifest_v1_rejects_js_dependency_pack_with_invalid_target() {
+    let error = parse_plugin_manifest(
+        r#"
+manifest_version: 1
+plugin_id: bad_js_pack@0.1.0
+version: 0.1.0
+vendor: acme
+display_name: Bad JS Pack
+description: invalid target
+source_kind: uploaded
+trust_level: checksum_only
+consumption_kind: capability_plugin
+execution_mode: declarative_only
+slot_codes:
+  - js_dependency_pack
+binding_targets: []
+selection_mode: manual_select
+minimum_host_version: 0.1.0
+contract_version: 1flowbase.capability/v1
+schema_version: 1flowbase.plugin.manifest/v1
+permissions:
+  network: none
+  secrets: none
+  storage: none
+  mcp: none
+  subprocess: deny
+runtime:
+  protocol: stdio_json
+  entry: bin/bad-js-pack
+js_dependencies:
+  - alias: bad
+    package: bad-lib
+    version: 1.0.0
+    targets:
+      - browser
+    artifacts:
+      browser: artifacts/bad.browser.js
+    integrity: sha256-example
+    permissions:
+      network: deny
+      filesystem: deny
+      env: deny
+    native_addon: false
+    lifecycle_scripts: false
+"#,
+    )
+    .unwrap_err();
+
+    assert!(error.to_string().contains("js_dependencies[].targets[] must be one of backend_code"));
+}
+
+#[test]
+fn plugin_manifest_v1_rejects_js_dependency_pack_with_native_addon_or_lifecycle_scripts() {
+    let native_addon_error = parse_plugin_manifest(
+        r#"
+manifest_version: 1
+plugin_id: native_addon_pack@0.1.0
+version: 0.1.0
+vendor: acme
+display_name: Native Addon Pack
+description: unsupported
+source_kind: uploaded
+trust_level: checksum_only
+consumption_kind: capability_plugin
+execution_mode: declarative_only
+slot_codes:
+  - js_dependency_pack
+binding_targets: []
+selection_mode: manual_select
+minimum_host_version: 0.1.0
+contract_version: 1flowbase.capability/v1
+schema_version: 1flowbase.plugin.manifest/v1
+permissions:
+  network: none
+  secrets: none
+  storage: none
+  mcp: none
+  subprocess: deny
+runtime:
+  protocol: stdio_json
+  entry: bin/native-addon-pack
+js_dependencies:
+  - alias: has_native
+    package: native-lib
+    version: 1.0.0
+    targets:
+      - backend_code
+    artifacts:
+      backend_code: artifacts/native-lib.mjs
+    integrity: sha256-native
+    permissions:
+      network: deny
+      filesystem: deny
+      env: deny
+    native_addon: true
+    lifecycle_scripts: false
+"#,
+    )
+    .unwrap_err();
+
+    assert!(native_addon_error
+        .to_string()
+        .contains("does not support native_addon"));
+
+    let lifecycle_error = parse_plugin_manifest(
+        r#"
+manifest_version: 1
+plugin_id: lifecycle_pack@0.1.0
+version: 0.1.0
+vendor: acme
+display_name: Lifecycle Scripts Pack
+description: unsupported
+source_kind: uploaded
+trust_level: checksum_only
+consumption_kind: capability_plugin
+execution_mode: declarative_only
+slot_codes:
+  - js_dependency_pack
+binding_targets: []
+selection_mode: manual_select
+minimum_host_version: 0.1.0
+contract_version: 1flowbase.capability/v1
+schema_version: 1flowbase.plugin.manifest/v1
+permissions:
+  network: none
+  secrets: none
+  storage: none
+  mcp: none
+  subprocess: deny
+runtime:
+  protocol: stdio_json
+  entry: bin/lifecycle-pack
+js_dependencies:
+  - alias: has_lifecycle
+    package: lifecycle-lib
+    version: 1.0.0
+    targets:
+      - backend_code
+    artifacts:
+      backend_code: artifacts/lifecycle-lib.mjs
+    integrity: sha256-lifecycle
+    permissions:
+      network: deny
+      filesystem: deny
+      env: deny
+    native_addon: false
+    lifecycle_scripts: true
+"#,
+    )
+    .unwrap_err();
+
+    assert!(lifecycle_error
+        .to_string()
+        .contains("does not support lifecycle_scripts"));
+}
+
+#[test]
 fn plugin_manifest_v1_rejects_manifest_version_other_than_one() {
     let error = parse_plugin_manifest(
         r#"
