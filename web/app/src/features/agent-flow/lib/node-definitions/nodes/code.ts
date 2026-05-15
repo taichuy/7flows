@@ -24,7 +24,13 @@ export const codeNodeDefinition: NodeDefinition = {
       key: 'advanced',
       title: 'Advanced',
       fields: [
-        { key: 'config.language', label: '运行语言', editor: 'text' },
+        {
+          key: 'config.language',
+          label: '运行语言',
+          editor: 'static_select',
+          required: true,
+          options: [{ label: 'JavaScript', value: 'javascript' }]
+        },
         {
           key: 'config.output_contract',
           label: '输出契约',

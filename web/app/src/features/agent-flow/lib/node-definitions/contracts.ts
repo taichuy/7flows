@@ -440,7 +440,14 @@ function createCodeContract(): NodeRuntimeUiContract {
         panelField({
           key: 'config.language',
           title: '运行语言',
-          renderer: 'text'
+          renderer: 'static_select',
+          options: [
+            {
+              value: 'javascript',
+              label: 'JavaScript'
+            }
+          ],
+          required: true
         }),
         panelField({
           key: 'config.output_contract',
