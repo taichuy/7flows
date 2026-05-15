@@ -729,4 +729,41 @@ describe('FrontStagePage', () => {
     expect(screen.getByText('当前页面：我的自定义主页')).toBeInTheDocument();
     expect(screen.getByText('空态占位 · 我的自定义主页')).toBeInTheDocument();
   });
+
+  test('shows loading state when page tree is being loaded for the first time', () => {
+    authenticate(['frontstage.page.design']);
+
+    render(
+      <AppProviders>
+        <FrontStagePage workspaceId="workspace-1" isPageTreeLoading />
+      </AppProviders>
+    );
+
+    expect(screen.getByText('页面树加载中…')).toBeInTheDocument();
+    expect(screen.getByText('正在加载页面树，请稍后...')).toBeInTheDocument();
+  });
+
+  test('shows error state with retry when page tree load fails before any cached tree is available', () => {
+    authenticate(['frontstage.page.design']);
+
+    const onRetryLoadPageTree = vi.fn();
+
+    render(
+      <AppProviders>
+        <FrontStagePage
+          workspaceId="workspace-1"
+          hasPageTreeLoadError
+          onRetryLoadPageTree={onRetryLoadPageTree}
+        />
+      </AppProviders>
+    );
+
+    expect(screen.getByText('页面树加载失败')).toBeInTheDocument();
+    expect(
+      screen.getByText('页面树加载失败，请检查网络后重试。点击“重试”按钮重新发起加载。')
+    ).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: '重试' }));
+    expect(onRetryLoadPageTree).toHaveBeenCalledTimes(1);
+  });
 });

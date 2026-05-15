@@ -11,6 +11,9 @@ type FrontStagePageProps = {
   pageId?: string;
   onNavigatePage?: (pageId?: string) => void;
   initialPageTree?: FrontStageTreeNode[];
+  isPageTreeLoading?: boolean;
+  hasPageTreeLoadError?: boolean;
+  onRetryLoadPageTree?: () => void;
 };
 
 type FrontStageTreeNode = {
@@ -327,7 +330,10 @@ export const FrontStagePage: FC<FrontStagePageProps> = ({
   workspaceId,
   pageId,
   onNavigatePage,
-  initialPageTree
+  initialPageTree,
+  isPageTreeLoading,
+  hasPageTreeLoadError,
+  onRetryLoadPageTree
 }) => {
   const actor = useAuthStore((state) => state.actor);
   const me = useAuthStore((state) => state.me);
@@ -393,6 +399,55 @@ export const FrontStagePage: FC<FrontStagePageProps> = ({
       : null;
   const pageLabel = selectedPageLabel ? selectedPageLabel : '未选择 pageId（将使用默认首页）';
   const pageNodeTitle = selectedPageLabel ? `当前页面：${selectedPageLabel}` : '当前未选中页面';
+
+  if (initialPageTree === undefined && isPageTreeLoading) {
+    return (
+      <div style={{ width: '100%', padding: '24px 0', maxWidth: 1240, margin: '0 auto' }}>
+        <Flex justify="space-between" align="center" style={{ marginBottom: 12 }}>
+          <Space direction="vertical" size={0}>
+            <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+              前台
+            </Typography.Text>
+            <Typography.Title level={4} style={{ margin: 0 }}>
+              页面树加载中…
+            </Typography.Title>
+          </Space>
+        </Flex>
+        <Divider style={{ margin: '0 0 16px' }} />
+        <Empty description={<Typography.Text>正在加载页面树，请稍后...</Typography.Text>} />
+      </div>
+    );
+  }
+
+  if (initialPageTree === undefined && hasPageTreeLoadError) {
+    return (
+      <div style={{ width: '100%', padding: '24px 0', maxWidth: 1240, margin: '0 auto' }}>
+        <Flex justify="space-between" align="center" style={{ marginBottom: 12 }}>
+          <Space direction="vertical" size={0}>
+            <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+              前台
+            </Typography.Text>
+            <Typography.Title level={4} style={{ margin: 0 }}>
+              页面树加载失败
+            </Typography.Title>
+          </Space>
+        </Flex>
+        <Divider style={{ margin: '0 0 16px' }} />
+        <Empty
+          image={Empty.PRESENTED_IMAGE_SIMPLE}
+          description={
+            <Typography.Text>
+              页面树加载失败，请检查网络后重试。点击“重试”按钮重新发起加载。
+            </Typography.Text>
+          }
+        >
+          <Button type="primary" onClick={onRetryLoadPageTree}>
+            重试
+          </Button>
+        </Empty>
+      </div>
+    );
+  }
 
   const handleAddGroup = () => {
     setPageTree((prev) => [

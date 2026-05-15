@@ -10,7 +10,7 @@ import {
 } from '@tanstack/react-router';
 import { listFrontstagePages } from '@1flowbase/api-client';
 import { useQuery } from '@tanstack/react-query';
-import { Result } from 'antd';
+import { Button, Result } from 'antd';
 import { Suspense, lazy, useState, type ReactNode } from 'react';
 
 import { AppShellFrame } from '../app-shell/AppShellFrame';
@@ -233,7 +233,29 @@ function renderFrontStageRoute({
     queryFn: () => listFrontstagePages(workspaceId),
     retry: false
   });
-  const pageTreeFromApi = pageTreeQuery.data ?? (pageTreeQuery.isError ? [] : undefined);
+  const pageTreeFromApi = pageTreeQuery.data;
+  const shouldRenderErrorState = pageTreeQuery.isError && pageTreeFromApi === undefined;
+
+  if (shouldRenderErrorState) {
+    return (
+      <RouteGuard routeId="frontstage">
+        <Result
+          status="error"
+          title="前台页面树加载失败"
+          subTitle="请稍后重试。"
+          extra={
+            <Button
+              onClick={() => {
+                void pageTreeQuery.refetch();
+              }}
+            >
+              重试
+            </Button>
+          }
+        />
+      </RouteGuard>
+    );
+  }
 
   return (
     <RouteGuard routeId="frontstage">
@@ -242,6 +264,11 @@ function renderFrontStageRoute({
           workspaceId={workspaceId}
           pageId={pageId}
           initialPageTree={pageTreeFromApi}
+          isPageTreeLoading={pageTreeQuery.isLoading}
+          hasPageTreeLoadError={pageTreeQuery.isError}
+          onRetryLoadPageTree={() => {
+            void pageTreeQuery.refetch();
+          }}
           onNavigatePage={(nextPageId) => {
             if (nextPageId) {
               void navigate({
