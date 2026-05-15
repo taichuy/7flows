@@ -7,7 +7,7 @@ This directory owns GitHub Actions automation for repository quality gates.
 | Path | Purpose |
 | --- | --- |
 | `.github/workflows/verify.yml` | Automatic CI for `pull_request` and `push` to `main` / `latest`; runs repo, backend consistency, coverage, and React Doctor frontend gates in parallel, then publishes one aggregate issue only for `latest` pushes. |
-| `.github/workflows/quality-gate.yml` | Manual and nightly quality gate run that creates one new GitHub Issue report per run. |
+| `.github/workflows/quality-gate.yml` | Manual and nightly quality gate run; full `ci` scope runs component gates in parallel before one aggregate Issue report. |
 | `.github/actions/quality-gate/action.yml` | Reusable repository-local action used by CI, manual, and nightly quality gates. |
 
 ## Automatic CI
@@ -64,27 +64,34 @@ report_type: ci
 environment: leave empty
 ```
 
-Manual runs call the same Quality Gate Action with `publish_issue: "true"`. Each manual run
-creates a new GitHub Issue. It does not reuse a fixed Issue and does not append comments to
-old reports.
+For `scope: ci`, manual and scheduled runs mirror the automatic CI shape: `repo`,
+`backend-consistency`, and `coverage` run as separate jobs, then an aggregate job downloads
+their artifacts, publishes one Issue report, and uploads `test-governance-artifacts`.
+This keeps wall time close to the slowest component gate instead of the sum of all gates.
+Each component job publishes `publish_issue: "false"`; only the aggregate job publishes the
+final report with `publish_issue: "true"`.
+
+For narrower dispatch scopes such as `repo`, `backend-consistency`, or `coverage`,
+`quality-gate.yml` runs one targeted job and publishes that single-scope report directly.
 Manual runs share the same target-branch concurrency group as automatic quality gates.
-Scheduled runs target `latest`, use `scope: ci`, set `environment: nightly-latest`, publish
-one Issue report, and upload the same `test-governance-artifacts` artifact.
+Scheduled runs target `latest`, use `scope: ci`, and set `environment: nightly-latest`.
 
 ## Scope Options
 
 | Scope | Command |
 | --- | --- |
-| `ci` | `node scripts/node/verify-ci.js` |
+| `ci` | GitHub workflow only: parallel `repo` + `backend-consistency` + `coverage`, then `github-quality-gate-aggregate.js` |
 | `repo` | `node scripts/node/verify-repo.js` |
 | `backend` | `node scripts/node/verify-backend.js` |
 | `backend-consistency` | `node scripts/node/verify-backend-consistency.js` |
 | `coverage` | `node scripts/node/verify-coverage.js all` |
 
-Use `ci` for the full repository quality gate. It includes the online-only backend
-consistency pass between the repo gate and coverage gate. Use narrower scopes only when
-debugging or when a faster targeted report is enough. Do not run the backend consistency
-scope locally unless explicitly requested, because it exercises database-backed Rust suites.
+Use `ci` for the full online repository quality gate. The local `node scripts/node/verify-ci.js`
+entry still runs the same gates serially for environments that need one local command, but the
+GitHub workflow intentionally splits `ci` across jobs for faster feedback and clearer artifacts.
+Use narrower scopes only when debugging or when a faster targeted report is enough. Do not run
+the backend consistency scope locally unless explicitly requested, because it exercises
+database-backed Rust suites.
 
 ## Report Type
 
