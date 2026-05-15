@@ -61,8 +61,20 @@ describe('FrontStagePage', () => {
     expect(screen.getByRole('button', { name: '新增区块' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: '页面管理' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: '当前页面设置' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'JS Block 试运行' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: '保存设计' })).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: '退出设计模式' }));
     expect(screen.getByRole('button', { name: '进入设计模式' })).toBeInTheDocument();
+  });
+
+  test('shows manager shell and canvas placeholders', () => {
+    authenticate(['frontstage.page.design']);
+    renderPage();
+
+    expect(screen.getByRole('heading', { name: '页面管理' })).toBeInTheDocument();
+    expect(screen.getByText('当前页面：page-1')).toBeInTheDocument();
+    expect(
+      screen.getByText('当前页面尚未接入区块内容，浏览态仅展示空状态。请在设计态添加页面区块与内容。')
+    ).toBeInTheDocument();
   });
 });
