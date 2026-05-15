@@ -147,6 +147,22 @@ function getFirstPageId(nodes: FrontStageTreeNode[]): string | null {
   return null;
 }
 
+function getPageDisplayTitle(
+  nodes: FrontStageTreeNode[],
+  targetPageId: string | null
+): string | null {
+  if (!targetPageId) {
+    return null;
+  }
+
+  const targetNode = findNodeById(nodes, targetPageId);
+  if (!targetNode || targetNode.kind !== 'page') {
+    return null;
+  }
+
+  return targetNode.title || '未命名页面';
+}
+
 function getDeleteConfirmMessage(node: FrontStageTreeNode): string {
   if (node.kind === 'group' && node.children && node.children.length > 0) {
     return `确认删除分组“${node.title || '未命名分组'}”吗？该分组下的页面会同时删除，且无法恢复。`;
@@ -326,8 +342,13 @@ export const FrontStagePage: FC<FrontStagePageProps> = ({
     }
   }, [pageId, selectedPageId, onNavigatePage]);
 
-  const selectedPageLabel = selectedPageId;
-  const pageLabel = selectedPageLabel ? `页面 ${selectedPageLabel}` : '未选择 pageId（将使用默认首页）';
+  const selectedPageDisplayTitle = getPageDisplayTitle(pageTree, selectedPageId);
+  const selectedPageLabel = selectedPageDisplayTitle
+    ? selectedPageDisplayTitle
+    : selectedPageId
+      ? `页面 ${selectedPageId}`
+      : null;
+  const pageLabel = selectedPageLabel ? selectedPageLabel : '未选择 pageId（将使用默认首页）';
   const pageNodeTitle = selectedPageLabel ? `当前页面：${selectedPageLabel}` : '当前未选中页面';
 
   const handleAddGroup = () => {

@@ -676,4 +676,20 @@ describe('FrontStagePage', () => {
 
     expect(screen.getByText('未命名页面')).toBeInTheDocument();
   });
+
+  test('uses tree page title as current page label and page header title', () => {
+    authenticate(['frontstage.page.design']);
+
+    renderPageWithInitialTree([
+      {
+        id: 'page-custom-title',
+        title: '我的自定义主页',
+        kind: 'page'
+      }
+    ]);
+
+    expect(screen.getByRole('list')).toHaveTextContent('我的自定义主页');
+    expect(screen.getByText('当前页面：我的自定义主页')).toBeInTheDocument();
+    expect(screen.getByText('空态占位 · 我的自定义主页')).toBeInTheDocument();
+  });
 });
