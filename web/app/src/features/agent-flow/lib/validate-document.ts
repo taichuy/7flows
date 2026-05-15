@@ -426,6 +426,32 @@ export function validateDocument(
     const seenOutputKeys = new Set<string>();
     const allowedPublicOutputKeys = getAllowedPublicOutputKeysForNode(node);
 
+    if (node.type === 'code') {
+      const language = typeof node.config.language === 'string'
+        ? node.config.language.trim()
+        : '';
+
+      if (language.length > 0 && language !== 'javascript') {
+        pushFieldIssue(
+          issues,
+          node,
+          'config.language',
+          '不支持的运行语言',
+          '当前版本仅支持 JavaScript。'
+        );
+      }
+    }
+
+    if (node.type === 'code' && node.outputs.length === 0) {
+      pushFieldIssue(
+        issues,
+        node,
+        'config.output_contract',
+        '代码输出契约不能为空',
+        'Code 节点至少需要保留 1 个输出变量用于下游引用。'
+      );
+    }
+
     for (const output of node.outputs) {
       const outputKey = output.key.trim();
 

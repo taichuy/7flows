@@ -482,6 +482,51 @@ describe('validateDocument', () => {
     );
   });
 
+  test('flags empty code output contract', () => {
+    const document = createCodeDocumentWithOutputs([]);
+
+    const issues = validateDocument(document);
+
+    expect(issues).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          nodeId: 'node-code',
+          title: '代码输出契约不能为空',
+          message: 'Code 节点至少需要保留 1 个输出变量用于下游引用。'
+        })
+      ])
+    );
+  });
+
+  test('flags unsupported code runtime language', () => {
+    const document = createCodeDocumentWithOutputs([
+      { key: 'result', title: '结果', valueType: 'unknown' }
+    ]);
+    const codeNode = document.graph.nodes.find((node) => node.id === 'node-code');
+
+    if (!codeNode) {
+      throw new Error('expected code node');
+    }
+
+    codeNode.config = {
+      ...codeNode.config,
+      language: 'python'
+    };
+
+    const issues = validateDocument(document);
+
+    expect(issues).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          nodeId: 'node-code',
+          fieldKey: 'config.language',
+          title: '不支持的运行语言',
+          message: '当前版本仅支持 JavaScript。'
+        })
+      ])
+    );
+  });
+
   test('flags a missing llm model provider selection on the unified field', () => {
     const document = createDefaultAgentFlowDocument({ flowId: 'flow-1' });
 
