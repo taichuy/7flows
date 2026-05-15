@@ -2,6 +2,7 @@ import {
   Navigate,
   Outlet,
   RouterProvider,
+  useNavigate,
   createRootRoute,
   createRoute,
   createRouter,
@@ -224,10 +225,21 @@ function renderFrontStageRoute({
   workspaceId: string;
   pageId?: string;
 }) {
+  const navigate = useNavigate();
+
   return (
     <RouteGuard routeId="frontstage">
       <LazyRouteBoundary>
-        <FrontStagePage workspaceId={workspaceId} pageId={pageId} />
+        <FrontStagePage
+          workspaceId={workspaceId}
+          pageId={pageId}
+          onNavigatePage={(nextPageId) => {
+            void navigate({
+              to: '/frontstage/$workspaceId/$pageId',
+              params: { workspaceId, pageId: nextPageId }
+            });
+          }}
+        />
       </LazyRouteBoundary>
     </RouteGuard>
   );

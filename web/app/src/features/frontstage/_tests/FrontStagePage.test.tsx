@@ -1,5 +1,5 @@
 import { fireEvent, render, screen, within } from '@testing-library/react';
-import { beforeEach, describe, expect, test } from 'vitest';
+import { beforeEach, describe, expect, test, vi } from 'vitest';
 
 import { AppProviders } from '../../../app/AppProviders';
 import { resetAuthStore, useAuthStore } from '../../../state/auth-store';
@@ -29,10 +29,10 @@ function authenticate(permissions: string[]) {
   });
 }
 
-function renderPage(pageId?: string) {
+function renderPage(pageId?: string, onNavigatePage?: (pageId: string) => void) {
   return render(
     <AppProviders>
-      <FrontStagePage workspaceId="workspace-1" pageId={pageId} />
+      <FrontStagePage workspaceId="workspace-1" pageId={pageId} onNavigatePage={onNavigatePage} />
     </AppProviders>
   );
 }
@@ -89,6 +89,38 @@ describe('FrontStagePage', () => {
     fireEvent.click(within(pageListItem).getByRole('button', { name: '删除' }));
 
     expect(screen.queryByText('页面 新建 1')).not.toBeInTheDocument();
+  });
+
+  test('navigates to created page when entering pageId-less frontstage route', () => {
+    authenticate(['frontstage.page.design']);
+    const onNavigatePage = vi.fn();
+
+    renderPage(undefined, onNavigatePage);
+
+    fireEvent.click(screen.getByRole('button', { name: '进入设计模式' }));
+    fireEvent.click(screen.getByRole('button', { name: '新建页面' }));
+
+    expect(onNavigatePage).toHaveBeenLastCalledWith('page-1');
+  });
+
+  test('falls back to first page when deleting selected page', () => {
+    authenticate(['frontstage.page.design']);
+    const onNavigatePage = vi.fn();
+
+    renderPage(undefined, onNavigatePage);
+
+    fireEvent.click(screen.getByRole('button', { name: '进入设计模式' }));
+    fireEvent.click(screen.getByRole('button', { name: '新建页面' }));
+    fireEvent.click(screen.getByRole('button', { name: '新建页面' }));
+
+    const secondPageItem = screen.getByText('页面 新建 2').closest('div');
+    if (!secondPageItem) {
+      throw new Error('expected second page item to exist');
+    }
+
+    fireEvent.click(within(secondPageItem).getByRole('button', { name: '删除' }));
+    expect(screen.getByText('当前页面：page-1')).toBeInTheDocument();
+    expect(onNavigatePage).toHaveBeenCalledWith('page-1');
   });
 
   test('shows manager shell and canvas placeholders', () => {

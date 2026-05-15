@@ -1,5 +1,5 @@
-import { Button, Divider, Empty, Flex, Layout, List, Space, Typography } from 'antd';
-import type { FC } from 'react';
+import { Button, Divider, Empty, Flex, Layout, Space, Typography } from 'antd';
+import type { FC, ReactNode } from 'react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 
 import { useAuthStore } from '../../../state/auth-store';
@@ -9,6 +9,7 @@ const DESIGN_MODE_PERMISSION = 'frontstage.page.design';
 type FrontStagePageProps = {
   workspaceId: string;
   pageId?: string;
+  onNavigatePage?: (pageId: string) => void;
 };
 
 type FrontStageTreeNode = {
@@ -18,6 +19,23 @@ type FrontStageTreeNode = {
   children?: FrontStageTreeNode[];
 };
 
+function createPageNode(id: string, numberHint?: number): FrontStageTreeNode {
+  return {
+    id,
+    title: numberHint ? `页面 新建 ${numberHint}` : `页面 ${id}`,
+    kind: 'page'
+  };
+}
+
+function createGroupNode(index: number): FrontStageTreeNode {
+  return {
+    id: `group-${index}`,
+    title: `分组 ${index}`,
+    kind: 'group',
+    children: []
+  };
+}
+
 function isPageInTree(nodes: FrontStageTreeNode[], targetPageId: string): boolean {
   return nodes.some((node) => {
     if (node.kind === 'page' && node.id === targetPageId) {
@@ -26,6 +44,21 @@ function isPageInTree(nodes: FrontStageTreeNode[], targetPageId: string): boolea
 
     return Boolean(node.children && isPageInTree(node.children, targetPageId));
   });
+}
+
+function getFirstPageId(nodes: FrontStageTreeNode[]): string | null {
+  for (const node of nodes) {
+    if (node.kind === 'page') {
+      return node.id;
+    }
+
+    const nextPageId = node.children ? getFirstPageId(node.children) : null;
+    if (nextPageId) {
+      return nextPageId;
+    }
+  }
+
+  return null;
 }
 
 function removeNodeFromTree(nodes: FrontStageTreeNode[], targetNodeId: string): FrontStageTreeNode[] {
@@ -45,13 +78,14 @@ function removeNodeFromTree(nodes: FrontStageTreeNode[], targetNodeId: string): 
   return nextNodes;
 }
 
-export const FrontStagePage: FC<FrontStagePageProps> = ({ workspaceId, pageId }) => {
+export const FrontStagePage: FC<FrontStagePageProps> = ({ workspaceId, pageId, onNavigatePage }) => {
   const actor = useAuthStore((state) => state.actor);
   const me = useAuthStore((state) => state.me);
   const [isDesignMode, setIsDesignMode] = useState(false);
   const [pageTree, setPageTree] = useState<FrontStageTreeNode[]>(() => {
     return pageId ? [{ id: pageId, title: `页面 ${pageId}`, kind: 'page' }] : [];
   });
+  const [selectedPageId, setSelectedPageId] = useState<string | null>(() => pageId ?? null);
   const { Sider, Content } = Layout;
   const nextGroupNumber = useRef(1);
   const nextPageNumber = useRef(1);
@@ -61,37 +95,34 @@ export const FrontStagePage: FC<FrontStagePageProps> = ({ workspaceId, pageId })
   }, [actor, me]);
 
   useEffect(() => {
-    if (!pageId) {
+    if (pageId) {
+      setSelectedPageId(pageId);
       return;
     }
 
-    setPageTree((prev) => {
-      if (isPageInTree(prev, pageId)) {
-        return prev;
+    setSelectedPageId((current) => {
+      if (current && isPageInTree(pageTree, current)) {
+        return current;
       }
 
-      return [...prev, { id: pageId, title: `页面 ${pageId}`, kind: 'page' }];
+      return getFirstPageId(pageTree);
     });
-  }, [pageId]);
+  }, [pageId, pageTree]);
 
-  const selectedPageLabel = pageId && isPageInTree(pageTree, pageId) ? pageId : null;
-  const pageLabel = selectedPageLabel
-    ? `页面 ${selectedPageLabel}`
-    : '未选择 pageId（将使用默认首页）';
+  useEffect(() => {
+    if (!pageId && selectedPageId) {
+      onNavigatePage?.(selectedPageId);
+    }
+  }, [pageId, selectedPageId, onNavigatePage]);
+
+  const selectedPageLabel = selectedPageId;
+  const pageLabel = selectedPageLabel ? `页面 ${selectedPageLabel}` : '未选择 pageId（将使用默认首页）';
   const pageNodeTitle = selectedPageLabel ? `当前页面：${selectedPageLabel}` : '当前未选中页面';
 
   const handleAddGroup = () => {
     const next = nextGroupNumber.current;
 
-    setPageTree((prev) => [
-      ...prev,
-      {
-        id: `group-${next}`,
-        title: `分组 ${next}`,
-        kind: 'group',
-        children: []
-      }
-    ]);
+    setPageTree((prev) => [...prev, createGroupNode(next)]);
 
     nextGroupNumber.current = next + 1;
   };
@@ -99,38 +130,108 @@ export const FrontStagePage: FC<FrontStagePageProps> = ({ workspaceId, pageId })
   const handleAddPage = () => {
     const next = nextPageNumber.current;
 
-    setPageTree((prev) => [
-      ...prev,
-      {
-        id: `page-${next}`,
-        title: `页面 新建 ${next}`,
-        kind: 'page'
-      }
-    ]);
+    const pageId = `page-${next}`;
+    const pageNode = createPageNode(pageId, next);
+
+    setPageTree((prev) => [...prev, pageNode]);
+    setSelectedPageId(pageId);
+    onNavigatePage?.(pageId);
 
     nextPageNumber.current = next + 1;
   };
 
   const handleDeleteNode = (nodeId: string) => {
-    setPageTree((prev) => removeNodeFromTree(prev, nodeId));
+    setPageTree((prev) => {
+      const next = removeNodeFromTree(prev, nodeId);
+      if (selectedPageId !== nodeId) {
+        return next;
+      }
+
+      const nextSelectedPageId = getFirstPageId(next);
+      setSelectedPageId(nextSelectedPageId);
+      if (nextSelectedPageId) {
+        onNavigatePage?.(nextSelectedPageId);
+      }
+
+      return next;
+    });
   };
 
-  const renderTreeNode = (node: FrontStageTreeNode) => {
-    return (
-      <List.Item key={node.id} style={{ padding: '8px 0', borderBlockStart: 'none' }}>
-        <List.Item.Meta
-          title={<Typography.Text>{node.title}</Typography.Text>}
-          description={
-            <Typography.Text type="secondary">{node.kind === 'group' ? '分组节点' : '页面节点'}</Typography.Text>
+  const handleSelectPage = (nodeId: string) => {
+    setSelectedPageId((current) => {
+      if (current === nodeId) {
+        return current;
+      }
+
+      onNavigatePage?.(nodeId);
+      return nodeId;
+    });
+  };
+
+  const renderTreeNode = (node: FrontStageTreeNode, level: number = 0) => {
+    const nodes: ReactNode[] = [];
+    const isPageNode = node.kind === 'page';
+    const isSelected = selectedPageId === node.id;
+    const rowStyle = {
+      padding: '8px',
+      borderRadius: 6,
+      marginTop: 4,
+      marginBottom: 4,
+      marginLeft: `${level * 16}px`,
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      border: isSelected ? '1px solid #91caff' : '1px solid transparent',
+      background: isSelected ? '#e6f7ff' : 'transparent',
+      cursor: isPageNode ? 'pointer' : 'default'
+    } as const;
+
+    nodes.push(
+      <div
+        key={node.id}
+        style={rowStyle}
+        onClick={() => {
+          if (isPageNode) {
+            handleSelectPage(node.id);
           }
-        />
-        {canEnterDesignMode && isDesignMode ? (
-          <Button size="small" danger onClick={() => handleDeleteNode(node.id)}>
+        }}
+        role={isPageNode ? 'button' : undefined}
+        tabIndex={isPageNode ? 0 : -1}
+        onKeyDown={(event) => {
+          if (!isPageNode) {
+            return;
+          }
+
+          if (event.key === 'Enter' || event.key === ' ') {
+            event.preventDefault();
+            handleSelectPage(node.id);
+          }
+        }}
+      >
+        <div style={{ overflow: 'hidden' }}>
+          <Typography.Text style={{ fontSize: 12 }}>{node.title}</Typography.Text>
+          <Typography.Text type="secondary" style={{ fontSize: 11, display: 'block' }}>
+            {node.kind === 'group' ? '分组节点' : '页面节点'}
+          </Typography.Text>
+        </div>
+        {canEnterDesignMode && isDesignMode && isPageNode ? (
+          <Button size="small" danger onClick={(event) => {
+            event.stopPropagation();
+            handleDeleteNode(node.id);
+          }}>
             删除
           </Button>
         ) : null}
-      </List.Item>
+      </div>
     );
+
+    if (node.children && node.children.length > 0) {
+      for (const child of node.children) {
+        nodes.push(...renderTreeNode(child, level + 1));
+      }
+    }
+
+    return nodes;
   };
 
   return (
@@ -191,7 +292,9 @@ export const FrontStagePage: FC<FrontStagePageProps> = ({ workspaceId, pageId })
             </Space>
           ) : null}
           {pageTree.length > 0 ? (
-            <List size="small" dataSource={pageTree} renderItem={renderTreeNode} />
+            <div>
+              {pageTree.flatMap((node) => renderTreeNode(node))}
+            </div>
           ) : (
             <Empty
               image={Empty.PRESENTED_IMAGE_SIMPLE}
