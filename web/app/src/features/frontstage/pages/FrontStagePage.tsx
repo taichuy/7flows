@@ -68,27 +68,70 @@ function normalizePageTree(nodes: FrontStageTreeNode[]): FrontStageTreeNode[] {
   });
 }
 
-function getNextNodeId(
-  nodes: FrontStageTreeNode[],
-  prefix: 'page' | 'group'
-): { id: string; index: number } {
-  const existingIds = collectTreeNodeIds(nodes);
-
-  let index = 1;
-  while (existingIds.has(`${prefix}-${index}`)) {
-    index += 1;
+function generateNodeId(): string {
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+    return crypto.randomUUID();
   }
 
-  return {
-    id: `${prefix}-${index}`,
-    index
-  };
+  return `00000000-0000-4000-8000-${Math.random().toString(16).slice(2, 14).padStart(12, '0')}`;
 }
 
-function createPageNode(id: string, numberHint?: number): FrontStageTreeNode {
+function getNextNodeTitleIndex(
+  nodes: FrontStageTreeNode[],
+  nodeType: 'group' | 'page',
+  titlePrefix: string
+): number {
+  let maxIndex = 0;
+
+  const visit = (items: FrontStageTreeNode[]) => {
+    for (const item of items) {
+      if (item.kind === nodeType) {
+        const matched = item.title?.match(new RegExp(`^${titlePrefix}(\\d+)$`));
+
+        if (matched) {
+          const candidateIndex = Number.parseInt(matched[1], 10);
+          if (candidateIndex > maxIndex) {
+            maxIndex = candidateIndex;
+          }
+        }
+      }
+
+      if (item.children && item.children.length > 0) {
+        visit(item.children);
+      }
+    }
+  };
+
+  visit(nodes);
+
+  return maxIndex + 1;
+}
+
+function getNextNodeId(
+  nodes: FrontStageTreeNode[],
+): string {
+  const nextId = generateNodeId();
+
+  const existingIds = collectTreeNodeIds(nodes);
+  if (!existingIds.has(nextId)) {
+    return nextId;
+  }
+
+  return getNextNodeId(nodes);
+}
+
+function getNextPageTitleIndex(nodes: FrontStageTreeNode[]): number {
+  return getNextNodeTitleIndex(nodes, 'page', '页面 新建 ');
+}
+
+function getNextGroupTitleIndex(nodes: FrontStageTreeNode[]): number {
+  return getNextNodeTitleIndex(nodes, 'group', '分组 ');
+}
+
+function createPageNode(id: string, numberHint: number): FrontStageTreeNode {
   return {
     id,
-    title: numberHint ? `页面 新建 ${numberHint}` : `页面 ${id}`,
+    title: `页面 新建 ${numberHint}`,
     kind: 'page'
   };
 }
@@ -352,29 +395,48 @@ export const FrontStagePage: FC<FrontStagePageProps> = ({
   const pageNodeTitle = selectedPageLabel ? `当前页面：${selectedPageLabel}` : '当前未选中页面';
 
   const handleAddGroup = () => {
-    const next = getNextNodeId(pageTree, 'group');
-
-    setPageTree((prev) => [...prev, createGroupNode(next.id, next.index)]);
+    setPageTree((prev) => [
+      ...prev,
+      createGroupNode(getNextNodeId(prev), getNextGroupTitleIndex(prev))
+    ]);
     setHasUnsavedChanges(true);
   };
 
   const handleAddPage = () => {
-    const next = getNextNodeId(pageTree, 'page');
-    const pageNode = createPageNode(next.id, next.index);
+    let nextPageNodeId: string | null = null;
 
-    setPageTree((prev) => [...prev, pageNode]);
-    setSelectedPageId(pageNode.id);
-    onNavigatePage?.(pageNode.id);
+    setPageTree((prev) => {
+      const pageNode = createPageNode(
+        getNextNodeId(prev),
+        getNextPageTitleIndex(prev)
+      );
+      nextPageNodeId = pageNode.id;
+      return [...prev, pageNode];
+    });
+
+    if (nextPageNodeId) {
+      setSelectedPageId(nextPageNodeId);
+      onNavigatePage?.(nextPageNodeId);
+    }
     setHasUnsavedChanges(true);
   };
 
   const handleAddPageInGroup = (groupId: string) => {
-    const next = getNextNodeId(pageTree, 'page');
-    const pageNode = createPageNode(next.id, next.index);
+    let nextPageNodeId: string | null = null;
 
-    setPageTree((prev) => insertPageIntoGroup(prev, groupId, pageNode));
-    setSelectedPageId(pageNode.id);
-    onNavigatePage?.(pageNode.id);
+    setPageTree((prev) => {
+      const pageNode = createPageNode(
+        getNextNodeId(prev),
+        getNextPageTitleIndex(prev)
+      );
+      nextPageNodeId = pageNode.id;
+      return insertPageIntoGroup(prev, groupId, pageNode);
+    });
+
+    if (nextPageNodeId) {
+      setSelectedPageId(nextPageNodeId);
+      onNavigatePage?.(nextPageNodeId);
+    }
     setHasUnsavedChanges(true);
   };
 
