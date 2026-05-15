@@ -274,6 +274,32 @@ async fn openapi_contains_workspace_detail_path_and_omits_team_path() {
 }
 
 #[tokio::test]
+async fn openapi_contains_frontstage_pages_route_and_error_responses() {
+    let paths = openapi_paths().await;
+    let frontstage_route = paths.get("/api/console/frontstage/{workspace_id}/pages");
+
+    assert!(
+        frontstage_route.is_some(),
+        "missing path /api/console/frontstage/{workspace_id}/pages"
+    );
+
+    let get_op = &frontstage_route.unwrap()["get"];
+    assert!(get_op["responses"]["200"]["content"]["application/json"]["schema"].is_object());
+    assert_eq!(
+        get_op["responses"]["400"]["content"]["application/json"]["schema"]["$ref"],
+        json!("#/components/schemas/ErrorBody")
+    );
+    assert_eq!(
+        get_op["responses"]["401"]["content"]["application/json"]["schema"]["$ref"],
+        json!("#/components/schemas/ErrorBody")
+    );
+    assert_eq!(
+        get_op["responses"]["403"]["content"]["application/json"]["schema"]["$ref"],
+        json!("#/components/schemas/ErrorBody")
+    );
+}
+
+#[tokio::test]
 async fn openapi_contains_application_console_routes() {
     let paths = openapi_paths().await;
 

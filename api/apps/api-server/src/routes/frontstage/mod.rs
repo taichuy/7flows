@@ -42,7 +42,12 @@ pub fn router() -> Router<Arc<ApiState>> {
     params(
         ("workspace_id" = String, Path, description = "Workspace id"),
     ),
-    responses((status = 200, body = [FrontstagePageTreeNodeResponse]), (status = 400, body = crate::error_response::ErrorBody), (status = 401, body = crate::error_response::ErrorBody))
+    responses(
+        (status = 200, body = [FrontstagePageTreeNodeResponse]),
+        (status = 400, body = crate::error_response::ErrorBody),
+        (status = 401, body = crate::error_response::ErrorBody),
+        (status = 403, body = crate::error_response::ErrorBody)
+    )
 )]
 pub async fn list_frontstage_pages(
     State(state): State<Arc<ApiState>>,
