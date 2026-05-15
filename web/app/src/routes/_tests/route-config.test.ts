@@ -35,6 +35,7 @@ describe('route truth layer', () => {
       'route_page.view.all'
     );
     expect(APP_ROUTES.find((route) => route.id === 'frontstage')?.permissionKey).toBeNull();
+    expect(APP_ROUTES.find((route) => route.id === 'frontstage')?.guard).toBe('session-required');
     expect(APP_ROUTES.find((route) => route.id === 'embedded-apps')?.permissionKey).toBe(
       'embedded_app.view.all'
     );

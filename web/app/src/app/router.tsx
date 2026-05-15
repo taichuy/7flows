@@ -336,7 +336,11 @@ const meSecurityRoute = createRoute({
 const frontstageWorkspaceRootRoute = createRoute({
   getParentRoute: () => shellRoute,
   path: '/frontstage',
-  component: FrontStageWorkspaceRedirect,
+  component: () => (
+    <RouteGuard routeId="frontstage">
+      <FrontStageWorkspaceRedirect />
+    </RouteGuard>
+  ),
   notFoundComponent: NotFoundPage
 });
 
