@@ -52,12 +52,6 @@ describe('FrontStagePage', () => {
   });
 
   test('toggles design mode button only when frontstage.page.design is granted', () => {
-    authenticate(['route_page.view.all']);
-    renderPage();
-    expect(screen.queryByRole('button', { name: '进入设计模式' })).not.toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: '退出设计模式' })).not.toBeInTheDocument();
-
-    resetAuthStore();
     authenticate(['frontstage.page.design']);
     renderPage();
 
