@@ -260,11 +260,11 @@ export const FrontStagePage: FC<FrontStagePageProps> = ({ workspaceId, pageId, o
 
   const handleRenameNode = (nodeId: string) => {
     const nextTitle = window.prompt('重命名节点', node.title);
-    if (!nextTitle?.trim()) {
+    if (nextTitle === null) {
       return;
     }
 
-    setPageTree((prev) => renameNodeInTree(prev, nodeId, nextTitle.trim()));
+    setPageTree((prev) => renameNodeInTree(prev, nodeId, nextTitle));
   };
 
   const handleMoveNode = (nodeId: string, direction: -1 | 1) => {
