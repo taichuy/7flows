@@ -72,6 +72,26 @@ function createGroupNode(id: string, index: number): FrontStageTreeNode {
   };
 }
 
+function findNodeById(
+  nodes: FrontStageTreeNode[],
+  targetId: string
+): FrontStageTreeNode | null {
+  for (const node of nodes) {
+    if (node.id === targetId) {
+      return node;
+    }
+
+    if (node.children && node.children.length > 0) {
+      const found = findNodeById(node.children, targetId);
+      if (found) {
+        return found;
+      }
+    }
+  }
+
+  return null;
+}
+
 function isPageInTree(nodes: FrontStageTreeNode[], targetPageId: string): boolean {
   return nodes.some((node) => {
     if (node.kind === 'page' && node.id === targetPageId) {
@@ -95,6 +115,14 @@ function getFirstPageId(nodes: FrontStageTreeNode[]): string | null {
   }
 
   return null;
+}
+
+function getDeleteConfirmMessage(node: FrontStageTreeNode): string {
+  if (node.kind === 'group' && node.children && node.children.length > 0) {
+    return `确认删除分组“${node.title || '未命名分组'}”吗？该分组下的页面会同时删除，且无法恢复。`;
+  }
+
+  return `确认删除${node.kind === 'group' ? '分组' : '页面'}“${node.title || '未命名页面'}”？`;
 }
 
 function toPageNavigationTarget(pageId: string | null): string | undefined {
@@ -215,6 +243,7 @@ export const FrontStagePage: FC<FrontStagePageProps> = ({
   const actor = useAuthStore((state) => state.actor);
   const me = useAuthStore((state) => state.me);
   const [isDesignMode, setIsDesignMode] = useState(false);
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const [pageTree, setPageTree] = useState<FrontStageTreeNode[]>(() => {
     if (initialPageTree) {
       return initialPageTree;
@@ -267,6 +296,7 @@ export const FrontStagePage: FC<FrontStagePageProps> = ({
     const next = getNextNodeId(pageTree, 'group');
 
     setPageTree((prev) => [...prev, createGroupNode(next.id, next.index)]);
+    setHasUnsavedChanges(true);
   };
 
   const handleAddPage = () => {
@@ -276,6 +306,7 @@ export const FrontStagePage: FC<FrontStagePageProps> = ({
     setPageTree((prev) => [...prev, pageNode]);
     setSelectedPageId(pageNode.id);
     onNavigatePage?.(pageNode.id);
+    setHasUnsavedChanges(true);
   };
 
   const handleAddPageInGroup = (groupId: string) => {
@@ -285,9 +316,20 @@ export const FrontStagePage: FC<FrontStagePageProps> = ({
     setPageTree((prev) => insertPageIntoGroup(prev, groupId, pageNode));
     setSelectedPageId(pageNode.id);
     onNavigatePage?.(pageNode.id);
+    setHasUnsavedChanges(true);
   };
 
   const handleDeleteNode = (nodeId: string) => {
+    const node = findNodeById(pageTree, nodeId);
+    if (!node) {
+      return;
+    }
+
+    const confirmed = window.confirm(getDeleteConfirmMessage(node));
+    if (!confirmed) {
+      return;
+    }
+
     setPageTree((prev) => {
       const next = removeNodeFromTree(prev, nodeId);
       const nextSelectedPageId =
@@ -304,6 +346,8 @@ export const FrontStagePage: FC<FrontStagePageProps> = ({
 
       return next;
     });
+
+    setHasUnsavedChanges(true);
   };
 
   const handleRenameNode = (nodeId: string, currentTitle: string) => {
@@ -313,10 +357,18 @@ export const FrontStagePage: FC<FrontStagePageProps> = ({
     }
 
     setPageTree((prev) => renameNodeInTree(prev, nodeId, nextTitle));
+    setHasUnsavedChanges(true);
   };
 
   const handleMoveNode = (nodeId: string, direction: -1 | 1) => {
-    setPageTree((prev) => moveNodeInTree(prev, nodeId, direction));
+    setPageTree((prev) => {
+      const next = moveNodeInTree(prev, nodeId, direction);
+      if (next !== prev) {
+        setHasUnsavedChanges(true);
+      }
+
+      return next;
+    });
   };
 
   const handleSelectPage = (nodeId: string) => {
@@ -418,6 +470,7 @@ export const FrontStagePage: FC<FrontStagePageProps> = ({
             <Button
               size="small"
               disabled={!canMoveUp}
+              style={buttonStyle}
               onClick={(event) => {
                 event.stopPropagation();
                 handleMoveNode(node.id, -1);
@@ -428,6 +481,7 @@ export const FrontStagePage: FC<FrontStagePageProps> = ({
             <Button
               size="small"
               disabled={!canMoveDown}
+              style={buttonStyle}
               onClick={(event) => {
                 event.stopPropagation();
                 handleMoveNode(node.id, 1);
@@ -478,7 +532,10 @@ export const FrontStagePage: FC<FrontStagePageProps> = ({
           <Space align="center" size={8} direction="vertical">
             <Button
               type={isDesignMode ? 'default' : 'primary'}
-              onClick={() => setIsDesignMode((current) => !current)}
+              onClick={() => {
+                setIsDesignMode((current) => !current);
+                setHasUnsavedChanges(false);
+              }}
             >
               {isDesignMode ? '退出设计模式' : '进入设计模式'}
             </Button>
@@ -494,8 +551,21 @@ export const FrontStagePage: FC<FrontStagePageProps> = ({
           <Button size="small">页面管理</Button>
           <Button size="small">当前页面设置</Button>
           <Button size="small">JS Block 试运行</Button>
-          <Button size="small">保存设计</Button>
+          <Button
+            size="small"
+            onClick={() => setHasUnsavedChanges(false)}
+            disabled={!hasUnsavedChanges}
+          >
+            保存设计
+          </Button>
         </Space>
+      ) : null}
+      {canEnterDesignMode && isDesignMode ? (
+        <Typography.Text type="secondary" style={{ marginBottom: 12, display: 'block' }}>
+          {hasUnsavedChanges
+            ? '当前有未保存改动，点击“保存设计”后同步到 schema storage。'
+            : '当前无未保存改动。'}
+        </Typography.Text>
       ) : null}
       <Layout style={{ background: 'transparent' }}>
         <Sider width={280} theme="light" style={{ background: 'white', borderRight: '1px solid #f0f0f0', padding: 12 }}>

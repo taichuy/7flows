@@ -62,8 +62,15 @@ function renderPageWithInitialTree(
 }
 
 describe('FrontStagePage', () => {
+  let confirmSpy: ReturnType<typeof vi.spyOn>;
+
   beforeEach(() => {
     resetAuthStore();
+    confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(true);
+  });
+
+  afterEach(() => {
+    confirmSpy.mockRestore();
   });
 
   test('shows page context and design mode is unavailable without permission', () => {
@@ -107,6 +114,27 @@ describe('FrontStagePage', () => {
     expect(screen.queryByRole('button', { name: '新建页面' })).not.toBeInTheDocument();
   });
 
+  test('shows save-state when design tree changes and clears it after save', () => {
+    authenticate(['frontstage.page.design']);
+    renderPage();
+
+    fireEvent.click(screen.getByRole('button', { name: '进入设计模式' }));
+
+    const saveButton = screen.getByRole('button', { name: '保存设计' });
+    expect(saveButton).toBeDisabled();
+    expect(screen.getByText('当前无未保存改动。')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: '新建页面' }));
+    expect(saveButton).toBeEnabled();
+    expect(
+      screen.getByText('当前有未保存改动，点击“保存设计”后同步到 schema storage。')
+    ).toBeInTheDocument();
+
+    fireEvent.click(saveButton);
+    expect(saveButton).toBeDisabled();
+    expect(screen.getByText('当前无未保存改动。')).toBeInTheDocument();
+  });
+
   test('supports adding and deleting page tree nodes in design mode', () => {
     authenticate(['frontstage.page.design']);
     renderPage();
@@ -126,6 +154,26 @@ describe('FrontStagePage', () => {
     fireEvent.click(within(pageListItem).getByRole('button', { name: '删除' }));
 
     expect(screen.queryByText('页面 新建 1')).not.toBeInTheDocument();
+  });
+
+  test('does not delete node when delete confirmation is canceled', () => {
+    authenticate(['frontstage.page.design']);
+    renderPage();
+
+    fireEvent.click(screen.getByRole('button', { name: '进入设计模式' }));
+    fireEvent.click(screen.getByRole('button', { name: '新建分组' }));
+    fireEvent.click(screen.getByRole('button', { name: '新建页面' }));
+
+    const pageItem = screen.getByText('页面 新建 1').closest('li');
+    if (!pageItem) {
+      throw new Error('expected page list item to exist');
+    }
+
+    confirmSpy.mockReturnValue(false);
+    fireEvent.click(within(pageItem).getByRole('button', { name: '删除' }));
+
+    expect(screen.getByText('页面 新建 1')).toBeInTheDocument();
+    expect(screen.getByText('分组 1')).toBeInTheDocument();
   });
 
   test('generates unique page id when existing page ids conflict', () => {
