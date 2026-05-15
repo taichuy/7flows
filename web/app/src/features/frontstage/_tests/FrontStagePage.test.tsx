@@ -257,14 +257,14 @@ describe('FrontStagePage', () => {
     fireEvent.click(screen.getByRole('button', { name: '进入设计模式' }));
 
     const rootGroupItem = screen.getByText('分组 一级').closest('li');
-    const nestedGroupItem = screen.getByText('分组 二级').closest('li');
 
-    if (!rootGroupItem || !nestedGroupItem) {
-      throw new Error('expected group list items to exist');
+    if (!rootGroupItem) {
+      throw new Error('expected group list item to exist');
     }
 
     expect(within(rootGroupItem).getByRole('button', { name: '组内新增页面' })).toBeInTheDocument();
-    expect(within(nestedGroupItem).queryByRole('button', { name: '组内新增页面' })).not.toBeInTheDocument();
+    expect(screen.queryByText('分组 二级')).not.toBeInTheDocument();
+    expect(screen.getByText('页面 嵌套')).toBeInTheDocument();
   });
 
   test('supports page order move controls in design mode', () => {

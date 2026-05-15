@@ -38,6 +38,36 @@ function collectTreeNodeIds(nodes: FrontStageTreeNode[]): Set<string> {
   return nodeIds;
 }
 
+function flattenNestedGroups(nodes: FrontStageTreeNode[]): FrontStageTreeNode[] {
+  const flattened: FrontStageTreeNode[] = [];
+
+  for (const node of nodes) {
+    if (node.kind === 'page') {
+      flattened.push(node);
+      continue;
+    }
+
+    if (node.children && node.children.length > 0) {
+      flattened.push(...flattenNestedGroups(node.children));
+    }
+  }
+
+  return flattened;
+}
+
+function normalizePageTree(nodes: FrontStageTreeNode[]): FrontStageTreeNode[] {
+  return nodes.map((node) => {
+    if (node.kind !== 'group') {
+      return node;
+    }
+
+    return {
+      ...node,
+      children: flattenNestedGroups(node.children ?? [])
+    };
+  });
+}
+
 function getNextNodeId(
   nodes: FrontStageTreeNode[],
   prefix: 'page' | 'group'
@@ -246,7 +276,7 @@ export const FrontStagePage: FC<FrontStagePageProps> = ({
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const [pageTree, setPageTree] = useState<FrontStageTreeNode[]>(() => {
     if (initialPageTree) {
-      return initialPageTree;
+      return normalizePageTree(initialPageTree);
     }
 
     return pageId ? [{ id: pageId, title: `页面 ${pageId}`, kind: 'page' }] : [];
