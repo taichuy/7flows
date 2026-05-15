@@ -3,6 +3,8 @@ pub mod application_public_api;
 mod applications_group;
 #[path = "files.rs"]
 pub mod files;
+#[path = "frontstage/mod.rs"]
+pub mod frontstage;
 #[path = "identity/mod.rs"]
 mod identity_group;
 #[path = "plugins_and_models/mod.rs"]
