@@ -10,6 +10,7 @@ type FrontStagePageProps = {
   workspaceId: string;
   pageId?: string;
   onNavigatePage?: (pageId?: string) => void;
+  initialPageTree?: FrontStageTreeNode[];
 };
 
 type FrontStageTreeNode = {
@@ -166,11 +167,20 @@ function canMoveNode(
   };
 }
 
-export const FrontStagePage: FC<FrontStagePageProps> = ({ workspaceId, pageId, onNavigatePage }) => {
+export const FrontStagePage: FC<FrontStagePageProps> = ({
+  workspaceId,
+  pageId,
+  onNavigatePage,
+  initialPageTree
+}) => {
   const actor = useAuthStore((state) => state.actor);
   const me = useAuthStore((state) => state.me);
   const [isDesignMode, setIsDesignMode] = useState(false);
   const [pageTree, setPageTree] = useState<FrontStageTreeNode[]>(() => {
+    if (initialPageTree) {
+      return initialPageTree;
+    }
+
     return pageId ? [{ id: pageId, title: `页面 ${pageId}`, kind: 'page' }] : [];
   });
   const [selectedPageId, setSelectedPageId] = useState<string | null>(() => pageId ?? null);
@@ -301,6 +311,7 @@ export const FrontStagePage: FC<FrontStagePageProps> = ({ workspaceId, pageId, o
     const nodes: ReactNode[] = [];
     const isPageNode = node.kind === 'page';
     const isSelected = selectedPageId === node.id;
+    const canAddPageToGroup = node.kind === 'group' && level === 0;
     const { canMoveUp, canMoveDown } = canMoveNode(parentNodes, node.id);
     const rowStyle = {
       padding: '8px',
@@ -368,7 +379,7 @@ export const FrontStagePage: FC<FrontStagePageProps> = ({ workspaceId, pageId, o
             >
               重命名
             </Button>
-            {node.kind === 'group' ? (
+            {canAddPageToGroup ? (
               <Button size="small" onClick={(event) => {
                 event.stopPropagation();
                 handleAddPageInGroup(node.id);

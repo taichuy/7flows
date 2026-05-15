@@ -5,6 +5,13 @@ import { AppProviders } from '../../../app/AppProviders';
 import { resetAuthStore, useAuthStore } from '../../../state/auth-store';
 import { FrontStagePage } from '../pages/FrontStagePage';
 
+type TestFrontStageTreeNode = {
+  id: string;
+  title: string;
+  kind: 'group' | 'page';
+  children?: TestFrontStageTreeNode[];
+};
+
 function authenticate(permissions: string[]) {
   useAuthStore.getState().setAuthenticated({
     csrfToken: 'csrf-123',
@@ -33,6 +40,23 @@ function renderPage(pageId?: string, onNavigatePage?: (pageId: string) => void) 
   return render(
     <AppProviders>
       <FrontStagePage workspaceId="workspace-1" pageId={pageId} onNavigatePage={onNavigatePage} />
+    </AppProviders>
+  );
+}
+
+function renderPageWithInitialTree(
+  pageTree: TestFrontStageTreeNode[],
+  pageId?: string,
+  onNavigatePage?: (pageId: string) => void
+) {
+  return render(
+    <AppProviders>
+      <FrontStagePage
+        workspaceId="workspace-1"
+        pageId={pageId}
+        onNavigatePage={onNavigatePage}
+        initialPageTree={pageTree}
+      />
     </AppProviders>
   );
 }
@@ -107,6 +131,44 @@ describe('FrontStagePage', () => {
     fireEvent.click(within(groupContainer).getByRole('button', { name: '组内新增页面' }));
 
     expect(screen.getByText('页面 新建 1')).toBeInTheDocument();
+  });
+
+  test('only allows adding a page into top-level groups', () => {
+    authenticate(['frontstage.page.design']);
+
+    renderPageWithInitialTree([
+      {
+        id: 'group-root',
+        title: '分组 一级',
+        kind: 'group',
+        children: [
+          {
+            id: 'group-nested',
+            title: '分组 二级',
+            kind: 'group',
+            children: [
+              {
+                id: 'page-inside-nested',
+                title: '页面 嵌套',
+                kind: 'page'
+              }
+            ]
+          }
+        ]
+      }
+    ]);
+
+    fireEvent.click(screen.getByRole('button', { name: '进入设计模式' }));
+
+    const rootGroupItem = screen.getByText('分组 一级').closest('li');
+    const nestedGroupItem = screen.getByText('分组 二级').closest('li');
+
+    if (!rootGroupItem || !nestedGroupItem) {
+      throw new Error('expected group list items to exist');
+    }
+
+    expect(within(rootGroupItem).getByRole('button', { name: '组内新增页面' })).toBeInTheDocument();
+    expect(within(nestedGroupItem).queryByRole('button', { name: '组内新增页面' })).not.toBeInTheDocument();
   });
 
   test('supports page order move controls in design mode', () => {
