@@ -278,6 +278,22 @@ describe('FrontStagePage', () => {
     expect(onNavigatePage).toHaveBeenCalledWith('page-1');
   });
 
+  test('navigates to workspace-level frontstage route when all pages are deleted', () => {
+    authenticate(['frontstage.page.design']);
+    const onNavigatePage = vi.fn();
+
+    renderPage('page-1', onNavigatePage);
+
+    fireEvent.click(screen.getByRole('button', { name: '进入设计模式' }));
+    const pageItem = screen.getByText('页面 page-1').closest('li');
+    if (!pageItem) {
+      throw new Error('expected page list item to exist');
+    }
+    fireEvent.click(within(pageItem).getByRole('button', { name: '删除' }));
+
+    expect(onNavigatePage).toHaveBeenCalledWith(undefined);
+  });
+
   test('falls back to first page when route pageId is missing from current tree', () => {
     authenticate(['frontstage.page.design']);
     const onNavigatePage = vi.fn();

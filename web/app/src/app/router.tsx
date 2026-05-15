@@ -234,10 +234,17 @@ function renderFrontStageRoute({
           workspaceId={workspaceId}
           pageId={pageId}
           onNavigatePage={(nextPageId) => {
-            void navigate({
-              to: '/frontstage/$workspaceId/$pageId',
-              params: { workspaceId, pageId: nextPageId }
-            });
+            if (nextPageId) {
+              void navigate({
+                to: '/frontstage/$workspaceId/$pageId',
+                params: { workspaceId, pageId: nextPageId }
+              });
+            } else {
+              void navigate({
+                to: '/frontstage/$workspaceId',
+                params: { workspaceId }
+              });
+            }
           }}
         />
       </LazyRouteBoundary>

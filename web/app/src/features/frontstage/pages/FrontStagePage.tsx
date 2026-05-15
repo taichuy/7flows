@@ -9,7 +9,7 @@ const DESIGN_MODE_PERMISSION = 'frontstage.page.design';
 type FrontStagePageProps = {
   workspaceId: string;
   pageId?: string;
-  onNavigatePage?: (pageId: string) => void;
+  onNavigatePage?: (pageId?: string) => void;
 };
 
 type FrontStageTreeNode = {
@@ -192,9 +192,7 @@ export const FrontStagePage: FC<FrontStagePageProps> = ({ workspaceId, pageId, o
       const fallbackPageId = getFirstPageId(pageTree);
 
       setSelectedPageId(fallbackPageId);
-      if (fallbackPageId) {
-        onNavigatePage?.(fallbackPageId);
-      }
+      onNavigatePage?.(fallbackPageId);
 
       return;
     }
@@ -263,6 +261,8 @@ export const FrontStagePage: FC<FrontStagePageProps> = ({ workspaceId, pageId, o
       setSelectedPageId(nextSelectedPageId);
       if (nextSelectedPageId) {
         onNavigatePage?.(nextSelectedPageId);
+      } else {
+        onNavigatePage?.(undefined);
       }
 
       return next;
