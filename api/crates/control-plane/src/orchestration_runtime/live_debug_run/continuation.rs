@@ -949,7 +949,7 @@ where
                     .await;
             }
             "code" => {
-                let error_payload = orchestration_runtime::build_node_type_not_implemented_error_payload(
+                let error_payload = orchestration_runtime::node_errors::build_node_type_not_implemented_error_payload(
                     &node.node_type,
                     "debug",
                 );
@@ -968,15 +968,10 @@ where
                 )
                 .await?;
 
-                return Err(anyhow!(
-                    "{}",
-                    error_payload["message"]
-                        .as_str()
-                        .expect("error payload should include node type not implemented message")
-                ));
+                return Err(anyhow!("{}", error_payload));
             }
             other => {
-                let error_payload = orchestration_runtime::build_node_type_not_implemented_error_payload(
+                let error_payload = orchestration_runtime::node_errors::build_node_type_not_implemented_error_payload(
                     other,
                     "debug",
                 );
@@ -995,12 +990,7 @@ where
                 )
                 .await?;
 
-                return Err(anyhow!(
-                    "{}",
-                    error_payload["message"]
-                        .as_str()
-                        .expect("error payload should include node type not implemented message")
-                ));
+                return Err(anyhow!("{}", error_payload));
             }
         }
     }
