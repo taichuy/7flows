@@ -12,6 +12,7 @@ export * from './native-trusted-block-source-policy';
 export * from './native-trusted-block-manifest';
 export * from './native-trusted-block-host';
 export * from './native-trusted-block-portal';
+export * from './native-trusted-block/source-evaluator';
 export * from './js-block-source-transform';
 export * from './js-block-source-evaluator';
 export * from './block-context-mediator';
