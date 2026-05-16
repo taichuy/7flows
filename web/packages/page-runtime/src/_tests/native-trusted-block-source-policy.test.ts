@@ -154,6 +154,29 @@ describe('Native trusted block source static policy', () => {
   });
 
   test.each([
+    [
+      'named import alias',
+      "import { Modal as Dialog } from 'antd'; Dialog.confirm({ title: 'Confirm' });"
+    ],
+    ['local Modal alias', 'const Dialog = Modal; Dialog.confirm({ title: "Confirm" });'],
+    [
+      'antd destructuring alias',
+      'const { Modal: Dialog } = antd; Dialog.confirm({ title: "Confirm" });'
+    ],
+    [
+      'antd.Modal alias',
+      'const Dialog = antd.Modal; Dialog.confirm({ title: "Confirm" });'
+    ]
+  ])('rejects AntD Modal static method through alias: %s', (_label, source) => {
+    const result = validateNativeTrustedBlockSource(source);
+
+    expect(result.ok).toBe(false);
+    expect(result.errors[0]).toMatchObject({
+      code: 'transform_failed'
+    });
+  });
+
+  test.each([
     ['constructor call', "''.sub.constructor('return globalThis')();"],
     ['computed constructor call', "''.sub['constructor']('return globalThis')();"],
     ['prototype access', 'const proto = Button.prototype;'],

@@ -479,6 +479,21 @@ function findTokenBeforeStatementEnd(
   startTokenIndex: number,
   tokenValue: string
 ): SourceToken | undefined {
+  const tokenIndex = findTokenIndexBeforeStatementEnd(
+    source,
+    tokens,
+    startTokenIndex,
+    tokenValue
+  );
+  return tokenIndex === undefined ? undefined : tokens[tokenIndex];
+}
+
+function findTokenIndexBeforeStatementEnd(
+  source: string,
+  tokens: SourceToken[],
+  startTokenIndex: number,
+  tokenValue: string
+): number | undefined {
   for (let index = startTokenIndex; index < tokens.length; index += 1) {
     const token = tokens[index];
     const segment = source.slice(tokens[startTokenIndex - 1].end, token.start);
@@ -486,7 +501,7 @@ function findTokenBeforeStatementEnd(
       return undefined;
     }
     if (token.value === tokenValue) {
-      return token;
+      return index;
     }
   }
 
@@ -498,6 +513,7 @@ function validateDeniedCapabilities(
   tokens: SourceToken[]
 ): BlockProtocolError[] {
   const errors: BlockProtocolError[] = [];
+  const antdModalAliases = collectAntdModalAliases(source, tokens);
   const addError = (error: BlockProtocolError): void => {
     const alreadyAdded = errors.some(
       (current) => current.code === error.code && current.path === error.path
@@ -558,7 +574,11 @@ function validateDeniedCapabilities(
       return;
     }
 
-    const deniedPropertyAccess = readDeniedPropertyAccess(source, token);
+    const deniedPropertyAccess = readDeniedPropertyAccess(
+      source,
+      token,
+      antdModalAliases
+    );
     if (deniedPropertyAccess) {
       addError(
         failureError(
@@ -600,6 +620,253 @@ function validateDeniedCapabilities(
   return errors;
 }
 
+function collectAntdModalAliases(
+  source: string,
+  tokens: SourceToken[]
+): Set<string> {
+  const antdModuleAliases = collectAntdModuleAliases(source, tokens);
+  const aliases = new Set<string>(['Modal']);
+
+  collectAntdModalImportAliases(source, tokens, aliases);
+
+  let changed = true;
+  while (changed) {
+    changed =
+      collectAntdModalAssignmentAliases(
+        source,
+        tokens,
+        aliases,
+        antdModuleAliases
+      ) ||
+      collectAntdModalDestructuringAliases(
+        source,
+        tokens,
+        aliases,
+        antdModuleAliases
+      );
+  }
+
+  return aliases;
+}
+
+function collectAntdModuleAliases(
+  source: string,
+  tokens: SourceToken[]
+): Set<string> {
+  const aliases = new Set<string>(['antd']);
+
+  tokens.forEach((token, tokenIndex) => {
+    if (token.value !== 'import') {
+      return;
+    }
+
+    const importSource = readStaticImportSource(source, tokens, tokenIndex);
+    if (!importSource || importSource.value !== 'antd') {
+      return;
+    }
+
+    const importSegment = source.slice(token.end, importSource.fromToken.start);
+    const namespaceMatch = importSegment.match(
+      /\*\s+as\s+([A-Za-z_$][A-Za-z0-9_$]*)/
+    );
+    if (namespaceMatch) {
+      aliases.add(namespaceMatch[1]);
+    }
+  });
+
+  return aliases;
+}
+
+function collectAntdModalImportAliases(
+  source: string,
+  tokens: SourceToken[],
+  aliases: Set<string>
+): void {
+  tokens.forEach((token, tokenIndex) => {
+    if (token.value !== 'import') {
+      return;
+    }
+
+    const importSource = readStaticImportSource(source, tokens, tokenIndex);
+    if (!importSource || importSource.value !== 'antd') {
+      return;
+    }
+
+    for (
+      let index = tokenIndex + 1;
+      index < importSource.fromTokenIndex;
+      index += 1
+    ) {
+      if (tokens[index].value !== 'Modal') {
+        continue;
+      }
+
+      const maybeAsToken = tokens[index + 1];
+      const maybeAliasToken = tokens[index + 2];
+      if (
+        maybeAsToken?.value === 'as' &&
+        maybeAliasToken &&
+        index + 2 < importSource.fromTokenIndex
+      ) {
+        aliases.add(maybeAliasToken.value);
+        continue;
+      }
+
+      aliases.add('Modal');
+    }
+  });
+}
+
+function collectAntdModalAssignmentAliases(
+  source: string,
+  tokens: SourceToken[],
+  modalAliases: Set<string>,
+  antdModuleAliases: Set<string>
+): boolean {
+  let changed = false;
+
+  tokens.forEach((aliasToken, tokenIndex) => {
+    if (!isVariableDeclarationName(source, tokens, tokenIndex)) {
+      return;
+    }
+
+    const targetToken = tokens[tokenIndex + 1];
+    if (!targetToken) {
+      return;
+    }
+
+    const assignmentSegment = source.slice(aliasToken.end, targetToken.start);
+    if (!isSimpleAssignmentSegment(assignmentSegment)) {
+      return;
+    }
+
+    if (
+      modalAliases.has(targetToken.value) ||
+      isAntdModalPropertyReference(source, targetToken, antdModuleAliases)
+    ) {
+      changed = addAlias(modalAliases, aliasToken.value) || changed;
+    }
+  });
+
+  return changed;
+}
+
+function collectAntdModalDestructuringAliases(
+  source: string,
+  tokens: SourceToken[],
+  modalAliases: Set<string>,
+  antdModuleAliases: Set<string>
+): boolean {
+  let changed = false;
+
+  tokens.forEach((modalToken, tokenIndex) => {
+    if (modalToken.value !== 'Modal') {
+      return;
+    }
+
+    const aliasToken = tokens[tokenIndex + 1];
+    const moduleToken = tokens[tokenIndex + 2];
+    if (!aliasToken || !moduleToken || !antdModuleAliases.has(moduleToken.value)) {
+      return;
+    }
+
+    const aliasSegment = source.slice(modalToken.end, aliasToken.start);
+    const moduleSegment = source.slice(aliasToken.end, moduleToken.start);
+    if (!aliasSegment.includes(':') || !/}\s*=/.test(moduleSegment)) {
+      return;
+    }
+
+    changed = addAlias(modalAliases, aliasToken.value) || changed;
+  });
+
+  return changed;
+}
+
+function readStaticImportSource(
+  source: string,
+  tokens: SourceToken[],
+  importTokenIndex: number
+):
+  | {
+      value: string;
+      fromToken: SourceToken;
+      fromTokenIndex: number;
+    }
+  | undefined {
+  const importToken = tokens[importTokenIndex];
+  const nextCodeIndex = skipWhitespace(source, importToken.end);
+  const nextChar = source[nextCodeIndex];
+  if (nextChar === '(' || nextChar === '.' || nextChar === '"' || nextChar === "'") {
+    return undefined;
+  }
+
+  const fromTokenIndex = findTokenIndexBeforeStatementEnd(
+    source,
+    tokens,
+    importTokenIndex + 1,
+    'from'
+  );
+  if (fromTokenIndex === undefined) {
+    return undefined;
+  }
+
+  const sourceLiteralIndex = skipWhitespace(source, tokens[fromTokenIndex].end);
+  const sourceLiteral = readStringLiteral(source, sourceLiteralIndex);
+  if (!sourceLiteral) {
+    return undefined;
+  }
+
+  return {
+    value: sourceLiteral.value,
+    fromToken: tokens[fromTokenIndex],
+    fromTokenIndex
+  };
+}
+
+function isVariableDeclarationName(
+  source: string,
+  tokens: SourceToken[],
+  tokenIndex: number
+): boolean {
+  const previousToken = tokens[tokenIndex - 1];
+  if (
+    !previousToken ||
+    (previousToken.value !== 'const' &&
+      previousToken.value !== 'let' &&
+      previousToken.value !== 'var')
+  ) {
+    return false;
+  }
+
+  return skipWhitespace(source, previousToken.end) === tokens[tokenIndex].start;
+}
+
+function isSimpleAssignmentSegment(segment: string): boolean {
+  return /^[\s=]+$/.test(segment) && segment.includes('=');
+}
+
+function isAntdModalPropertyReference(
+  source: string,
+  token: SourceToken,
+  antdModuleAliases: Set<string>
+): boolean {
+  if (!antdModuleAliases.has(token.value)) {
+    return false;
+  }
+
+  const access = readPropertyAccess(source, token.end);
+  return access?.property === 'Modal';
+}
+
+function addAlias(aliases: Set<string>, alias: string): boolean {
+  if (aliases.has(alias)) {
+    return false;
+  }
+
+  aliases.add(alias);
+  return true;
+}
+
 function capabilityError(identifier: string, message: string): BlockProtocolError {
   return failureError(
     'transform_failed',
@@ -610,7 +877,8 @@ function capabilityError(identifier: string, message: string): BlockProtocolErro
 
 function readDeniedPropertyAccess(
   source: string,
-  token: SourceToken
+  token: SourceToken,
+  antdModalAliases: Set<string>
 ):
   | {
       identifier: string;
@@ -653,7 +921,7 @@ function readDeniedPropertyAccess(
   }
 
   if (
-    token.value === 'Modal' &&
+    antdModalAliases.has(token.value) &&
     deniedAntdStaticModalMethods.has(access.property)
   ) {
     return {
