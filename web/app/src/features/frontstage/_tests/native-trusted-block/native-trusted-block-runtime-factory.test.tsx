@@ -5,13 +5,24 @@ import type { ComponentType, ReactNode } from 'react';
 import { describe, expect, test, vi } from 'vitest';
 
 import type { NativeTrustedBlockPreparePlan } from '@1flowbase/page-runtime';
+import {
+  NATIVE_TRUSTED_BLOCK_ALLOWED_IMPORTS,
+  NATIVE_TRUSTED_BLOCK_PERMISSION,
+  NATIVE_TRUSTED_BLOCK_RUNTIME
+} from '@1flowbase/page-runtime';
+
+import antdPackageJson from 'antd/package.json';
+import appPackageJson from '../../../../../package.json';
+import reactPackageJson from 'react/package.json';
+import uiPackageJson from '../../../../../../packages/ui/package.json';
 
 import {
   createFrontstageNativeTrustedBlockReactAdapter,
   type FrontstageNativeTrustedBlockCreateRoot
 } from '../../lib/native-trusted-block-react-adapter';
 import {
-  createFrontstageNativeTrustedBlockRuntimeFactory
+  createFrontstageNativeTrustedBlockRuntimeFactory,
+  getFrontstageNativeTrustedBlockRuntimeCompatibility
 } from '../../lib/native-trusted-block-runtime-factory';
 
 function createPlan(
@@ -78,6 +89,40 @@ function createBlockRoot(): HTMLDivElement {
 }
 
 describe('frontstage native trusted block runtime factory', () => {
+  test('exposes a serializable host compatibility manifest for injected modules', () => {
+    const manifest = getFrontstageNativeTrustedBlockRuntimeCompatibility();
+
+    expect(JSON.parse(JSON.stringify(manifest))).toEqual(manifest);
+    expect(manifest).toEqual({
+      runtime: NATIVE_TRUSTED_BLOCK_RUNTIME,
+      contractVersion: expect.any(String),
+      requiredPermission: NATIVE_TRUSTED_BLOCK_PERMISSION,
+      allowedImports: NATIVE_TRUSTED_BLOCK_ALLOWED_IMPORTS,
+      host: {
+        packageName: appPackageJson.name,
+        appVersion: appPackageJson.version
+      },
+      modules: {
+        react: {
+          importSource: 'react',
+          hostDependencyRange: appPackageJson.dependencies.react,
+          packageVersion: reactPackageJson.version
+        },
+        antd: {
+          importSource: 'antd',
+          hostDependencyRange: appPackageJson.dependencies.antd,
+          packageVersion: antdPackageJson.version
+        },
+        '@1flowbase/ui': {
+          importSource: '@1flowbase/ui',
+          hostDependencyRange: appPackageJson.dependencies['@1flowbase/ui'],
+          packageVersion: uiPackageJson.version
+        }
+      }
+    });
+    expect(manifest.contractVersion).toMatch(/^\d+\.\d+\.\d+$/);
+  });
+
   test('evaluates valid non-JSX source through host modules and mounts through the React adapter', async () => {
     const testingRoot = createTestingRoot();
     const adapter = createFrontstageNativeTrustedBlockReactAdapter({

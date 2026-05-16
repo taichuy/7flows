@@ -13,6 +13,13 @@ import type {
   FrontstageNativeTrustedBlockResolveComponent
 } from './native-trusted-block-react-adapter';
 
+export {
+  FRONTSTAGE_NATIVE_TRUSTED_BLOCK_COMPATIBILITY_CONTRACT_VERSION,
+  getFrontstageNativeTrustedBlockRuntimeCompatibility,
+  type FrontstageNativeTrustedBlockRuntimeCompatibilityManifest,
+  type FrontstageNativeTrustedBlockRuntimeCompatibilityModule
+} from './native-trusted-block-runtime-compatibility';
+
 type InjectedModule = Record<string, unknown>;
 
 export interface FrontstageNativeTrustedBlockRuntimeFactoryOptions {
