@@ -10,6 +10,10 @@ import {
   moveFrontstageNode,
   renameFrontstagePageNode
 } from '../api/page-tree';
+import {
+  fetchFrontstageBlockCatalog,
+  frontstageBlockCatalogQueryKey
+} from '../api/block-catalog';
 
 describe('frontstage page tree feature api', () => {
   test('uses a workspace-scoped page tree query key', () => {
@@ -134,6 +138,80 @@ describe('frontstage page tree feature api', () => {
       renameSpy.mockRestore();
       moveSpy.mockRestore();
       deleteSpy.mockRestore();
+    }
+  });
+});
+
+describe('frontstage block catalog feature api', () => {
+  test('uses a stable block catalog query key', () => {
+    expect(frontstageBlockCatalogQueryKey()).toEqual([
+      'frontstage',
+      'block-catalog'
+    ]);
+  });
+
+  test('adapts block catalog reads to api-client DTOs', async () => {
+    const listSpy = vi
+      .spyOn(apiClient, 'listConsoleFrontendBlocks')
+      .mockResolvedValue([
+        {
+          installation_id: 'installation-1',
+          provider_code: 'official',
+          plugin_id: 'official.blocks',
+          plugin_version: '1.0.0',
+          contribution_code: 'official.hero',
+          title: 'Hero',
+          runtime: 'iframe',
+          entry: 'blocks/hero.html',
+          context_contract: {
+            primitives: ['record'],
+            input_schema: {
+              type: 'object',
+              properties: {
+                title: { type: 'string' }
+              }
+            }
+          },
+          permissions: {
+            network: 'deny',
+            storage: 'read',
+            secrets: 'deny'
+          },
+          ui_capabilities: ['resizable', 'configure']
+        }
+      ]);
+
+    try {
+      await expect(fetchFrontstageBlockCatalog()).resolves.toEqual([
+        {
+          installation_id: 'installation-1',
+          provider_code: 'official',
+          plugin_id: 'official.blocks',
+          plugin_version: '1.0.0',
+          contribution_code: 'official.hero',
+          title: 'Hero',
+          runtime: 'iframe',
+          entry: 'blocks/hero.html',
+          context_contract: {
+            primitives: ['record'],
+            input_schema: {
+              type: 'object',
+              properties: {
+                title: { type: 'string' }
+              }
+            }
+          },
+          permissions: {
+            network: 'deny',
+            storage: 'read',
+            secrets: 'deny'
+          },
+          ui_capabilities: ['resizable', 'configure']
+        }
+      ]);
+      expect(listSpy).toHaveBeenCalledWith(expect.any(String));
+    } finally {
+      listSpy.mockRestore();
     }
   });
 });
