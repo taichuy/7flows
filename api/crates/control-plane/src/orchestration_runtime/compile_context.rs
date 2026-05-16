@@ -143,6 +143,9 @@ where
                 orchestration_runtime::compiler::FlowCompileJsDependency {
                     alias: selection.alias,
                     target: selection.target,
+                    artifact_path: selection.artifact_path,
+                    artifact_hash: selection.artifact_hash,
+                    integrity: selection.integrity,
                 },
             )
         })
@@ -526,6 +529,13 @@ mod tests {
             .expect("application compile context should build");
 
         assert!(context.js_dependencies.contains_key("backend_code::zod"));
+        let dependency = context
+            .js_dependencies
+            .get("backend_code::zod")
+            .expect("zod dependency context should be present");
+        assert_eq!(dependency.artifact_path, "artifacts/zod-3.24.0.backend.mjs");
+        assert_eq!(dependency.artifact_hash, "sha256-zod-3.24.0");
+        assert_eq!(dependency.integrity, "sha256-zod-3.24.0");
     }
 
     #[tokio::test]

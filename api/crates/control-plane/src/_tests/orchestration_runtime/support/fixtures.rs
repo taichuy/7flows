@@ -384,6 +384,18 @@ impl OrchestrationRuntimeService<InMemoryOrchestrationRuntimeRepository, InMemor
             .expect("upsert data model side-effect receipt")
     }
 
+    pub async fn replace_js_dependency_selection_for_tests(
+        &self,
+        input: &ReplaceApplicationJsDependencySelectionInput,
+    ) -> domain::ApplicationJsDependencySelection {
+        ApplicationJsDependencySelectionRepository::replace_application_js_dependency_selection(
+            &self.repository,
+            input,
+        )
+        .await
+        .expect("replace JS dependency selection")
+    }
+
     pub async fn seed_application_with_flow(&self, name: &str) -> SeededPreviewApplication {
         let actor_user_id = Uuid::now_v7();
         let application = self

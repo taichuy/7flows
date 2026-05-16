@@ -890,6 +890,9 @@ impl ApplicationCompileContextRepository for ApplicationPublicApiTestRepository 
                     orchestration_runtime::compiler::FlowCompileJsDependency {
                         alias: selection.alias.clone(),
                         target: selection.target.clone(),
+                        artifact_path: selection.artifact_path.clone(),
+                        artifact_hash: selection.artifact_hash.clone(),
+                        integrity: selection.integrity.clone(),
                     },
                 )
             })

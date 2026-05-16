@@ -104,6 +104,9 @@ pub struct CompiledCodeRuntime {
 pub struct CompiledCodeDependency {
     pub alias: String,
     pub target: String,
+    pub artifact_path: String,
+    pub artifact_hash: String,
+    pub integrity: String,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]

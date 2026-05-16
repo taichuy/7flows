@@ -1,12 +1,13 @@
-use std::{error::Error, fmt, time::Duration};
+use std::{error::Error, fmt, fs, time::Duration};
 
 use anyhow::{anyhow, Result};
 use async_trait::async_trait;
 use rquickjs::{Context, Runtime};
 use serde_json::{json, Map, Value};
+use sha2::{Digest, Sha256};
 
 use crate::{
-    compiled_plan::{CompiledCodeRuntime, CompiledNode},
+    compiled_plan::{CompiledCodeDependency, CompiledCodeRuntime, CompiledNode},
     payload_builder::{
         is_reserved_payload_key, BuiltNodePayloads, PublicOutputContract, RawNodeExecutionResult,
     },
@@ -65,6 +66,7 @@ impl CodeInvoker for QuickJsCodeInvoker {
             language: runtime.language.clone(),
             source: runtime.source.clone(),
             entrypoint: runtime.entrypoint.clone(),
+            dependencies: runtime.dependencies.clone(),
             input_payload,
             timeout: self.timeout,
             memory_limit_bytes: self.memory_limit_bytes,
@@ -81,6 +83,7 @@ struct QuickJsInvocationRequest {
     language: String,
     source: Option<String>,
     entrypoint: String,
+    dependencies: Vec<CompiledCodeDependency>,
     input_payload: Value,
     timeout: Duration,
     memory_limit_bytes: usize,
@@ -94,6 +97,10 @@ enum CodeRunnerErrorKind {
     EntrypointUnsupported,
     ModuleImportDenied,
     DynamicImportDenied,
+    DependencyArtifactMissing,
+    DependencyIntegrityMismatch,
+    DependencyArtifactInvalid,
+    DependencyAliasInvalid,
     SyntaxError,
     MainMissing,
     InvalidOutput,
@@ -137,6 +144,30 @@ impl CodeRunnerError {
         }
     }
 
+    fn dependency_artifact_missing() -> Self {
+        Self {
+            kind: CodeRunnerErrorKind::DependencyArtifactMissing,
+        }
+    }
+
+    fn dependency_integrity_mismatch() -> Self {
+        Self {
+            kind: CodeRunnerErrorKind::DependencyIntegrityMismatch,
+        }
+    }
+
+    fn dependency_artifact_invalid() -> Self {
+        Self {
+            kind: CodeRunnerErrorKind::DependencyArtifactInvalid,
+        }
+    }
+
+    fn dependency_alias_invalid() -> Self {
+        Self {
+            kind: CodeRunnerErrorKind::DependencyAliasInvalid,
+        }
+    }
+
     fn syntax_error() -> Self {
         Self {
             kind: CodeRunnerErrorKind::SyntaxError,
@@ -174,6 +205,10 @@ impl CodeRunnerError {
             CodeRunnerErrorKind::EntrypointUnsupported => "entrypoint_unsupported",
             CodeRunnerErrorKind::ModuleImportDenied => "module_import_denied",
             CodeRunnerErrorKind::DynamicImportDenied => "module_import_denied",
+            CodeRunnerErrorKind::DependencyArtifactMissing => "dependency_artifact_missing",
+            CodeRunnerErrorKind::DependencyIntegrityMismatch => "dependency_integrity_mismatch",
+            CodeRunnerErrorKind::DependencyArtifactInvalid => "dependency_artifact_invalid",
+            CodeRunnerErrorKind::DependencyAliasInvalid => "dependency_alias_invalid",
             CodeRunnerErrorKind::SyntaxError => "syntax_error",
             CodeRunnerErrorKind::MainMissing => "main_missing",
             CodeRunnerErrorKind::InvalidOutput => "invalid_output",
@@ -189,6 +224,12 @@ impl CodeRunnerError {
             CodeRunnerErrorKind::EntrypointUnsupported => "only main entrypoint is supported",
             CodeRunnerErrorKind::ModuleImportDenied => "import and export syntax is not supported",
             CodeRunnerErrorKind::DynamicImportDenied => "dynamic import is not supported",
+            CodeRunnerErrorKind::DependencyArtifactMissing => "dependency artifact is missing",
+            CodeRunnerErrorKind::DependencyIntegrityMismatch => {
+                "dependency artifact integrity mismatch"
+            }
+            CodeRunnerErrorKind::DependencyArtifactInvalid => "dependency artifact is invalid",
+            CodeRunnerErrorKind::DependencyAliasInvalid => "dependency alias is invalid",
             CodeRunnerErrorKind::SyntaxError => "code source is not valid JavaScript",
             CodeRunnerErrorKind::MainMissing => "main function is required",
             CodeRunnerErrorKind::InvalidOutput => "main must return a JSON object",
@@ -211,6 +252,56 @@ impl fmt::Display for CodeRunnerError {
 
 impl Error for CodeRunnerError {}
 
+struct LoadedCodeDependency {
+    alias: String,
+    source: String,
+}
+
+fn load_dependency_artifacts(
+    dependencies: &[CompiledCodeDependency],
+) -> Result<Vec<LoadedCodeDependency>> {
+    dependencies
+        .iter()
+        .map(|dependency| {
+            if !is_js_identifier(dependency.alias.as_str()) {
+                return Err(CodeRunnerError::dependency_alias_invalid().into());
+            }
+            let source = fs::read_to_string(&dependency.artifact_path)
+                .map_err(|_| CodeRunnerError::dependency_artifact_missing())?;
+            verify_dependency_integrity(&source, dependency)?;
+            reject_module_syntax(&source)
+                .map_err(|_| CodeRunnerError::dependency_artifact_invalid())?;
+            Ok(LoadedCodeDependency {
+                alias: dependency.alias.clone(),
+                source,
+            })
+        })
+        .collect()
+}
+
+fn verify_dependency_integrity(source: &str, dependency: &CompiledCodeDependency) -> Result<()> {
+    let actual = format!("{:x}", Sha256::digest(source.as_bytes()));
+    for expected in [&dependency.artifact_hash, &dependency.integrity] {
+        let normalized = normalize_sha256(expected);
+        if normalized.as_deref() != Some(actual.as_str()) {
+            return Err(CodeRunnerError::dependency_integrity_mismatch().into());
+        }
+    }
+    Ok(())
+}
+
+fn normalize_sha256(value: &str) -> Option<String> {
+    let trimmed = value.trim();
+    if trimmed.is_empty() {
+        return None;
+    }
+    trimmed
+        .strip_prefix("sha256:")
+        .or_else(|| trimmed.strip_prefix("sha256-"))
+        .or(Some(trimmed))
+        .map(str::to_ascii_lowercase)
+}
+
 fn run_quickjs_code(request: QuickJsInvocationRequest) -> Result<CodeInvocationOutput> {
     if !request.language.eq_ignore_ascii_case("javascript") {
         return Err(CodeRunnerError::unsupported_language().into());
@@ -224,6 +315,7 @@ fn run_quickjs_code(request: QuickJsInvocationRequest) -> Result<CodeInvocationO
         .filter(|source| !source.trim().is_empty())
         .ok_or_else(CodeRunnerError::source_missing)?;
     reject_module_syntax(source)?;
+    let dependencies = load_dependency_artifacts(&request.dependencies)?;
 
     let deadline = std::time::Instant::now() + request.timeout;
     let runtime = Runtime::new().map_err(|_| CodeRunnerError::runtime_error())?;
@@ -235,6 +327,29 @@ fn run_quickjs_code(request: QuickJsInvocationRequest) -> Result<CodeInvocationO
 
     let context = Context::full(&runtime).map_err(|_| CodeRunnerError::runtime_error())?;
     context.with(|ctx| {
+        ctx.eval::<(), _>("globalThis.__dependencies = globalThis.__dependencies || {};")
+            .map_err(|_| CodeRunnerError::runtime_error())?;
+        for dependency in &dependencies {
+            ctx.eval::<(), _>(dependency.source.as_str())
+                .map_err(|_| CodeRunnerError::dependency_artifact_invalid())?;
+            let alias_literal = serde_json::to_string(&dependency.alias)
+                .map_err(|_| CodeRunnerError::runtime_error())?;
+            let dependency_check = format!(
+                r#"Object.prototype.hasOwnProperty.call(globalThis.__dependencies, {alias_literal})"#
+            );
+            let registered = ctx
+                .eval::<bool, _>(dependency_check)
+                .map_err(|_| CodeRunnerError::dependency_artifact_invalid())?;
+            if !registered {
+                return Err(CodeRunnerError::dependency_artifact_invalid().into());
+            }
+            let facade_script = format!(
+                "var {} = globalThis.__dependencies[{}];",
+                dependency.alias, alias_literal
+            );
+            ctx.eval::<(), _>(facade_script)
+                .map_err(|_| CodeRunnerError::dependency_artifact_invalid())?;
+        }
         ctx.eval::<(), _>(source).map_err(|_| {
             code_error_for_elapsed(request.timeout, deadline, CodeRunnerError::syntax_error())
         })?;
@@ -391,6 +506,15 @@ fn skip_block_comment(source: &[u8], mut index: usize) -> usize {
 
 fn is_js_identifier_byte(byte: u8) -> bool {
     byte.is_ascii_alphanumeric() || byte == b'_' || byte == b'$'
+}
+
+fn is_js_identifier(value: &str) -> bool {
+    let mut bytes = value.bytes();
+    let Some(first) = bytes.next() else {
+        return false;
+    };
+    (first.is_ascii_alphabetic() || first == b'_' || first == b'$')
+        && bytes.all(is_js_identifier_byte)
 }
 
 #[derive(Debug, Clone, PartialEq)]

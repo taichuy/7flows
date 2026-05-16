@@ -25,6 +25,9 @@ pub struct FlowCompileContext {
 pub struct FlowCompileJsDependency {
     pub alias: String,
     pub target: String,
+    pub artifact_path: String,
+    pub artifact_hash: String,
+    pub integrity: String,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -311,6 +314,9 @@ fn compile_code_runtime(config: &Value, context: &FlowCompileContext) -> Compile
                 .map(|dependency| CompiledCodeDependency {
                     alias: dependency.alias.clone(),
                     target: dependency.target.clone(),
+                    artifact_path: dependency.artifact_path.clone(),
+                    artifact_hash: dependency.artifact_hash.clone(),
+                    integrity: dependency.integrity.clone(),
                 })
         })
         .collect();

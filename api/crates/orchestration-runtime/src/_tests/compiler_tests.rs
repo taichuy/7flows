@@ -269,6 +269,9 @@ fn code_js_dependency_context(alias: &str, target: &str) -> FlowCompileContext {
         FlowCompileJsDependency {
             alias: alias.to_string(),
             target: target.to_string(),
+            artifact_path: format!("artifacts/{alias}.backend.mjs"),
+            artifact_hash: format!("sha256:{alias}"),
+            integrity: format!("sha256:{alias}"),
         },
     );
     context
@@ -370,6 +373,9 @@ fn code_runtime_metadata_compiles_language_entrypoint_source_and_import_snapshot
         vec![CompiledCodeDependency {
             alias: "zod".to_string(),
             target: "backend_code".to_string(),
+            artifact_path: "artifacts/zod.backend.mjs".to_string(),
+            artifact_hash: "sha256:zod".to_string(),
+            integrity: "sha256:zod".to_string(),
         }]
     );
 }

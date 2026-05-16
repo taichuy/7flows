@@ -1,16 +1,17 @@
-use std::{collections::BTreeMap, time::Duration};
+use std::{collections::BTreeMap, fs, time::Duration};
 
 use anyhow::{anyhow, Result};
 use async_trait::async_trait;
 use plugin_framework::provider_contract::ProviderInvocationInput;
 use serde_json::{json, Value};
+use sha2::{Digest, Sha256};
 use uuid::Uuid;
 
 use crate::{
     code_runtime::QuickJsCodeInvoker,
     compiled_plan::{
-        CompiledBinding, CompiledCodeRuntime, CompiledLlmRuntime, CompiledNode, CompiledOutput,
-        CompiledPlan, CompiledPluginRuntime,
+        CompiledBinding, CompiledCodeDependency, CompiledCodeRuntime, CompiledLlmRuntime,
+        CompiledNode, CompiledOutput, CompiledPlan, CompiledPluginRuntime,
     },
     execution_engine::{
         start_flow_debug_run, CapabilityInvocationOutput, CapabilityInvoker, CodeInvocationOutput,
@@ -232,9 +233,57 @@ fn quickjs_runtime(source: &str) -> CompiledCodeRuntime {
     }
 }
 
+fn quickjs_runtime_with_dependency(
+    source: &str,
+    alias: &str,
+    artifact_source: &str,
+) -> CompiledCodeRuntime {
+    let artifact_path = write_temp_dependency_artifact(alias, artifact_source);
+    let artifact_hash = format!("sha256:{:x}", Sha256::digest(artifact_source.as_bytes()));
+
+    CompiledCodeRuntime {
+        language: "javascript".to_string(),
+        source: Some(source.to_string()),
+        source_ref: None,
+        entrypoint: "main".to_string(),
+        imports: vec![alias.to_string()],
+        dependencies: vec![CompiledCodeDependency {
+            alias: alias.to_string(),
+            target: "backend_code".to_string(),
+            artifact_path,
+            artifact_hash: artifact_hash.clone(),
+            integrity: artifact_hash,
+        }],
+    }
+}
+
+fn write_temp_dependency_artifact(alias: &str, artifact_source: &str) -> String {
+    let path = std::env::temp_dir().join(format!(
+        "1flowbase-code-dependency-{alias}-{}.mjs",
+        Uuid::now_v7()
+    ));
+    fs::write(&path, artifact_source).expect("test dependency artifact should be written");
+    path.to_string_lossy().into_owned()
+}
+
 async fn invoke_quickjs(source: &str, input_payload: Value) -> Result<CodeInvocationOutput> {
     QuickJsCodeInvoker::default()
         .invoke_code_node(&quickjs_runtime(source), json!({}), input_payload)
+        .await
+}
+
+async fn invoke_quickjs_with_dependency(
+    source: &str,
+    alias: &str,
+    artifact_source: &str,
+    input_payload: Value,
+) -> Result<CodeInvocationOutput> {
+    QuickJsCodeInvoker::default()
+        .invoke_code_node(
+            &quickjs_runtime_with_dependency(source, alias, artifact_source),
+            json!({}),
+            input_payload,
+        )
         .await
 }
 
@@ -250,6 +299,100 @@ async fn code_runner_quickjs_success_transform_returns_json_object() {
     assert_eq!(
         output.output_payload,
         json!({ "result": "hello world", "count": 2 })
+    );
+}
+
+#[tokio::test]
+async fn code_dependency_quickjs_loads_zod_like_artifact_by_alias() {
+    let artifact_source = r#"
+globalThis.__dependencies = globalThis.__dependencies || {};
+globalThis.__dependencies.zod = {
+  object: function(shape) {
+    return {
+      parse: function(input) {
+        const output = {};
+        for (const key in shape) {
+          output[key] = shape[key].parse(input[key]);
+        }
+        return output;
+      }
+    };
+  },
+  string: function() {
+    return {
+      parse: function(value) {
+        if (typeof value !== "string") {
+          throw new Error("expected string");
+        }
+        return value;
+      }
+    };
+  }
+};
+"#;
+    let output = invoke_quickjs_with_dependency(
+        r#"
+function main(inputs) {
+  const parsed = zod.object({ query: zod.string() }).parse(inputs);
+  return { result: parsed.query + " parsed" };
+}
+"#,
+        "zod",
+        artifact_source,
+        json!({ "query": "hello" }),
+    )
+    .await
+    .unwrap();
+
+    assert_eq!(output.output_payload, json!({ "result": "hello parsed" }));
+}
+
+#[tokio::test]
+async fn code_dependency_quickjs_missing_artifact_is_stable() {
+    let runtime = CompiledCodeRuntime {
+        language: "javascript".to_string(),
+        source: Some("function main(inputs) { return { result: zod }; }".to_string()),
+        source_ref: None,
+        entrypoint: "main".to_string(),
+        imports: vec!["zod".to_string()],
+        dependencies: vec![CompiledCodeDependency {
+            alias: "zod".to_string(),
+            target: "backend_code".to_string(),
+            artifact_path: "/tmp/1flowbase-missing-zod-artifact.mjs".to_string(),
+            artifact_hash: "sha256:missing".to_string(),
+            integrity: "sha256:missing".to_string(),
+        }],
+    };
+
+    let error = QuickJsCodeInvoker::default()
+        .invoke_code_node(&runtime, json!({}), json!({}))
+        .await
+        .unwrap_err();
+
+    assert_eq!(
+        error.to_string(),
+        "dependency_artifact_missing: dependency artifact is missing"
+    );
+}
+
+#[tokio::test]
+async fn code_dependency_quickjs_hash_mismatch_is_stable() {
+    let mut runtime = quickjs_runtime_with_dependency(
+        "function main(inputs) { return { result: zod.value }; }",
+        "zod",
+        "globalThis.__dependencies = { zod: { value: 'ok' } };",
+    );
+    runtime.dependencies[0].artifact_hash = "sha256:mismatch".to_string();
+    runtime.dependencies[0].integrity = "sha256:mismatch".to_string();
+
+    let error = QuickJsCodeInvoker::default()
+        .invoke_code_node(&runtime, json!({}), json!({}))
+        .await
+        .unwrap_err();
+
+    assert_eq!(
+        error.to_string(),
+        "dependency_integrity_mismatch: dependency artifact integrity mismatch"
     );
 }
 
