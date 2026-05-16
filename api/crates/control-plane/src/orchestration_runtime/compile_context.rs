@@ -207,6 +207,9 @@ pub(super) fn ensure_compiled_plan_runnable(
             | orchestration_runtime::compiled_plan::CompileIssueCode::InvalidJsDependencyImport => {
                 "imports"
             }
+            orchestration_runtime::compiled_plan::CompileIssueCode::InvalidCodeIsolationProfile => {
+                "isolation"
+            }
         };
         return Err(ControlPlaneError::InvalidInput(field).into());
     }
@@ -552,6 +555,22 @@ mod tests {
         .await;
 
         assert_eq!(field, "imports");
+    }
+
+    #[tokio::test]
+    async fn code_isolation_compile_issue_maps_to_isolation_field() {
+        let repository =
+            super::super::test_support::InMemoryOrchestrationRuntimeRepository::with_permissions(
+                vec![],
+            );
+        let mut document = code_js_dependency_document(Uuid::now_v7(), json!([]));
+        document["graph"]["nodes"][1]["config"]["isolation"] = serde_json::json!({
+            "mode": "process"
+        });
+
+        let field = compile_error_field(&repository, &document).await;
+
+        assert_eq!(field, "isolation");
     }
 
     #[tokio::test]

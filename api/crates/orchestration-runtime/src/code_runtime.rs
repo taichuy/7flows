@@ -1,15 +1,23 @@
-use std::{error::Error, fmt, fs, time::Duration};
+use std::{
+    error::Error,
+    fmt, fs,
+    sync::{
+        Arc,
+        atomic::{AtomicBool, Ordering},
+    },
+    time::Duration,
+};
 
-use anyhow::{anyhow, Result};
+use anyhow::{Result, anyhow};
 use async_trait::async_trait;
 use rquickjs::{Context, Runtime};
-use serde_json::{json, Map, Value};
+use serde_json::{Map, Value, json};
 use sha2::{Digest, Sha256};
 
 use crate::{
     compiled_plan::{CompiledCodeDependency, CompiledCodeRuntime, CompiledNode},
     payload_builder::{
-        is_reserved_payload_key, BuiltNodePayloads, PublicOutputContract, RawNodeExecutionResult,
+        BuiltNodePayloads, PublicOutputContract, RawNodeExecutionResult, is_reserved_payload_key,
     },
 };
 
@@ -32,24 +40,20 @@ pub trait CodeInvoker: Send + Sync {
 
 #[derive(Debug, Clone)]
 pub struct QuickJsCodeInvoker {
-    timeout: Duration,
-    memory_limit_bytes: usize,
-    stack_size_bytes: usize,
+    timeout_override: Option<Duration>,
 }
 
 impl Default for QuickJsCodeInvoker {
     fn default() -> Self {
         Self {
-            timeout: Duration::from_millis(100),
-            memory_limit_bytes: 8 * 1024 * 1024,
-            stack_size_bytes: 256 * 1024,
+            timeout_override: None,
         }
     }
 }
 
 impl QuickJsCodeInvoker {
     pub fn with_timeout(mut self, timeout: Duration) -> Self {
-        self.timeout = timeout;
+        self.timeout_override = Some(timeout);
         self
     }
 }
@@ -68,9 +72,11 @@ impl CodeInvoker for QuickJsCodeInvoker {
             entrypoint: runtime.entrypoint.clone(),
             dependencies: runtime.dependencies.clone(),
             input_payload,
-            timeout: self.timeout,
-            memory_limit_bytes: self.memory_limit_bytes,
-            stack_size_bytes: self.stack_size_bytes,
+            timeout: self
+                .timeout_override
+                .unwrap_or_else(|| Duration::from_millis(runtime.isolation_profile.timeout_ms)),
+            memory_limit_bytes: runtime.isolation_profile.memory_mb as usize * 1024 * 1024,
+            stack_size_bytes: runtime.isolation_profile.stack_kb as usize * 1024,
         };
 
         tokio::task::spawn_blocking(move || run_quickjs_code(request))
@@ -318,11 +324,17 @@ fn run_quickjs_code(request: QuickJsInvocationRequest) -> Result<CodeInvocationO
     let dependencies = load_dependency_artifacts(&request.dependencies)?;
 
     let deadline = std::time::Instant::now() + request.timeout;
+    let interrupted = Arc::new(AtomicBool::new(false));
+    let interrupt_state = Arc::clone(&interrupted);
     let runtime = Runtime::new().map_err(|_| CodeRunnerError::runtime_error())?;
     runtime.set_memory_limit(request.memory_limit_bytes);
     runtime.set_max_stack_size(request.stack_size_bytes);
     runtime.set_interrupt_handler(Some(Box::new(move || {
-        std::time::Instant::now() >= deadline
+        let expired = std::time::Instant::now() >= deadline;
+        if expired {
+            interrupt_state.store(true, Ordering::Relaxed);
+        }
+        expired
     })));
 
     let context = Context::full(&runtime).map_err(|_| CodeRunnerError::runtime_error())?;
@@ -351,10 +363,20 @@ fn run_quickjs_code(request: QuickJsInvocationRequest) -> Result<CodeInvocationO
                 .map_err(|_| CodeRunnerError::dependency_artifact_invalid())?;
         }
         ctx.eval::<(), _>(source).map_err(|_| {
-            code_error_for_elapsed(request.timeout, deadline, CodeRunnerError::syntax_error())
+            code_error_for_elapsed(
+                request.timeout,
+                deadline,
+                &interrupted,
+                CodeRunnerError::syntax_error(),
+            )
         })?;
         let main_type = ctx.eval::<String, _>("typeof main").map_err(|_| {
-            code_error_for_elapsed(request.timeout, deadline, CodeRunnerError::runtime_error())
+            code_error_for_elapsed(
+                request.timeout,
+                deadline,
+                &interrupted,
+                CodeRunnerError::runtime_error(),
+            )
         })?;
         if main_type != "function" {
             return Err(CodeRunnerError::main_missing().into());
@@ -364,7 +386,12 @@ fn run_quickjs_code(request: QuickJsInvocationRequest) -> Result<CodeInvocationO
             .map_err(|_| CodeRunnerError::runtime_error())?;
         let invocation_script = build_invocation_script(&input_literal);
         let output_json = ctx.eval::<String, _>(invocation_script).map_err(|_| {
-            code_error_for_elapsed(request.timeout, deadline, CodeRunnerError::runtime_error())
+            code_error_for_elapsed(
+                request.timeout,
+                deadline,
+                &interrupted,
+                CodeRunnerError::runtime_error(),
+            )
         })?;
         if output_json == INVALID_OUTPUT_SENTINEL {
             return Err(CodeRunnerError::invalid_output().into());
@@ -382,9 +409,12 @@ fn run_quickjs_code(request: QuickJsInvocationRequest) -> Result<CodeInvocationO
 fn code_error_for_elapsed(
     timeout: Duration,
     deadline: std::time::Instant,
+    interrupted: &AtomicBool,
     fallback: CodeRunnerError,
 ) -> CodeRunnerError {
-    if !timeout.is_zero() && std::time::Instant::now() >= deadline {
+    if !timeout.is_zero()
+        && (interrupted.load(Ordering::Relaxed) || std::time::Instant::now() >= deadline)
+    {
         CodeRunnerError::timeout()
     } else {
         fallback
@@ -594,6 +624,11 @@ fn code_runtime_metrics(runtime: &CompiledCodeRuntime, error: bool) -> Result<Ma
         "entrypoint": runtime.entrypoint,
         "imports": runtime.imports,
         "dependency_count": runtime.dependencies.len(),
+        "executor_id": runtime.isolation_profile.executor_id,
+        "isolation_mode": runtime.isolation_profile.mode,
+        "timeout_ms": runtime.isolation_profile.timeout_ms,
+        "memory_mb": runtime.isolation_profile.memory_mb,
+        "stack_kb": runtime.isolation_profile.stack_kb,
         "error": error,
     }))
 }

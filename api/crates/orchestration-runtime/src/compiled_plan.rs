@@ -98,6 +98,86 @@ pub struct CompiledCodeRuntime {
     pub imports: Vec<String>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub dependencies: Vec<CompiledCodeDependency>,
+    #[serde(default = "CodeIsolationProfile::quickjs_default")]
+    pub isolation_profile: CodeIsolationProfile,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct CodeIsolationProfile {
+    pub mode: String,
+    pub timeout_ms: u64,
+    pub memory_mb: u32,
+    pub stack_kb: u32,
+    pub network: String,
+    pub filesystem: String,
+    pub env: String,
+    pub secrets: String,
+    pub executor_id: String,
+}
+
+impl CodeIsolationProfile {
+    pub const DEFAULT_MODE: &'static str = "vm_limited";
+    pub const DEFAULT_TIMEOUT_MS: u64 = 100;
+    pub const DEFAULT_MEMORY_MB: u32 = 8;
+    pub const DEFAULT_STACK_KB: u32 = 256;
+    pub const DEFAULT_NETWORK: &'static str = "deny";
+    pub const DEFAULT_FILESYSTEM: &'static str = "deny";
+    pub const DEFAULT_ENV: &'static str = "none";
+    pub const DEFAULT_SECRETS: &'static str = "none";
+    pub const DEFAULT_EXECUTOR_ID: &'static str = "quickjs-local";
+
+    pub fn quickjs_default() -> Self {
+        Self {
+            mode: Self::DEFAULT_MODE.to_string(),
+            timeout_ms: Self::DEFAULT_TIMEOUT_MS,
+            memory_mb: Self::DEFAULT_MEMORY_MB,
+            stack_kb: Self::DEFAULT_STACK_KB,
+            network: Self::DEFAULT_NETWORK.to_string(),
+            filesystem: Self::DEFAULT_FILESYSTEM.to_string(),
+            env: Self::DEFAULT_ENV.to_string(),
+            secrets: Self::DEFAULT_SECRETS.to_string(),
+            executor_id: Self::DEFAULT_EXECUTOR_ID.to_string(),
+        }
+    }
+}
+
+impl Default for CodeIsolationProfile {
+    fn default() -> Self {
+        Self::quickjs_default()
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct CodeExecutorCapability {
+    pub executor_id: String,
+    pub supported_modes: Vec<String>,
+    pub max_timeout_ms: u64,
+    pub max_memory_mb: u32,
+    pub max_stack_kb: u32,
+    pub network: String,
+    pub filesystem: String,
+    pub env: String,
+    pub secrets: String,
+}
+
+impl CodeExecutorCapability {
+    pub const QUICKJS_MAX_TIMEOUT_MS: u64 = 1000;
+    pub const QUICKJS_MAX_MEMORY_MB: u32 = 32;
+    pub const QUICKJS_MAX_STACK_KB: u32 = 1024;
+
+    pub fn quickjs_local() -> Self {
+        Self {
+            executor_id: CodeIsolationProfile::DEFAULT_EXECUTOR_ID.to_string(),
+            supported_modes: vec![CodeIsolationProfile::DEFAULT_MODE.to_string()],
+            max_timeout_ms: Self::QUICKJS_MAX_TIMEOUT_MS,
+            max_memory_mb: Self::QUICKJS_MAX_MEMORY_MB,
+            max_stack_kb: Self::QUICKJS_MAX_STACK_KB,
+            network: CodeIsolationProfile::DEFAULT_NETWORK.to_string(),
+            filesystem: CodeIsolationProfile::DEFAULT_FILESYSTEM.to_string(),
+            env: CodeIsolationProfile::DEFAULT_ENV.to_string(),
+            secrets: CodeIsolationProfile::DEFAULT_SECRETS.to_string(),
+        }
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -150,6 +230,7 @@ pub enum CompileIssueCode {
     PluginContributionOutputSchemaMismatch,
     JsDependencyImportNotEnabled,
     InvalidJsDependencyImport,
+    InvalidCodeIsolationProfile,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]

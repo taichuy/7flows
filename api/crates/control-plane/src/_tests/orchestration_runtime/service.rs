@@ -725,6 +725,11 @@ async fn live_debug_run_code_success_persists_output_and_completes() {
     assert_eq!(code_node.metrics_payload["language"], "javascript");
     assert_eq!(code_node.metrics_payload["entrypoint"], "main");
     assert_eq!(code_node.metrics_payload["error"], false);
+    assert_eq!(code_node.metrics_payload["executor_id"], "quickjs-local");
+    assert_eq!(code_node.metrics_payload["isolation_mode"], "vm_limited");
+    assert_eq!(code_node.metrics_payload["timeout_ms"], 100);
+    assert_eq!(code_node.metrics_payload["memory_mb"], 8);
+    assert_eq!(code_node.metrics_payload["stack_kb"], 256);
     assert!(code_node.debug_payload.as_object().unwrap().is_empty());
     assert_eq!(completed.node_runs.len(), 2);
 }

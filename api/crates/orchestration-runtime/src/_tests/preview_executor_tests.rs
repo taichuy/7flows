@@ -14,8 +14,8 @@ use uuid::Uuid;
 
 use crate::{
     compiled_plan::{
-        CompiledBinding, CompiledCodeRuntime, CompiledLlmRuntime, CompiledNode, CompiledOutput,
-        CompiledPlan,
+        CodeIsolationProfile, CompiledBinding, CompiledCodeRuntime, CompiledLlmRuntime,
+        CompiledNode, CompiledOutput, CompiledPlan,
     },
     execution_engine::{
         CodeInvocationOutput, CodeInvoker, ProviderInvocationOutput, ProviderInvoker,
@@ -260,6 +260,7 @@ async fn preview_executor_code_node_executes_runner() {
             entrypoint: "main".to_string(),
             imports: Vec::new(),
             dependencies: Vec::new(),
+            isolation_profile: CodeIsolationProfile::quickjs_default(),
         });
     }
 

@@ -1,21 +1,21 @@
 use std::{collections::BTreeMap, fs, time::Duration};
 
-use anyhow::{anyhow, Result};
+use anyhow::{Result, anyhow};
 use async_trait::async_trait;
 use plugin_framework::provider_contract::ProviderInvocationInput;
-use serde_json::{json, Value};
+use serde_json::{Map, Value, json};
 use sha2::{Digest, Sha256};
 use uuid::Uuid;
 
 use crate::{
-    code_runtime::QuickJsCodeInvoker,
+    code_runtime::{QuickJsCodeInvoker, execute_code_node},
     compiled_plan::{
-        CompiledBinding, CompiledCodeDependency, CompiledCodeRuntime, CompiledLlmRuntime,
-        CompiledNode, CompiledOutput, CompiledPlan, CompiledPluginRuntime,
+        CodeIsolationProfile, CompiledBinding, CompiledCodeDependency, CompiledCodeRuntime,
+        CompiledLlmRuntime, CompiledNode, CompiledOutput, CompiledPlan, CompiledPluginRuntime,
     },
     execution_engine::{
-        start_flow_debug_run, CapabilityInvocationOutput, CapabilityInvoker, CodeInvocationOutput,
-        CodeInvoker, ProviderInvocationOutput, ProviderInvoker,
+        CapabilityInvocationOutput, CapabilityInvoker, CodeInvocationOutput, CodeInvoker,
+        ProviderInvocationOutput, ProviderInvoker, start_flow_debug_run,
     },
     execution_state::ExecutionStopReason,
 };
@@ -175,6 +175,7 @@ fn code_runtime_plan() -> CompiledPlan {
                 entrypoint: "main".to_string(),
                 imports: Vec::new(),
                 dependencies: Vec::new(),
+                isolation_profile: CodeIsolationProfile::quickjs_default(),
             }),
         },
     );
@@ -230,6 +231,7 @@ fn quickjs_runtime(source: &str) -> CompiledCodeRuntime {
         entrypoint: "main".to_string(),
         imports: Vec::new(),
         dependencies: Vec::new(),
+        isolation_profile: CodeIsolationProfile::quickjs_default(),
     }
 }
 
@@ -254,6 +256,29 @@ fn quickjs_runtime_with_dependency(
             artifact_hash: artifact_hash.clone(),
             integrity: artifact_hash,
         }],
+        isolation_profile: CodeIsolationProfile::quickjs_default(),
+    }
+}
+
+fn code_node_with_runtime(runtime: CompiledCodeRuntime) -> CompiledNode {
+    CompiledNode {
+        node_id: "node-code".to_string(),
+        node_type: "code".to_string(),
+        alias: "Code".to_string(),
+        container_id: None,
+        dependency_node_ids: Vec::new(),
+        downstream_node_ids: Vec::new(),
+        bindings: BTreeMap::new(),
+        outputs: vec![CompiledOutput {
+            key: "result".to_string(),
+            title: "Result".to_string(),
+            value_type: "json".to_string(),
+            selector: Vec::new(),
+        }],
+        config: json!({}),
+        plugin_runtime: None,
+        llm_runtime: None,
+        code_runtime: Some(runtime),
     }
 }
 
@@ -362,6 +387,7 @@ async fn code_dependency_quickjs_missing_artifact_is_stable() {
             artifact_hash: "sha256:missing".to_string(),
             integrity: "sha256:missing".to_string(),
         }],
+        isolation_profile: CodeIsolationProfile::quickjs_default(),
     };
 
     let error = QuickJsCodeInvoker::default()
@@ -504,7 +530,7 @@ async fn code_runner_quickjs_dynamic_import_is_denied() {
 #[tokio::test]
 async fn code_runner_quickjs_timeout_is_stable() {
     let error = QuickJsCodeInvoker::default()
-        .with_timeout(Duration::from_millis(1))
+        .with_timeout(Duration::from_millis(50))
         .invoke_code_node(
             &quickjs_runtime("function main(inputs) { while (true) {} }"),
             json!({}),
@@ -514,6 +540,38 @@ async fn code_runner_quickjs_timeout_is_stable() {
         .unwrap_err();
 
     assert_eq!(error.to_string(), "timeout: code execution timed out");
+}
+
+#[tokio::test]
+async fn code_isolation_profile_timeout_is_enforced_by_quickjs_runner() {
+    let mut runtime = quickjs_runtime("function main(inputs) { while (true) {} }");
+    runtime.isolation_profile.timeout_ms = 50;
+
+    let error = QuickJsCodeInvoker::default()
+        .invoke_code_node(&runtime, json!({}), json!({}))
+        .await
+        .expect_err("profile timeout should stop user code");
+
+    assert_eq!(error.to_string(), "timeout: code execution timed out");
+}
+
+#[tokio::test]
+async fn code_isolation_profile_is_included_in_code_metrics() {
+    let mut runtime = quickjs_runtime("function main() { return { result: 'ok' }; }");
+    runtime.isolation_profile.timeout_ms = 250;
+    runtime.isolation_profile.memory_mb = 16;
+    runtime.isolation_profile.stack_kb = 512;
+    let node = code_node_with_runtime(runtime);
+
+    let execution = execute_code_node(&node, &Map::new(), &QuickJsCodeInvoker::default())
+        .await
+        .expect("code node should execute");
+
+    assert_eq!(execution.metrics_payload["executor_id"], "quickjs-local");
+    assert_eq!(execution.metrics_payload["isolation_mode"], "vm_limited");
+    assert_eq!(execution.metrics_payload["timeout_ms"], 250);
+    assert_eq!(execution.metrics_payload["memory_mb"], 16);
+    assert_eq!(execution.metrics_payload["stack_kb"], 512);
 }
 
 #[tokio::test]
@@ -579,11 +637,13 @@ async fn code_runtime_invoker_error_yields_stable_failed_stop_reason_and_trace_p
                 json!("runtime failed: user code threw")
             );
             assert_eq!(outcome.node_traces[1].node_type, "code");
-            assert!(outcome.node_traces[1]
-                .output_payload
-                .as_object()
-                .unwrap()
-                .is_empty());
+            assert!(
+                outcome.node_traces[1]
+                    .output_payload
+                    .as_object()
+                    .unwrap()
+                    .is_empty()
+            );
             assert_eq!(
                 outcome.node_traces[1].error_payload.as_ref().unwrap()["error_kind"],
                 json!("code_runtime_error")
@@ -612,10 +672,12 @@ async fn code_runtime_missing_declared_output_projects_empty_variable_payload() 
     match outcome.stop_reason {
         ExecutionStopReason::Failed(failure) => {
             assert_eq!(failure.node_id, "node-answer");
-            assert!(failure.error_payload["message"]
-                .as_str()
-                .unwrap()
-                .contains("selector path not found: node-code.result"));
+            assert!(
+                failure.error_payload["message"]
+                    .as_str()
+                    .unwrap()
+                    .contains("selector path not found: node-code.result")
+            );
         }
         other => panic!("expected downstream binding failure, got {other:?}"),
     }
