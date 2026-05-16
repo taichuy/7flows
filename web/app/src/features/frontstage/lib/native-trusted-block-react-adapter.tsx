@@ -12,6 +12,11 @@ import {
   type NativeTrustedBlockPreparePlan
 } from '@1flowbase/page-runtime';
 
+const NATIVE_TRUSTED_BLOCK_ROOT_ATTRIBUTE =
+  'data-flowbase-native-trusted-block-root';
+const NATIVE_TRUSTED_BLOCK_ID_ATTRIBUTE =
+  'data-flowbase-native-trusted-block-id';
+
 export interface FrontstageNativeTrustedBlockReactComponentProps {
   plan: NativeTrustedBlockPreparePlan;
   props: NativeTrustedBlockPreparePlan['props'];
@@ -80,6 +85,10 @@ export function createFrontstageNativeTrustedBlockReactAdapter(
     async mount(input) {
       const rootElement = validateRootElement(input.root);
       const Component = options.resolveComponent(input.plan);
+      const styleScope = applyNativeTrustedBlockStyleScope(
+        rootElement,
+        input.plan.blockId
+      );
       const portalContainment = createPortalContainment(rootElement);
       const reactRoot = (options.createRoot ?? defaultCreateRoot)(rootElement);
       const providerContext = {
@@ -117,7 +126,11 @@ export function createFrontstageNativeTrustedBlockReactAdapter(
           }
 
           didUnmount = true;
-          reactRoot.unmount();
+          try {
+            reactRoot.unmount();
+          } finally {
+            styleScope.restore();
+          }
         }
       };
     }
@@ -209,6 +222,47 @@ function createRuntimeErrorContext(
   return {
     ...context,
     componentStack
+  };
+}
+
+interface NativeTrustedBlockStyleScopeSnapshot {
+  attribute: string;
+  value: string | null;
+}
+
+function applyNativeTrustedBlockStyleScope(
+  root: Element,
+  blockId: string
+): { restore(): void } {
+  const snapshots: NativeTrustedBlockStyleScopeSnapshot[] = [
+    snapshotAttribute(root, NATIVE_TRUSTED_BLOCK_ROOT_ATTRIBUTE),
+    snapshotAttribute(root, NATIVE_TRUSTED_BLOCK_ID_ATTRIBUTE)
+  ];
+
+  root.setAttribute(NATIVE_TRUSTED_BLOCK_ROOT_ATTRIBUTE, '');
+  root.setAttribute(NATIVE_TRUSTED_BLOCK_ID_ATTRIBUTE, blockId);
+
+  return {
+    restore() {
+      snapshots.forEach((snapshot) => {
+        if (snapshot.value === null) {
+          root.removeAttribute(snapshot.attribute);
+          return;
+        }
+
+        root.setAttribute(snapshot.attribute, snapshot.value);
+      });
+    }
+  };
+}
+
+function snapshotAttribute(
+  root: Element,
+  attribute: string
+): NativeTrustedBlockStyleScopeSnapshot {
+  return {
+    attribute,
+    value: root.getAttribute(attribute)
   };
 }
 

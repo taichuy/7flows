@@ -91,6 +91,7 @@ const deniedCallIdentifiers = new Set([
 ]);
 
 const deniedConstructorIdentifiers = new Set([
+  'CSSStyleSheet',
   'Function',
   'XMLHttpRequest',
   'WebSocket'
@@ -103,6 +104,12 @@ const deniedEscapeIdentifiers = new Set([
 ]);
 
 const deniedCallForwarders = new Set(['call', 'apply', 'bind']);
+
+const deniedStylesheetProperties = new Set([
+  'adoptedStyleSheets',
+  'insertRule',
+  'styleSheets'
+]);
 
 export function validateNativeTrustedBlockSource(
   source: unknown
@@ -574,6 +581,16 @@ function validateDeniedCapabilities(
       return;
     }
 
+    if (isStyleTagCreateElementCall(source, token.end)) {
+      addError(
+        capabilityError(
+          token.value,
+          'Style tag injection is not allowed in native trusted block source.'
+        )
+      );
+      return;
+    }
+
     const deniedPropertyAccess = readDeniedPropertyAccess(
       source,
       token,
@@ -899,11 +916,30 @@ function readDeniedPropertyAccess(
     };
   }
 
+  if (deniedStylesheetProperties.has(access.property)) {
+    return {
+      identifier: access.property,
+      code: 'transform_failed',
+      message: `Stylesheet property '${access.property}' is not allowed in native trusted block source.`
+    };
+  }
+
   if (access.property === 'cookie') {
     return {
       identifier: access.property,
       code: 'transform_failed',
       message: 'Cookie access is not allowed in native trusted block source.'
+    };
+  }
+
+  if (
+    access.property === 'createElement' &&
+    isStyleTagCreateElementCall(source, access.end)
+  ) {
+    return {
+      identifier: access.property,
+      code: 'transform_failed',
+      message: 'Style tag injection is not allowed in native trusted block source.'
     };
   }
 
@@ -959,6 +995,7 @@ function isDeniedComputedProperty(property: string): boolean {
     deniedEscapeIdentifiers.has(property) ||
     deniedCallIdentifiers.has(property) ||
     deniedConstructorIdentifiers.has(property) ||
+    deniedStylesheetProperties.has(property) ||
     deniedAntdStaticModalMethods.has(property) ||
     property === 'cookie'
   );
@@ -1039,6 +1076,18 @@ function isCallExpressionAt(source: string, start: number): boolean {
   }
 
   return false;
+}
+
+function isStyleTagCreateElementCall(source: string, start: number): boolean {
+  const openParenIndex = skipWhitespace(source, start);
+  if (source[openParenIndex] !== '(') {
+    return false;
+  }
+
+  const tagLiteralIndex = skipWhitespace(source, openParenIndex + 1);
+  const tagLiteral = readStringLiteral(source, tagLiteralIndex);
+
+  return tagLiteral?.value.toLowerCase() === 'style';
 }
 
 function readPropertyAccess(

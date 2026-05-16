@@ -135,6 +135,90 @@ describe('frontstage native trusted block React adapter', () => {
     expect(antdProviderRecords.appRenderCount).toBe(1);
   });
 
+  test('marks the mounted block root with a stable native trusted style scope', async () => {
+    const root = createBlockRoot();
+    const testingRoot = createTestingRoot();
+    const adapter = createFrontstageNativeTrustedBlockReactAdapter({
+      createRoot: testingRoot.createRoot,
+      resolveComponent: () => () => <div data-testid="native-block">Ready</div>
+    });
+
+    await adapter.mount({
+      plan: createPlan({ blockId: 'native-block-scoped' }),
+      root
+    });
+
+    expect(root).toHaveAttribute('data-flowbase-native-trusted-block-root', '');
+    expect(root).toHaveAttribute(
+      'data-flowbase-native-trusted-block-id',
+      'native-block-scoped'
+    );
+  });
+
+  test('keeps native trusted style scope markers isolated per block root', async () => {
+    const firstRoot = createBlockRoot();
+    const secondRoot = createBlockRoot();
+    const testingRoot = createTestingRoot();
+    const adapter = createFrontstageNativeTrustedBlockReactAdapter({
+      createRoot: testingRoot.createRoot,
+      resolveComponent: () => () => <div data-testid="native-block">Ready</div>
+    });
+
+    await adapter.mount({
+      plan: createPlan({ blockId: 'native-block-first' }),
+      root: firstRoot
+    });
+    await adapter.mount({
+      plan: createPlan({ blockId: 'native-block-second' }),
+      root: secondRoot
+    });
+
+    expect(firstRoot).toHaveAttribute(
+      'data-flowbase-native-trusted-block-id',
+      'native-block-first'
+    );
+    expect(secondRoot).toHaveAttribute(
+      'data-flowbase-native-trusted-block-id',
+      'native-block-second'
+    );
+  });
+
+  test('restores only adapter-written style scope markers on dispose', async () => {
+    const root = createBlockRoot();
+    root.setAttribute('data-flowbase-native-trusted-block-root', 'preexisting');
+    root.setAttribute('data-flowbase-native-trusted-block-id', 'preexisting-block');
+    root.setAttribute('data-host-owned-attribute', 'keep-me');
+    const testingRoot = createTestingRoot();
+    const adapter = createFrontstageNativeTrustedBlockReactAdapter({
+      createRoot: testingRoot.createRoot,
+      resolveComponent: () => () => <div data-testid="native-block">Mounted</div>
+    });
+
+    const mounted = await adapter.mount({
+      plan: createPlan({ blockId: 'native-block-disposed' }),
+      root
+    });
+
+    root.setAttribute('data-host-owned-attribute', 'changed-by-host');
+    expect(root).toHaveAttribute('data-flowbase-native-trusted-block-root', '');
+    expect(root).toHaveAttribute(
+      'data-flowbase-native-trusted-block-id',
+      'native-block-disposed'
+    );
+
+    mounted?.dispose?.();
+
+    expect(root).toHaveAttribute(
+      'data-flowbase-native-trusted-block-root',
+      'preexisting'
+    );
+    expect(root).toHaveAttribute(
+      'data-flowbase-native-trusted-block-id',
+      'preexisting-block'
+    );
+    expect(root).toHaveAttribute('data-host-owned-attribute', 'changed-by-host');
+  });
+
   test('resolves scoped AntD theme and locale independently for each block', async () => {
     const firstRoot = createBlockRoot();
     const secondRoot = createBlockRoot();

@@ -58,6 +58,7 @@ describe('Native trusted block source static policy', () => {
   test.each([
     ['react-dom import', "import ReactDOM from 'react-dom';"],
     ['react-dom client import', "import { createRoot } from 'react-dom/client';"],
+    ['CSS import', "import './native-block.css';"],
     ['arbitrary npm import', "import dayjs from 'dayjs';"]
   ])('rejects denied static import: %s', (_label, source) => {
     const result = validateNativeTrustedBlockSource(source);
@@ -183,6 +184,25 @@ describe('Native trusted block source static policy', () => {
     ['computed prototype access', "const proto = Button['prototype'];"],
     ['__proto__ access', 'const proto = ({}).__proto__;']
   ])('rejects prototype-chain escape capability: %s', (_label, source) => {
+    const result = validateNativeTrustedBlockSource(source);
+
+    expect(result.ok).toBe(false);
+    expect(result.errors[0]).toMatchObject({
+      code: 'transform_failed'
+    });
+  });
+
+  test.each([
+    ['CSSStyleSheet constructor', 'const sheet = new CSSStyleSheet();'],
+    ['adoptedStyleSheets assignment', 'root.adoptedStyleSheets = [];'],
+    ['styleSheets access', 'const sheets = root.styleSheets;'],
+    ['insertRule invocation', "sheet.insertRule('body { color: red; }');"],
+    ['computed insertRule invocation', "sheet['insertRule']('body { color: red; }');"],
+    ['React style tag injection', "return React.createElement('style', null, 'body { color: red; }');"],
+    ['direct style tag injection', "return createElement('style', null, 'body { color: red; }');"]
+  ])('rejects stylesheet injection capability: %s', (_label, source) => {
+    expect(() => validateNativeTrustedBlockSource(source)).not.toThrow();
+
     const result = validateNativeTrustedBlockSource(source);
 
     expect(result.ok).toBe(false);
