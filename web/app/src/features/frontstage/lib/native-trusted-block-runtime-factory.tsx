@@ -1,0 +1,82 @@
+import * as antdModule from 'antd';
+import * as ReactModule from 'react';
+import * as uiModule from '@1flowbase/ui';
+
+import {
+  evaluateNativeTrustedBlockSource,
+  type JsBlockRunError,
+  type NativeTrustedBlockInjectedModuleMap
+} from '@1flowbase/page-runtime';
+
+import type {
+  FrontstageNativeTrustedBlockReactComponent,
+  FrontstageNativeTrustedBlockResolveComponent
+} from './native-trusted-block-react-adapter';
+
+type InjectedModule = Record<string, unknown>;
+
+export interface FrontstageNativeTrustedBlockRuntimeFactoryOptions {
+  modules?: NativeTrustedBlockInjectedModuleMap;
+}
+
+export class FrontstageNativeTrustedBlockRuntimeError extends Error {
+  readonly kind: JsBlockRunError['kind'];
+  readonly errors: JsBlockRunError['errors'];
+
+  constructor(error: JsBlockRunError) {
+    super(error.message);
+    this.name = 'FrontstageNativeTrustedBlockRuntimeError';
+    this.kind = error.kind;
+    this.errors = error.errors;
+  }
+}
+
+export function createFrontstageNativeTrustedBlockRuntimeFactory(
+  options: FrontstageNativeTrustedBlockRuntimeFactoryOptions = {}
+): FrontstageNativeTrustedBlockResolveComponent {
+  const modules = createFrontstageNativeTrustedBlockModuleMap(options.modules);
+
+  return (plan) => {
+    const result = evaluateNativeTrustedBlockSource({
+      source: plan.source,
+      modules
+    });
+
+    if (!result.ok) {
+      throw new FrontstageNativeTrustedBlockRuntimeError(result.error);
+    }
+
+    return result.component as FrontstageNativeTrustedBlockReactComponent;
+  };
+}
+
+export function createFrontstageNativeTrustedBlockModuleMap(
+  overrides: NativeTrustedBlockInjectedModuleMap = {}
+): NativeTrustedBlockInjectedModuleMap {
+  return {
+    react: mergeInjectedModule(createReactModule(), overrides.react),
+    antd: mergeInjectedModule(antdModule, overrides.antd),
+    '@1flowbase/ui': mergeInjectedModule(uiModule, overrides['@1flowbase/ui'])
+  };
+}
+
+function createReactModule(): InjectedModule {
+  return {
+    ...ReactModule,
+    default: getReactDefaultExport()
+  };
+}
+
+function getReactDefaultExport(): unknown {
+  return 'default' in ReactModule ? ReactModule.default : ReactModule;
+}
+
+function mergeInjectedModule(
+  defaults: InjectedModule,
+  override: InjectedModule | undefined
+): InjectedModule {
+  return {
+    ...defaults,
+    ...(override ?? {})
+  };
+}
