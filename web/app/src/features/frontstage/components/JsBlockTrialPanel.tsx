@@ -2,6 +2,10 @@ import {
   BLOCK_DATA_PERMISSIONS,
   type BlockDataPermission
 } from '@1flowbase/page-protocol';
+import type {
+  JsBlockHostDataEffect,
+  JsBlockHostEffectHandler
+} from '@1flowbase/page-runtime';
 import { Alert, Button, Descriptions, Input, Space, Typography } from 'antd';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
@@ -31,6 +35,7 @@ export interface JsBlockTrialPanelProps {
   catalogEntry: NormalizedFrontstageBlockCatalogEntry | null | undefined;
   code: string;
   contextSnapshot: Record<string, unknown>;
+  dataEffectHandler?: JsBlockHostEffectHandler<JsBlockHostDataEffect>;
   limits?: RestrictedBlockLoaderLimits;
   runtimeSnapshot?: RestrictedBlockRuntimeHostSnapshot;
   runtimeSessionFactory?: JsBlockTrialPanelRuntimeSessionFactory;
@@ -245,6 +250,7 @@ export function JsBlockTrialPanel({
   catalogEntry,
   code,
   contextSnapshot,
+  dataEffectHandler,
   limits,
   runtimeSnapshot,
   runtimeSessionFactory = createFrontstageRestrictedBlockRuntimeSession,
@@ -350,7 +356,14 @@ export function JsBlockTrialPanel({
 
     disposeActiveRuntimeSession({ updateSnapshot: false });
 
-    const session = runtimeSessionFactory({ runPlan });
+    const runtimeOptions: FrontstageRestrictedBlockRuntimeHostOptions = {
+      runPlan
+    };
+    if (dataEffectHandler) {
+      runtimeOptions.handlers = { data: dataEffectHandler };
+    }
+
+    const session = runtimeSessionFactory(runtimeOptions);
     const unsubscribe = session.subscribe((snapshot) => {
       setInternalRuntimeSnapshot(snapshot);
     });

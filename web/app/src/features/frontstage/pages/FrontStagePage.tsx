@@ -33,6 +33,7 @@ import {
   type FrontstageBlockCompositionState
 } from '../lib/block-composition';
 import { createBlankJsBlockTemplateCode } from '../lib/block-templates';
+import { createFrontstageJsBlockDataEffectHandler } from '../lib/js-block-data-effect-handler';
 import {
   createFrontstagePageDocument,
   createFrontstagePageDocumentSaveInput,
@@ -318,6 +319,10 @@ export const FrontStagePage: FC<FrontStagePageProps> = ({
     workspaceId,
     pageId: selectedPageId
   });
+  const jsBlockDataEffectHandler = useMemo(
+    () => createFrontstageJsBlockDataEffectHandler({ csrfToken }),
+    [csrfToken]
+  );
   const displayedPageContent = savedPageContent ?? pageContent;
   const hasLoadedSelectedPageContent = Boolean(
     selectedPageId && displayedPageContent?.page.id === selectedPageId
@@ -1363,6 +1368,7 @@ export const FrontStagePage: FC<FrontStagePageProps> = ({
                   catalogEntry={matchingJsBlockCatalogEntry}
                   code={selectedBlockCode.draft}
                   contextSnapshot={jsBlockTrialContextSnapshot}
+                  dataEffectHandler={jsBlockDataEffectHandler}
                   limits={jsBlockTrialLimits}
                   onCodeChange={selectedBlockCode.setDraft}
                   onContextSnapshotChange={setJsBlockTrialContextSnapshot}

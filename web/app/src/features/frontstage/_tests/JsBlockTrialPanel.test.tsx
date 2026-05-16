@@ -276,6 +276,36 @@ describe('JsBlockTrialPanel', () => {
     expect(screen.getByText('Worker failed.')).toBeInTheDocument();
   });
 
+  test('injects the configured data effect handler into runtime sessions', () => {
+    const runtimeSession = createFakeRuntimeSession();
+    const runtimeSessionFactory = vi.fn(() => runtimeSession.session);
+    const dataEffectHandler = vi.fn(async () => ({ ok: true }));
+
+    render(
+      <JsBlockTrialPanel
+        block={createBlock()}
+        catalogEntry={createCatalogEntry()}
+        code="export default { render() {} }"
+        contextSnapshot={{ pageId: 'page-1' }}
+        limits={createLimits()}
+        runtimeSessionFactory={runtimeSessionFactory}
+        dataEffectHandler={dataEffectHandler}
+      />
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: '运行' }));
+
+    expect(runtimeSessionFactory).toHaveBeenCalledWith({
+      runPlan: expect.objectContaining({
+        ok: true,
+        request: expect.objectContaining({
+          requestId: 'restricted-block:hero-block:hero-code'
+        })
+      }),
+      handlers: { data: dataEffectHandler }
+    });
+  });
+
   test('disposes the active runtime session before rerun, on stop, and on unmount', () => {
     const firstRuntimeSession = createFakeRuntimeSession();
     const secondRuntimeSession = createFakeRuntimeSession();
