@@ -1,7 +1,7 @@
 ---
 memory_type: project
-topic: frontstage-issues-150-155-acceptance-status
-summary: 2026-05-16 07 的 frontstage 验收跟进显示：#149 仍为 `1.开发中`；#152 继续保持 `4.验收通过`；target suite 已从大面积红灯收敛到 `34` 项里 `1` 红，但 `FrontStagePage` 与 `route-config` 仍缺 style-boundary 场景映射，前台页面树 API 仍固定返回空树；未提交的 #195 权限补丁还在 `access-control` 引入 `E0282` 编译错误，因此 #150、#151、#154、#155、#182 仍不能签收。
+topic: frontstage-issues-150-155-218-acceptance-status
+summary: 2026-05-16 13 更新：#218 已验收通过，前台页面树后端写 API 已走 control-plane/repository 真值入口并持久化；schema root 仍为保留 UID、删除不清理 schema/block/code 是已明示的本子任务限制。#149 仍保持开发中，父 issue 状态暂不改。
 keywords:
   - frontstage
   - acceptance
@@ -12,15 +12,16 @@ keywords:
   - issue-154
   - issue-155
   - issue-182
+  - issue-218
   - issue-195
   - qa
   - style-boundary
 match_when:
   - 验收前台路由、设计模式入口骨架或登录态权限切换时
-  - 判断 #149 / #150 / #151 / #152 / #154 / #155 / #182 / #195 是否已通过验收时
+  - 判断 #149 / #150 / #151 / #152 / #154 / #155 / #182 / #195 / #218 是否已通过验收时
 created_at: 2026-05-16 01
-updated_at: 2026-05-16 07
-last_verified_at: 2026-05-16 07
+updated_at: 2026-05-16 13
+last_verified_at: 2026-05-16 13
 decision_policy: verify_before_decision
 scope:
   - web/app/src/app/router.tsx
@@ -35,11 +36,13 @@ scope:
 
 ## 时间
 
-`2026-05-16 07`
+`2026-05-16 07`，`2026-05-16 13` 追加 #218 后端写 API 验收状态。
 
 ## 谁在做什么
 
 用户继续对 `#149`「前台路由、页面设计模式与区块编排管理」及其前台子任务做验收，只允许输出纠正建议，不参与业务代码修改。本轮重点是把凌晨那版“31 项里 9 红”的旧结论刷新成现在的 target suite、路由、样式门禁和后端 API 真值现状。
+
+`2026-05-16 13` 独立验收 subagent 对 `#218`「前台页面树后端写 API 与持久化权限」完成验收：issue 标题已从 `[2.开发完成]` 依次更新为 `[3.测试完成]`、`[4.验收通过]`；父 issue `#149` 未改状态。
 
 ## 为什么这样做
 
@@ -58,7 +61,7 @@ scope:
 - `#149` 整体状态保持 `1.开发中`。
   原因：
   - `pnpm --dir web/app test -- src/routes/_tests/route-config.test.ts src/app-shell/_tests/navigation.test.tsx src/features/frontstage/_tests/FrontStagePage.test.tsx` 当前结果已改善为 `34` 项中的 `1` 项失败，不再是凌晨的多点红灯。
-  - 但页面仍未达到仓库交付门槛：`FrontStagePage.tsx` 与 `route-config.ts` 都没有 style-boundary 场景映射，前台页面树 API 也仍未提供真实后端数据。
+  - 但页面仍未达到仓库交付门槛：`FrontStagePage.tsx` 与 `route-config.ts` 都没有 style-boundary 场景映射；`#218` 已补齐后端页面树写 API，但前端 UI mutation 接入仍不属于 #218。
   - 当前前台大部分功能仍是前端本地状态模拟，不是 schema storage / page tree / block runtime 的真实闭环。
 
 - `#152` 建议状态保持 `4.验收通过`。
@@ -81,11 +84,19 @@ scope:
   - 设计态顶部工具栏相关行为现在基本已稳定，按钮和未保存状态联动的大部分测试都通过。
   - 但同一页面仍有一条错误态重试用例失败，且样式门禁未闭合；这意味着“工具栏骨架”还不能独立签收。
 
-- `#155` 继续保持 `5.验收不通过`。
+- `#155` 的旧后端 API 阻塞已由 `#218` 修正，但 #155 是否重验通过需要另开验收。
   证据：
   - `web/app/src/features/frontstage/pages/FrontStagePage.tsx` 已具备本地页面树、默认页回退、删除与重命名逻辑。
-  - 但 `api/apps/api-server/src/routes/frontstage/mod.rs:52-64` 的 `list_frontstage_pages` 依然固定返回 `vec![]`，页面管理真值仍不在后端。
-  - 这说明页面管理左右布局骨架还是前端内存态阶段，没有进入真正的页面树/页面编排闭环。
+  - `#218` commit `e4402556540383bb0355748a112efbfddcd89b40` 已把后端页面树读写接入 `FrontstagePageService` 和 Postgres `frontstage_pages` repository，不再是固定空树。
+  - 但 #155 还需要结合前端 UI mutation 接入、style-boundary 和页面管理交互另行验收。
+
+- `#218` 当前状态为 `4.验收通过`。
+  证据：
+  - 写 API 已走 `routes/frontstage` -> `control_plane::frontstage::FrontstagePageService` -> `FrontstagePageRepository` -> Postgres `frontstage_pages`。
+  - 所有写操作由 service 检查 `frontstage.page.design`；GET 仍只要求登录用户可访问 workspace。
+  - 定向测试通过：`cargo test -p api-server frontstage_routes -- --nocapture`、`cargo test -p api-server openapi_contains_frontstage_pages_route_and_error_responses -- --nocapture`、`cargo test -p access-control manager_role_includes_frontstage_design_permission_by_default -- --nocapture`。
+  - `cargo test -p control-plane frontstage -- --nocapture` 与 `cargo test -p storage-postgres frontstage -- --nocapture` 过滤编译通过；当前没有同名专项测试。
+  - 已知限制可接受：创建 page 只写保留语义 `schema_root_uid = frontstage_page_schema_root:{page_id}`；删除 page/group 暂不清理 schema root、block schema、JS Block code，开发评论已明确后续要纳入同一事务。
 
 - `#182` 继续保持 `5.验收不通过`。
   证据：
