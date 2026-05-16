@@ -388,6 +388,50 @@ async fn application_public_api_repository_publication_insert_uses_real_foreign_
 }
 
 #[tokio::test]
+async fn application_public_api_js_dependency_snapshot_persists_empty_array_without_selection() {
+    let pool = connect(&isolated_database_url().await).await.unwrap();
+    run_migrations(&pool).await.unwrap();
+    let store = PgControlPlaneStore::new(pool.clone());
+    let workspace_id = seed_workspace(&store, "Application Publication Empty Dependency").await;
+    let actor_user_id = seed_user(&store, workspace_id, "publication-empty-dependency-owner").await;
+    let application_id = seed_application(&store, workspace_id, actor_user_id, "Public App").await;
+    let (flow_id, flow_version_id, compiled_plan_id, document) =
+        seed_flow_version_and_compiled_plan(&store, application_id, actor_user_id).await;
+
+    let publication =
+        ApplicationPublicationRepository::create_active_application_publication_version(
+            &store,
+            &CreateApplicationPublicationVersionInput {
+                actor_user_id,
+                application_id,
+                mapping_snapshot: ApplicationApiMappingConfig::default_native(),
+                api_enabled: true,
+                compiled_plan_id,
+                flow_id,
+                flow_version_id,
+                flow_schema_version: domain::FLOW_SCHEMA_VERSION.to_string(),
+                document_hash: "sha256:test".into(),
+                document_snapshot: document,
+                runtime_profile_snapshot: serde_json::json!({}),
+                output_selector: serde_json::json!({}),
+                dependency_snapshot: Vec::new(),
+            },
+        )
+        .await
+        .unwrap();
+    let reloaded = ApplicationPublicationRepository::get_application_publication_version(
+        &store,
+        publication.id,
+    )
+    .await
+    .unwrap()
+    .unwrap();
+
+    assert_eq!(publication.dependency_snapshot, Vec::new());
+    assert_eq!(reloaded.dependency_snapshot, Vec::new());
+}
+
+#[tokio::test]
 async fn application_public_api_js_dependency_snapshot_persists_on_publication_version() {
     let pool = connect(&isolated_database_url().await).await.unwrap();
     run_migrations(&pool).await.unwrap();

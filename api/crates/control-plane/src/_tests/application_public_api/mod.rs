@@ -506,6 +506,31 @@ async fn application_public_api_publish_creates_immutable_publication_version_re
 }
 
 #[tokio::test]
+async fn application_public_api_js_dependency_snapshot_is_empty_without_selection() {
+    let harness = ApplicationPublicApiTestHarness::new();
+    let application = harness.seed_application(actor_user_id(), "Support Bot");
+    let service = ApplicationPublicationService::new(harness.repository());
+
+    let publication = service
+        .publish_active_version(PublishApplicationCommand {
+            actor_user_id: actor_user_id(),
+            application_id: application.id,
+            mapping: ApplicationApiMappingConfig::default_native(),
+            api_enabled: true,
+        })
+        .await
+        .unwrap();
+    let reloaded = service
+        .get_publication_version(publication.id)
+        .await
+        .unwrap()
+        .unwrap();
+
+    assert_eq!(publication.dependency_snapshot, Vec::new());
+    assert_eq!(reloaded.dependency_snapshot, Vec::new());
+}
+
+#[tokio::test]
 async fn application_public_api_js_dependency_snapshot_is_frozen_per_publication_version() {
     let harness = ApplicationPublicApiTestHarness::new();
     let application = harness.seed_application(actor_user_id(), "Support Bot");

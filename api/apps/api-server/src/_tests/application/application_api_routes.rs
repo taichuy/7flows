@@ -581,6 +581,60 @@ async fn application_api_publication_routes_publish_and_patch_api_enabled_state(
 }
 
 #[tokio::test]
+async fn application_public_api_js_dependency_snapshot_is_empty_without_selection_on_publish_response(
+) {
+    let app = test_app().await;
+    let (cookie, csrf) = login_and_capture_cookie(&app, "root", "change-me").await;
+    let application_id =
+        create_application(&app, &cookie, &csrf, "Publication Empty Dependency App").await;
+    let mapping = json!({
+        "input": {
+            "query_target": "node-start.query",
+            "model_target": null,
+            "inputs_target": null,
+            "history_target": null,
+            "attachments_target": null
+        },
+        "output": {
+            "answer_selector": null,
+            "usage_selector": null,
+            "files_selector": null,
+            "error_selector": null
+        }
+    });
+
+    let publish = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri(format!(
+                    "/api/console/applications/{application_id}/api-publications"
+                ))
+                .header("cookie", &cookie)
+                .header("x-csrf-token", &csrf)
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    json!({
+                        "mapping": mapping,
+                        "api_enabled": true
+                    })
+                    .to_string(),
+                ))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+
+    assert_eq!(publish.status(), StatusCode::CREATED);
+    let payload = response_json(publish).await;
+    assert_eq!(
+        payload["data"]["dependency_snapshot"].as_array().unwrap(),
+        &Vec::<Value>::new()
+    );
+}
+
+#[tokio::test]
 async fn application_public_api_js_dependency_snapshot_is_returned_on_publish_response() {
     let (app, database_url) = test_app_with_database_url().await;
     let (cookie, csrf) = login_and_capture_cookie(&app, "root", "change-me").await;
