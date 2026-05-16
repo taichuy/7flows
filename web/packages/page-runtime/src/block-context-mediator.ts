@@ -218,6 +218,7 @@ function reduceActionEffect(
   return allow(state, {
     type: 'action',
     requestId: effect.requestId,
+    ...(effect.effectId ? { effectId: effect.effectId } : {}),
     actionId: effect.actionId,
     ...(payloadResult.value === undefined
       ? {}
@@ -285,6 +286,7 @@ function reduceDataEffect(
   return allow(state, {
     type: 'data',
     requestId: effect.requestId,
+    ...(effect.effectId ? { effectId: effect.effectId } : {}),
     operation: effect.operation,
     payload: payloadResult.value
   });
@@ -376,12 +378,21 @@ function normalizeEffect(
     if (!actionId.ok) {
       return effectInvalid(actionId.path, actionId.message, requestId.value);
     }
+    const effectId = readOptionalStringProperty(
+      value,
+      'effectId',
+      'effect.effectId'
+    );
+    if (!effectId.ok) {
+      return effectInvalid(effectId.path, effectId.message, requestId.value);
+    }
 
     return {
       ok: true,
       effect: {
         type: 'action',
         requestId: requestId.value,
+        ...(effectId.value ? { effectId: effectId.value } : {}),
         actionId: actionId.value,
         ...(payload.hasValue ? { payload: payload.value } : {})
       }
@@ -393,12 +404,21 @@ function normalizeEffect(
     if (!operation.ok) {
       return effectInvalid(operation.path, operation.message, requestId.value);
     }
+    const effectId = readOptionalStringProperty(
+      value,
+      'effectId',
+      'effect.effectId'
+    );
+    if (!effectId.ok) {
+      return effectInvalid(effectId.path, effectId.message, requestId.value);
+    }
 
     return {
       ok: true,
       effect: {
         type: 'data',
         requestId: requestId.value,
+        ...(effectId.value ? { effectId: effectId.value } : {}),
         operation: operation.value,
         ...(payload.hasValue ? { payload: payload.value } : {})
       }
@@ -569,6 +589,31 @@ function readStringProperty(
   const value = readRequiredProperty(record, key, path);
   if (!value.ok) {
     return value;
+  }
+
+  if (typeof value.value !== 'string' || value.value.length === 0) {
+    return {
+      ok: false,
+      path,
+      message: `${key} must be a non-empty string.`
+    };
+  }
+
+  return { ok: true, value: value.value };
+}
+
+function readOptionalStringProperty(
+  record: Record<string, unknown>,
+  key: string,
+  path: string
+): { ok: true; value?: string } | { ok: false; path: string; message: string } {
+  const value = readOptionalProperty(record, key);
+  if (!value.ok) {
+    return value;
+  }
+
+  if (!value.hasValue) {
+    return { ok: true };
   }
 
   if (typeof value.value !== 'string' || value.value.length === 0) {

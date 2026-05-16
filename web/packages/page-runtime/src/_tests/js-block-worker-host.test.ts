@@ -209,6 +209,62 @@ describe('JS block worker host adapter', () => {
     expect(host.getState().requests['request-1']?.status).toBe('pending');
   });
 
+  test('bridges worker effects through mediator policy and host effect resolution', () => {
+    const worker = new FakeWorker();
+    const host = createJsBlockWorkerHost({
+      workerFactory: () => worker,
+      effectBridge: {
+        policy: {
+          allowedEvents: ['record.saved'],
+          allowedDataModels: ['records'],
+          allowedDataOperations: ['query']
+        },
+        getContext: () => ({ tickId: 'tick-1' }),
+        handlers: {
+          data: () => ({ id: 'record-1', title: 'Ready' })
+        }
+      }
+    });
+
+    host.run(createRunRequest());
+    worker.emitMessage({
+      direction: 'worker_to_host',
+      type: 'data',
+      requestId: 'request-1',
+      effectId: 'effect-data',
+      operation: 'query',
+      payload: { model: 'records', where: { id: 'record-1' } }
+    });
+    worker.emitMessage({
+      direction: 'worker_to_host',
+      type: 'event',
+      requestId: 'request-1',
+      name: 'record.saved',
+      payload: { id: 'record-1' }
+    });
+
+    expect(worker.messages).toEqual([
+      {
+        direction: 'host_to_worker',
+        type: 'run',
+        request: createRunRequest()
+      },
+      {
+        direction: 'host_to_worker',
+        type: 'effect_result',
+        requestId: 'request-1',
+        effectId: 'effect-data',
+        ok: true,
+        value: { id: 'record-1', title: 'Ready' }
+      }
+    ]);
+    expect(host.getEffectMediatorState()).toEqual({
+      eventChains: {
+        'request-1::tick-1': 1
+      }
+    });
+  });
+
   test('dispose cleans up handlers, timers, and ignores late worker messages', () => {
     const worker = new FakeWorker();
     const timers = createManualTimers();

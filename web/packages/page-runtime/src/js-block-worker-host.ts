@@ -1,4 +1,15 @@
 import {
+  createBlockContextMediator,
+  type BlockContextMediatorContext,
+  type BlockContextMediatorPolicy,
+  type BlockContextMediatorState
+} from './block-context-mediator';
+import {
+  createJsBlockHostEffectBridge,
+  type JsBlockHostEffectBridge,
+  type JsBlockHostEffectHandlers
+} from './js-block-host-effect-bridge';
+import {
   createJsBlockRuntimeSession,
   reduceJsBlockRuntimeSession,
   type JsBlockRunRequest,
@@ -29,10 +40,19 @@ export interface JsBlockWorkerHostOptions {
   workerFactory: JsBlockWorkerFactory;
   scheduleTimeout?: JsBlockWorkerScheduleTimeout;
   clearScheduledTimeout?: JsBlockWorkerClearTimeout;
+  effectBridge?: JsBlockWorkerHostEffectBridgeOptions;
+}
+
+export interface JsBlockWorkerHostEffectBridgeOptions {
+  policy: BlockContextMediatorPolicy;
+  initialState?: BlockContextMediatorState;
+  handlers?: JsBlockHostEffectHandlers;
+  getContext?: (message: unknown) => BlockContextMediatorContext;
 }
 
 export interface JsBlockWorkerHost {
   getState(): JsBlockRuntimeSessionState;
+  getEffectMediatorState(): BlockContextMediatorState | undefined;
   init(): JsBlockRuntimeSessionState;
   run(request: JsBlockRunRequest): JsBlockRuntimeSessionState;
   resolveEffect(message: JsBlockWorkerEffectResultMessage): JsBlockRuntimeSessionState;
@@ -50,6 +70,7 @@ export function createJsBlockWorkerHost(
   const timeoutHandles = new Map<string, JsBlockWorkerTimeoutHandle>();
   let didTerminate = false;
   let didDispose = false;
+  let effectBridge: JsBlockHostEffectBridge | undefined;
 
   const clearRequestTimeout = (requestId: string) => {
     const handle = timeoutHandles.get(requestId);
@@ -85,6 +106,32 @@ export function createJsBlockWorkerHost(
     return state;
   };
 
+  const resolveEffectMessage = (
+    message: JsBlockWorkerEffectResultMessage
+  ): JsBlockRuntimeSessionState => {
+    if (didDispose) {
+      return state;
+    }
+
+    const rejectionCount = state.rejections.length;
+    state = reduceJsBlockRuntimeSession(state, message);
+    if (state.rejections.length === rejectionCount) {
+      worker.postMessage(message);
+    }
+    return state;
+  };
+
+  if (options.effectBridge) {
+    effectBridge = createJsBlockHostEffectBridge({
+      mediator: createBlockContextMediator(
+        options.effectBridge.policy,
+        options.effectBridge.initialState
+      ),
+      resolveEffect: resolveEffectMessage,
+      handlers: options.effectBridge.handlers
+    });
+  }
+
   const handleTimeout = (requestId: string) => {
     if (didDispose) {
       return;
@@ -119,7 +166,14 @@ export function createJsBlockWorkerHost(
       return;
     }
 
+    const rejectionCount = state.rejections.length;
     applyMessage(event.data);
+    if (state.rejections.length === rejectionCount) {
+      effectBridge?.handle(
+        event.data,
+        options.effectBridge?.getContext?.(event.data)
+      );
+    }
   };
   worker.onerror = (event) => {
     if (didDispose || !state.currentRequestId) {
@@ -149,6 +203,9 @@ export function createJsBlockWorkerHost(
   return {
     getState() {
       return state;
+    },
+    getEffectMediatorState() {
+      return effectBridge?.getMediatorState();
     },
     init() {
       if (didDispose) {
@@ -185,16 +242,7 @@ export function createJsBlockWorkerHost(
       return state;
     },
     resolveEffect(message) {
-      if (didDispose) {
-        return state;
-      }
-
-      const rejectionCount = state.rejections.length;
-      state = reduceJsBlockRuntimeSession(state, message);
-      if (state.rejections.length === rejectionCount) {
-        worker.postMessage(message);
-      }
-      return state;
+      return resolveEffectMessage(message);
     },
     dispose(requestId) {
       if (didDispose) {
