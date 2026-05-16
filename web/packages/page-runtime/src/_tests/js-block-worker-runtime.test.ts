@@ -52,6 +52,18 @@ function run(
   });
 }
 
+function renderedMessage(requestId: string) {
+  return {
+    direction: 'worker_to_host',
+    type: 'rendered',
+    requestId,
+    schema: {
+      primitive: 'Text',
+      props: { children: 'Ready' }
+    }
+  };
+}
+
 describe('JS block worker runtime protocol state machine', () => {
   test('moves a valid run request from pending to ready after rendered schema validation', () => {
     const pending = run(createJsBlockRuntimeSession(), createRunRequest());
@@ -110,6 +122,32 @@ describe('JS block worker runtime protocol state machine', () => {
           ]
         }
       }
+    });
+  });
+
+  test('rejects late rendered messages after source policy failure without overwriting the failure result', () => {
+    const failed = run(
+      createJsBlockRuntimeSession(),
+      createRunRequest({
+        source: 'window.location.href;'
+      })
+    );
+    const failureResult = failed.requests['request-1']?.result;
+
+    expect(failed.currentRequestId).toBeUndefined();
+
+    const afterLateRendered = reduceJsBlockRuntimeSession(
+      failed,
+      renderedMessage('request-1')
+    );
+
+    expect(afterLateRendered.requests['request-1']).toMatchObject({
+      status: 'failed',
+      result: failureResult
+    });
+    expect(afterLateRendered.rejections.at(-1)).toMatchObject({
+      code: 'request_not_pending',
+      requestId: 'request-1'
     });
   });
 
@@ -209,6 +247,153 @@ describe('JS block worker runtime protocol state machine', () => {
           ]
         }
       }
+    });
+  });
+
+  test('rejects late rendered messages after timeout without overwriting the timeout result', () => {
+    const timedOut = reduceJsBlockRuntimeSession(
+      run(createJsBlockRuntimeSession(), createRunRequest()),
+      {
+        direction: 'host_to_worker',
+        type: 'timeout',
+        requestId: 'request-1'
+      }
+    );
+    const timeoutResult = timedOut.requests['request-1']?.result;
+
+    expect(timedOut.currentRequestId).toBeUndefined();
+
+    const afterLateRendered = reduceJsBlockRuntimeSession(
+      timedOut,
+      renderedMessage('request-1')
+    );
+
+    expect(afterLateRendered.requests['request-1']).toMatchObject({
+      status: 'timed_out',
+      result: timeoutResult
+    });
+    expect(afterLateRendered.rejections.at(-1)).toMatchObject({
+      code: 'request_not_pending',
+      requestId: 'request-1'
+    });
+  });
+
+  test('rejects late rendered messages after runtime error without overwriting the error result', () => {
+    const runtimeFailed = reduceJsBlockRuntimeSession(
+      run(createJsBlockRuntimeSession(), createRunRequest()),
+      {
+        direction: 'worker_to_host',
+        type: 'error',
+        requestId: 'request-1',
+        message: 'Render failed'
+      }
+    );
+    const runtimeErrorResult = runtimeFailed.requests['request-1']?.result;
+
+    expect(runtimeFailed.currentRequestId).toBeUndefined();
+
+    const afterLateRendered = reduceJsBlockRuntimeSession(
+      runtimeFailed,
+      renderedMessage('request-1')
+    );
+
+    expect(afterLateRendered.requests['request-1']).toMatchObject({
+      status: 'failed',
+      result: runtimeErrorResult
+    });
+    expect(afterLateRendered.rejections.at(-1)).toMatchObject({
+      code: 'request_not_pending',
+      requestId: 'request-1'
+    });
+  });
+
+  test('rejects late worker messages after dispose without changing logs or effects', () => {
+    const disposed = reduceJsBlockRuntimeSession(
+      run(createJsBlockRuntimeSession(), createRunRequest()),
+      {
+        direction: 'host_to_worker',
+        type: 'dispose',
+        requestId: 'request-1'
+      }
+    );
+
+    expect(disposed.requests['request-1']).toMatchObject({
+      status: 'disposed',
+      logs: [],
+      effects: []
+    });
+    expect(disposed.currentRequestId).toBeUndefined();
+
+    const afterLateRendered = reduceJsBlockRuntimeSession(
+      disposed,
+      renderedMessage('request-1')
+    );
+    const afterLateLog = reduceJsBlockRuntimeSession(afterLateRendered, {
+      direction: 'worker_to_host',
+      type: 'log',
+      requestId: 'request-1',
+      level: 'info',
+      message: 'late log'
+    });
+    const afterLateEvent = reduceJsBlockRuntimeSession(afterLateLog, {
+      direction: 'worker_to_host',
+      type: 'event',
+      requestId: 'request-1',
+      name: 'late-event',
+      payload: { ok: true }
+    });
+    const afterLateData = reduceJsBlockRuntimeSession(afterLateEvent, {
+      direction: 'worker_to_host',
+      type: 'data',
+      requestId: 'request-1',
+      operation: 'late.query',
+      payload: { ok: true }
+    });
+    const afterLateAction = reduceJsBlockRuntimeSession(afterLateData, {
+      direction: 'worker_to_host',
+      type: 'action',
+      requestId: 'request-1',
+      actionId: 'late-action',
+      payload: { ok: true }
+    });
+
+    expect(afterLateAction.requests['request-1']).toMatchObject({
+      status: 'disposed',
+      logs: [],
+      effects: []
+    });
+    expect(
+      afterLateAction.rejections.filter(
+        (rejection) =>
+          rejection.code === 'request_not_pending' &&
+          rejection.requestId === 'request-1'
+      )
+    ).toHaveLength(5);
+  });
+
+  test('rejects late runtime errors after a request is ready without overwriting the ready result', () => {
+    const ready = reduceJsBlockRuntimeSession(
+      run(createJsBlockRuntimeSession(), createRunRequest()),
+      renderedMessage('request-1')
+    );
+    const readyResult = ready.requests['request-1']?.result;
+
+    expect(ready.currentRequestId).toBeUndefined();
+
+    const afterLateError = reduceJsBlockRuntimeSession(ready, {
+      direction: 'worker_to_host',
+      type: 'error',
+      requestId: 'request-1',
+      message: 'late failure'
+    });
+
+    expect(afterLateError.requests['request-1']).toMatchObject({
+      status: 'ready',
+      result: readyResult
+    });
+    expect(afterLateError.rejections.at(-1)).toMatchObject({
+      code: 'request_not_pending',
+      requestId: 'request-1'
     });
   });
 

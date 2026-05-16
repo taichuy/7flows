@@ -103,7 +103,8 @@ export interface JsBlockRuntimeRequestState {
 export type JsBlockRuntimeRejectionCode =
   | 'invalid_message'
   | 'unknown_request_id'
-  | 'stale_request_id';
+  | 'stale_request_id'
+  | 'request_not_pending';
 
 export interface JsBlockRuntimeRejection {
   code: JsBlockRuntimeRejectionCode;
@@ -349,7 +350,7 @@ function reduceRunMessage(
       sourceResult.errors
     );
 
-    return withRequest(state, failedRequest, request.requestId);
+    return withRequest(state, failedRequest);
   }
 
   return withRequest(state, requestState, request.requestId);
@@ -384,7 +385,7 @@ function reduceRenderedMessage(
   });
 
   if (!validation.ok) {
-    return updateRequest(
+    return completeRequest(
       state,
       withRunFailure(
         requestResult.request,
@@ -395,7 +396,7 @@ function reduceRenderedMessage(
     );
   }
 
-  return updateRequest(state, {
+  return completeRequest(state, {
     ...requestResult.request,
     status: 'ready',
     result: {
@@ -429,7 +430,7 @@ function reduceRuntimeErrorMessage(
     createProtocolError('runtime_error', 'runtime', runtimeMessage)
   ];
 
-  return updateRequest(
+  return completeRequest(
     state,
     withRunFailure(requestResult.request, 'runtime_error', runtimeMessage, errors)
   );
@@ -455,7 +456,7 @@ function reduceTimeoutMessage(
     'JS block runtime timed out.'
   );
 
-  return updateRequest(state, {
+  return completeRequest(state, {
     ...withRunFailure(
       requestResult.request,
       'runtime_timeout',
@@ -489,7 +490,7 @@ function reduceDisposeMessage(
   }
 
   return {
-    ...updateRequest(state, {
+    ...completeRequest(state, {
       ...requestResult.request,
       status: 'disposed'
     }),
@@ -763,6 +764,18 @@ function readCurrentRequest(
     };
   }
 
+  if (request.status !== 'pending') {
+    return {
+      ok: false,
+      rejection: {
+        code: 'request_not_pending',
+        path: 'message.requestId',
+        message: `Runtime message requestId is not pending: ${requestId}.`,
+        requestId
+      }
+    };
+  }
+
   if (state.currentRequestId !== requestId) {
     return {
       ok: false,
@@ -851,7 +864,7 @@ function withRunFailure(
 function withRequest(
   state: JsBlockRuntimeSessionState,
   request: JsBlockRuntimeRequestState,
-  currentRequestId: string
+  currentRequestId?: string
 ): JsBlockRuntimeSessionState {
   return {
     ...state,
@@ -860,6 +873,16 @@ function withRequest(
       ...state.requests,
       [request.requestId]: request
     }
+  };
+}
+
+function completeRequest(
+  state: JsBlockRuntimeSessionState,
+  request: JsBlockRuntimeRequestState
+): JsBlockRuntimeSessionState {
+  return {
+    ...updateRequest(state, request),
+    currentRequestId: undefined
   };
 }
 
