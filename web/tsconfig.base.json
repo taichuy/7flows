@@ -18,6 +18,7 @@
       "@1flowbase/ui": ["packages/ui/src/index.tsx"],
       "@1flowbase/flow-schema": ["packages/flow-schema/src/index.ts"],
       "@1flowbase/antd-facade": ["packages/antd-facade/src/index.ts"],
+      "@1flowbase/block-renderer": ["packages/block-renderer/src/index.tsx"],
       "@1flowbase/block-sdk": ["packages/block-sdk/src/index.ts"],
       "@1flowbase/page-protocol": ["packages/page-protocol/src/index.ts"],
       "@1flowbase/page-runtime": ["packages/page-runtime/src/index.ts"],

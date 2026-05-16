@@ -185,6 +185,21 @@ importers:
         specifier: workspace:*
         version: link:../shared-types
 
+  packages/block-renderer:
+    dependencies:
+      '@1flowbase/page-protocol':
+        specifier: workspace:*
+        version: link:../page-protocol
+      antd:
+        specifier: ^5.24.6
+        version: 5.29.3(react-dom@19.2.5(react@19.2.5))(react@19.2.5)
+      react:
+        specifier: ^19.0.0
+        version: 19.2.5
+      react-dom:
+        specifier: ^19.0.0
+        version: 19.2.5(react@19.2.5)
+
   packages/block-sdk:
     dependencies:
       '@1flowbase/page-protocol':

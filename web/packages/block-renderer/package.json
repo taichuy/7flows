@@ -1,0 +1,17 @@
+{
+  "name": "@1flowbase/block-renderer",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "@1flowbase/page-protocol": "workspace:*",
+    "antd": "^5.24.6",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "lint": "eslint src --ext .ts,.tsx",
+    "test": "vitest run --passWithNoTests"
+  }
+}
