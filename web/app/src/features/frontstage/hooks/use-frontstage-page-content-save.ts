@@ -1,0 +1,89 @@
+import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMemo, useState } from 'react';
+
+import { useAuthStore } from '../../../state/auth-store';
+import {
+  frontstagePageContentQueryKey,
+  saveFrontstagePageContent,
+  type FrontstagePageContent,
+  type SaveFrontstagePageContentInput
+} from '../api/page-content';
+
+interface UseFrontstagePageContentSaveInput {
+  workspaceId: string | null | undefined;
+  pageId: string | null | undefined;
+}
+
+function requireValue(value: string | null | undefined, label: string): string {
+  if (!value) {
+    throw new Error(`missing ${label}`);
+  }
+
+  return value;
+}
+
+function requireCsrfToken(csrfToken: string | null): string {
+  if (!csrfToken) {
+    throw new Error('missing csrf token');
+  }
+
+  return csrfToken;
+}
+
+function toError(error: unknown): Error {
+  return error instanceof Error
+    ? error
+    : new Error('frontstage page content save failed');
+}
+
+export function useFrontstagePageContentSave({
+  workspaceId,
+  pageId
+}: UseFrontstagePageContentSaveInput) {
+  const csrfToken = useAuthStore((state) => state.csrfToken);
+  const queryClient = useQueryClient();
+  const [mutationError, setMutationError] = useState<Error | null>(null);
+
+  const queryKey = useMemo(
+    () => frontstagePageContentQueryKey(workspaceId ?? '', pageId ?? ''),
+    [pageId, workspaceId]
+  );
+
+  const clearMutationError = () => {
+    setMutationError(null);
+  };
+
+  const captureMutationError = (error: unknown) => {
+    setMutationError(toError(error));
+  };
+
+  const saveMutation = useMutation({
+    mutationFn: (input: SaveFrontstagePageContentInput) =>
+      saveFrontstagePageContent(
+        requireValue(workspaceId, 'workspace id'),
+        requireValue(pageId, 'page id'),
+        input,
+        requireCsrfToken(csrfToken)
+      ),
+    onMutate: clearMutationError,
+    onError: captureMutationError,
+    onSuccess: async (savedContent: FrontstagePageContent) => {
+      queryClient.setQueryData(queryKey, savedContent);
+      await queryClient.invalidateQueries({ queryKey, refetchType: 'active' });
+    }
+  });
+
+  const reset = () => {
+    saveMutation.reset();
+    setMutationError(null);
+  };
+
+  return {
+    save: saveMutation.mutateAsync,
+    saving: saveMutation.isPending,
+    isPending: saveMutation.isPending,
+    error: mutationError,
+    reset,
+    clearError: clearMutationError
+  };
+}
