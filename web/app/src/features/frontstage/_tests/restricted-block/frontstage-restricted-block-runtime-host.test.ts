@@ -1,4 +1,4 @@
-import { describe, expect, test } from 'vitest';
+import { describe, expect, test, vi } from 'vitest';
 
 import {
   JsBlockWorkerAdapterError,
@@ -8,6 +8,7 @@ import {
 
 import type { RestrictedBlockRunPlan } from '../../lib/restricted-block-loader';
 import {
+  createObservableFrontstageRestrictedBlockRuntimeHost,
   createFrontstageRestrictedBlockRuntimeHost,
   type FrontstageRestrictedBlockRuntimeHostOptions
 } from '../../lib/frontstage-restricted-block-runtime-host';
@@ -37,6 +38,18 @@ class FakeWorker implements JsBlockWorkerLike {
 
   terminate(): void {
     this.terminateCount += 1;
+  }
+
+  emitMessage(data: unknown): void {
+    this.onmessage?.({ data });
+  }
+
+  emitError(message = 'worker failed'): void {
+    this.onerror?.({ message });
+  }
+
+  emitMessageError(message = 'worker message failed'): void {
+    this.onmessageerror?.({ message });
   }
 }
 
@@ -125,7 +138,212 @@ function createSubject(
   return { host, worker };
 }
 
+function createObservableSubject(
+  options: Partial<FrontstageRestrictedBlockRuntimeHostOptions> = {}
+) {
+  const worker = new FakeWorker();
+  const host = createObservableFrontstageRestrictedBlockRuntimeHost({
+    runPlan: createRunPlan(),
+    workerFactory: () => worker,
+    ...options
+  });
+
+  return { host, worker };
+}
+
 describe('FrontStage restricted block runtime host factory', () => {
+  test('notifies subscribers with running and ready snapshots', () => {
+    const { host, worker } = createObservableSubject();
+    const snapshots: Array<ReturnType<typeof host.getSnapshot>> = [];
+
+    host.subscribe((snapshot) => snapshots.push(snapshot));
+
+    host.run();
+    worker.emitMessage({
+      direction: 'worker_to_host',
+      type: 'rendered',
+      requestId: 'restricted-block:block-1:code-1',
+      schema: { primitive: 'Text', props: { children: 'Ready' } }
+    });
+
+    expect(snapshots).toMatchObject([
+      { status: 'running' },
+      {
+        status: 'ready',
+        schema: { primitive: 'Text', props: { children: 'Ready' } }
+      }
+    ]);
+  });
+
+  test('notifies subscribers with failed snapshots after worker errors', () => {
+    const failedByError = createObservableSubject();
+    const errorSnapshots: Array<
+      ReturnType<typeof failedByError.host.getSnapshot>
+    > = [];
+
+    failedByError.host.subscribe((snapshot) =>
+      errorSnapshots.push(snapshot)
+    );
+    failedByError.host.run();
+    failedByError.worker.emitError('worker exploded');
+
+    expect(errorSnapshots).toMatchObject([
+      { status: 'running' },
+      {
+        status: 'failed',
+        error: { kind: 'runtime_error', message: 'worker exploded' }
+      }
+    ]);
+
+    const failedByMessageError = createObservableSubject();
+    const messageErrorSnapshots: Array<
+      ReturnType<typeof failedByMessageError.host.getSnapshot>
+    > = [];
+
+    failedByMessageError.host.subscribe((snapshot) =>
+      messageErrorSnapshots.push(snapshot)
+    );
+    failedByMessageError.host.run();
+    failedByMessageError.worker.emitMessageError('message channel exploded');
+
+    expect(messageErrorSnapshots).toMatchObject([
+      { status: 'running' },
+      {
+        status: 'failed',
+        error: {
+          kind: 'runtime_error',
+          message: 'message channel exploded'
+        }
+      }
+    ]);
+  });
+
+  test('notifies subscribers after dispose', () => {
+    const { host, worker } = createObservableSubject();
+    const snapshots: Array<ReturnType<typeof host.getSnapshot>> = [];
+
+    host.subscribe((snapshot) => snapshots.push(snapshot));
+    host.run();
+
+    expect(host.dispose()).toMatchObject({ status: 'disposed' });
+    expect(snapshots).toMatchObject([
+      { status: 'running' },
+      { status: 'disposed' }
+    ]);
+    expect(worker.terminateCount).toBe(1);
+  });
+
+  test('ignores late worker messages after dispose without notifying stale snapshots', () => {
+    const { host, worker } = createObservableSubject();
+    const snapshots: Array<ReturnType<typeof host.getSnapshot>> = [];
+
+    host.subscribe((snapshot) => snapshots.push(snapshot));
+    host.run();
+    host.dispose();
+    worker.emitMessage({
+      direction: 'worker_to_host',
+      type: 'rendered',
+      requestId: 'restricted-block:block-1:code-1',
+      schema: { primitive: 'Text', props: { children: 'Late' } }
+    });
+
+    expect(snapshots).toMatchObject([
+      { status: 'running' },
+      { status: 'disposed' }
+    ]);
+    const snapshot = host.getSnapshot();
+    expect(snapshot.status).toBe('disposed');
+    expect(snapshot.schema).toBeUndefined();
+  });
+
+  test('stops notifying after unsubscribe', () => {
+    const { host, worker } = createObservableSubject();
+    const snapshots: Array<ReturnType<typeof host.getSnapshot>> = [];
+    const unsubscribe = host.subscribe((snapshot) =>
+      snapshots.push(snapshot)
+    );
+
+    host.run();
+    unsubscribe();
+    worker.emitMessage({
+      direction: 'worker_to_host',
+      type: 'rendered',
+      requestId: 'restricted-block:block-1:code-1',
+      schema: { primitive: 'Text', props: { children: 'Ready' } }
+    });
+    host.dispose();
+
+    expect(snapshots).toMatchObject([{ status: 'running' }]);
+  });
+
+  test('notifies each subscriber with an isolated cloned snapshot', () => {
+    const { host, worker } = createObservableSubject();
+    const mutateFirstSnapshot = vi.fn((snapshot: ReturnType<typeof host.getSnapshot>) => {
+      if (snapshot.status !== 'ready') {
+        return;
+      }
+
+      const schema = snapshot.schema as {
+        props: { children: string };
+      };
+      schema.props.children = 'Mutated';
+      (
+        snapshot.schemaValidationOptions.allowedActions as string[] | undefined
+      )?.push('record.delete');
+    });
+    const secondSnapshots: Array<ReturnType<typeof host.getSnapshot>> = [];
+
+    host.subscribe(mutateFirstSnapshot);
+    host.subscribe((snapshot) => secondSnapshots.push(snapshot));
+    host.run();
+    worker.emitMessage({
+      direction: 'worker_to_host',
+      type: 'rendered',
+      requestId: 'restricted-block:block-1:code-1',
+      schema: { primitive: 'Text', props: { children: 'Ready' } }
+    });
+
+    expect(mutateFirstSnapshot).toHaveBeenCalledTimes(2);
+    expect(secondSnapshots[1]).toMatchObject({
+      status: 'ready',
+      schema: { primitive: 'Text', props: { children: 'Ready' } },
+      schemaValidationOptions: {
+        allowedActions: ['record.save']
+      }
+    });
+    expect(host.getSnapshot()).toMatchObject({
+      status: 'ready',
+      schema: { primitive: 'Text', props: { children: 'Ready' } },
+      schemaValidationOptions: {
+        allowedActions: ['record.save']
+      }
+    });
+  });
+
+  test('observable host uses an injected workerFactory instead of browser Worker options', () => {
+    FakeNativeWorker.instances.length = 0;
+    const worker = new FakeWorker();
+
+    const host = createObservableFrontstageRestrictedBlockRuntimeHost({
+      runPlan: createRunPlan(),
+      workerFactory: () => worker,
+      browserWorkerFactoryOptions: {
+        workerConstructor: ThrowingNativeWorker
+      }
+    });
+
+    host.run();
+
+    expect(FakeNativeWorker.instances).toEqual([]);
+    expect(worker.messages).toEqual([
+      {
+        direction: 'host_to_worker',
+        type: 'run',
+        request: createRunRequest()
+      }
+    ]);
+  });
+
   test('uses the FrontStage browser Worker factory by default', () => {
     FakeNativeWorker.instances.length = 0;
 
