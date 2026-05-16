@@ -213,12 +213,15 @@ describe('restricted block loader core', () => {
   ] as const)(
     'returns a structured %s rejection',
     (code, overrides, expectedPath) => {
-      const result = createRestrictedBlockRunPlan({
+      const baseInput = {
         block: createBlock(),
         catalogEntry: createCatalogEntry(),
         code: 'export default {}',
         contextSnapshot: {},
-        limits: createLimits(),
+        limits: createLimits()
+      };
+      const result = createRestrictedBlockRunPlan({
+        ...baseInput,
         ...overrides
       });
 
