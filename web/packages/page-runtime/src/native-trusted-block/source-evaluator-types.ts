@@ -1,0 +1,123 @@
+import type { BlockProtocolError } from '@1flowbase/page-protocol';
+
+import type { JsBlockRunError } from '../js-block-worker-runtime';
+import type { NATIVE_TRUSTED_BLOCK_ALLOWED_IMPORTS } from '../native-trusted-block-source-policy';
+
+export type NativeTrustedBlockInjectedModuleSource =
+  (typeof NATIVE_TRUSTED_BLOCK_ALLOWED_IMPORTS)[number];
+
+export type NativeTrustedBlockInjectedModuleMap = Partial<
+  Record<NativeTrustedBlockInjectedModuleSource, Record<string, unknown>>
+>;
+
+export type NativeTrustedBlockComponent = (...args: unknown[]) => unknown;
+
+export type NativeTrustedBlockImportBinding =
+  | {
+      kind: 'named';
+      source: NativeTrustedBlockInjectedModuleSource;
+      imported: string;
+      local: string;
+    }
+  | {
+      kind: 'default';
+      source: NativeTrustedBlockInjectedModuleSource;
+      local: string;
+    }
+  | {
+      kind: 'namespace';
+      source: NativeTrustedBlockInjectedModuleSource;
+      local: string;
+    };
+
+export interface NativeTrustedBlockInjectedModule {
+  source: NativeTrustedBlockInjectedModuleSource;
+  bindings: NativeTrustedBlockImportBinding[];
+}
+
+export interface NativeTrustedBlockSourceTransformSuccess {
+  ok: true;
+  source: string;
+  normalizedSource: string;
+  injectedModules: NativeTrustedBlockInjectedModule[];
+  importBindings: NativeTrustedBlockImportBinding[];
+  executableBody: string;
+  moduleMapIdentifier: string;
+  defaultExportIdentifier: string;
+  errors: [];
+}
+
+export interface NativeTrustedBlockSourceTransformFailure {
+  ok: false;
+  errorKind: JsBlockRunError['kind'];
+  errors: BlockProtocolError[];
+}
+
+export type NativeTrustedBlockSourceTransformResult =
+  | NativeTrustedBlockSourceTransformSuccess
+  | NativeTrustedBlockSourceTransformFailure;
+
+export type NativeTrustedBlockSourceEvaluationResult =
+  | {
+      ok: true;
+      component: NativeTrustedBlockComponent;
+      compiledSource: NativeTrustedBlockSourceTransformSuccess;
+      errors: [];
+    }
+  | {
+      ok: false;
+      error: JsBlockRunError;
+    };
+
+export interface EvaluateNativeTrustedBlockSourceInput {
+  source: string;
+  modules: NativeTrustedBlockInjectedModuleMap;
+}
+
+export interface SourceToken {
+  value: string;
+  start: number;
+  end: number;
+  depth: number;
+}
+
+export interface ImportDeclaration {
+  source: NativeTrustedBlockInjectedModuleSource;
+  bindings: NativeTrustedBlockImportBinding[];
+  start: number;
+  end: number;
+}
+
+export interface DefaultExportDeclaration {
+  start: number;
+  end: number;
+  replacement: string;
+}
+
+export interface SourceEdit {
+  start: number;
+  end: number;
+  replacement: string;
+}
+
+export interface StringLiteralValue {
+  value: string;
+  end: number;
+}
+
+export interface StatementEnd {
+  expressionEnd: number;
+  statementEnd: number;
+}
+
+export interface ParseSuccess<T> {
+  ok: true;
+  value: T;
+}
+
+export interface ParseFailure {
+  ok: false;
+  error: BlockProtocolError;
+}
+
+export type ParseResult<T> = ParseSuccess<T> | ParseFailure;
