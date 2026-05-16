@@ -4,6 +4,12 @@ import { validateNativeTrustedBlockSource } from '../native-trusted-block-source
 import type { JsBlockRunError } from '../js-block-worker-runtime';
 import { transformNativeTrustedBlockJsx } from './jsx-transform';
 import {
+  RUNTIME_CAPABILITY_GUARD_BINDING_NAMES,
+  createNativeTrustedBlockRuntimeCapabilityGuardBindings,
+  getNativeTrustedBlockRuntimeCapabilityGuardValues,
+  isNativeTrustedBlockRuntimeCapabilityGuardError
+} from './runtime-capability-guard';
+import {
   DEFAULT_EXPORT_IDENTIFIER,
   MODULES_IDENTIFIER,
   RESERVED_TRANSFORM_IDENTIFIERS,
@@ -64,7 +70,14 @@ export function evaluateNativeTrustedBlockSource(
 
   try {
     const evaluator = createEvaluator(compiledSource);
-    const defaultExport = evaluator(input.modules);
+    const runtimeCapabilityGuardBindings =
+      createNativeTrustedBlockRuntimeCapabilityGuardBindings();
+    const defaultExport = evaluator(
+      input.modules,
+      ...getNativeTrustedBlockRuntimeCapabilityGuardValues(
+        runtimeCapabilityGuardBindings
+      )
+    );
     if (!isNativeTrustedBlockComponent(defaultExport)) {
       return {
         ok: false,
@@ -82,6 +95,13 @@ export function evaluateNativeTrustedBlockSource(
       errors: []
     };
   } catch (error) {
+    if (isNativeTrustedBlockRuntimeCapabilityGuardError(error)) {
+      return {
+        ok: false,
+        error: runtimeError(error.path, error.message)
+      };
+    }
+
     return {
       ok: false,
       error: runtimeError(
@@ -180,6 +200,8 @@ export function transformNativeTrustedBlockSource(
     importBindings: bindingResult.value.importBindings,
     executableBody,
     moduleMapIdentifier: MODULES_IDENTIFIER,
+    runtimeCapabilityGuardBindingIdentifiers:
+      RUNTIME_CAPABILITY_GUARD_BINDING_NAMES,
     defaultExportIdentifier: DEFAULT_EXPORT_IDENTIFIER,
     errors: []
   };
@@ -187,11 +209,18 @@ export function transformNativeTrustedBlockSource(
 
 function createEvaluator(
   compiledSource: NativeTrustedBlockSourceTransformSuccess
-): (modules: NativeTrustedBlockInjectedModuleMap) => unknown {
+): (
+  modules: NativeTrustedBlockInjectedModuleMap,
+  ...guardValues: unknown[]
+) => unknown {
   return new Function(
     compiledSource.moduleMapIdentifier,
+    ...compiledSource.runtimeCapabilityGuardBindingIdentifiers,
     `"use strict";\n${compiledSource.executableBody}`
-  ) as (modules: NativeTrustedBlockInjectedModuleMap) => unknown;
+  ) as (
+    modules: NativeTrustedBlockInjectedModuleMap,
+    ...guardValues: unknown[]
+  ) => unknown;
 }
 
 function validateInjectedModules(

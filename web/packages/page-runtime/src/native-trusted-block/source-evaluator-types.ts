@@ -43,6 +43,7 @@ export interface NativeTrustedBlockSourceTransformSuccess {
   importBindings: NativeTrustedBlockImportBinding[];
   executableBody: string;
   moduleMapIdentifier: string;
+  runtimeCapabilityGuardBindingIdentifiers: readonly string[];
   defaultExportIdentifier: string;
   errors: [];
 }

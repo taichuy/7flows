@@ -193,6 +193,134 @@ export default function Block() {
     });
   });
 
+  test('returns source_policy_failed before runtime guard access for denied source', () => {
+    const result = evaluateNativeTrustedBlockSource({
+      source: `
+import React from 'react';
+
+eval('2 + 2');
+const guarded = w\\u0069ndow.location;
+
+export default function Block() {
+  return React.createElement('div');
+}
+`,
+      modules: createModules()
+    });
+
+    expect(result).toMatchObject({
+      ok: false,
+      error: {
+        kind: 'source_policy_failed',
+        errors: [{ code: 'transform_failed', path: 'source.identifiers.eval' }]
+      }
+    });
+    expect(result.ok ? '' : result.error.errors[0]?.path).not.toBe(
+      'runtime.capability.window'
+    );
+  });
+
+  test.each([
+    ['fetch calls', "const denied = f\\u0065tch('/api');", 'fetch'],
+    [
+      'XMLHttpRequest construction',
+      'const denied = new X\\u004dLHttpRequest();',
+      'XMLHttpRequest'
+    ],
+    [
+      'WebSocket construction',
+      "const denied = new W\\u0065bSocket('ws://example.test');",
+      'WebSocket'
+    ],
+    [
+      'navigator.sendBeacon calls',
+      "const denied = n\\u0061vigator['send' + 'Beacon']('/metrics');",
+      'navigator.sendBeacon'
+    ],
+    [
+      'localStorage reads',
+      "const denied = l\\u006fcalStorage.getItem('key');",
+      'localStorage'
+    ],
+    [
+      'sessionStorage reads',
+      "const denied = s\\u0065ssionStorage.getItem('key');",
+      'sessionStorage'
+    ],
+    [
+      'document.cookie reads',
+      "const denied = d\\u006fcument['coo' + 'kie'];",
+      'document.cookie'
+    ],
+    ['window reads', 'const denied = w\\u0069ndow.location;', 'window'],
+    [
+      'document reads',
+      'const denied = d\\u006fcument.body;',
+      'document'
+    ],
+    [
+      'globalThis reads',
+      'const denied = g\\u006cobalThis.location;',
+      'globalThis'
+    ],
+    ['self reads', 'const denied = s\\u0065lf.location;', 'self']
+  ])('returns runtime_error for guarded %s', (_label, statement, capability) => {
+    const result = evaluateNativeTrustedBlockSource({
+      source: `
+import React from 'react';
+
+${statement}
+
+export default function Block() {
+  return React.createElement('div');
+}
+`,
+      modules: createModules()
+    });
+
+    expect(result).toMatchObject({
+      ok: false,
+      error: {
+        kind: 'runtime_error',
+        errors: [
+          {
+            code: 'runtime_error',
+            path: `runtime.capability.${capability}`
+          }
+        ]
+      }
+    });
+    expect(result.ok ? '' : result.error.message).toContain(capability);
+  });
+
+  test('maps document.cookie writes to a structured runtime_error', () => {
+    const result = evaluateNativeTrustedBlockSource({
+      source: `
+import React from 'react';
+
+d\\u006fcument['coo' + 'kie'] = 'session=denied';
+
+export default function Block() {
+  return React.createElement('div');
+}
+`,
+      modules: createModules()
+    });
+
+    expect(result).toMatchObject({
+      ok: false,
+      error: {
+        kind: 'runtime_error',
+        errors: [
+          {
+            code: 'runtime_error',
+            path: 'runtime.capability.document.cookie'
+          }
+        ]
+      }
+    });
+  });
+
   test('returns runtime_error when the source has no default export', () => {
     const result = evaluateNativeTrustedBlockSource({
       source: 'const Block = () => null;',
