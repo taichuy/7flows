@@ -1,5 +1,6 @@
 import { Component, type ComponentType, type ErrorInfo, type ReactNode } from 'react';
 import { App as AntdApp, ConfigProvider } from 'antd';
+import type { ConfigProviderProps } from 'antd/es/config-provider';
 import { createRoot as defaultCreateRoot } from 'react-dom/client';
 
 import type { BlockProtocolError } from '@1flowbase/page-protocol';
@@ -39,6 +40,15 @@ export interface FrontstageNativeTrustedBlockProviderContext {
   portalContainment: NativeTrustedBlockPortalContainment;
 }
 
+export interface FrontstageNativeTrustedBlockProviderScope {
+  theme?: ConfigProviderProps['theme'];
+  locale?: ConfigProviderProps['locale'];
+}
+
+export type FrontstageNativeTrustedBlockResolveProviderScope = (
+  context: FrontstageNativeTrustedBlockProviderContext
+) => FrontstageNativeTrustedBlockProviderScope | undefined;
+
 export type FrontstageNativeTrustedBlockProviderWrapper = (
   children: ReactNode,
   context: FrontstageNativeTrustedBlockProviderContext
@@ -58,6 +68,7 @@ export type FrontstageNativeTrustedBlockRuntimeErrorHandler = (
 export interface FrontstageNativeTrustedBlockReactAdapterOptions {
   resolveComponent: FrontstageNativeTrustedBlockResolveComponent;
   createRoot?: FrontstageNativeTrustedBlockCreateRoot;
+  resolveProviderScope?: FrontstageNativeTrustedBlockResolveProviderScope;
   providerWrapper?: FrontstageNativeTrustedBlockProviderWrapper;
   onRuntimeError?: FrontstageNativeTrustedBlockRuntimeErrorHandler;
 }
@@ -94,6 +105,7 @@ export function createFrontstageNativeTrustedBlockReactAdapter(
             />
           </FrontstageNativeTrustedBlockErrorBoundary>,
           providerContext,
+          options.resolveProviderScope,
           options.providerWrapper
         )
       );
@@ -215,17 +227,24 @@ function getErrorMessage(error: unknown): string {
 function wrapWithHostProviders(
   children: ReactNode,
   context: FrontstageNativeTrustedBlockProviderContext,
+  resolveProviderScope?: FrontstageNativeTrustedBlockResolveProviderScope,
   providerWrapper?: FrontstageNativeTrustedBlockProviderWrapper
 ): ReactNode {
-  if (providerWrapper) {
-    return providerWrapper(children, context);
-  }
-
   const getPopupContainer = () => context.root as HTMLElement;
-
-  return (
-    <ConfigProvider getPopupContainer={getPopupContainer}>
+  const providerScope = resolveProviderScope?.(context);
+  const scopedChildren = (
+    <ConfigProvider
+      getPopupContainer={getPopupContainer}
+      locale={providerScope?.locale}
+      theme={providerScope?.theme}
+    >
       <AntdApp>{children}</AntdApp>
     </ConfigProvider>
   );
+
+  if (providerWrapper) {
+    return providerWrapper(scopedChildren, context);
+  }
+
+  return scopedChildren;
 }

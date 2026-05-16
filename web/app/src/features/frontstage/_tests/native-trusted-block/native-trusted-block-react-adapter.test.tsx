@@ -2,7 +2,7 @@ import { render, screen, waitFor } from '@testing-library/react';
 import { readdirSync, readFileSync } from 'node:fs';
 import { extname, join } from 'node:path';
 import type { ReactNode } from 'react';
-import { describe, expect, test, vi } from 'vitest';
+import { beforeEach, describe, expect, test, vi } from 'vitest';
 
 import type { NativeTrustedBlockPreparePlan } from '@1flowbase/page-runtime';
 
@@ -10,6 +10,38 @@ import {
   createFrontstageNativeTrustedBlockReactAdapter,
   type FrontstageNativeTrustedBlockCreateRoot
 } from '../../lib/native-trusted-block-react-adapter';
+
+const antdProviderRecords = vi.hoisted(() => ({
+  configProviderProps: [] as Array<Record<string, unknown>>,
+  appRenderCount: 0
+}));
+
+vi.mock('antd', async () => {
+  const React = await vi.importActual<typeof import('react')>('react');
+
+  return {
+    ConfigProvider({
+      children,
+      ...props
+    }: {
+      children?: ReactNode;
+      [key: string]: unknown;
+    }) {
+      antdProviderRecords.configProviderProps.push(props);
+
+      return React.createElement(
+        'div',
+        { 'data-testid': 'mock-config-provider' },
+        children
+      );
+    },
+    App({ children }: { children?: ReactNode }) {
+      antdProviderRecords.appRenderCount += 1;
+
+      return React.createElement('div', { 'data-testid': 'mock-antd-app' }, children);
+    }
+  };
+});
 
 function createPlan(
   overrides: Partial<NativeTrustedBlockPreparePlan> = {}
@@ -64,6 +96,11 @@ function createBlockRoot(): HTMLDivElement {
 }
 
 describe('frontstage native trusted block React adapter', () => {
+  beforeEach(() => {
+    antdProviderRecords.configProviderProps = [];
+    antdProviderRecords.appRenderCount = 0;
+  });
+
   test('creates a React root and renders the resolved native component', async () => {
     const root = createBlockRoot();
     const testingRoot = createTestingRoot();
@@ -78,6 +115,141 @@ describe('frontstage native trusted block React adapter', () => {
     expect(testingRoot.roots).toEqual([root]);
     expect(await screen.findByTestId('native-block')).toHaveTextContent('Ready');
     expect(resolvedComponent).toHaveBeenCalledTimes(1);
+  });
+
+  test('scopes the default AntD popup container to the current block root', async () => {
+    const root = createBlockRoot();
+    const testingRoot = createTestingRoot();
+    const adapter = createFrontstageNativeTrustedBlockReactAdapter({
+      createRoot: testingRoot.createRoot,
+      resolveComponent: () => () => <div data-testid="native-block">Ready</div>
+    });
+
+    await adapter.mount({ plan: createPlan(), root });
+
+    const providerProps = antdProviderRecords.configProviderProps[0];
+    expect(providerProps).toEqual(
+      expect.objectContaining({ getPopupContainer: expect.any(Function) })
+    );
+    expect((providerProps.getPopupContainer as () => HTMLElement)()).toBe(root);
+    expect(antdProviderRecords.appRenderCount).toBe(1);
+  });
+
+  test('resolves scoped AntD theme and locale independently for each block', async () => {
+    const firstRoot = createBlockRoot();
+    const secondRoot = createBlockRoot();
+    const testingRoot = createTestingRoot();
+    const firstTheme = { token: { colorPrimary: '#1677ff' } };
+    const secondTheme = { token: { colorPrimary: '#52c41a' } };
+    const firstLocale = { locale: 'en_US', Empty: { description: 'First empty' } };
+    const secondLocale = { locale: 'zh_CN', Empty: { description: 'Second empty' } };
+    const scopeResolver = vi.fn((context) => {
+      if (context.plan.blockId === 'native-block-1') {
+        return { theme: firstTheme, locale: firstLocale };
+      }
+
+      return { theme: secondTheme, locale: secondLocale };
+    });
+    const adapter = createFrontstageNativeTrustedBlockReactAdapter({
+      createRoot: testingRoot.createRoot,
+      resolveProviderScope: scopeResolver,
+      resolveComponent: () => () => <div data-testid="native-block">Ready</div>
+    });
+
+    await adapter.mount({
+      plan: createPlan({ blockId: 'native-block-1' }),
+      root: firstRoot
+    });
+    await adapter.mount({
+      plan: createPlan({ blockId: 'native-block-2' }),
+      root: secondRoot
+    });
+
+    expect(scopeResolver).toHaveBeenNthCalledWith(
+      1,
+      expect.objectContaining({
+        plan: expect.objectContaining({ blockId: 'native-block-1' }),
+        root: firstRoot,
+        portalContainment: expect.objectContaining({ root: firstRoot })
+      })
+    );
+    expect(scopeResolver).toHaveBeenNthCalledWith(
+      2,
+      expect.objectContaining({
+        plan: expect.objectContaining({ blockId: 'native-block-2' }),
+        root: secondRoot,
+        portalContainment: expect.objectContaining({ root: secondRoot })
+      })
+    );
+    expect(antdProviderRecords.configProviderProps).toEqual([
+      expect.objectContaining({
+        theme: firstTheme,
+        locale: firstLocale,
+        getPopupContainer: expect.any(Function)
+      }),
+      expect.objectContaining({
+        theme: secondTheme,
+        locale: secondLocale,
+        getPopupContainer: expect.any(Function)
+      })
+    ]);
+    expect(
+      (
+        antdProviderRecords.configProviderProps[0]
+          .getPopupContainer as () => HTMLElement
+      )()
+    ).toBe(firstRoot);
+    expect(
+      (
+        antdProviderRecords.configProviderProps[1]
+          .getPopupContainer as () => HTMLElement
+      )()
+    ).toBe(secondRoot);
+  });
+
+  test('lets providerWrapper wrap the default scoped provider with context access', async () => {
+    const root = createBlockRoot();
+    const testingRoot = createTestingRoot();
+    const providerWrapper = vi.fn((children: ReactNode, context) => (
+      <section data-block-id={context.plan.blockId} data-testid="provider-wrapper">
+        {children}
+      </section>
+    ));
+    const adapter = createFrontstageNativeTrustedBlockReactAdapter({
+      createRoot: testingRoot.createRoot,
+      providerWrapper,
+      resolveProviderScope: () => ({
+        theme: { token: { colorPrimary: '#722ed1' } },
+        locale: { locale: 'en_US' }
+      }),
+      resolveComponent: () => () => <div data-testid="native-block">Ready</div>
+    });
+
+    await adapter.mount({
+      plan: createPlan({ blockId: 'native-block-wrapped' }),
+      root
+    });
+
+    expect(await screen.findByTestId('provider-wrapper')).toHaveAttribute(
+      'data-block-id',
+      'native-block-wrapped'
+    );
+    expect(providerWrapper).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({
+        plan: expect.objectContaining({ blockId: 'native-block-wrapped' }),
+        root,
+        portalContainment: expect.objectContaining({ root })
+      })
+    );
+    expect(antdProviderRecords.configProviderProps).toEqual([
+      expect.objectContaining({
+        theme: { token: { colorPrimary: '#722ed1' } },
+        locale: { locale: 'en_US' },
+        getPopupContainer: expect.any(Function)
+      })
+    ]);
+    expect(antdProviderRecords.appRenderCount).toBe(1);
   });
 
   test('passes plan props and portal containment to the resolved component', async () => {
