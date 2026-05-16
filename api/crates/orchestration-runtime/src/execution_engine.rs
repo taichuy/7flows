@@ -28,7 +28,7 @@ use crate::{
     },
 };
 
-pub use crate::code_runtime::{CodeInvocationOutput, CodeInvoker};
+pub use crate::code_runtime::{CodeInvocationOutput, CodeInvoker, QuickJsCodeInvoker};
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct ProviderInvocationOutput {

@@ -1,19 +1,20 @@
-use std::collections::BTreeMap;
+use std::{collections::BTreeMap, time::Duration};
 
-use anyhow::{Result, anyhow};
+use anyhow::{anyhow, Result};
 use async_trait::async_trait;
 use plugin_framework::provider_contract::ProviderInvocationInput;
-use serde_json::{Value, json};
+use serde_json::{json, Value};
 use uuid::Uuid;
 
 use crate::{
+    code_runtime::QuickJsCodeInvoker,
     compiled_plan::{
         CompiledBinding, CompiledCodeRuntime, CompiledLlmRuntime, CompiledNode, CompiledOutput,
         CompiledPlan, CompiledPluginRuntime,
     },
     execution_engine::{
-        CapabilityInvocationOutput, CapabilityInvoker, CodeInvocationOutput, CodeInvoker,
-        ProviderInvocationOutput, ProviderInvoker, start_flow_debug_run,
+        start_flow_debug_run, CapabilityInvocationOutput, CapabilityInvoker, CodeInvocationOutput,
+        CodeInvoker, ProviderInvocationOutput, ProviderInvoker,
     },
     execution_state::ExecutionStopReason,
 };
@@ -21,6 +22,10 @@ use crate::{
 struct CodeFixtureInvoker {
     output_payload: Value,
     fail_message: Option<String>,
+}
+
+struct RealCodeFixtureInvoker {
+    code: QuickJsCodeInvoker,
 }
 
 #[async_trait]
@@ -66,6 +71,43 @@ impl CodeInvoker for CodeFixtureInvoker {
         Ok(CodeInvocationOutput {
             output_payload: self.output_payload.clone(),
         })
+    }
+}
+
+#[async_trait]
+impl ProviderInvoker for RealCodeFixtureInvoker {
+    async fn invoke_llm(
+        &self,
+        _runtime: &CompiledLlmRuntime,
+        _input: ProviderInvocationInput,
+    ) -> Result<ProviderInvocationOutput> {
+        unreachable!("real code runtime tests do not execute llm nodes")
+    }
+}
+
+#[async_trait]
+impl CapabilityInvoker for RealCodeFixtureInvoker {
+    async fn invoke_capability_node(
+        &self,
+        _runtime: &CompiledPluginRuntime,
+        _config_payload: Value,
+        _input_payload: Value,
+    ) -> Result<CapabilityInvocationOutput> {
+        unreachable!("real code runtime tests do not execute capability nodes")
+    }
+}
+
+#[async_trait]
+impl CodeInvoker for RealCodeFixtureInvoker {
+    async fn invoke_code_node(
+        &self,
+        runtime: &CompiledCodeRuntime,
+        config_payload: Value,
+        input_payload: Value,
+    ) -> Result<CodeInvocationOutput> {
+        self.code
+            .invoke_code_node(runtime, config_payload, input_payload)
+            .await
     }
 }
 
@@ -118,7 +160,7 @@ fn code_runtime_plan() -> CompiledPlan {
             }],
             config: json!({
                 "language": "javascript",
-                "source": "export function main(input) { return { result: input.query }; }",
+                "source": "function main(input) { return { result: input.query }; }",
                 "entrypoint": "main"
             }),
             plugin_runtime: None,
@@ -126,7 +168,7 @@ fn code_runtime_plan() -> CompiledPlan {
             code_runtime: Some(CompiledCodeRuntime {
                 language: "javascript".to_string(),
                 source: Some(
-                    "export function main(input) { return { result: input.query }; }".to_string(),
+                    "function main(input) { return { result: input.query }; }".to_string(),
                 ),
                 source_ref: None,
                 entrypoint: "main".to_string(),
@@ -177,6 +219,158 @@ fn code_runtime_plan() -> CompiledPlan {
         nodes,
         compile_issues: Vec::new(),
     }
+}
+
+fn quickjs_runtime(source: &str) -> CompiledCodeRuntime {
+    CompiledCodeRuntime {
+        language: "javascript".to_string(),
+        source: Some(source.to_string()),
+        source_ref: None,
+        entrypoint: "main".to_string(),
+        imports: Vec::new(),
+        dependencies: Vec::new(),
+    }
+}
+
+async fn invoke_quickjs(source: &str, input_payload: Value) -> Result<CodeInvocationOutput> {
+    QuickJsCodeInvoker::default()
+        .invoke_code_node(&quickjs_runtime(source), json!({}), input_payload)
+        .await
+}
+
+#[tokio::test]
+async fn code_runner_quickjs_success_transform_returns_json_object() {
+    let output = invoke_quickjs(
+        "function main(inputs) { return { result: inputs.query + ' world', count: inputs.count + 1 }; }",
+        json!({ "query": "hello", "count": 1 }),
+    )
+    .await
+    .unwrap();
+
+    assert_eq!(
+        output.output_payload,
+        json!({ "result": "hello world", "count": 2 })
+    );
+}
+
+#[tokio::test]
+async fn code_runner_quickjs_syntax_error_is_stable() {
+    let error = invoke_quickjs("function main(inputs) { return {", json!({}))
+        .await
+        .unwrap_err();
+
+    assert_eq!(
+        error.to_string(),
+        "syntax_error: code source is not valid JavaScript"
+    );
+}
+
+#[tokio::test]
+async fn code_runner_quickjs_runtime_throw_is_stable() {
+    let error = invoke_quickjs(
+        "function main(inputs) { throw new Error('secret host stack should not leak'); }",
+        json!({}),
+    )
+    .await
+    .unwrap_err();
+
+    assert_eq!(error.to_string(), "runtime_error: code execution failed");
+}
+
+#[tokio::test]
+async fn code_runner_quickjs_missing_main_is_stable() {
+    let error = invoke_quickjs("function helper(inputs) { return {}; }", json!({}))
+        .await
+        .unwrap_err();
+
+    assert_eq!(error.to_string(), "main_missing: main function is required");
+}
+
+#[tokio::test]
+async fn code_runner_quickjs_non_object_output_is_stable() {
+    let error = invoke_quickjs("function main(inputs) { return 'not-object'; }", json!({}))
+        .await
+        .unwrap_err();
+
+    assert_eq!(
+        error.to_string(),
+        "invalid_output: main must return a JSON object"
+    );
+}
+
+#[tokio::test]
+async fn code_runner_quickjs_promise_output_is_not_json_object() {
+    let error = invoke_quickjs(
+        "function main(inputs) { return Promise.resolve({ result: 'async' }); }",
+        json!({}),
+    )
+    .await
+    .unwrap_err();
+
+    assert_eq!(
+        error.to_string(),
+        "invalid_output: main must return a JSON object"
+    );
+}
+
+#[tokio::test]
+async fn code_runner_quickjs_static_import_is_denied() {
+    let error = invoke_quickjs(
+        "import value from 'pkg'; function main(inputs) { return { value }; }",
+        json!({}),
+    )
+    .await
+    .unwrap_err();
+
+    assert_eq!(
+        error.to_string(),
+        "module_import_denied: import and export syntax is not supported"
+    );
+}
+
+#[tokio::test]
+async fn code_runner_quickjs_allows_import_text_inside_strings_and_comments() {
+    let output = invoke_quickjs(
+        r#"
+// import text in a comment is not a module dependency
+function main(inputs) {
+  const label = "import text";
+  return { result: label + " " + inputs.query };
+}
+"#,
+        json!({ "query": "ok" }),
+    )
+    .await
+    .unwrap();
+
+    assert_eq!(output.output_payload, json!({ "result": "import text ok" }));
+}
+
+#[tokio::test]
+async fn code_runner_quickjs_dynamic_import_is_denied() {
+    let error = invoke_quickjs("function main(inputs) { return import('pkg'); }", json!({}))
+        .await
+        .unwrap_err();
+
+    assert_eq!(
+        error.to_string(),
+        "module_import_denied: dynamic import is not supported"
+    );
+}
+
+#[tokio::test]
+async fn code_runner_quickjs_timeout_is_stable() {
+    let error = QuickJsCodeInvoker::default()
+        .with_timeout(Duration::from_millis(1))
+        .invoke_code_node(
+            &quickjs_runtime("function main(inputs) { while (true) {} }"),
+            json!({}),
+            json!({}),
+        )
+        .await
+        .unwrap_err();
+
+    assert_eq!(error.to_string(), "timeout: code execution timed out");
 }
 
 #[tokio::test]
@@ -242,13 +436,11 @@ async fn code_runtime_invoker_error_yields_stable_failed_stop_reason_and_trace_p
                 json!("runtime failed: user code threw")
             );
             assert_eq!(outcome.node_traces[1].node_type, "code");
-            assert!(
-                outcome.node_traces[1]
-                    .output_payload
-                    .as_object()
-                    .unwrap()
-                    .is_empty()
-            );
+            assert!(outcome.node_traces[1]
+                .output_payload
+                .as_object()
+                .unwrap()
+                .is_empty());
             assert_eq!(
                 outcome.node_traces[1].error_payload.as_ref().unwrap()["error_kind"],
                 json!("code_runtime_error")
@@ -277,12 +469,10 @@ async fn code_runtime_missing_declared_output_projects_empty_variable_payload() 
     match outcome.stop_reason {
         ExecutionStopReason::Failed(failure) => {
             assert_eq!(failure.node_id, "node-answer");
-            assert!(
-                failure.error_payload["message"]
-                    .as_str()
-                    .unwrap()
-                    .contains("selector path not found: node-code.result")
-            );
+            assert!(failure.error_payload["message"]
+                .as_str()
+                .unwrap()
+                .contains("selector path not found: node-code.result"));
         }
         other => panic!("expected downstream binding failure, got {other:?}"),
     }
@@ -290,5 +480,28 @@ async fn code_runtime_missing_declared_output_projects_empty_variable_payload() 
     assert_eq!(
         outcome.node_traces[1].output_payload,
         json!({ "unexpected": true })
+    );
+}
+
+#[tokio::test]
+async fn code_runtime_execution_engine_uses_real_quickjs_runner_for_downstream_template_node() {
+    let outcome = start_flow_debug_run(
+        &code_runtime_plan(),
+        &json!({ "node-start": { "query": "hello" } }),
+        &RealCodeFixtureInvoker {
+            code: QuickJsCodeInvoker::default(),
+        },
+    )
+    .await
+    .unwrap();
+
+    assert_eq!(outcome.stop_reason, ExecutionStopReason::Completed);
+    assert_eq!(
+        outcome.variable_pool["node-code"],
+        json!({ "result": "hello" })
+    );
+    assert_eq!(
+        outcome.variable_pool["node-answer"],
+        json!({ "answer": "Code said: hello" })
     );
 }
