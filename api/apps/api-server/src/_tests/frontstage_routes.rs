@@ -731,7 +731,10 @@ async fn page_content_save_round_trip_is_persisted_by_page_scope() {
         save_payload["data"]["schema"]["payload"],
         schema_payload.clone()
     );
-    assert_eq!(save_payload["data"]["root"]["payload"], root_payload.clone());
+    assert_eq!(
+        save_payload["data"]["root"]["payload"],
+        root_payload.clone()
+    );
 
     let (detail_status, detail_payload) = get_json(
         &app,
