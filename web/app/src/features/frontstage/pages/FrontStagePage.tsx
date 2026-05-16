@@ -18,7 +18,10 @@ import { useFrontstagePageContentSave } from '../hooks/use-frontstage-page-conte
 import {
   appendFrontstageBlock,
   createFrontstageBlockCompositionState,
-  type FrontstageBlockCompositionInput
+  moveFrontstageBlock,
+  removeFrontstageBlock,
+  type FrontstageBlockCompositionInput,
+  type FrontstageBlockCompositionState
 } from '../lib/block-composition';
 import {
   createFrontstagePageDocument,
@@ -240,6 +243,24 @@ export const FrontStagePage: FC<FrontStagePageProps> = ({
   const hasLoadedSelectedPageContent = Boolean(
     selectedPageId && displayedPageContent?.page.id === selectedPageId
   );
+  const activePageContent = hasLoadedSelectedPageContent
+    ? displayedPageContent
+    : undefined;
+  const displayedPageDocument = useMemo(
+    () =>
+      activePageContent ? createFrontstagePageDocument(activePageContent) : null,
+    [activePageContent]
+  );
+  const blockCompositionState = useMemo(
+    () =>
+      displayedPageDocument
+        ? createFrontstageBlockCompositionState(
+            displayedPageDocument,
+            selectedBlockId
+          )
+        : null,
+    [displayedPageDocument, selectedBlockId]
+  );
   const isOperationPending =
     operationStatus === 'pending' || Boolean(isPageTreeMutating);
   const hasOperationError =
@@ -252,7 +273,7 @@ export const FrontStagePage: FC<FrontStagePageProps> = ({
       ? toDisplayErrorMessage(pageContentSave.error)
       : null);
   const canAddBlock =
-    hasLoadedSelectedPageContent &&
+    Boolean(activePageContent) &&
     !isPageContentLoading &&
     !hasPageContentLoadError &&
     !isPageContentSavePending;
@@ -268,6 +289,37 @@ export const FrontStagePage: FC<FrontStagePageProps> = ({
       Boolean(me?.permissions.includes(DESIGN_MODE_PERMISSION))
     );
   }, [actor, me]);
+  const selectedBlockIndex =
+    blockCompositionState?.selectedBlockId === selectedBlockId
+      ? blockCompositionState.document.blocks.findIndex(
+          (block) => block.id === selectedBlockId
+        )
+      : -1;
+  const selectedBlock =
+    selectedBlockIndex >= 0
+      ? blockCompositionState?.document.blocks[selectedBlockIndex]
+      : null;
+  const canShowSelectedBlockActions = Boolean(
+    canEnterDesignMode &&
+      isDesignMode &&
+      activePageContent &&
+      blockCompositionState &&
+      selectedBlock
+  );
+  const canRunSelectedBlockAction =
+    canShowSelectedBlockActions &&
+    !isPageContentLoading &&
+    !hasPageContentLoadError &&
+    !isPageContentSavePending;
+  const canMoveSelectedBlockUp =
+    canRunSelectedBlockAction && selectedBlockIndex > 0;
+  const canMoveSelectedBlockDown =
+    canRunSelectedBlockAction &&
+    Boolean(
+      blockCompositionState &&
+        selectedBlockIndex >= 0 &&
+        selectedBlockIndex < blockCompositionState.document.blocks.length - 1
+    );
 
   useEffect(() => {
     if (!initialPageTree) {
@@ -549,37 +601,98 @@ export const FrontStagePage: FC<FrontStagePageProps> = ({
     });
   };
 
+  const saveBlockComposition = async (
+    sourceContent: FrontstagePageContent,
+    compositionState: FrontstageBlockCompositionState
+  ) => {
+    setIsBlockSavePending(true);
+    setBlockSaveError(null);
+    pageContentSave.clearError();
+
+    try {
+      const input = createFrontstagePageDocumentSaveInput(
+        sourceContent,
+        compositionState.document
+      );
+      const nextContent = await pageContentSave.save(input);
+
+      setSavedPageContent(nextContent);
+      setSelectedBlockId(compositionState.selectedBlockId);
+    } catch (error) {
+      setBlockSaveError(toDisplayErrorMessage(error));
+    } finally {
+      setIsBlockSavePending(false);
+    }
+  };
+
   const handleAddBlock = () => {
-    const sourceContent = displayedPageContent;
-    if (!canAddBlock || !sourceContent) {
+    const sourceContent = activePageContent;
+    if (!canAddBlock || !sourceContent || !blockCompositionState) {
       return;
     }
 
-    void (async () => {
-      setIsBlockSavePending(true);
-      setBlockSaveError(null);
-      pageContentSave.clearError();
+    const nextCompositionState = appendFrontstageBlock(
+      blockCompositionState,
+      createMinimalJsUiBlockInput(blockCompositionState.document.blocks.length)
+    );
 
-      try {
-        const document = createFrontstagePageDocument(sourceContent);
-        const compositionState = appendFrontstageBlock(
-          createFrontstageBlockCompositionState(document, selectedBlockId),
-          createMinimalJsUiBlockInput(document.blocks.length)
-        );
-        const input = createFrontstagePageDocumentSaveInput(
-          sourceContent,
-          compositionState.document
-        );
-        const nextContent = await pageContentSave.save(input);
+    void saveBlockComposition(sourceContent, nextCompositionState);
+  };
 
-        setSavedPageContent(nextContent);
-        setSelectedBlockId(compositionState.selectedBlockId);
-      } catch (error) {
-        setBlockSaveError(toDisplayErrorMessage(error));
-      } finally {
-        setIsBlockSavePending(false);
-      }
-    })();
+  const handleDeleteSelectedBlock = () => {
+    const sourceContent = activePageContent;
+    if (
+      !canRunSelectedBlockAction ||
+      !sourceContent ||
+      !blockCompositionState ||
+      !selectedBlock
+    ) {
+      return;
+    }
+
+    const nextCompositionState = removeFrontstageBlock(
+      blockCompositionState,
+      selectedBlock.id
+    );
+    const nextSelectedBlockId =
+      nextCompositionState.selectedBlockId ??
+      nextCompositionState.document.blocks[selectedBlockIndex]?.id ??
+      nextCompositionState.document.blocks[selectedBlockIndex - 1]?.id ??
+      null;
+
+    void saveBlockComposition(sourceContent, {
+      ...nextCompositionState,
+      selectedBlockId: nextSelectedBlockId
+    });
+  };
+
+  const handleMoveSelectedBlock = (direction: -1 | 1) => {
+    const sourceContent = activePageContent;
+    if (
+      !canRunSelectedBlockAction ||
+      !sourceContent ||
+      !blockCompositionState ||
+      !selectedBlock
+    ) {
+      return;
+    }
+
+    if (
+      (direction < 0 && selectedBlockIndex <= 0) ||
+      (direction > 0 &&
+        selectedBlockIndex >= blockCompositionState.document.blocks.length - 1)
+    ) {
+      return;
+    }
+
+    const nextIndex = selectedBlockIndex + direction;
+    const nextCompositionState = moveFrontstageBlock(
+      blockCompositionState,
+      selectedBlock.id,
+      nextIndex
+    );
+
+    void saveBlockComposition(sourceContent, nextCompositionState);
   };
 
   const renderTreeNode = (
@@ -760,6 +873,10 @@ export const FrontStagePage: FC<FrontStagePageProps> = ({
             <Button
               type={isDesignMode ? 'default' : 'primary'}
               onClick={() => {
+                if (isDesignMode) {
+                  setSelectedBlockId(null);
+                }
+
                 setIsDesignMode((current) => !current);
               }}
             >
@@ -870,10 +987,61 @@ export const FrontStagePage: FC<FrontStagePageProps> = ({
             }
             isLoading={Boolean(selectedPageLabel && isPageContentLoading)}
             hasError={Boolean(selectedPageLabel && hasPageContentLoadError)}
-            selectedBlockId={selectedBlockId}
-            onSelectBlock={setSelectedBlockId}
+            selectedBlockId={
+              canEnterDesignMode && isDesignMode ? selectedBlockId : null
+            }
+            onSelectBlock={
+              canEnterDesignMode && isDesignMode
+                ? setSelectedBlockId
+                : undefined
+            }
             onRetry={onRetryLoadPageContent}
           />
+          {canShowSelectedBlockActions ? (
+            <div
+              data-testid="frontstage-selected-block-actions"
+              style={{
+                marginTop: 12,
+                padding: '10px 12px',
+                border: '1px solid #f0f0f0',
+                borderRadius: 6,
+                background: '#fafafa'
+              }}
+            >
+              <Flex justify="space-between" align="center" wrap gap={12}>
+                <Space direction="vertical" size={2}>
+                  <Typography.Text strong>区块编排</Typography.Text>
+                  <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+                    当前选中区块：{selectedBlock?.id}
+                  </Typography.Text>
+                </Space>
+                <Space size={8} wrap>
+                  <Button
+                    size="small"
+                    disabled={!canMoveSelectedBlockUp}
+                    onClick={() => handleMoveSelectedBlock(-1)}
+                  >
+                    上移区块
+                  </Button>
+                  <Button
+                    size="small"
+                    disabled={!canMoveSelectedBlockDown}
+                    onClick={() => handleMoveSelectedBlock(1)}
+                  >
+                    下移区块
+                  </Button>
+                  <Button
+                    size="small"
+                    danger
+                    disabled={!canRunSelectedBlockAction}
+                    onClick={handleDeleteSelectedBlock}
+                  >
+                    删除区块
+                  </Button>
+                </Space>
+              </Flex>
+            </div>
+          ) : null}
           {canEnterDesignMode && isDesignMode ? (
             <Typography.Paragraph
               type="secondary"
