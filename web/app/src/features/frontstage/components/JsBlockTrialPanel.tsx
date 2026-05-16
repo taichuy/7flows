@@ -3,19 +3,28 @@ import {
   type BlockDataPermission
 } from '@1flowbase/page-protocol';
 import { Alert, Button, Descriptions, Input, Space, Typography } from 'antd';
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import {
   RestrictedBlockRuntimePreview,
   type RestrictedBlockRuntimeActionEvent
 } from './RestrictedBlockRuntimePreview';
 import type { NormalizedFrontstageBlockCatalogEntry } from '../lib/block-catalog';
+import {
+  createFrontstageRestrictedBlockRuntimeSession,
+  type FrontstageRestrictedBlockRuntimeHostOptions,
+  type FrontstageRestrictedBlockRuntimeSession
+} from '../lib/frontstage-restricted-block-runtime-host';
 import type { FrontstageBlockInstance } from '../lib/page-document';
 import {
   createRestrictedBlockRunPlan,
   type RestrictedBlockLoaderLimits
 } from '../lib/restricted-block-loader';
 import type { RestrictedBlockRuntimeHostSnapshot } from '../lib/restricted-block-runtime-host';
+
+export type JsBlockTrialPanelRuntimeSessionFactory = (
+  options: FrontstageRestrictedBlockRuntimeHostOptions
+) => FrontstageRestrictedBlockRuntimeSession;
 
 export interface JsBlockTrialPanelProps {
   block: FrontstageBlockInstance | null | undefined;
@@ -24,6 +33,7 @@ export interface JsBlockTrialPanelProps {
   contextSnapshot: Record<string, unknown>;
   limits?: RestrictedBlockLoaderLimits;
   runtimeSnapshot?: RestrictedBlockRuntimeHostSnapshot;
+  runtimeSessionFactory?: JsBlockTrialPanelRuntimeSessionFactory;
   onCodeChange?: (code: string) => void;
   onContextSnapshotChange?: (contextSnapshot: Record<string, unknown>) => void;
   onLimitsChange?: (limits: RestrictedBlockLoaderLimits) => void;
@@ -35,6 +45,11 @@ type JsonDraftKind = 'context' | 'limits';
 interface JsonDraftError {
   kind: JsonDraftKind;
   message: string;
+}
+
+interface ActiveRuntimeSession {
+  session: FrontstageRestrictedBlockRuntimeSession;
+  unsubscribe: () => void;
 }
 
 const dataPermissionSet = new Set<string>(BLOCK_DATA_PERMISSIONS);
@@ -232,6 +247,7 @@ export function JsBlockTrialPanel({
   contextSnapshot,
   limits,
   runtimeSnapshot,
+  runtimeSessionFactory = createFrontstageRestrictedBlockRuntimeSession,
   onCodeChange,
   onContextSnapshotChange,
   onLimitsChange,
@@ -242,6 +258,27 @@ export function JsBlockTrialPanel({
   );
   const [limitsDraft, setLimitsDraft] = useState(() => stringifyDraft(limits));
   const [draftError, setDraftError] = useState<JsonDraftError | null>(null);
+  const [internalRuntimeSnapshot, setInternalRuntimeSnapshot] =
+    useState<RestrictedBlockRuntimeHostSnapshot | null>(null);
+  const activeRuntimeSessionRef = useRef<ActiveRuntimeSession | null>(null);
+
+  const disposeActiveRuntimeSession = useCallback(
+    (options: { updateSnapshot?: boolean } = {}) => {
+      const activeRuntimeSession = activeRuntimeSessionRef.current;
+      if (!activeRuntimeSession) {
+        return null;
+      }
+
+      activeRuntimeSessionRef.current = null;
+      activeRuntimeSession.unsubscribe();
+      const snapshot = activeRuntimeSession.session.dispose();
+      if (options.updateSnapshot !== false) {
+        setInternalRuntimeSnapshot(snapshot);
+      }
+      return snapshot;
+    },
+    []
+  );
 
   useEffect(() => {
     setContextDraft(stringifyDraft(contextSnapshot));
@@ -264,6 +301,19 @@ export function JsBlockTrialPanel({
       limits
     });
   }, [block, catalogEntry, code, contextSnapshot, limits]);
+
+  useEffect(
+    () => () => {
+      disposeActiveRuntimeSession({ updateSnapshot: false });
+    },
+    [disposeActiveRuntimeSession]
+  );
+
+  useEffect(() => {
+    if (!runPlan?.ok) {
+      disposeActiveRuntimeSession();
+    }
+  }, [disposeActiveRuntimeSession, runPlan]);
 
   function applyContextDraft() {
     const parsed = parseJsonObject(contextDraft, 'Context snapshot');
@@ -292,6 +342,28 @@ export function JsBlockTrialPanel({
     setDraftError(null);
     onLimitsChange?.(runtimeLimits.value);
   }
+
+  function runRuntimeSession() {
+    if (!runPlan?.ok) {
+      return;
+    }
+
+    disposeActiveRuntimeSession({ updateSnapshot: false });
+
+    const session = runtimeSessionFactory({ runPlan });
+    const unsubscribe = session.subscribe((snapshot) => {
+      setInternalRuntimeSnapshot(snapshot);
+    });
+    activeRuntimeSessionRef.current = { session, unsubscribe };
+    setInternalRuntimeSnapshot(session.run());
+  }
+
+  function stopRuntimeSession() {
+    disposeActiveRuntimeSession();
+  }
+
+  const canStopRuntimeSession = activeRuntimeSessionRef.current !== null;
+  const activeRuntimeSnapshot = internalRuntimeSnapshot ?? runtimeSnapshot;
 
   if (!block) {
     return (
@@ -382,6 +454,24 @@ export function JsBlockTrialPanel({
       {runPlan?.ok ? (
         <Space direction="vertical" size="small" style={{ width: '100%' }}>
           <Alert type="success" showIcon message="Run plan 已生成" />
+          <Space size="small" wrap>
+            <Button
+              aria-label="运行"
+              size="small"
+              type="primary"
+              onClick={runRuntimeSession}
+            >
+              {canStopRuntimeSession ? '重新运行' : '运行'}
+            </Button>
+            <Button
+              aria-label="停止"
+              size="small"
+              disabled={!canStopRuntimeSession}
+              onClick={stopRuntimeSession}
+            >
+              停止
+            </Button>
+          </Space>
           <Descriptions
             bordered
             size="small"
@@ -522,9 +612,9 @@ export function JsBlockTrialPanel({
         </Space>
       ) : null}
 
-      {runtimeSnapshot ? (
+      {activeRuntimeSnapshot ? (
         <RestrictedBlockRuntimePreview
-          snapshot={runtimeSnapshot}
+          snapshot={activeRuntimeSnapshot}
           onAction={onRuntimeAction}
         />
       ) : null}

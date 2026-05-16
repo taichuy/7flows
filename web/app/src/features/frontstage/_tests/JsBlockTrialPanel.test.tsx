@@ -1,11 +1,13 @@
-import { fireEvent, render, screen, within } from '@testing-library/react';
+import { act, fireEvent, render, screen, within } from '@testing-library/react';
 import { useState } from 'react';
 import { describe, expect, test, vi } from 'vitest';
 
 import { JsBlockTrialPanel } from '../components/JsBlockTrialPanel';
 import type { NormalizedFrontstageBlockCatalogEntry } from '../lib/block-catalog';
+import type { FrontstageRestrictedBlockRuntimeSession } from '../lib/frontstage-restricted-block-runtime-host';
 import type { FrontstageBlockInstance } from '../lib/page-document';
 import type { RestrictedBlockLoaderLimits } from '../lib/restricted-block-loader';
+import type { RestrictedBlockRuntimeHostSnapshot } from '../lib/restricted-block-runtime-host';
 
 function createBlock(
   overrides: Partial<FrontstageBlockInstance> = {}
@@ -80,6 +82,74 @@ function createLimits(
   };
 }
 
+function createSnapshot(
+  overrides: Partial<RestrictedBlockRuntimeHostSnapshot> = {}
+): RestrictedBlockRuntimeHostSnapshot {
+  return {
+    status: 'idle',
+    requestId: 'restricted-block:hero-block:hero-code',
+    blockId: 'hero-block',
+    schemaValidationOptions: {
+      maxDepth: 8,
+      maxNodes: 250,
+      allowedActions: ['record.save'],
+      allowedEvents: ['record.saved'],
+      allowedDataPermissions: ['query']
+    },
+    logs: [],
+    effects: [],
+    rejections: [],
+    ...overrides
+  };
+}
+
+function createFakeRuntimeSession() {
+  type SnapshotListener = Parameters<
+    FrontstageRestrictedBlockRuntimeSession['subscribe']
+  >[0];
+  type RuntimeSessionState = ReturnType<
+    FrontstageRestrictedBlockRuntimeSession['getHostState']
+  >;
+
+  let snapshot = createSnapshot();
+  const listeners = new Set<SnapshotListener>();
+  const session: FrontstageRestrictedBlockRuntimeSession = {
+    run: vi.fn(() => {
+      snapshot = createSnapshot({ status: 'running' });
+      return snapshot;
+    }),
+    dispose: vi.fn(() => {
+      snapshot = createSnapshot({ status: 'disposed' });
+      return snapshot;
+    }),
+    getSnapshot: vi.fn(() => snapshot),
+    getHostState: vi.fn(
+      () =>
+        ({
+          workerStatus: 'idle',
+          requests: {},
+          rejections: []
+        }) satisfies RuntimeSessionState
+    ),
+    subscribe: vi.fn((listener: SnapshotListener) => {
+      listeners.add(listener);
+      return () => {
+        listeners.delete(listener);
+      };
+    })
+  };
+
+  return {
+    session,
+    emit(nextSnapshot: RestrictedBlockRuntimeHostSnapshot) {
+      snapshot = nextSnapshot;
+      for (const listener of [...listeners]) {
+        listener(snapshot);
+      }
+    }
+  };
+}
+
 describe('JsBlockTrialPanel', () => {
   test('shows clear empty states when the selected block or catalog entry is missing', () => {
     const { rerender } = render(
@@ -135,6 +205,149 @@ describe('JsBlockTrialPanel', () => {
     const mediatorPolicy = screen.getByTestId('js-block-trial-mediator-policy');
     expect(within(mediatorPolicy).getByText('records')).toBeInTheDocument();
     expect(within(mediatorPolicy).getByText('4')).toBeInTheDocument();
+  });
+
+  test('runs an injected runtime session and renders subscribed runtime snapshots', () => {
+    const runtimeSession = createFakeRuntimeSession();
+    const runtimeSessionFactory = vi.fn(() => runtimeSession.session);
+
+    render(
+      <JsBlockTrialPanel
+        block={createBlock()}
+        catalogEntry={createCatalogEntry()}
+        code="export default { render() {} }"
+        contextSnapshot={{ pageId: 'page-1' }}
+        limits={createLimits()}
+        runtimeSessionFactory={runtimeSessionFactory}
+      />
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: '运行' }));
+
+    expect(runtimeSessionFactory).toHaveBeenCalledTimes(1);
+    expect(runtimeSessionFactory).toHaveBeenCalledWith({
+      runPlan: expect.objectContaining({
+        ok: true,
+        request: expect.objectContaining({
+          requestId: 'restricted-block:hero-block:hero-code',
+          blockId: 'hero-block'
+        })
+      })
+    });
+    expect(runtimeSession.session.subscribe).toHaveBeenCalledTimes(1);
+    expect(runtimeSession.session.run).toHaveBeenCalledTimes(1);
+    expect(screen.getByText('运行中')).toBeInTheDocument();
+
+    act(() => {
+      runtimeSession.emit(
+        createSnapshot({
+          status: 'ready',
+          schema: {
+            primitive: 'Text',
+            props: { children: 'Runtime Ready' }
+          }
+        })
+      );
+    });
+
+    expect(screen.getByText('运行结果')).toBeInTheDocument();
+    expect(screen.getByText('Runtime Ready')).toBeInTheDocument();
+
+    act(() => {
+      runtimeSession.emit(
+        createSnapshot({
+          status: 'failed',
+          error: {
+            kind: 'runtime_error',
+            message: 'Worker failed.',
+            errors: [
+              {
+                code: 'runtime_error',
+                path: 'runtime',
+                message: 'Worker failed.'
+              }
+            ]
+          }
+        })
+      );
+    });
+
+    expect(screen.getByText('运行失败')).toBeInTheDocument();
+    expect(screen.getByText('Worker failed.')).toBeInTheDocument();
+  });
+
+  test('disposes the active runtime session before rerun, on stop, and on unmount', () => {
+    const firstRuntimeSession = createFakeRuntimeSession();
+    const secondRuntimeSession = createFakeRuntimeSession();
+    const thirdRuntimeSession = createFakeRuntimeSession();
+    const sessions = [
+      firstRuntimeSession.session,
+      secondRuntimeSession.session,
+      thirdRuntimeSession.session
+    ];
+    const runtimeSessionFactory = vi.fn(() => sessions.shift()!);
+
+    const { unmount } = render(
+      <JsBlockTrialPanel
+        block={createBlock()}
+        catalogEntry={createCatalogEntry()}
+        code="export default { render() {} }"
+        contextSnapshot={{ pageId: 'page-1' }}
+        limits={createLimits()}
+        runtimeSessionFactory={runtimeSessionFactory}
+      />
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: '运行' }));
+    expect(firstRuntimeSession.session.run).toHaveBeenCalledTimes(1);
+
+    fireEvent.click(screen.getByRole('button', { name: '运行' }));
+    expect(firstRuntimeSession.session.dispose).toHaveBeenCalledTimes(1);
+    expect(secondRuntimeSession.session.run).toHaveBeenCalledTimes(1);
+
+    fireEvent.click(screen.getByRole('button', { name: '停止' }));
+    expect(secondRuntimeSession.session.dispose).toHaveBeenCalledTimes(1);
+    expect(screen.getByText('已释放')).toBeInTheDocument();
+
+    act(() => {
+      secondRuntimeSession.emit(
+        createSnapshot({
+          status: 'ready',
+          schema: {
+            primitive: 'Text',
+            props: { children: 'Late runtime result' }
+          }
+        })
+      );
+    });
+    expect(screen.queryByText('Late runtime result')).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: '运行' }));
+    expect(thirdRuntimeSession.session.run).toHaveBeenCalledTimes(1);
+
+    unmount();
+    expect(thirdRuntimeSession.session.dispose).toHaveBeenCalledTimes(1);
+  });
+
+  test('does not expose runtime run controls or create sessions when the run plan is rejected', () => {
+    const runtimeSessionFactory = vi.fn(() => createFakeRuntimeSession().session);
+
+    render(
+      <JsBlockTrialPanel
+        block={createBlock({ codeRef: '' })}
+        catalogEntry={createCatalogEntry()}
+        code="export default {}"
+        contextSnapshot={{ pageId: 'page-1' }}
+        limits={createLimits()}
+        runtimeSessionFactory={runtimeSessionFactory}
+      />
+    );
+
+    expect(screen.getByText('Run plan 被拒绝')).toBeInTheDocument();
+    expect(
+      screen.queryByRole('button', { name: '运行' })
+    ).not.toBeInTheDocument();
+    expect(runtimeSessionFactory).not.toHaveBeenCalled();
   });
 
   test('renders structured rejection details from the run plan builder', () => {
