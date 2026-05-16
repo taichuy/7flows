@@ -1,8 +1,8 @@
 import type {
   JsBlockWorkerFactory,
-  JsBlockWorkerLike,
-  JsBlockWorkerRuntimeMessage
+  JsBlockWorkerLike
 } from './js-block-worker-host';
+import type { JsBlockWorkerRuntimeMessage } from './js-block-worker-runtime';
 
 export type JsBlockWorkerAdapterErrorCode =
   | 'worker_unavailable'

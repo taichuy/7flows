@@ -1,27 +1,23 @@
+import {
+  FRONTEND_BLOCK_CONTEXT_PRIMITIVES,
+  FRONTEND_BLOCK_RUNTIMES,
+  FRONTEND_BLOCK_UI_CAPABILITIES,
+  type FrontendBlockContextPrimitive,
+  type FrontendBlockRuntime,
+  type FrontendBlockUiCapability
+} from '@1flowbase/page-protocol';
+
 import type { FrontstageBlockCatalogEntry } from '../api/block-catalog';
 
-export const FRONTSTAGE_BLOCK_RUNTIME_KINDS = ['iframe'] as const;
-export const FRONTSTAGE_BLOCK_CONTEXT_PRIMITIVES = [
-  'text',
-  'image',
-  'link',
-  'button',
-  'rich_text',
-  'data_record'
-] as const;
-export const FRONTSTAGE_BLOCK_UI_CAPABILITIES = [
-  'responsive',
-  'configurable',
-  'theming',
-  'data_binding'
-] as const;
+export const FRONTSTAGE_BLOCK_RUNTIME_KINDS = FRONTEND_BLOCK_RUNTIMES;
+export const FRONTSTAGE_BLOCK_CONTEXT_PRIMITIVES =
+  FRONTEND_BLOCK_CONTEXT_PRIMITIVES;
+export const FRONTSTAGE_BLOCK_UI_CAPABILITIES =
+  FRONTEND_BLOCK_UI_CAPABILITIES;
 
-export type FrontstageBlockRuntimeKind =
-  (typeof FRONTSTAGE_BLOCK_RUNTIME_KINDS)[number];
-export type FrontstageBlockContextPrimitive =
-  (typeof FRONTSTAGE_BLOCK_CONTEXT_PRIMITIVES)[number];
-export type FrontstageBlockUiCapability =
-  (typeof FRONTSTAGE_BLOCK_UI_CAPABILITIES)[number];
+export type FrontstageBlockRuntimeKind = FrontendBlockRuntime;
+export type FrontstageBlockContextPrimitive = FrontendBlockContextPrimitive;
+export type FrontstageBlockUiCapability = FrontendBlockUiCapability;
 export type FrontstageBlockPermissionChannel = 'data' | 'action' | 'event';
 
 export type FrontstageBlockCatalogDiagnosticSeverity = 'warning' | 'error';
