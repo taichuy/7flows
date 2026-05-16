@@ -1,0 +1,167 @@
+import { describe, expect, test } from 'vitest';
+
+import {
+  createGroupNode,
+  createPageNode,
+  getDraftStatus,
+  getFirstPageId,
+  normalizePageTree,
+  removeNodeFromTree,
+  resolveSelectedPageId
+} from '../lib/page-tree';
+
+import type { FrontStageTreeNode } from '../lib/page-tree';
+
+describe('frontstage page tree logic', () => {
+  test('normalizes nested groups by preserving root groups and flattening descendant pages', () => {
+    const tree: FrontStageTreeNode[] = [
+      {
+        id: 'group-root',
+        title: 'Root group',
+        kind: 'group',
+        children: [
+          {
+            id: 'group-nested',
+            title: 'Nested group',
+            kind: 'group',
+            children: [
+              {
+                id: 'page-nested',
+                title: 'Nested page',
+                kind: 'page'
+              }
+            ]
+          },
+          {
+            id: 'page-direct',
+            title: 'Direct page',
+            kind: 'page'
+          }
+        ]
+      },
+      {
+        id: 'page-root',
+        title: 'Root page',
+        kind: 'page'
+      }
+    ];
+
+    expect(normalizePageTree(tree)).toEqual([
+      {
+        id: 'group-root',
+        title: 'Root group',
+        kind: 'group',
+        children: [
+          {
+            id: 'page-nested',
+            title: 'Nested page',
+            kind: 'page'
+          },
+          {
+            id: 'page-direct',
+            title: 'Direct page',
+            kind: 'page'
+          }
+        ]
+      },
+      {
+        id: 'page-root',
+        title: 'Root page',
+        kind: 'page'
+      }
+    ]);
+  });
+
+  test('resolves missing pageId to the first backend page', () => {
+    const tree: FrontStageTreeNode[] = [
+      {
+        id: 'group-root',
+        title: 'Root group',
+        kind: 'group',
+        children: [
+          {
+            id: 'page-first',
+            title: 'First page',
+            kind: 'page'
+          }
+        ]
+      },
+      {
+        id: 'page-second',
+        title: 'Second page',
+        kind: 'page'
+      }
+    ];
+
+    expect(resolveSelectedPageId({ pageTree: tree }).selectedPageId).toBe('page-first');
+    expect(resolveSelectedPageId({ pageTree: tree }).navigationTarget).toBe('page-first');
+    expect(resolveSelectedPageId({ pageTree: tree }).shouldNavigate).toBe(true);
+  });
+
+  test('resolves invalid pageId to the first backend page', () => {
+    const tree: FrontStageTreeNode[] = [
+      {
+        id: 'page-first',
+        title: 'First page',
+        kind: 'page'
+      }
+    ];
+
+    expect(resolveSelectedPageId({ pageTree: tree, pageId: 'missing-page' })).toEqual({
+      selectedPageId: 'page-first',
+      navigationTarget: 'page-first',
+      shouldNavigate: true
+    });
+  });
+
+  test('resolves empty backend tree to workspace-level route', () => {
+    expect(resolveSelectedPageId({ pageTree: [], pageId: 'missing-page' })).toEqual({
+      selectedPageId: null,
+      navigationTarget: undefined,
+      shouldNavigate: true
+    });
+    expect(getFirstPageId([])).toBeNull();
+  });
+
+  test('deleting the selected page falls back to the next first page', () => {
+    const tree: FrontStageTreeNode[] = [
+      createPageNode('page-selected', 1),
+      createPageNode('page-fallback', 2)
+    ];
+
+    const nextTree = removeNodeFromTree(tree, 'page-selected');
+
+    expect(resolveSelectedPageId({ pageTree: nextTree, pageId: 'page-selected' })).toEqual({
+      selectedPageId: 'page-fallback',
+      navigationTarget: 'page-fallback',
+      shouldNavigate: true
+    });
+  });
+
+  test('draft status labels local pending changes without persistence wording', () => {
+    expect(getDraftStatus(false)).toEqual({
+      hasPendingDraft: false,
+      buttonLabel: '清除本地草稿',
+      statusText: '当前无本地草稿变更。'
+    });
+    expect(getDraftStatus(true)).toEqual({
+      hasPendingDraft: true,
+      buttonLabel: '清除本地草稿',
+      statusText: '当前有本地草稿变更，后端写入接口开放前不会持久化。'
+    });
+  });
+
+  test('creates draft nodes with deterministic titles from caller-provided ids', () => {
+    expect(createGroupNode('group-draft', 2)).toEqual({
+      id: 'group-draft',
+      title: '分组 2',
+      kind: 'group',
+      children: []
+    });
+    expect(createPageNode('page-draft', 3)).toEqual({
+      id: 'page-draft',
+      title: '页面 新建 3',
+      kind: 'page'
+    });
+  });
+});

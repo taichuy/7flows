@@ -3,6 +3,25 @@ import type { FC } from 'react';
 import { useEffect, useMemo, useState } from 'react';
 
 import { useAuthStore } from '../../../state/auth-store';
+import {
+  canMoveNode,
+  createGroupNode,
+  createPageNode,
+  findNodeById,
+  getDeleteConfirmMessage,
+  getDraftStatus,
+  getNextGroupTitleIndex,
+  getNextNodeId,
+  getNextPageTitleIndex,
+  getPageDisplayTitle,
+  insertPageIntoGroup,
+  moveNodeInTree,
+  normalizePageTree,
+  removeNodeFromTree,
+  renameNodeInTree,
+  resolveSelectedPageId
+} from '../lib/page-tree';
+import type { FrontStageTreeNode } from '../lib/page-tree';
 
 const DESIGN_MODE_PERMISSION = 'frontstage.page.design';
 
@@ -16,316 +35,6 @@ type FrontStagePageProps = {
   onRetryLoadPageTree?: () => void;
 };
 
-type FrontStageTreeNode = {
-  id: string;
-  title: string | null;
-  kind: 'group' | 'page';
-  children?: FrontStageTreeNode[];
-};
-
-function collectTreeNodeIds(nodes: FrontStageTreeNode[]): Set<string> {
-  const nodeIds = new Set<string>();
-
-  const visit = (items: FrontStageTreeNode[]) => {
-    for (const node of items) {
-      nodeIds.add(node.id);
-
-      if (node.children && node.children.length > 0) {
-        visit(node.children);
-      }
-    }
-  };
-
-  visit(nodes);
-
-  return nodeIds;
-}
-
-function flattenNestedGroups(nodes: FrontStageTreeNode[]): FrontStageTreeNode[] {
-  const flattened: FrontStageTreeNode[] = [];
-
-  for (const node of nodes) {
-    if (node.kind === 'page') {
-      flattened.push(node);
-      continue;
-    }
-
-    if (node.children && node.children.length > 0) {
-      flattened.push(...flattenNestedGroups(node.children));
-    }
-  }
-
-  return flattened;
-}
-
-function normalizePageTree(nodes: FrontStageTreeNode[]): FrontStageTreeNode[] {
-  return nodes.map((node) => {
-    if (node.kind !== 'group') {
-      return node;
-    }
-
-    return {
-      ...node,
-      children: flattenNestedGroups(node.children ?? [])
-    };
-  });
-}
-
-function generateNodeId(): string {
-  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
-    return crypto.randomUUID();
-  }
-
-  return `00000000-0000-4000-8000-${Math.random().toString(16).slice(2, 14).padStart(12, '0')}`;
-}
-
-function getNextNodeTitleIndex(
-  nodes: FrontStageTreeNode[],
-  nodeType: 'group' | 'page',
-  titlePrefix: string
-): number {
-  let maxIndex = 0;
-
-  const visit = (items: FrontStageTreeNode[]) => {
-    for (const item of items) {
-      if (item.kind === nodeType) {
-        const matched = item.title?.match(new RegExp(`^${titlePrefix}(\\d+)$`));
-
-        if (matched) {
-          const candidateIndex = Number.parseInt(matched[1], 10);
-          if (candidateIndex > maxIndex) {
-            maxIndex = candidateIndex;
-          }
-        }
-      }
-
-      if (item.children && item.children.length > 0) {
-        visit(item.children);
-      }
-    }
-  };
-
-  visit(nodes);
-
-  return maxIndex + 1;
-}
-
-function getNextNodeId(
-  nodes: FrontStageTreeNode[],
-): string {
-  const nextId = generateNodeId();
-
-  const existingIds = collectTreeNodeIds(nodes);
-  if (!existingIds.has(nextId)) {
-    return nextId;
-  }
-
-  return getNextNodeId(nodes);
-}
-
-function getNextPageTitleIndex(nodes: FrontStageTreeNode[]): number {
-  return getNextNodeTitleIndex(nodes, 'page', '页面 新建 ');
-}
-
-function getNextGroupTitleIndex(nodes: FrontStageTreeNode[]): number {
-  return getNextNodeTitleIndex(nodes, 'group', '分组 ');
-}
-
-function createPageNode(id: string, numberHint: number): FrontStageTreeNode {
-  return {
-    id,
-    title: `页面 新建 ${numberHint}`,
-    kind: 'page'
-  };
-}
-
-function createGroupNode(id: string, index: number): FrontStageTreeNode {
-  return {
-    id,
-    title: `分组 ${index}`,
-    kind: 'group',
-    children: []
-  };
-}
-
-function findNodeById(
-  nodes: FrontStageTreeNode[],
-  targetId: string
-): FrontStageTreeNode | null {
-  for (const node of nodes) {
-    if (node.id === targetId) {
-      return node;
-    }
-
-    if (node.children && node.children.length > 0) {
-      const found = findNodeById(node.children, targetId);
-      if (found) {
-        return found;
-      }
-    }
-  }
-
-  return null;
-}
-
-function isPageInTree(nodes: FrontStageTreeNode[], targetPageId: string): boolean {
-  return nodes.some((node) => {
-    if (node.kind === 'page' && node.id === targetPageId) {
-      return true;
-    }
-
-    return Boolean(node.children && isPageInTree(node.children, targetPageId));
-  });
-}
-
-function getFirstPageId(nodes: FrontStageTreeNode[]): string | null {
-  for (const node of nodes) {
-    if (node.kind === 'page') {
-      return node.id;
-    }
-
-    const nextPageId = node.children ? getFirstPageId(node.children) : null;
-    if (nextPageId) {
-      return nextPageId;
-    }
-  }
-
-  return null;
-}
-
-function getPageDisplayTitle(
-  nodes: FrontStageTreeNode[],
-  targetPageId: string | null
-): string | null {
-  if (!targetPageId) {
-    return null;
-  }
-
-  const targetNode = findNodeById(nodes, targetPageId);
-  if (!targetNode || targetNode.kind !== 'page') {
-    return null;
-  }
-
-  return targetNode.title || '未命名页面';
-}
-
-function getDeleteConfirmMessage(node: FrontStageTreeNode): string {
-  if (node.kind === 'group' && node.children && node.children.length > 0) {
-    return `确认删除分组“${node.title || '未命名分组'}”吗？该分组下的页面会同时删除，且无法恢复。`;
-  }
-
-  return `确认删除${node.kind === 'group' ? '分组' : '页面'}“${node.title || '未命名页面'}”？`;
-}
-
-function toPageNavigationTarget(pageId: string | null): string | undefined {
-  return pageId || undefined;
-}
-
-function moveNodeInTree(
-  nodes: FrontStageTreeNode[],
-  targetNodeId: string,
-  direction: -1 | 1
-): FrontStageTreeNode[] {
-  const index = nodes.findIndex((node) => node.id === targetNodeId);
-  if (index >= 0) {
-    const targetIndex = index + direction;
-
-    if (targetIndex >= 0 && targetIndex < nodes.length) {
-      const nextNodes = [...nodes];
-      [nextNodes[index], nextNodes[targetIndex]] = [nextNodes[targetIndex], nextNodes[index]];
-
-      return nextNodes;
-    }
-
-    return nodes;
-  }
-
-  return nodes.map((node) => {
-    if (!node.children) {
-      return node;
-    }
-
-    const nextChildren = moveNodeInTree(node.children, targetNodeId, direction);
-    if (nextChildren === node.children) {
-      return node;
-    }
-
-    return {
-      ...node,
-      children: nextChildren
-    };
-  });
-}
-
-function removeNodeFromTree(nodes: FrontStageTreeNode[], targetNodeId: string): FrontStageTreeNode[] {
-  const nextNodes = [];
-
-  for (const node of nodes) {
-    if (node.id === targetNodeId) {
-      continue;
-    }
-
-    nextNodes.push({
-      ...node,
-      children: node.children ? removeNodeFromTree(node.children, targetNodeId) : node.children
-    });
-  }
-
-  return nextNodes;
-}
-
-function renameNodeInTree(
-  nodes: FrontStageTreeNode[],
-  targetNodeId: string,
-  title: string
-): FrontStageTreeNode[] {
-  return nodes.map((node) => {
-    if (node.id === targetNodeId) {
-      return { ...node, title };
-    }
-
-    return {
-      ...node,
-      children: node.children ? renameNodeInTree(node.children, targetNodeId, title) : node.children
-    };
-  });
-}
-
-function insertPageIntoGroup(
-  nodes: FrontStageTreeNode[],
-  parentNodeId: string,
-  pageNode: FrontStageTreeNode
-): FrontStageTreeNode[] {
-  return nodes.map((node) => {
-    if (node.id === parentNodeId && node.kind === 'group') {
-      return {
-        ...node,
-        children: [...(node.children ?? []), pageNode]
-      };
-    }
-
-    return {
-      ...node,
-      children: node.children ? insertPageIntoGroup(node.children, parentNodeId, pageNode) : node.children
-    };
-  });
-}
-
-function canMoveNode(
-  nodes: FrontStageTreeNode[],
-  targetNodeId: string
-): { canMoveUp: boolean; canMoveDown: boolean } {
-  const index = nodes.findIndex((node) => node.id === targetNodeId);
-  if (index < 0) {
-    return { canMoveUp: false, canMoveDown: false };
-  }
-
-  return {
-    canMoveUp: index > 0,
-    canMoveDown: index < nodes.length - 1
-  };
-}
-
 export const FrontStagePage: FC<FrontStagePageProps> = ({
   workspaceId,
   pageId,
@@ -338,16 +47,18 @@ export const FrontStagePage: FC<FrontStagePageProps> = ({
   const actor = useAuthStore((state) => state.actor);
   const me = useAuthStore((state) => state.me);
   const [isDesignMode, setIsDesignMode] = useState(false);
-  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
-  const [pageTree, setPageTree] = useState<FrontStageTreeNode[]>(() => {
-    if (initialPageTree) {
-      return normalizePageTree(initialPageTree);
-    }
-
-    return pageId ? [{ id: pageId, title: `页面 ${pageId}`, kind: 'page' }] : [];
-  });
-  const [selectedPageId, setSelectedPageId] = useState<string | null>(() => pageId ?? null);
+  const [hasPendingDraftChanges, setHasPendingDraftChanges] = useState(false);
+  const [pageTree, setPageTree] = useState<FrontStageTreeNode[]>(() =>
+    normalizePageTree(initialPageTree ?? [])
+  );
+  const [selectedPageId, setSelectedPageId] = useState<string | null>(() =>
+    resolveSelectedPageId({
+      pageId,
+      pageTree: normalizePageTree(initialPageTree ?? [])
+    }).selectedPageId
+  );
   const { Sider, Content } = Layout;
+  const draftStatus = getDraftStatus(hasPendingDraftChanges);
 
   const canEnterDesignMode = useMemo(() => {
     return actor?.effective_display_role === 'root' || Boolean(me?.permissions.includes(DESIGN_MODE_PERMISSION));
@@ -359,37 +70,24 @@ export const FrontStagePage: FC<FrontStagePageProps> = ({
     }
 
     setPageTree(normalizePageTree(initialPageTree));
+    setHasPendingDraftChanges(false);
   }, [initialPageTree]);
 
   useEffect(() => {
-    if (pageId) {
-      if (isPageInTree(pageTree, pageId)) {
-        setSelectedPageId(pageId);
-        return;
-      }
-
-      const fallbackPageId = getFirstPageId(pageTree);
-
-      setSelectedPageId(fallbackPageId);
-      onNavigatePage?.(toPageNavigationTarget(fallbackPageId));
-
-      return;
-    }
-
-    setSelectedPageId((current) => {
-      if (current && isPageInTree(pageTree, current)) {
-        return current;
-      }
-
-      return getFirstPageId(pageTree);
+    const resolution = resolveSelectedPageId({
+      currentSelectedPageId: selectedPageId,
+      pageId,
+      pageTree
     });
-  }, [pageId, pageTree]);
 
-  useEffect(() => {
-    if (!pageId && selectedPageId) {
-      onNavigatePage?.(selectedPageId);
+    if (selectedPageId !== resolution.selectedPageId) {
+      setSelectedPageId(resolution.selectedPageId);
     }
-  }, [pageId, selectedPageId, onNavigatePage]);
+
+    if (resolution.shouldNavigate) {
+      onNavigatePage?.(resolution.navigationTarget);
+    }
+  }, [onNavigatePage, pageId, pageTree, selectedPageId]);
 
   const selectedPageDisplayTitle = getPageDisplayTitle(pageTree, selectedPageId);
   const selectedPageLabel = selectedPageDisplayTitle
@@ -471,7 +169,7 @@ export const FrontStagePage: FC<FrontStagePageProps> = ({
       ...prev,
       createGroupNode(getNextNodeId(prev), getNextGroupTitleIndex(prev))
     ]);
-    setHasUnsavedChanges(true);
+    setHasPendingDraftChanges(true);
   };
 
   const handleAddPage = () => {
@@ -490,7 +188,7 @@ export const FrontStagePage: FC<FrontStagePageProps> = ({
       setSelectedPageId(nextPageNodeId);
       onNavigatePage?.(nextPageNodeId);
     }
-    setHasUnsavedChanges(true);
+    setHasPendingDraftChanges(true);
   };
 
   const handleAddPageInGroup = (groupId: string) => {
@@ -509,7 +207,7 @@ export const FrontStagePage: FC<FrontStagePageProps> = ({
       setSelectedPageId(nextPageNodeId);
       onNavigatePage?.(nextPageNodeId);
     }
-    setHasUnsavedChanges(true);
+    setHasPendingDraftChanges(true);
   };
 
   const handleDeleteNode = (nodeId: string) => {
@@ -525,22 +223,21 @@ export const FrontStagePage: FC<FrontStagePageProps> = ({
 
     setPageTree((prev) => {
       const next = removeNodeFromTree(prev, nodeId);
-      const nextSelectedPageId =
-        selectedPageId && isPageInTree(next, selectedPageId)
-          ? selectedPageId
-          : getFirstPageId(next);
+      const nextResolution = resolveSelectedPageId({
+        pageId: selectedPageId ?? undefined,
+        pageTree: next
+      });
+      const nextSelectedPageId = nextResolution.selectedPageId;
 
       setSelectedPageId(nextSelectedPageId);
-      if (nextSelectedPageId) {
-        onNavigatePage?.(nextSelectedPageId);
-      } else {
-        onNavigatePage?.(undefined);
+      if (nextResolution.shouldNavigate) {
+        onNavigatePage?.(nextResolution.navigationTarget);
       }
 
       return next;
     });
 
-    setHasUnsavedChanges(true);
+    setHasPendingDraftChanges(true);
   };
 
   const handleRenameNode = (nodeId: string, currentTitle: string | null) => {
@@ -550,14 +247,14 @@ export const FrontStagePage: FC<FrontStagePageProps> = ({
     }
 
     setPageTree((prev) => renameNodeInTree(prev, nodeId, nextTitle));
-    setHasUnsavedChanges(true);
+    setHasPendingDraftChanges(true);
   };
 
   const handleMoveNode = (nodeId: string, direction: -1 | 1) => {
     setPageTree((prev) => {
       const next = moveNodeInTree(prev, nodeId, direction);
       if (next !== prev) {
-        setHasUnsavedChanges(true);
+        setHasPendingDraftChanges(true);
       }
 
       return next;
@@ -607,6 +304,7 @@ export const FrontStagePage: FC<FrontStagePageProps> = ({
     return (
       <li
         key={node.id}
+        data-testid={`frontstage-tree-node-${node.kind}-${node.title || node.id}`}
         style={rowStyle}
         onClick={() => {
           if (isPageNode) {
@@ -746,18 +444,16 @@ export const FrontStagePage: FC<FrontStagePageProps> = ({
           <Button size="small">JS Block 试运行</Button>
           <Button
             size="small"
-            onClick={() => setHasUnsavedChanges(false)}
-            disabled={!hasUnsavedChanges}
+            onClick={() => setHasPendingDraftChanges(false)}
+            disabled={!draftStatus.hasPendingDraft}
           >
-            保存设计
+            {draftStatus.buttonLabel}
           </Button>
         </Space>
       ) : null}
       {canEnterDesignMode && isDesignMode ? (
         <Typography.Text type="secondary" style={{ marginBottom: 12, display: 'block' }}>
-          {hasUnsavedChanges
-            ? '当前有未保存改动，点击“保存设计”后同步到 schema storage。'
-            : '当前无未保存改动。'}
+          {draftStatus.statusText}
         </Typography.Text>
       ) : null}
       <Layout style={{ background: 'transparent' }}>
@@ -786,7 +482,7 @@ export const FrontStagePage: FC<FrontStagePageProps> = ({
           ) : (
             <Empty
               image={Empty.PRESENTED_IMAGE_SIMPLE}
-              imageStyle={{ height: 48 }}
+              styles={{ image: { height: 48 } }}
               description={
                 <Typography.Text type="secondary">
                   当前工作区页面树为空。请在设计态创建页面后将显示树结构。

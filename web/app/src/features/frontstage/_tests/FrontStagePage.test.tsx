@@ -36,10 +36,23 @@ function authenticate(permissions: string[]) {
   });
 }
 
-function renderPage(pageId?: string, onNavigatePage?: (pageId: string) => void) {
+function createBackendPage(pageId: string): TestFrontStageTreeNode {
+  return {
+    id: pageId,
+    title: `页面 ${pageId}`,
+    kind: 'page'
+  };
+}
+
+function renderPage(pageId?: string, onNavigatePage?: (pageId?: string) => void) {
   return render(
     <AppProviders>
-      <FrontStagePage workspaceId="workspace-1" pageId={pageId} onNavigatePage={onNavigatePage} />
+      <FrontStagePage
+        workspaceId="workspace-1"
+        pageId={pageId}
+        onNavigatePage={onNavigatePage}
+        initialPageTree={pageId ? [createBackendPage(pageId)] : undefined}
+      />
     </AppProviders>
   );
 }
@@ -47,7 +60,7 @@ function renderPage(pageId?: string, onNavigatePage?: (pageId: string) => void) 
 function renderPageWithInitialTree(
   pageTree: TestFrontStageTreeNode[],
   pageId?: string,
-  onNavigatePage?: (pageId: string) => void
+  onNavigatePage?: (pageId?: string) => void
 ) {
   return render(
     <AppProviders>
@@ -61,8 +74,25 @@ function renderPageWithInitialTree(
   );
 }
 
+function escapeRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+function getPageTreeItem(title: string) {
+  return screen.getByRole('button', {
+    name: new RegExp(`${escapeRegExp(title)}\\s+页面节点`)
+  });
+}
+
+function getGroupTreeItem(title: string) {
+  return screen.getByTestId(`frontstage-tree-node-group-${title}`);
+}
+
 describe('FrontStagePage', () => {
-  let confirmSpy: ReturnType<typeof vi.spyOn>;
+  let confirmSpy: {
+    mockRestore: () => void;
+    mockReturnValue: (value: boolean) => unknown;
+  };
 
   beforeEach(() => {
     resetAuthStore();
@@ -92,7 +122,7 @@ describe('FrontStagePage', () => {
     expect(screen.queryByRole('button', { name: '页面管理' })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: '当前页面设置' })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'JS Block 试运行' })).not.toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: '保存设计' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: '清除本地草稿' })).not.toBeInTheDocument();
 
     fireEvent.click(designButton);
     expect(screen.getByRole('button', { name: '退出设计模式' })).toBeInTheDocument();
@@ -100,7 +130,7 @@ describe('FrontStagePage', () => {
     expect(screen.getByRole('button', { name: '页面管理' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: '当前页面设置' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'JS Block 试运行' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: '保存设计' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: '清除本地草稿' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: '新建分组' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: '新建页面' })).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: '退出设计模式' }));
@@ -109,30 +139,30 @@ describe('FrontStagePage', () => {
     expect(screen.queryByRole('button', { name: '页面管理' })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: '当前页面设置' })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'JS Block 试运行' })).not.toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: '保存设计' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: '清除本地草稿' })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: '新建分组' })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: '新建页面' })).not.toBeInTheDocument();
   });
 
-  test('shows save-state when design tree changes and clears it after save', () => {
+  test('shows local draft state when design tree changes and clears the local draft marker', () => {
     authenticate(['frontstage.page.design']);
     renderPage();
 
     fireEvent.click(screen.getByRole('button', { name: '进入设计模式' }));
 
-    const saveButton = screen.getByRole('button', { name: '保存设计' });
-    expect(saveButton).toBeDisabled();
-    expect(screen.getByText('当前无未保存改动。')).toBeInTheDocument();
+    const draftButton = screen.getByRole('button', { name: '清除本地草稿' });
+    expect(draftButton).toBeDisabled();
+    expect(screen.getByText('当前无本地草稿变更。')).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: '新建页面' }));
-    expect(saveButton).toBeEnabled();
+    expect(draftButton).toBeEnabled();
     expect(
-      screen.getByText('当前有未保存改动，点击“保存设计”后同步到 schema storage。')
+      screen.getByText('当前有本地草稿变更，后端写入接口开放前不会持久化。')
     ).toBeInTheDocument();
 
-    fireEvent.click(saveButton);
-    expect(saveButton).toBeDisabled();
-    expect(screen.getByText('当前无未保存改动。')).toBeInTheDocument();
+    fireEvent.click(draftButton);
+    expect(draftButton).toBeDisabled();
+    expect(screen.getByText('当前无本地草稿变更。')).toBeInTheDocument();
   });
 
   test('preserves unsaved changes when switching design mode on and off', () => {
@@ -143,20 +173,20 @@ describe('FrontStagePage', () => {
     fireEvent.click(designButton);
 
     fireEvent.click(screen.getByRole('button', { name: '新建页面' }));
-    const saveButton = screen.getByRole('button', { name: '保存设计' });
+    const draftButton = screen.getByRole('button', { name: '清除本地草稿' });
 
-    expect(saveButton).toBeEnabled();
+    expect(draftButton).toBeEnabled();
     expect(
-      screen.getByText('当前有未保存改动，点击“保存设计”后同步到 schema storage。')
+      screen.getByText('当前有本地草稿变更，后端写入接口开放前不会持久化。')
     ).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: '退出设计模式' }));
     fireEvent.click(screen.getByRole('button', { name: '进入设计模式' }));
 
-    const restoredSaveButton = screen.getByRole('button', { name: '保存设计' });
-    expect(restoredSaveButton).toBeEnabled();
+    const restoredDraftButton = screen.getByRole('button', { name: '清除本地草稿' });
+    expect(restoredDraftButton).toBeEnabled();
     expect(
-      screen.getByText('当前有未保存改动，点击“保存设计”后同步到 schema storage。')
+      screen.getByText('当前有本地草稿变更，后端写入接口开放前不会持久化。')
     ).toBeInTheDocument();
   });
 
@@ -171,11 +201,7 @@ describe('FrontStagePage', () => {
     expect(screen.getByText('分组 1')).toBeInTheDocument();
     expect(screen.getByText('页面 新建 1')).toBeInTheDocument();
 
-    const pageItem = screen.getByText('页面 新建 1');
-    const pageListItem = pageItem.closest('li');
-    if (!pageListItem) {
-      throw new Error('expected page list item to exist');
-    }
+    const pageListItem = getPageTreeItem('页面 新建 1');
     fireEvent.click(within(pageListItem).getByRole('button', { name: /删\s*除/ }));
 
     expect(screen.queryByText('页面 新建 1')).not.toBeInTheDocument();
@@ -189,10 +215,7 @@ describe('FrontStagePage', () => {
     fireEvent.click(screen.getByRole('button', { name: '新建分组' }));
     fireEvent.click(screen.getByRole('button', { name: '新建页面' }));
 
-    const pageItem = screen.getByText('页面 新建 1').closest('li');
-    if (!pageItem) {
-      throw new Error('expected page list item to exist');
-    }
+    const pageItem = getPageTreeItem('页面 新建 1');
 
     confirmSpy.mockReturnValue(false);
     fireEvent.click(within(pageItem).getByRole('button', { name: /删\s*除/ }));
@@ -225,11 +248,7 @@ describe('FrontStagePage', () => {
     fireEvent.click(screen.getByRole('button', { name: '进入设计模式' }));
     fireEvent.click(screen.getByRole('button', { name: '新建分组' }));
 
-    const groupItem = screen.getByText('分组 1');
-    const groupContainer = groupItem.closest('li');
-    if (!groupContainer) {
-      throw new Error('expected group list item to exist');
-    }
+    const groupContainer = getGroupTreeItem('分组 1');
 
     fireEvent.click(within(groupContainer).getByRole('button', { name: '组内新增页面' }));
 
@@ -281,11 +300,7 @@ describe('FrontStagePage', () => {
 
     fireEvent.click(screen.getByRole('button', { name: '进入设计模式' }));
 
-    const rootGroupItem = screen.getByText('分组 一级').closest('li');
-
-    if (!rootGroupItem) {
-      throw new Error('expected group list item to exist');
-    }
+    const rootGroupItem = getGroupTreeItem('分组 一级');
 
     expect(within(rootGroupItem).getByRole('button', { name: '组内新增页面' })).toBeInTheDocument();
     expect(screen.queryByText('分组 二级')).not.toBeInTheDocument();
@@ -353,10 +368,7 @@ describe('FrontStagePage', () => {
     fireEvent.click(screen.getByRole('button', { name: '进入设计模式' }));
     fireEvent.click(screen.getByRole('button', { name: '新建分组' }));
 
-    const groupItem = screen.getByText('分组 1').closest('li');
-    if (!groupItem) {
-      throw new Error('expected group list item to exist');
-    }
+    const groupItem = getGroupTreeItem('分组 1');
 
     fireEvent.click(within(groupItem).getByRole('button', { name: '组内新增页面' }));
     expect(screen.getByText('页面 新建 1')).toBeInTheDocument();
@@ -379,10 +391,7 @@ describe('FrontStagePage', () => {
     fireEvent.click(screen.getByRole('button', { name: '进入设计模式' }));
     fireEvent.click(screen.getByRole('button', { name: '新建分组' }));
 
-    const groupItem = screen.getByText('分组 1').closest('li');
-    if (!groupItem) {
-      throw new Error('expected group list item to exist');
-    }
+    const groupItem = getGroupTreeItem('分组 1');
 
     fireEvent.click(within(groupItem).getByRole('button', { name: '组内新增页面' }));
     fireEvent.click(screen.getByRole('button', { name: '新建页面' }));
@@ -390,10 +399,7 @@ describe('FrontStagePage', () => {
       | string
       | undefined;
 
-    const groupItemForDelete = screen.getByText('分组 1').closest('li');
-    if (!groupItemForDelete) {
-      throw new Error('expected group list item to exist');
-    }
+    const groupItemForDelete = getGroupTreeItem('分组 1');
 
     const [groupDeleteButton] = within(groupItemForDelete).getAllByRole('button', {
       name: /删\s*除/
@@ -437,10 +443,7 @@ describe('FrontStagePage', () => {
 
     fireEvent.click(screen.getByRole('button', { name: '进入设计模式' }));
 
-    const rootGroup = screen.getByText('分组 一级').closest('li');
-    if (!rootGroup) {
-      throw new Error('expected root group list item to exist');
-    }
+    const rootGroup = getGroupTreeItem('分组 一级');
 
     const [rootGroupDeleteButton] = within(rootGroup).getAllByRole('button', {
       name: /删\s*除/
@@ -464,10 +467,7 @@ describe('FrontStagePage', () => {
       .mockReturnValue('页面-已重命名');
 
     try {
-      const pageItem = screen.getByText('页面 新建 1').closest('li');
-      if (!pageItem) {
-        throw new Error('expected page list item to exist');
-      }
+      const pageItem = getPageTreeItem('页面 新建 1');
 
       fireEvent.click(within(pageItem).getByRole('button', { name: '重命名' }));
       expect(screen.getByText('页面-已重命名')).toBeInTheDocument();
@@ -488,10 +488,7 @@ describe('FrontStagePage', () => {
       .mockReturnValue('');
 
     try {
-      const pageItem = screen.getByText('页面 新建 1').closest('li');
-      if (!pageItem) {
-        throw new Error('expected page list item to exist');
-      }
+      const pageItem = getPageTreeItem('页面 新建 1');
 
       fireEvent.click(within(pageItem).getByRole('button', { name: '重命名' }));
       expect(screen.getByText('未命名页面')).toBeInTheDocument();
@@ -515,10 +512,7 @@ describe('FrontStagePage', () => {
     });
 
     try {
-      const pageItem = screen.getByText('页面 新建 1').closest('li');
-      if (!pageItem) {
-        throw new Error('expected page list item to exist');
-      }
+      const pageItem = getPageTreeItem('页面 新建 1');
 
       fireEvent.click(within(pageItem).getByRole('button', { name: '重命名' }));
       expect(promptSpy).toHaveBeenCalledTimes(1);
@@ -554,10 +548,7 @@ describe('FrontStagePage', () => {
     fireEvent.click(screen.getByRole('button', { name: '新建页面' }));
     const firstPageId = onNavigatePage.mock.calls[0]?.[0] as string | undefined;
 
-    const secondPageItem = screen.getByText('页面 新建 2').closest('li');
-    if (!secondPageItem) {
-      throw new Error('expected second page item to exist');
-    }
+    const secondPageItem = getPageTreeItem('页面 新建 2');
 
     fireEvent.click(within(secondPageItem).getByRole('button', { name: /删\s*除/ }));
     expect(screen.getByText('当前页面：页面 新建 1')).toBeInTheDocument();
@@ -571,10 +562,7 @@ describe('FrontStagePage', () => {
     renderPage('page-1', onNavigatePage);
 
     fireEvent.click(screen.getByRole('button', { name: '进入设计模式' }));
-    const pageItem = screen.getByText('页面 page-1').closest('li');
-    if (!pageItem) {
-      throw new Error('expected page list item to exist');
-    }
+    const pageItem = getPageTreeItem('页面 page-1');
     fireEvent.click(within(pageItem).getByRole('button', { name: /删\s*除/ }));
 
     expect(onNavigatePage).toHaveBeenCalledWith(undefined);
@@ -583,32 +571,27 @@ describe('FrontStagePage', () => {
   test('falls back to first page when route pageId is missing from current tree', () => {
     authenticate(['frontstage.page.design']);
     const onNavigatePage = vi.fn();
+    const backendTree = [createBackendPage('page-1')];
 
-    const renderResult = render(
+    const view = render(
       <AppProviders>
         <FrontStagePage
           workspaceId="workspace-1"
           pageId="page-1"
           onNavigatePage={onNavigatePage}
+          initialPageTree={backendTree}
         />
       </AppProviders>
     );
 
-    fireEvent.click(screen.getByRole('button', { name: '进入设计模式' }));
-    fireEvent.click(screen.getByRole('button', { name: '新建页面' }));
-    expect(onNavigatePage).toHaveBeenLastCalledWith(
-      expect.stringMatching(
-        /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
-      )
-    );
-
     onNavigatePage.mockReset();
-    renderResult.rerender(
+    view.rerender(
       <AppProviders>
         <FrontStagePage
           workspaceId="workspace-1"
           pageId="non-existent-page"
           onNavigatePage={onNavigatePage}
+          initialPageTree={backendTree}
         />
       </AppProviders>
     );
@@ -630,7 +613,7 @@ describe('FrontStagePage', () => {
   test('synchronizes page tree when initialPageTree updates', () => {
     authenticate(['frontstage.page.design']);
     const onNavigatePage = vi.fn();
-    const renderResult = render(
+    const view = render(
       <AppProviders>
         <FrontStagePage workspaceId="workspace-1" onNavigatePage={onNavigatePage} />
       </AppProviders>
@@ -640,7 +623,7 @@ describe('FrontStagePage', () => {
     expect(screen.queryByText('分组 一级')).not.toBeInTheDocument();
     expect(onNavigatePage).not.toHaveBeenCalled();
 
-    renderResult.rerender(
+    view.rerender(
       <AppProviders>
         <FrontStagePage
           workspaceId="workspace-1"
@@ -763,7 +746,7 @@ describe('FrontStagePage', () => {
       screen.getByText('页面树加载失败，请检查网络后重试。点击“重试”按钮重新发起加载。')
     ).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole('button', { name: '重试' }));
+    fireEvent.click(screen.getByRole('button', { name: /重\s*试/ }));
     expect(onRetryLoadPageTree).toHaveBeenCalledTimes(1);
   });
 
@@ -796,7 +779,7 @@ describe('FrontStagePage', () => {
     ).toBeInTheDocument();
     expect(screen.getByText('当前页面：页面 内页')).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole('button', { name: '重试' }));
+    fireEvent.click(screen.getByRole('button', { name: /重\s*试/ }));
     expect(onRetryLoadPageTree).toHaveBeenCalledTimes(1);
   });
 });
