@@ -147,10 +147,27 @@ describe('JS block source static policy', () => {
     });
   });
 
+  test.each([
+    ['constructor call', "''.sub.constructor('return globalThis')();"],
+    ['computed constructor call', "''.sub['constructor']('return globalThis')();"],
+    ['prototype access', 'const proto = Text.prototype;'],
+    ['computed prototype access', "const proto = Text['prototype'];"],
+    ['__proto__ access', 'const proto = ({}).__proto__;'],
+    ['computed __proto__ access', "const proto = ({})['__proto__'];"]
+  ])('rejects prototype-chain escape capability: %s', (_label, source) => {
+    const result = validateJsBlockSource(source);
+
+    expect(result.ok).toBe(false);
+    expect(result.errors[0]).toMatchObject({
+      code: 'transform_failed'
+    });
+  });
+
   test('does not reject dangerous words inside comments and strings', () => {
     const source = `
 const label = 'fetch eval Function require XMLHttpRequest WebSocket sendBeacon';
 const description = "navigator['sendBeacon']('/track')";
+const words = ['constructor', 'prototype', '__proto__'];
 // fetch?.('/api/private')
 /* eval?.('2 + 2') */
 `;

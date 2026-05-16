@@ -71,6 +71,12 @@ const deniedConstructorIdentifiers = new Set([
   'WebSocket'
 ]);
 
+const deniedEscapeIdentifiers = new Set([
+  'constructor',
+  'prototype',
+  '__proto__'
+]);
+
 const deniedCallForwarders = new Set(['call', 'apply', 'bind']);
 
 export function validateJsBlockSource(
@@ -197,6 +203,21 @@ function scanCode(
         end: index
       });
       continue;
+    }
+
+    if (char === '[') {
+      const computedAccess = readComputedPropertyAccess(source, index);
+      if (
+        computedAccess &&
+        deniedEscapeIdentifiers.has(computedAccess.property) &&
+        isComputedPropertyAccessTarget(source, index)
+      ) {
+        tokens.push({
+          value: computedAccess.property,
+          start: index + 1,
+          end: computedAccess.end
+        });
+      }
     }
 
     if (char === '(' || char === '[' || char === '{') {
@@ -473,6 +494,17 @@ function validateDeniedIdentifiers(
       return;
     }
 
+    if (deniedEscapeIdentifiers.has(token.value)) {
+      addError(
+        failureError(
+          'transform_failed',
+          `source.identifiers.${token.value}`,
+          `Identifier '${token.value}' is not allowed in JS block source.`
+        )
+      );
+      return;
+    }
+
     const deniedPropertyAccess = readDeniedPropertyAccess(source, token);
     if (deniedPropertyAccess) {
       addError(
@@ -535,7 +567,19 @@ function readDeniedPropertyAccess(
     }
   | undefined {
   const access = readPropertyAccess(source, token.end);
-  if (!access || !isDeniedPropertyInvocation(source, access.end)) {
+  if (!access) {
+    return undefined;
+  }
+
+  if (deniedEscapeIdentifiers.has(access.property)) {
+    return {
+      identifier: access.property,
+      code: 'transform_failed',
+      message: `Property '${access.property}' is not allowed in JS block source.`
+    };
+  }
+
+  if (!isDeniedPropertyInvocation(source, access.end)) {
     return undefined;
   }
 
@@ -558,6 +602,47 @@ function readDeniedPropertyAccess(
   return undefined;
 }
 
+function isComputedPropertyAccessTarget(source: string, start: number): boolean {
+  const targetIndex = previousNonWhitespaceIndex(source, start);
+  if (targetIndex < 0) {
+    return false;
+  }
+
+  const targetChar = source[targetIndex];
+  if (targetChar === '.' && source[targetIndex - 1] === '?') {
+    const optionalTargetIndex = previousNonWhitespaceIndex(
+      source,
+      targetIndex - 1
+    );
+    return (
+      optionalTargetIndex >= 0 &&
+      isPropertyTargetChar(source[optionalTargetIndex])
+    );
+  }
+
+  return isPropertyTargetChar(targetChar);
+}
+
+function previousNonWhitespaceIndex(source: string, start: number): number {
+  let index = start - 1;
+  while (index >= 0 && isWhitespace(source[index])) {
+    index -= 1;
+  }
+  return index;
+}
+
+function isPropertyTargetChar(char: string): boolean {
+  return (
+    isIdentifierPart(char) ||
+    char === ')' ||
+    char === ']' ||
+    char === '}' ||
+    char === '"' ||
+    char === "'" ||
+    char === '`'
+  );
+}
+
 function isDeniedInvocation(source: string, token: SourceToken): boolean {
   return (
     isCallExpressionAt(source, token.end) ||
@@ -566,7 +651,10 @@ function isDeniedInvocation(source: string, token: SourceToken): boolean {
 }
 
 function isDeniedPropertyInvocation(source: string, start: number): boolean {
-  return isCallExpressionAt(source, start) || isForwardedCallExpression(source, start);
+  return (
+    isCallExpressionAt(source, start) ||
+    isForwardedCallExpression(source, start)
+  );
 }
 
 function isForwardedCallExpression(source: string, start: number): boolean {
