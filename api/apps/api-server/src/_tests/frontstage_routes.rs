@@ -1,4 +1,6 @@
-use crate::_tests::support::{create_member, login_and_capture_cookie, seed_workspace, test_app_with_database_url};
+use crate::_tests::support::{
+    create_member, login_and_capture_cookie, seed_workspace, test_app, test_app_with_database_url,
+};
 use axum::{
     body::{to_bytes, Body},
     http::{Request, StatusCode},
@@ -21,8 +23,8 @@ async fn current_workspace_id(app: &axum::Router, cookie: &str) -> String {
         .unwrap();
 
     assert_eq!(response.status(), StatusCode::OK);
-    let payload: Value = serde_json::from_slice(&to_bytes(response.into_body(), usize::MAX).await.unwrap())
-        .unwrap();
+    let payload: Value =
+        serde_json::from_slice(&to_bytes(response.into_body(), usize::MAX).await.unwrap()).unwrap();
 
     payload["data"]["session"]["current_workspace_id"]
         .as_str()
@@ -49,8 +51,8 @@ async fn list_frontstage_pages_route_returns_empty_tree_for_accessible_workspace
         .unwrap();
 
     assert_eq!(response.status(), StatusCode::OK);
-    let payload: Value = serde_json::from_slice(&to_bytes(response.into_body(), usize::MAX).await.unwrap())
-        .unwrap();
+    let payload: Value =
+        serde_json::from_slice(&to_bytes(response.into_body(), usize::MAX).await.unwrap()).unwrap();
     let pages = payload["data"]
         .as_array()
         .expect("frontstage pages should return array");
@@ -72,13 +74,16 @@ async fn list_frontstage_pages_route_rejects_inaccessible_workspace() {
     )
     .await;
 
-    let (visitor_cookie, _) = login_and_capture_cookie(&app, "frontstage-visitor", "temp-pass").await;
+    let (visitor_cookie, _) =
+        login_and_capture_cookie(&app, "frontstage-visitor", "temp-pass").await;
 
     let response = app
         .oneshot(
             Request::builder()
                 .method("GET")
-                .uri(format!("/api/console/frontstage/{no_access_workspace_id}/pages"))
+                .uri(format!(
+                    "/api/console/frontstage/{no_access_workspace_id}/pages"
+                ))
                 .header("cookie", &visitor_cookie)
                 .body(Body::empty())
                 .unwrap(),

@@ -280,7 +280,7 @@ async fn openapi_contains_frontstage_pages_route_and_error_responses() {
 
     assert!(
         frontstage_route.is_some(),
-        "missing path /api/console/frontstage/{workspace_id}/pages"
+        "missing path /api/console/frontstage/{{workspace_id}}/pages"
     );
 
     let get_op = &frontstage_route.unwrap()["get"];

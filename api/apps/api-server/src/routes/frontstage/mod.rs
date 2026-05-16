@@ -21,7 +21,7 @@ use crate::{
     response::ApiSuccess,
 };
 
-#[derive(Debug, Deserialize, Serialize, ToSchema)]
+#[derive(Debug, Clone, PartialEq, Deserialize, Serialize, ToSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum FrontstagePageTreeNodeKind {
     Group,
@@ -34,6 +34,7 @@ pub struct FrontstagePageTreeNodeResponse {
     pub title: Option<String>,
     pub kind: FrontstagePageTreeNodeKind,
     #[serde(default)]
+    #[schema(no_recursion)]
     pub children: Vec<FrontstagePageTreeNodeResponse>,
 }
 
@@ -53,7 +54,10 @@ struct FrontstagePageTreeNode {
 }
 
 pub fn router() -> Router<Arc<ApiState>> {
-    Router::new().route("/frontstage/:workspace_id/pages", get(list_frontstage_pages))
+    Router::new().route(
+        "/frontstage/:workspace_id/pages",
+        get(list_frontstage_pages),
+    )
 }
 
 #[utoipa::path(
@@ -111,12 +115,11 @@ pub async fn list_frontstage_pages(
 }
 
 fn parse_uuid(raw: &str, field: &'static str) -> Result<Uuid, ApiError> {
-    Uuid::parse_str(raw).map_err(|_| control_plane::errors::ControlPlaneError::InvalidInput(field).into())
+    Uuid::parse_str(raw)
+        .map_err(|_| control_plane::errors::ControlPlaneError::InvalidInput(field).into())
 }
 
-fn parse_frontstage_page_kind(
-    raw_kind: &str,
-) -> Result<FrontstagePageTreeNodeKind, ApiError> {
+fn parse_frontstage_page_kind(raw_kind: &str) -> Result<FrontstagePageTreeNodeKind, ApiError> {
     match raw_kind {
         "group" => Ok(FrontstagePageTreeNodeKind::Group),
         "page" => Ok(FrontstagePageTreeNodeKind::Page),
@@ -127,7 +130,16 @@ fn parse_frontstage_page_kind(
 fn build_frontstage_page_tree(
     mut records: Vec<FrontstagePageRecord>,
 ) -> Vec<FrontstagePageTreeNodeResponse> {
-    let existing_ids = records.iter().map(|record| record.id).collect::<HashSet<_>>();
+    let existing_ids = records
+        .iter()
+        .map(|record| record.id)
+        .collect::<HashSet<_>>();
+
+    for record in &mut records {
+        if !matches!(record.parent_id, Some(parent_id) if existing_ids.contains(&parent_id)) {
+            record.parent_id = None;
+        }
+    }
 
     records.sort_by(|left, right| {
         let parent_cmp = left.parent_id.cmp(&right.parent_id);
@@ -145,13 +157,8 @@ fn build_frontstage_page_tree(
 
     let mut nodes_by_parent: HashMap<Option<Uuid>, Vec<FrontstagePageTreeNode>> = HashMap::new();
     for record in records {
-        let parent_id = match record.parent_id {
-            Some(parent_id) if existing_ids.contains(&parent_id) => Some(parent_id),
-            _ => None,
-        };
-
         nodes_by_parent
-            .entry(parent_id)
+            .entry(record.parent_id)
             .or_default()
             .push(FrontstagePageTreeNode {
                 id: record.id,
@@ -186,7 +193,7 @@ fn build_frontstage_page_tree(
                 output.extend(flatten_group_children(
                     child.id,
                     nodes_by_parent,
-                    visiting_groups
+                    visiting_groups,
                 ));
             }
         }
@@ -198,11 +205,8 @@ fn build_frontstage_page_tree(
     let mut roots = nodes_by_parent.remove(&None).unwrap_or_default();
     for root in &mut roots {
         if root.node.kind == FrontstagePageTreeNodeKind::Group {
-            root.node.children = flatten_group_children(
-                root.id,
-                &nodes_by_parent,
-                &mut HashSet::new()
-            );
+            root.node.children =
+                flatten_group_children(root.id, &nodes_by_parent, &mut HashSet::new());
         }
     }
 
