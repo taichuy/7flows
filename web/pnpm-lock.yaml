@@ -185,6 +185,12 @@ importers:
         specifier: workspace:*
         version: link:../shared-types
 
+  packages/block-sdk:
+    dependencies:
+      '@1flowbase/page-protocol':
+        specifier: workspace:*
+        version: link:../page-protocol
+
   packages/embed-sdk: {}
 
   packages/embedded-contracts: {}
