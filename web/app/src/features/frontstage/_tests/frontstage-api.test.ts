@@ -10,6 +10,15 @@ import {
   moveFrontstageNode,
   renameFrontstagePageNode
 } from '../api/page-tree';
+import {
+  fetchFrontstagePageContent,
+  frontstagePageContentQueryKey
+} from '../api/page-content';
+import {
+  fetchFrontstageBlockCode,
+  frontstageBlockCodeQueryKey,
+  saveFrontstageBlockCode
+} from '../api/block-code';
 
 describe('frontstage page tree feature api', () => {
   test('uses a workspace-scoped page tree query key', () => {
@@ -134,6 +143,140 @@ describe('frontstage page tree feature api', () => {
       renameSpy.mockRestore();
       moveSpy.mockRestore();
       deleteSpy.mockRestore();
+    }
+  });
+});
+
+describe('frontstage page content feature api', () => {
+  test('uses a workspace and page scoped detail query key', () => {
+    expect(frontstagePageContentQueryKey('workspace-1', 'page-1')).toEqual([
+      'frontstage',
+      'workspace-1',
+      'pages',
+      'page-1',
+      'content'
+    ]);
+  });
+
+  test('adapts page detail DTOs to camelCase output', async () => {
+    const detailSpy = vi
+      .spyOn(apiClient, 'getFrontstagePageDetail')
+      .mockResolvedValue({
+        page: {
+          id: 'page-1',
+          title: '页面 1',
+          kind: 'page',
+          parent_id: 'group-1',
+          rank: '001000',
+          schema_root_uid: 'root-1'
+        },
+        schema: {
+          root_uid: 'root-1',
+          payload: { blocks: [] }
+        },
+        root: {
+          uid: 'root-1',
+          payload: { kind: 'frontstage.page.root' }
+        }
+      });
+
+    try {
+      await expect(
+        fetchFrontstagePageContent('workspace-1', 'page-1')
+      ).resolves.toEqual({
+        page: {
+          id: 'page-1',
+          title: '页面 1',
+          kind: 'page',
+          parentId: 'group-1',
+          rank: '001000',
+          schemaRootUid: 'root-1'
+        },
+        schema: {
+          rootUid: 'root-1',
+          payload: { blocks: [] }
+        },
+        root: {
+          uid: 'root-1',
+          payload: { kind: 'frontstage.page.root' }
+        }
+      });
+      expect(detailSpy).toHaveBeenCalledWith(
+        'workspace-1',
+        'page-1',
+        expect.any(String)
+      );
+    } finally {
+      detailSpy.mockRestore();
+    }
+  });
+});
+
+describe('frontstage block code feature api', () => {
+  test('uses a workspace, page, and codeRef scoped query key', () => {
+    expect(frontstageBlockCodeQueryKey('workspace-1', 'page-1', 'hero')).toEqual([
+      'frontstage',
+      'workspace-1',
+      'pages',
+      'page-1',
+      'block-code',
+      'hero'
+    ]);
+  });
+
+  test('adapts block code read and CSRF write calls to camelCase contracts', async () => {
+    const readSpy = vi
+      .spyOn(apiClient, 'getFrontstageBlockCode')
+      .mockResolvedValue({
+        page_id: 'page-1',
+        code_ref: 'hero',
+        code: 'export default 1;'
+      });
+    const saveSpy = vi
+      .spyOn(apiClient, 'saveFrontstageBlockCode')
+      .mockResolvedValue({
+        page_id: 'page-1',
+        code_ref: 'hero',
+        code: 'export default 2;'
+      });
+
+    try {
+      await expect(
+        fetchFrontstageBlockCode('workspace-1', 'page-1', 'hero')
+      ).resolves.toEqual({
+        pageId: 'page-1',
+        codeRef: 'hero',
+        code: 'export default 1;'
+      });
+      await expect(
+        saveFrontstageBlockCode(
+          'workspace-1',
+          'page-1',
+          { codeRef: 'hero', code: 'export default 2;' },
+          'csrf-123'
+        )
+      ).resolves.toEqual({
+        pageId: 'page-1',
+        codeRef: 'hero',
+        code: 'export default 2;'
+      });
+      expect(readSpy).toHaveBeenCalledWith(
+        'workspace-1',
+        'page-1',
+        'hero',
+        expect.any(String)
+      );
+      expect(saveSpy).toHaveBeenCalledWith(
+        'workspace-1',
+        'page-1',
+        'hero',
+        { code: 'export default 2;' },
+        'csrf-123',
+        expect.any(String)
+      );
+    } finally {
+      readSpy.mockRestore();
+      saveSpy.mockRestore();
     }
   });
 });

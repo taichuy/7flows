@@ -5,8 +5,11 @@ import {
   createFrontstageGroup,
   createFrontstagePage,
   deleteFrontstagePageNode,
+  getFrontstageBlockCode,
+  getFrontstagePageDetail,
   listFrontstagePages,
   moveFrontstagePageNode,
+  saveFrontstageBlockCode,
   updateFrontstagePageNodeTitle
 } from '../console-frontstage';
 
@@ -94,6 +97,41 @@ describe('console-frontstage client', () => {
     ).resolves.toMatchObject({
       path: '/api/console/frontstage/workspace-1/pages/page-1',
       method: 'DELETE',
+      csrfToken: 'csrf-123'
+    });
+  });
+
+  test('getFrontstagePageDetail reads page detail with schema and root', async () => {
+    await expect(
+      getFrontstagePageDetail('workspace-1', 'page-1')
+    ).resolves.toMatchObject({
+      path: '/api/console/frontstage/workspace-1/pages/page-1',
+      method: 'GET'
+    });
+  });
+
+  test('getFrontstageBlockCode reads encoded JS block code refs', async () => {
+    await expect(
+      getFrontstageBlockCode('workspace-1', 'page-1', 'hero/main')
+    ).resolves.toMatchObject({
+      path: '/api/console/frontstage/workspace-1/pages/page-1/block-codes/hero%2Fmain',
+      method: 'GET'
+    });
+  });
+
+  test('saveFrontstageBlockCode puts code payload with CSRF', async () => {
+    await expect(
+      saveFrontstageBlockCode(
+        'workspace-1',
+        'page-1',
+        'hero',
+        { code: 'export default function Hero() {}' },
+        'csrf-123'
+      )
+    ).resolves.toMatchObject({
+      path: '/api/console/frontstage/workspace-1/pages/page-1/block-codes/hero',
+      method: 'PUT',
+      body: { code: 'export default function Hero() {}' },
       csrfToken: 'csrf-123'
     });
   });

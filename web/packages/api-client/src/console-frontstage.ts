@@ -16,6 +16,28 @@ export interface ConsoleFrontstagePageNode {
   schema_root_uid: string | null;
 }
 
+export interface ConsoleFrontstagePageSchema {
+  root_uid: string;
+  payload: unknown;
+}
+
+export interface ConsoleFrontstagePageRoot {
+  uid: string;
+  payload: unknown;
+}
+
+export interface ConsoleFrontstagePageDetail {
+  page: ConsoleFrontstagePageNode;
+  schema: ConsoleFrontstagePageSchema;
+  root: ConsoleFrontstagePageRoot;
+}
+
+export interface ConsoleFrontstageBlockCode {
+  page_id: string;
+  code_ref: string;
+  code: string;
+}
+
 export interface CreateFrontstagePageNodeInput {
   title?: string | null;
   parent_id?: string | null;
@@ -31,12 +53,28 @@ export interface MoveFrontstagePageNodeInput {
   rank?: string | null;
 }
 
+export interface SaveFrontstageBlockCodeInput {
+  code: string;
+}
+
 export function listFrontstagePages(
   workspaceId: string,
   baseUrl?: string
 ): Promise<ConsoleFrontstagePageTreeNode[]> {
   return apiFetch<ConsoleFrontstagePageTreeNode[]>({
     path: `/api/console/frontstage/${workspaceId}/pages`,
+    method: 'GET',
+    baseUrl
+  });
+}
+
+export function getFrontstagePageDetail(
+  workspaceId: string,
+  pageId: string,
+  baseUrl?: string
+): Promise<ConsoleFrontstagePageDetail> {
+  return apiFetch<ConsoleFrontstagePageDetail>({
+    path: `/api/console/frontstage/${workspaceId}/pages/${pageId}`,
     method: 'GET',
     baseUrl
   });
@@ -113,6 +151,40 @@ export function deleteFrontstagePageNode(
   return apiFetch<void>({
     path: `/api/console/frontstage/${workspaceId}/pages/${pageNodeId}`,
     method: 'DELETE',
+    csrfToken,
+    baseUrl
+  });
+}
+
+export function getFrontstageBlockCode(
+  workspaceId: string,
+  pageId: string,
+  codeRef: string,
+  baseUrl?: string
+): Promise<ConsoleFrontstageBlockCode> {
+  const encodedCodeRef = encodeURIComponent(codeRef);
+
+  return apiFetch<ConsoleFrontstageBlockCode>({
+    path: `/api/console/frontstage/${workspaceId}/pages/${pageId}/block-codes/${encodedCodeRef}`,
+    method: 'GET',
+    baseUrl
+  });
+}
+
+export function saveFrontstageBlockCode(
+  workspaceId: string,
+  pageId: string,
+  codeRef: string,
+  input: SaveFrontstageBlockCodeInput,
+  csrfToken: string,
+  baseUrl?: string
+): Promise<ConsoleFrontstageBlockCode> {
+  const encodedCodeRef = encodeURIComponent(codeRef);
+
+  return apiFetch<ConsoleFrontstageBlockCode>({
+    path: `/api/console/frontstage/${workspaceId}/pages/${pageId}/block-codes/${encodedCodeRef}`,
+    method: 'PUT',
+    body: input,
     csrfToken,
     baseUrl
   });
