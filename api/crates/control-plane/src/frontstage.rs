@@ -522,3 +522,104 @@ fn compare_frontstage_pages(
 
     left.id.cmp(&right.id)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use domain::FrontstagePageKind;
+    use time::OffsetDateTime;
+
+    fn test_uuid(value: u128) -> Uuid {
+        Uuid::from_u128(value)
+    }
+
+    fn page_record(
+        id: u128,
+        kind: FrontstagePageKind,
+        parent_id: Option<Uuid>,
+        rank: &str,
+    ) -> domain::FrontstagePageRecord {
+        domain::FrontstagePageRecord {
+            id: test_uuid(id),
+            workspace_id: test_uuid(0x100),
+            parent_id,
+            kind,
+            title: None,
+            slug: None,
+            schema_root_uid: (kind == FrontstagePageKind::Page)
+                .then(|| format!("schema-root:{id}")),
+            rank: rank.to_owned(),
+            created_at: OffsetDateTime::UNIX_EPOCH,
+            updated_at: OffsetDateTime::UNIX_EPOCH,
+        }
+    }
+
+    #[test]
+    fn build_frontstage_page_tree_promotes_missing_parent_records_to_root() {
+        let orphan_group_id = test_uuid(0x10);
+        let orphan_page_id = test_uuid(0x20);
+        let root_group_id = test_uuid(0x30);
+        let child_page_id = test_uuid(0x40);
+        let missing_parent_id = test_uuid(0x999);
+
+        let tree = build_frontstage_page_tree(vec![
+            page_record(
+                0x20,
+                FrontstagePageKind::Page,
+                Some(missing_parent_id),
+                "b",
+            ),
+            page_record(0x30, FrontstagePageKind::Group, None, "c"),
+            page_record(0x40, FrontstagePageKind::Page, Some(root_group_id), "a"),
+            page_record(
+                0x10,
+                FrontstagePageKind::Group,
+                Some(missing_parent_id),
+                "a",
+            ),
+        ]);
+
+        let root_ids = tree.iter().map(|node| node.page.id).collect::<Vec<_>>();
+        assert_eq!(root_ids, vec![orphan_group_id, orphan_page_id, root_group_id]);
+        assert_eq!(tree[0].page.parent_id, None);
+        assert_eq!(tree[1].page.parent_id, None);
+        assert!(tree[0].children.is_empty());
+        assert!(tree[1].children.is_empty());
+        assert_eq!(
+            tree[2]
+                .children
+                .iter()
+                .map(|node| node.page.id)
+                .collect::<Vec<_>>(),
+            vec![child_page_id]
+        );
+    }
+
+    #[test]
+    fn build_frontstage_page_tree_flattens_nested_groups_and_ignores_reentrant_group_edges() {
+        let root_group_id = test_uuid(0x10);
+        let nested_page_id = test_uuid(0x30);
+
+        let tree = build_frontstage_page_tree(vec![
+            page_record(0x10, FrontstagePageKind::Group, None, "a"),
+            page_record(0x10, FrontstagePageKind::Group, Some(root_group_id), "a"),
+            page_record(0x20, FrontstagePageKind::Group, Some(root_group_id), "b"),
+            page_record(0x30, FrontstagePageKind::Page, Some(test_uuid(0x20)), "a"),
+        ]);
+
+        assert_eq!(tree.len(), 1);
+        assert_eq!(tree[0].page.id, root_group_id);
+        assert_eq!(
+            tree[0]
+                .children
+                .iter()
+                .map(|node| (node.page.id, node.page.kind))
+                .collect::<Vec<_>>(),
+            vec![(nested_page_id, FrontstagePageKind::Page)]
+        );
+        assert!(tree[0]
+            .children
+            .iter()
+            .all(|node| node.children.is_empty()));
+    }
+}
