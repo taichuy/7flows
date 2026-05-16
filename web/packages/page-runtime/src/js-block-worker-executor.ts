@@ -19,6 +19,7 @@ import type {
   JsBlockWorkerActionRequestMessage,
   JsBlockWorkerDataRequestMessage,
   JsBlockWorkerEventRequestMessage,
+  JsBlockWorkerEffectResultMessage,
   JsBlockWorkerToHostMessage
 } from './js-block-worker-runtime';
 
@@ -55,17 +56,72 @@ type MutableBlockContext = BlockContext & {
   state: BlockContextRecord;
 };
 
+interface PendingEffect {
+  requestId: string;
+  resolve(value: unknown): void;
+  reject(error: Error): void;
+}
+
+class JsBlockWorkerEffectError extends Error {
+  readonly error: JsBlockRunError;
+
+  constructor(error: JsBlockRunError) {
+    super(error.message);
+    this.name = 'JsBlockWorkerEffectError';
+    this.error = error;
+  }
+}
+
 export function createJsBlockWorkerExecutor(
   options: JsBlockWorkerExecutorOptions
 ): JsBlockWorkerExecutor {
   let disposed = false;
+  let nextEffectIndex = 1;
+  const pendingEffects = new Map<string, PendingEffect>();
 
   const dispatch = (
     output: JsBlockWorkerToHostMessage[],
     message: JsBlockWorkerToHostMessage
   ) => {
+    if (disposed) {
+      return;
+    }
+
     output.push(message);
     options.postMessage?.(message);
+  };
+
+  const disposeExecutor = () => {
+    if (disposed) {
+      return;
+    }
+
+    disposed = true;
+    for (const pendingEffect of pendingEffects.values()) {
+      pendingEffect.reject(new Error('JS block worker runtime disposed.'));
+    }
+    pendingEffects.clear();
+  };
+
+  const settleEffect = (message: JsBlockWorkerEffectResultMessage) => {
+    const pendingEffect = pendingEffects.get(message.effectId);
+    if (!pendingEffect || pendingEffect.requestId !== message.requestId) {
+      return;
+    }
+
+    pendingEffects.delete(message.effectId);
+    if (message.ok) {
+      pendingEffect.resolve(message.value);
+      return;
+    }
+
+    pendingEffect.reject(new JsBlockWorkerEffectError(message.error));
+  };
+
+  const createEffectId = (requestId: string): string => {
+    const effectId = `${requestId}:effect-${nextEffectIndex}`;
+    nextEffectIndex += 1;
+    return effectId;
   };
 
   return {
@@ -85,7 +141,7 @@ export function createJsBlockWorkerExecutor(
       }
 
       if (hostMessage.type === 'dispose') {
-        disposed = true;
+        disposeExecutor();
         return output;
       }
 
@@ -93,13 +149,22 @@ export function createJsBlockWorkerExecutor(
         return output;
       }
 
-      await runRequest(hostMessage.request, options.modules, (nextMessage) =>
-        dispatch(output, nextMessage)
+      if (hostMessage.type === 'effect_result') {
+        settleEffect(hostMessage);
+        return output;
+      }
+
+      await runRequest(
+        hostMessage.request,
+        options.modules,
+        (nextMessage) => dispatch(output, nextMessage),
+        createEffectId,
+        pendingEffects
       );
       return output;
     },
     dispose() {
-      disposed = true;
+      disposeExecutor();
     }
   };
 }
@@ -112,9 +177,11 @@ export function attachJsBlockWorkerRuntime(
     ...options,
     postMessage: (message) => scope.postMessage(message)
   });
-  let pending = Promise.resolve();
+  const pendingTasks = new Set<Promise<unknown>>();
   const listener = (event: { data: unknown }) => {
-    pending = pending.then(() => executor.handleMessage(event.data)).then();
+    const task = executor.handleMessage(event.data);
+    pendingTasks.add(task);
+    task.finally(() => pendingTasks.delete(task));
   };
 
   if (scope.addEventListener) {
@@ -126,7 +193,7 @@ export function attachJsBlockWorkerRuntime(
   return {
     executor,
     flush() {
-      return pending;
+      return Promise.all([...pendingTasks]).then(() => undefined);
     },
     dispose() {
       executor.dispose();
@@ -142,7 +209,9 @@ export function attachJsBlockWorkerRuntime(
 async function runRequest(
   request: JsBlockRunRequest,
   modules: JsBlockInjectedModuleMap,
-  postMessage: (message: JsBlockWorkerToHostMessage) => void
+  postMessage: (message: JsBlockWorkerToHostMessage) => void,
+  createEffectId: (requestId: string) => string,
+  pendingEffects: Map<string, PendingEffect>
 ): Promise<void> {
   const evaluation = evaluateJsBlockSource({
     source: request.source,
@@ -154,11 +223,21 @@ async function runRequest(
     return;
   }
 
-  const context = createBlockContext(request, postMessage);
+  const context = createBlockContext(
+    request,
+    postMessage,
+    createEffectId,
+    pendingEffects
+  );
   let schema: unknown;
   try {
     schema = await evaluation.block.render(context);
   } catch (error) {
+    if (error instanceof JsBlockWorkerEffectError) {
+      postError(request, effectRuntimeError(error), postMessage);
+      return;
+    }
+
     postError(
       request,
       runtimeError(
@@ -180,16 +259,29 @@ async function runRequest(
 
 function createBlockContext(
   request: JsBlockRunRequest,
-  postMessage: (message: JsBlockWorkerToHostMessage) => void
+  postMessage: (message: JsBlockWorkerToHostMessage) => void,
+  createEffectId: (requestId: string) => string,
+  pendingEffects: Map<string, PendingEffect>
 ): BlockContext {
   const snapshot = request.contextSnapshot;
   const state = { ...request.state };
   const postEvent = (message: JsBlockWorkerEventRequestMessage) =>
     postMessage(message);
-  const postAction = (message: JsBlockWorkerActionRequestMessage) =>
-    postMessage(message);
-  const postData = (message: JsBlockWorkerDataRequestMessage) =>
-    postMessage(message);
+  const requestHostEffect = (
+    message: JsBlockWorkerDataRequestMessage | JsBlockWorkerActionRequestMessage
+  ) => {
+    const promise = new Promise<unknown>((resolve, reject) => {
+      const effectId = createEffectId(request.requestId);
+      pendingEffects.set(effectId, {
+        requestId: request.requestId,
+        resolve,
+        reject
+      });
+      postMessage({ ...message, effectId });
+    });
+    promise.catch(() => undefined);
+    return promise;
+  };
 
   const context: MutableBlockContext = {
     currentUser: readIdentity(snapshot.currentUser),
@@ -206,7 +298,7 @@ function createBlockContext(
     },
     data: {
       async query(model, params) {
-        postData({
+        return requestHostEffect({
           direction: 'worker_to_host',
           type: 'data',
           requestId: request.requestId,
@@ -216,30 +308,27 @@ function createBlockContext(
             model
           }
         });
-        return undefined;
       },
       async create(model, input) {
-        postData({
+        return requestHostEffect({
           direction: 'worker_to_host',
           type: 'data',
           requestId: request.requestId,
           operation: 'create',
           payload: { model, input }
         });
-        return undefined;
       },
       async update(model, id, input) {
-        postData({
+        return requestHostEffect({
           direction: 'worker_to_host',
           type: 'data',
           requestId: request.requestId,
           operation: 'update',
           payload: { model, id, input }
         });
-        return undefined;
       },
       async delete(model, id) {
-        postData({
+        await requestHostEffect({
           direction: 'worker_to_host',
           type: 'data',
           requestId: request.requestId,
@@ -250,14 +339,13 @@ function createBlockContext(
     },
     actions: {
       async invoke(actionId, payload) {
-        postAction({
+        return requestHostEffect({
           direction: 'worker_to_host',
           type: 'action',
           requestId: request.requestId,
           actionId,
           ...(isRecord(payload) ? { payload } : {})
         });
-        return undefined;
       }
     },
     events: {
@@ -301,6 +389,13 @@ function runtimeError(path: string, message: string): JsBlockRunError {
   };
 }
 
+function effectRuntimeError(error: JsBlockWorkerEffectError): JsBlockRunError {
+  return runtimeError(
+    'runtime.render',
+    `JS block render failed: ${error.message}`
+  );
+}
+
 function normalizeHostMessage(
   value: unknown
 ): JsBlockHostToWorkerMessage | null {
@@ -338,6 +433,34 @@ function normalizeHostMessage(
       type: 'timeout',
       requestId: value.requestId
     };
+  }
+
+  if (
+    value.type === 'effect_result' &&
+    typeof value.requestId === 'string' &&
+    typeof value.effectId === 'string'
+  ) {
+    if (value.ok === true) {
+      return {
+        direction: 'host_to_worker',
+        type: 'effect_result',
+        requestId: value.requestId,
+        effectId: value.effectId,
+        ok: true,
+        value: value.value
+      };
+    }
+
+    if (value.ok === false && isRunError(value.error)) {
+      return {
+        direction: 'host_to_worker',
+        type: 'effect_result',
+        requestId: value.requestId,
+        effectId: value.effectId,
+        ok: false,
+        error: value.error
+      };
+    }
   }
 
   if (value.type === 'run' && isRecord(value.request)) {
@@ -421,6 +544,15 @@ function getErrorMessage(error: unknown): string {
   }
 
   return 'unknown error';
+}
+
+function isRunError(value: unknown): value is JsBlockRunError {
+  return (
+    isRecord(value) &&
+    typeof value.kind === 'string' &&
+    typeof value.message === 'string' &&
+    Array.isArray(value.errors)
+  );
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

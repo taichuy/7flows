@@ -3,6 +3,7 @@ import {
   reduceJsBlockRuntimeSession,
   type JsBlockRunRequest,
   type JsBlockRuntimeSessionState,
+  type JsBlockWorkerEffectResultMessage,
   type JsBlockWorkerRuntimeMessage
 } from './js-block-worker-runtime';
 
@@ -34,6 +35,7 @@ export interface JsBlockWorkerHost {
   getState(): JsBlockRuntimeSessionState;
   init(): JsBlockRuntimeSessionState;
   run(request: JsBlockRunRequest): JsBlockRuntimeSessionState;
+  resolveEffect(message: JsBlockWorkerEffectResultMessage): JsBlockRuntimeSessionState;
   dispose(requestId?: string): JsBlockRuntimeSessionState;
 }
 
@@ -180,6 +182,18 @@ export function createJsBlockWorkerHost(
 
       scheduleRequestTimeout(request);
       worker.postMessage(message);
+      return state;
+    },
+    resolveEffect(message) {
+      if (didDispose) {
+        return state;
+      }
+
+      const rejectionCount = state.rejections.length;
+      state = reduceJsBlockRuntimeSession(state, message);
+      if (state.rejections.length === rejectionCount) {
+        worker.postMessage(message);
+      }
       return state;
     },
     dispose(requestId) {

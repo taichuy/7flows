@@ -229,7 +229,7 @@ export default defineBlock({
     ]);
   });
 
-  test('posts controlled action and data effects without real host responses', async () => {
+  test('posts controlled action and data effects without blocking when user code does not await them', async () => {
     const messages: JsBlockWorkerToHostMessage[] = [];
     const executor = createJsBlockWorkerExecutor({
       modules: createModules(),
@@ -246,14 +246,14 @@ import { Text } from '@1flowbase/antd-facade';
 
 export default defineBlock({
   async render(ctx) {
-    await ctx.actions.invoke('record.refresh', { id: ctx.params.recordId });
-    await ctx.data.query('records', {
+    ctx.actions.invoke('record.refresh', { id: ctx.params.recordId });
+    ctx.data.query('records', {
       model: 'private_records',
       where: { id: ctx.params.recordId }
     });
-    await ctx.data.create('records', { title: 'New' });
-    await ctx.data.update('records', 'record-1', { title: 'Updated' });
-    await ctx.data.delete('records', 'record-1');
+    ctx.data.create('records', { title: 'New' });
+    ctx.data.update('records', 'record-1', { title: 'Updated' });
+    ctx.data.delete('records', 'record-1');
     return Text({ children: 'Done' });
   }
 });
@@ -266,6 +266,7 @@ export default defineBlock({
         direction: 'worker_to_host',
         type: 'action',
         requestId: 'request-1',
+        effectId: expect.any(String),
         actionId: 'record.refresh',
         payload: { id: 'record-1' }
       },
@@ -273,6 +274,7 @@ export default defineBlock({
         direction: 'worker_to_host',
         type: 'data',
         requestId: 'request-1',
+        effectId: expect.any(String),
         operation: 'query',
         payload: { model: 'records', where: { id: 'record-1' } }
       },
@@ -280,6 +282,7 @@ export default defineBlock({
         direction: 'worker_to_host',
         type: 'data',
         requestId: 'request-1',
+        effectId: expect.any(String),
         operation: 'create',
         payload: { model: 'records', input: { title: 'New' } }
       },
@@ -287,6 +290,7 @@ export default defineBlock({
         direction: 'worker_to_host',
         type: 'data',
         requestId: 'request-1',
+        effectId: expect.any(String),
         operation: 'update',
         payload: {
           model: 'records',
@@ -298,6 +302,7 @@ export default defineBlock({
         direction: 'worker_to_host',
         type: 'data',
         requestId: 'request-1',
+        effectId: expect.any(String),
         operation: 'delete',
         payload: { model: 'records', id: 'record-1' }
       },
@@ -306,6 +311,266 @@ export default defineBlock({
         type: 'rendered',
         requestId: 'request-1',
         schema: { primitive: 'Text', props: { children: 'Done' } }
+      }
+    ]);
+  });
+
+  test('waits for host data and action effect results before rendering', async () => {
+    const messages: JsBlockWorkerToHostMessage[] = [];
+    const executor = createJsBlockWorkerExecutor({
+      modules: createModules(),
+      postMessage: (message) => messages.push(message)
+    });
+
+    const runPromise = executor.handleMessage({
+      direction: 'host_to_worker',
+      type: 'run',
+      request: createRunRequest({
+        source: `
+import { defineBlock } from '@1flowbase/block-sdk';
+import { Text } from '@1flowbase/antd-facade';
+
+export default defineBlock({
+  async render(ctx) {
+    const record = await ctx.data.query('records', {
+      where: { id: ctx.params.recordId }
+    });
+    await ctx.actions.invoke('record.track', { id: record.id });
+    return Text({ children: record.title });
+  }
+});
+`
+      })
+    });
+
+    await Promise.resolve();
+
+    expect(messages).toEqual([
+      {
+        direction: 'worker_to_host',
+        type: 'data',
+        requestId: 'request-1',
+        effectId: expect.any(String),
+        operation: 'query',
+        payload: { model: 'records', where: { id: 'record-1' } }
+      }
+    ]);
+    const dataEffectId = getEffectId(messages[0]);
+
+    await executor.handleMessage({
+      direction: 'host_to_worker',
+      type: 'effect_result',
+      requestId: 'request-1',
+      effectId: dataEffectId,
+      ok: true,
+      value: { id: 'record-1', title: 'Ready' }
+    });
+    await Promise.resolve();
+
+    expect(messages[1]).toEqual({
+      direction: 'worker_to_host',
+      type: 'action',
+      requestId: 'request-1',
+      effectId: expect.any(String),
+      actionId: 'record.track',
+      payload: { id: 'record-1' }
+    });
+    const actionEffectId = getEffectId(messages[1]);
+
+    await executor.handleMessage({
+      direction: 'host_to_worker',
+      type: 'effect_result',
+      requestId: 'request-1',
+      effectId: actionEffectId,
+      ok: true,
+      value: { tracked: true }
+    });
+    await runPromise;
+
+    expect(messages[2]).toEqual({
+      direction: 'worker_to_host',
+      type: 'rendered',
+      requestId: 'request-1',
+      schema: { primitive: 'Text', props: { children: 'Ready' } }
+    });
+  });
+
+  test('maps failed host effect results into a runtime error', async () => {
+    const messages: JsBlockWorkerToHostMessage[] = [];
+    const executor = createJsBlockWorkerExecutor({
+      modules: createModules(),
+      postMessage: (message) => messages.push(message)
+    });
+
+    const runPromise = executor.handleMessage({
+      direction: 'host_to_worker',
+      type: 'run',
+      request: createRunRequest({
+        source: `
+import { defineBlock } from '@1flowbase/block-sdk';
+import { Text } from '@1flowbase/antd-facade';
+
+export default defineBlock({
+  async render(ctx) {
+    await ctx.data.query('private_records');
+    return Text({ children: 'Done' });
+  }
+});
+`
+      })
+    });
+    await Promise.resolve();
+
+    const effectId = getEffectId(messages[0]);
+    await executor.handleMessage({
+      direction: 'host_to_worker',
+      type: 'effect_result',
+      requestId: 'request-1',
+      effectId,
+      ok: false,
+      error: {
+        kind: 'runtime_error',
+        message: 'Query denied by host policy.',
+        errors: [
+          {
+            code: 'query_denied',
+            path: 'data.query',
+            message: 'Query denied by host policy.'
+          }
+        ]
+      }
+    });
+    await runPromise;
+
+    expect(messages.at(-1)).toEqual({
+      direction: 'worker_to_host',
+      type: 'error',
+      requestId: 'request-1',
+      kind: 'runtime_error',
+      message: 'JS block render failed: Query denied by host policy.',
+      errors: [
+        {
+          code: 'runtime_error',
+          path: 'runtime.render',
+          message: 'JS block render failed: Query denied by host policy.'
+        }
+      ]
+    });
+  });
+
+  test('attached runtime accepts effect results while a run is pending', async () => {
+    const messages: JsBlockWorkerToHostMessage[] = [];
+    let listener: ((event: { data: unknown }) => void) | null = null;
+    const scope: JsBlockWorkerRuntimeScope = {
+      postMessage: (message) => messages.push(message),
+      addEventListener: (_type, nextListener) => {
+        listener = nextListener;
+      },
+      removeEventListener: (_type, nextListener) => {
+        if (listener === nextListener) {
+          listener = null;
+        }
+      }
+    };
+    const attached = attachJsBlockWorkerRuntime(scope, {
+      modules: createModules()
+    });
+
+    listener?.({
+      data: {
+        direction: 'host_to_worker',
+        type: 'run',
+        request: createRunRequest({
+          source: `
+import { defineBlock } from '@1flowbase/block-sdk';
+import { Text } from '@1flowbase/antd-facade';
+
+export default defineBlock({
+  async render(ctx) {
+    const record = await ctx.data.query('records');
+    return Text({ children: record.title });
+  }
+});
+`
+        })
+      }
+    });
+    await Promise.resolve();
+
+    const effectId = getEffectId(messages[0]);
+    listener?.({
+      data: {
+        direction: 'host_to_worker',
+        type: 'effect_result',
+        requestId: 'request-1',
+        effectId,
+        ok: true,
+        value: { title: 'Ready' }
+      }
+    });
+
+    await expect(
+      Promise.race([attached.flush().then(() => 'flushed'), delay(20)])
+    ).resolves.toBe('flushed');
+
+    expect(messages.at(-1)).toEqual({
+      direction: 'worker_to_host',
+      type: 'rendered',
+      requestId: 'request-1',
+      schema: { primitive: 'Text', props: { children: 'Ready' } }
+    });
+  });
+
+  test('dispose clears pending effects and ignores later effect results', async () => {
+    const messages: JsBlockWorkerToHostMessage[] = [];
+    const executor = createJsBlockWorkerExecutor({
+      modules: createModules(),
+      postMessage: (message) => messages.push(message)
+    });
+
+    const runPromise = executor.handleMessage({
+      direction: 'host_to_worker',
+      type: 'run',
+      request: createRunRequest({
+        source: `
+import { defineBlock } from '@1flowbase/block-sdk';
+import { Text } from '@1flowbase/antd-facade';
+
+export default defineBlock({
+  async render(ctx) {
+    const record = await ctx.data.query('records');
+    return Text({ children: record.title });
+  }
+});
+`
+      })
+    });
+    await Promise.resolve();
+    const effectId = getEffectId(messages[0]);
+
+    await executor.handleMessage({
+      direction: 'host_to_worker',
+      type: 'dispose',
+      requestId: 'request-1'
+    });
+    await runPromise;
+    await executor.handleMessage({
+      direction: 'host_to_worker',
+      type: 'effect_result',
+      requestId: 'request-1',
+      effectId,
+      ok: true,
+      value: { title: 'Late' }
+    });
+
+    expect(messages).toEqual([
+      {
+        direction: 'worker_to_host',
+        type: 'data',
+        requestId: 'request-1',
+        effectId,
+        operation: 'query',
+        payload: { model: 'records' }
       }
     ]);
   });
@@ -397,3 +662,16 @@ export default defineBlock({
     expect(listener).toBeNull();
   });
 });
+
+function getEffectId(message: JsBlockWorkerToHostMessage | undefined): string {
+  expect(message).toMatchObject({
+    effectId: expect.any(String)
+  });
+  return (message as { effectId: string }).effectId;
+}
+
+function delay(ms: number): Promise<'timeout'> {
+  return new Promise((resolve) => {
+    setTimeout(() => resolve('timeout'), ms);
+  });
+}

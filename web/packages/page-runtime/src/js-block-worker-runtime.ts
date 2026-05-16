@@ -83,12 +83,14 @@ export type JsBlockWorkerEffect =
   | {
       type: 'data';
       requestId: string;
+      effectId?: string;
       operation: string;
       payload?: unknown;
     }
   | {
       type: 'action';
       requestId: string;
+      effectId?: string;
       actionId: string;
       payload?: unknown;
     };
@@ -148,11 +150,34 @@ export interface JsBlockWorkerTimeoutMessage {
   requestId: string;
 }
 
+export interface JsBlockWorkerEffectResultSuccessMessage {
+  direction: 'host_to_worker';
+  type: 'effect_result';
+  requestId: string;
+  effectId: string;
+  ok: true;
+  value?: unknown;
+}
+
+export interface JsBlockWorkerEffectResultFailureMessage {
+  direction: 'host_to_worker';
+  type: 'effect_result';
+  requestId: string;
+  effectId: string;
+  ok: false;
+  error: JsBlockRunError;
+}
+
+export type JsBlockWorkerEffectResultMessage =
+  | JsBlockWorkerEffectResultSuccessMessage
+  | JsBlockWorkerEffectResultFailureMessage;
+
 export type JsBlockHostToWorkerMessage =
   | JsBlockWorkerInitMessage
   | JsBlockWorkerRunMessage
   | JsBlockWorkerDisposeMessage
-  | JsBlockWorkerTimeoutMessage;
+  | JsBlockWorkerTimeoutMessage
+  | JsBlockWorkerEffectResultMessage;
 
 export interface JsBlockWorkerReadyMessage {
   direction: 'worker_to_host';
@@ -197,6 +222,7 @@ export interface JsBlockWorkerDataRequestMessage {
   direction: 'worker_to_host';
   type: 'data';
   requestId: string;
+  effectId?: string;
   operation: string;
   payload?: unknown;
 }
@@ -205,6 +231,7 @@ export interface JsBlockWorkerActionRequestMessage {
   direction: 'worker_to_host';
   type: 'action';
   requestId: string;
+  effectId?: string;
   actionId: string;
   payload?: unknown;
 }
@@ -284,6 +311,8 @@ function reduceHostToWorkerMessage(
       return reduceRunMessage(state, message);
     case 'timeout':
       return reduceTimeoutMessage(state, message);
+    case 'effect_result':
+      return reduceEffectResultMessage(state, message);
     case 'dispose':
       return reduceDisposeMessage(state, message);
     default:
@@ -480,6 +509,28 @@ function reduceTimeoutMessage(
     ),
     status: 'timed_out'
   });
+}
+
+function reduceEffectResultMessage(
+  state: JsBlockRuntimeSessionState,
+  message: RecordValue
+): JsBlockRuntimeSessionState {
+  const requestIdResult = readString(message, 'requestId', 'message.requestId');
+  if (!requestIdResult.ok) {
+    return reject(state, requestIdResult.rejection);
+  }
+
+  const effectIdResult = readString(message, 'effectId', 'message.effectId');
+  if (!effectIdResult.ok) {
+    return reject(state, effectIdResult.rejection);
+  }
+
+  const requestResult = readCurrentRequest(state, requestIdResult.value);
+  if (!requestResult.ok) {
+    return reject(state, requestResult.rejection);
+  }
+
+  return state;
 }
 
 function reduceDisposeMessage(
@@ -734,11 +785,16 @@ function readWorkerEffect(
     if (!operation.ok) {
       return operation;
     }
+    const effectId =
+      typeof message.effectId === 'string' && message.effectId.length > 0
+        ? message.effectId
+        : undefined;
     return {
       ok: true,
       effect: {
         type: 'data',
         requestId,
+        ...(effectId ? { effectId } : {}),
         operation: operation.value,
         payload: message.payload
       }
@@ -749,11 +805,16 @@ function readWorkerEffect(
   if (!actionId.ok) {
     return actionId;
   }
+  const effectId =
+    typeof message.effectId === 'string' && message.effectId.length > 0
+      ? message.effectId
+      : undefined;
   return {
     ok: true,
     effect: {
       type: 'action',
       requestId,
+      ...(effectId ? { effectId } : {}),
       actionId: actionId.value,
       payload: message.payload
     }

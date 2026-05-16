@@ -175,6 +175,40 @@ describe('JS block worker host adapter', () => {
     expect(timers.size).toBe(0);
   });
 
+  test('forwards host effect results to the worker while a request is pending', () => {
+    const worker = new FakeWorker();
+    const host = createJsBlockWorkerHost({
+      workerFactory: () => worker
+    });
+
+    host.run(createRunRequest());
+    host.resolveEffect({
+      direction: 'host_to_worker',
+      type: 'effect_result',
+      requestId: 'request-1',
+      effectId: 'request-1:effect-1',
+      ok: true,
+      value: { title: 'Ready' }
+    });
+
+    expect(worker.messages).toEqual([
+      {
+        direction: 'host_to_worker',
+        type: 'run',
+        request: createRunRequest()
+      },
+      {
+        direction: 'host_to_worker',
+        type: 'effect_result',
+        requestId: 'request-1',
+        effectId: 'request-1:effect-1',
+        ok: true,
+        value: { title: 'Ready' }
+      }
+    ]);
+    expect(host.getState().requests['request-1']?.status).toBe('pending');
+  });
+
   test('dispose cleans up handlers, timers, and ignores late worker messages', () => {
     const worker = new FakeWorker();
     const timers = createManualTimers();
