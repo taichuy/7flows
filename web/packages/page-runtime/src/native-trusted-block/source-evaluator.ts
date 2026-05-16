@@ -5,6 +5,7 @@ import {
   validateNativeTrustedBlockSource
 } from '../native-trusted-block-source-policy';
 import type { JsBlockRunError } from '../js-block-worker-runtime';
+import { transformNativeTrustedBlockJsx } from './jsx-transform';
 
 export type NativeTrustedBlockInjectedModuleSource =
   (typeof NATIVE_TRUSTED_BLOCK_ALLOWED_IMPORTS)[number];
@@ -286,9 +287,27 @@ export function transformNativeTrustedBlockSource(
       replacement: defaultExport.replacement
     }
   ]);
+  const jsxResult = transformNativeTrustedBlockJsx(executableSource, {
+    reactIdentifier: findReactJsxRuntimeIdentifier(
+      bindingResult.value.importBindings
+    ),
+    componentIdentifiers: new Set(
+      bindingResult.value.importBindings
+        .filter((binding) => binding.source !== 'react')
+        .map((binding) => binding.local)
+    )
+  });
+  if (!jsxResult.ok) {
+    return {
+      ok: false,
+      errorKind: 'runtime_error',
+      errors: jsxResult.errors
+    };
+  }
+
   const executableBody = [
     ...createModuleBindingPreamble(bindingResult.value.injectedModules),
-    executableSource.trim(),
+    jsxResult.source.trim(),
     `return ${DEFAULT_EXPORT_IDENTIFIER};`
   ]
     .filter((line) => line.length > 0)
@@ -907,6 +926,16 @@ function formatNamedBinding(
   return binding.imported === binding.local
     ? binding.imported
     : `${binding.imported}: ${binding.local}`;
+}
+
+function findReactJsxRuntimeIdentifier(
+  bindings: NativeTrustedBlockImportBinding[]
+): string | undefined {
+  return bindings.find(
+    (binding) =>
+      binding.source === 'react' &&
+      (binding.kind === 'default' || binding.kind === 'namespace')
+  )?.local;
 }
 
 function applyEdits(source: string, edits: SourceEdit[]): string {
