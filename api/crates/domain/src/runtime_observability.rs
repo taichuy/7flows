@@ -250,7 +250,7 @@ pub struct CreditLedgerRecord {
     pub id: Uuid,
     pub workspace_id: Uuid,
     pub user_id: Option<Uuid>,
-    pub app_id: Option<Uuid>,
+    pub application_id: Option<Uuid>,
     pub agent_id: Option<Uuid>,
     pub flow_run_id: Option<Uuid>,
     pub span_id: Option<Uuid>,

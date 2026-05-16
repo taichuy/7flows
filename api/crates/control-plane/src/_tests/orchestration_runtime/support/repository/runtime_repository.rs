@@ -906,7 +906,7 @@ impl OrchestrationRuntimeRepository for InMemoryOrchestrationRuntimeRepository {
             id: Uuid::now_v7(),
             workspace_id: input.workspace_id,
             user_id: input.user_id,
-            app_id: input.app_id,
+            application_id: input.application_id,
             agent_id: input.agent_id,
             flow_run_id: input.flow_run_id,
             span_id: input.span_id,

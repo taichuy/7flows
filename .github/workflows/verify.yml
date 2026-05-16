@@ -12,7 +12,7 @@ permissions:
   issues: write
 
 concurrency:
-  group: quality-gate-${{ github.ref_name }}
+  group: verify-${{ github.ref_name }}
   cancel-in-progress: true
 
 jobs:
@@ -25,7 +25,7 @@ jobs:
           version: 10
       - uses: actions/setup-node@v5
         with:
-          node-version: 22
+          node-version: 24
           cache: pnpm
           cache-dependency-path: web/pnpm-lock.yaml
       - run: pnpm --dir web install --frozen-lockfile
@@ -66,7 +66,7 @@ jobs:
           version: 10
       - uses: actions/setup-node@v5
         with:
-          node-version: 22
+          node-version: 24
           cache: pnpm
           cache-dependency-path: web/pnpm-lock.yaml
       - run: pnpm --dir web install --frozen-lockfile
@@ -97,7 +97,7 @@ jobs:
           diff: main
           fail-on: warning
           offline: "true"
-          node-version: 22
+          node-version: 24
 
   verify:
     needs:

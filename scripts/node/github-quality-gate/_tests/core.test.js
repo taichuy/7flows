@@ -225,6 +225,7 @@ test('runQualityGate publishes a complete passed report with coverage details', 
     listOpenQualityGateIssuesImpl() {
       return [];
     },
+    nowImpl: () => new Date('2026-05-03T23:40:00Z'),
     writeStdout() {},
     writeStderr() {},
   });
@@ -241,6 +242,55 @@ test('runQualityGate publishes a complete passed report with coverage details', 
   assert.match(createdIssues[0].body, /api-server: lines 93\.00%, functions 90\.00%, branches 80\.00%, regions 90\.00%/u);
   assert.match(createdIssues[0].body, /## Evidence/u);
   assert.match(createdIssues[0].body, /tmp\/test-governance\/quality-gate\.latest\.log/u);
+});
+
+test('runQualityGate fails a clean exit when warning logs are captured', async () => {
+  const repoRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'oneflowbase-quality-gate-warning-'));
+  const createdIssues = [];
+
+  const status = await runQualityGate({
+    repoRoot,
+    scope: 'repo',
+    reportType: 'ci',
+    publishIssue: true,
+    githubToken: 'token',
+    env: {
+      GITHUB_ACTOR: 'taichu',
+      GITHUB_REF_NAME: 'latest',
+      GITHUB_REPOSITORY: 'taichuy/1flowbase',
+      GITHUB_RUN_ID: '792',
+      GITHUB_SERVER_URL: 'https://github.com',
+      GITHUB_SHA: 'abcdef1234567890',
+      GITHUB_WORKFLOW: 'quality gate',
+    },
+    spawnSyncImpl() {
+      const warningPath = path.join(repoRoot, 'tmp', 'test-governance', 'repo.warnings.log');
+      fs.mkdirSync(path.dirname(warningPath), { recursive: true });
+      fs.writeFileSync(warningPath, 'warning detail\n', 'utf8');
+      return {
+        status: 0,
+        stdout: 'repo passed\n',
+        stderr: '',
+      };
+    },
+    createIssueImpl(issue) {
+      createdIssues.push(issue);
+      return { html_url: 'https://github.com/taichuy/1flowbase/issues/9' };
+    },
+    listOpenQualityGateIssuesImpl() {
+      return [];
+    },
+    nowImpl: () => new Date('2026-05-03T23:40:00Z'),
+    writeStdout() {},
+    writeStderr() {},
+  });
+
+  assert.equal(status.status, 'failed');
+  assert.equal(status.exitCode, 1);
+  assert.equal(createdIssues[0].title, '[Quality Gate][CI] 2026-05-03 23:40 latest abcdef1 failed');
+  assert.deepEqual(createdIssues[0].labels, ['quality-gate', 'ci-report', 'failed']);
+  assert.match(createdIssues[0].body, /- Status: failed/u);
+  assert.match(createdIssues[0].body, /- Warning log: tmp\/test-governance\/repo\.warnings\.log/u);
 });
 
 test('runQualityGate renders unavailable coverage metrics as n/a', async () => {
@@ -655,5 +705,73 @@ test('runQualityGateAggregate publishes one report from parallel quality gate ar
   assert.equal(
     fs.existsSync(path.join(repoRoot, 'tmp', 'test-governance', 'quality-gate-report.json')),
     true
+  );
+});
+
+test('runQualityGateAggregate fails when component warning logs are captured', async () => {
+  const repoRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'oneflowbase-quality-gate-aggregate-warning-'));
+  const artifactRoot = path.join(repoRoot, 'tmp', 'test-governance', 'parallel');
+
+  const writeArtifact = (artifactName, report) => {
+    const artifactDir = path.join(artifactRoot, artifactName);
+    fs.mkdirSync(artifactDir, { recursive: true });
+    fs.writeFileSync(
+      path.join(artifactDir, 'quality-gate-report.json'),
+      `${JSON.stringify(report, null, 2)}\n`,
+      'utf8'
+    );
+    fs.writeFileSync(path.join(artifactDir, 'quality-gate.latest.log'), `${report.scope} log\n`, 'utf8');
+  };
+
+  writeArtifact('test-governance-repo', {
+    reportType: 'ci',
+    status: 'passed',
+    scope: 'repo',
+    exitCode: 0,
+    coverageSummaries: [],
+    backendConsistencyTargets: [],
+    warningFiles: ['tmp/test-governance/repo.warnings.log'],
+  });
+  writeArtifact('test-governance-backend-consistency', {
+    reportType: 'ci',
+    status: 'passed',
+    scope: 'backend-consistency',
+    exitCode: 0,
+    coverageSummaries: [],
+    backendConsistencyTargets: [],
+    warningFiles: [],
+  });
+  writeArtifact('test-governance-coverage', {
+    reportType: 'ci',
+    status: 'passed',
+    scope: 'coverage',
+    exitCode: 0,
+    coverageSummaries: [],
+    backendConsistencyTargets: [],
+    warningFiles: [],
+  });
+
+  const result = await runQualityGateAggregate({
+    repoRoot,
+    artifactRoot: path.join('tmp', 'test-governance', 'parallel'),
+    reportType: 'ci',
+    publishIssue: false,
+    githubToken: '',
+    env: {
+      GITHUB_ACTOR: 'taichu',
+      GITHUB_REF_NAME: 'latest',
+      GITHUB_REPOSITORY: 'taichuy/1flowbase',
+      GITHUB_RUN_ID: '1000',
+      GITHUB_SERVER_URL: 'https://github.com',
+      GITHUB_SHA: 'abcdef1234567890',
+      GITHUB_WORKFLOW: 'verify',
+    },
+  });
+
+  assert.equal(result.status, 'failed');
+  assert.equal(result.exitCode, 1);
+  assert.match(
+    fs.readFileSync(path.join(repoRoot, 'tmp', 'test-governance', 'quality-gate-report.md'), 'utf8'),
+    /Warning log: tmp\/test-governance\/repo\.warnings\.log/u
   );
 });

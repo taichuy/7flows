@@ -19,6 +19,7 @@ const TURBO_TELEMETRY_LINES = new Set([
 ]);
 const CARGO_PROGRESS_LINE_PATTERN = /^\s*(Updating|Downloading|Downloaded|Compiling|Checking|Finished|Fresh|Running|Doc-tests|Blocking|Waiting)\b/u;
 const CARGO_LLVM_COV_INFO_LINE_PATTERN = /^info: (cargo-llvm-cov currently setting cfg\(coverage\)|running `rustup component add llvm-tools-preview\b|downloading component llvm-tools\b)/u;
+const TURBO_VERSION_LINE_PATTERN = /^[•·]\s+turbo\s+\d+\.\d+\.\d+\s*$/u;
 
 function getRepoRoot() {
   return path.resolve(__dirname, '..', '..', '..');
@@ -95,6 +96,7 @@ function isKnownSuccessfulToolNoiseLine(line) {
   }
 
   return TURBO_TELEMETRY_LINES.has(normalized)
+    || TURBO_VERSION_LINE_PATTERN.test(normalized)
     || CARGO_PROGRESS_LINE_PATTERN.test(normalized)
     || CARGO_LLVM_COV_INFO_LINE_PATTERN.test(normalized);
 }

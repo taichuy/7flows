@@ -4,7 +4,7 @@
 
 ## Runtime
 
-- Node.js: `>=22.0.0`
+- Node.js: `>=24.0.0`
 - 前端依赖通过 `web/package.json` 管理，脚本内部需要前端工具时会从 `web/` 解析依赖。
 - warning 与 coverage 产物统一写入 `tmp/test-governance/`。
 

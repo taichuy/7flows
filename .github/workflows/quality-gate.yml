@@ -41,7 +41,7 @@ permissions:
   issues: write
 
 concurrency:
-  group: quality-gate-${{ github.event_name == 'workflow_dispatch' && inputs.target_branch || 'latest' }}
+  group: quality-gate-${{ github.event_name }}-${{ github.event_name == 'workflow_dispatch' && inputs.target_branch || 'latest' }}
   cancel-in-progress: true
 
 env:
@@ -66,7 +66,7 @@ jobs:
           version: 10
       - uses: actions/setup-node@v5
         with:
-          node-version: 22
+          node-version: 24
           cache: pnpm
           cache-dependency-path: web/pnpm-lock.yaml
       - run: pnpm --dir web install --frozen-lockfile
@@ -103,7 +103,7 @@ jobs:
           version: 10
       - uses: actions/setup-node@v5
         with:
-          node-version: 22
+          node-version: 24
           cache: pnpm
           cache-dependency-path: web/pnpm-lock.yaml
       - run: pnpm --dir web install --frozen-lockfile
@@ -164,7 +164,7 @@ jobs:
           version: 10
       - uses: actions/setup-node@v5
         with:
-          node-version: 22
+          node-version: 24
           cache: pnpm
           cache-dependency-path: web/pnpm-lock.yaml
       - run: pnpm --dir web install --frozen-lockfile

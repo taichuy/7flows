@@ -148,7 +148,10 @@ function replaceAssistantMessage(
     }
 
     replaced = true;
-    return nextMessage;
+    return {
+      ...nextMessage,
+      id: message.id
+    };
   });
 
   return replaced ? nextMessages : [...nextMessages, nextMessage];

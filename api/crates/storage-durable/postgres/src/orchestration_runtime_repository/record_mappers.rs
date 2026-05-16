@@ -268,7 +268,7 @@ pub(super) fn map_credit_ledger_record(row: PgRow) -> domain::CreditLedgerRecord
         id: row.get("id"),
         workspace_id: row.get("workspace_id"),
         user_id: row.get("user_id"),
-        app_id: row.get("app_id"),
+        application_id: row.get("application_id"),
         agent_id: row.get("agent_id"),
         flow_run_id: row.get("flow_run_id"),
         span_id: row.get("span_id"),

@@ -364,19 +364,21 @@ function buildReport({
   const logPath = path.join(outputDir, 'quality-gate.latest.log');
   const warningFiles = listFilesBySuffix(outputDir, '.warnings.log')
     .map((filePath) => toRepoRelative(repoRoot, filePath));
+  const effectiveStatus = status === 'passed' && warningFiles.length > 0 ? 'failed' : status;
+  const effectiveExitCode = exitCode === 0 && warningFiles.length > 0 ? 1 : exitCode;
   const coverageFiles = listFilesBySuffix(path.join(outputDir, 'coverage'), '.json')
     .map((filePath) => toRepoRelative(repoRoot, filePath));
   const coverageSummaries = buildCoverageSummaries({ repoRoot, coverageFiles });
   const backendConsistencyTargets = buildBackendConsistencyTargets({ repoRoot, scope });
   const runUrl = buildRunUrl(env);
   const shortSha = shortShaFromEnv(env);
-  const failureExcerpt = status === 'failed' ? readFailureExcerpt(logPath) : '';
+  const failureExcerpt = effectiveStatus === 'failed' ? readFailureExcerpt(logPath) : '';
 
   const report = {
     reportType,
-    status,
+    status: effectiveStatus,
     scope,
-    exitCode,
+    exitCode: effectiveExitCode,
     branch: env.GITHUB_REF_NAME || '',
     commit: env.GITHUB_SHA || '',
     shortSha,
@@ -399,8 +401,8 @@ function buildReport({
     '## Result Summary',
     '',
     `- Type: ${reportType.toUpperCase()}`,
-    `- Status: ${status}`,
-    `- Exit code: ${exitCode}`,
+    `- Status: ${report.status}`,
+    `- Exit code: ${report.exitCode}`,
     `- Scope: ${scope}`,
     environmentName ? `- Environment: ${environmentName}` : null,
     `- Branch: ${report.branch || 'unknown'}`,
@@ -551,14 +553,16 @@ function buildAggregateReport({
   env,
 }) {
   const components = componentArtifacts.map((artifact) => normalizeComponentReport({ repoRoot, artifact }));
-  const status = components.every((component) => component.status === 'passed') ? 'passed' : 'failed';
-  const exitCode = status === 'passed'
-    ? 0
-    : components.find((component) => component.exitCode !== 0)?.exitCode || 1;
   const warningFiles = dedupeBy(
     componentArtifacts.flatMap((artifact) => artifact.report.warningFiles || []),
     (filePath) => filePath
   );
+  const status = components.every((component) => component.status === 'passed') && warningFiles.length === 0
+    ? 'passed'
+    : 'failed';
+  const exitCode = status === 'passed'
+    ? 0
+    : components.find((component) => component.exitCode !== 0)?.exitCode || 1;
   const coverageSummaries = dedupeBy(
     componentArtifacts.flatMap((artifact) => artifact.report.coverageSummaries || []),
     (summary) => `${summary.kind || 'unknown'}:${summary.name}:${summary.path}`
@@ -1107,6 +1111,7 @@ async function runQualityGate({
     env,
   });
   const reportPaths = writeReports({ repoRoot, report });
+  const reportStatus = report.json.status;
 
   if (publishIssue) {
     if (!githubToken) {
@@ -1123,13 +1128,13 @@ async function runQualityGate({
           timestamp,
           branch: env.GITHUB_REF_NAME || '',
           shortSha: shortShaFromEnv(env),
-          status,
+          status: reportStatus,
           environment: environmentName,
         }),
         body: report.markdown,
         labels: buildIssueLabels({
           reportType: normalizedReportType,
-          status,
+          status: reportStatus,
         }),
       },
     });
@@ -1163,16 +1168,16 @@ async function runQualityGate({
 
   appendStepSummary(finalReport.markdown);
   writeActionOutputs({
-    status,
-    exit_code: gateExitCode,
+    status: finalReport.json.status,
+    exit_code: finalReport.json.exitCode,
     report_path: toRepoRelative(repoRoot, reportPaths.markdownPath),
     report_json_path: toRepoRelative(repoRoot, reportPaths.jsonPath),
     issue_url: issueUrl,
   });
 
   return {
-    status,
-    exitCode: gateExitCode,
+    status: finalReport.json.status,
+    exitCode: finalReport.json.exitCode,
     issueUrl,
     reportPath: reportPaths.markdownPath,
     reportJsonPath: reportPaths.jsonPath,

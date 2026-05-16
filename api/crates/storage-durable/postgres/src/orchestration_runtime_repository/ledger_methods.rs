@@ -168,7 +168,7 @@ impl PgControlPlaneStore {
                 id,
                 workspace_id,
                 user_id,
-                app_id,
+                application_id,
                 agent_id,
                 flow_run_id,
                 span_id,
@@ -188,7 +188,7 @@ impl PgControlPlaneStore {
                 id,
                 workspace_id,
                 user_id,
-                app_id,
+                application_id,
                 agent_id,
                 flow_run_id,
                 span_id,
@@ -206,7 +206,7 @@ impl PgControlPlaneStore {
         .bind(Uuid::now_v7())
         .bind(input.workspace_id)
         .bind(input.user_id)
-        .bind(input.app_id)
+        .bind(input.application_id)
         .bind(input.agent_id)
         .bind(input.flow_run_id)
         .bind(input.span_id)

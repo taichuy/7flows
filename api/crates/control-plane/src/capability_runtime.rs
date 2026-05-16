@@ -38,8 +38,8 @@ pub fn skill_action_capability_id(
     format!("skill_action:{source}:{namespace}:{name}@{version}")
 }
 
-pub fn workflow_tool_capability_id(app_id: &str, flow_id: &str, version: &str) -> String {
-    format!("workflow_tool:{app_id}:{flow_id}@{version}")
+pub fn workflow_tool_capability_id(application_id: &str, flow_id: &str, version: &str) -> String {
+    format!("workflow_tool:{application_id}:{flow_id}@{version}")
 }
 
 pub fn approval_capability_id(policy_id: &str, version: &str) -> String {

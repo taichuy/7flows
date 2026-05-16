@@ -27,6 +27,7 @@ test('exec-with-real-node shell launcher forwards child exit codes', () => {
       cwd: process.cwd(),
       env: {
         ...process.env,
+        ONEFLOWBASE_NODE: '',
         PATH: `${binDir}${path.delimiter}${process.env.PATH ?? ''}`,
       },
       encoding: 'utf8',
@@ -71,6 +72,7 @@ test('exec-with-real-node shell launcher follows corepack pnpm.js back to real N
       cwd: process.cwd(),
       env: {
         ...process.env,
+        ONEFLOWBASE_NODE: '',
         PATH: `${shimDir}${path.delimiter}${process.env.PATH ?? ''}`,
       },
       encoding: 'utf8',

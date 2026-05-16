@@ -1739,13 +1739,27 @@ async fn credit_ledger_idempotency_prevents_double_debit() {
     run_migrations(&pool).await.unwrap();
     let store = PgControlPlaneStore::new(pool);
     let workspace_id = seed_workspace(&store, "Billing").await;
+    let credit_ledger_columns: Vec<String> = sqlx::query_scalar(
+        r#"
+        select column_name
+        from information_schema.columns
+        where table_schema = current_schema()
+          and table_name = 'runtime_credit_ledger'
+        "#,
+    )
+    .fetch_all(store.pool())
+    .await
+    .unwrap();
+
+    assert!(credit_ledger_columns.contains(&"application_id".to_string()));
+    assert!(!credit_ledger_columns.contains(&"app_id".to_string()));
 
     let first = <PgControlPlaneStore as OrchestrationRuntimeRepository>::append_credit_ledger(
         &store,
         &AppendCreditLedgerInput {
             workspace_id,
             user_id: None,
-            app_id: None,
+            application_id: None,
             agent_id: None,
             flow_run_id: None,
             span_id: None,
@@ -1773,7 +1787,7 @@ async fn credit_ledger_idempotency_prevents_double_debit() {
             reason: "gateway_settle".into(),
             status: "posted".into(),
             user_id: None,
-            app_id: None,
+            application_id: None,
             agent_id: None,
             flow_run_id: None,
             span_id: None,

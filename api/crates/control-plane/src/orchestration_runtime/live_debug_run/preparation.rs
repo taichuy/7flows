@@ -425,7 +425,7 @@ where
         .append_credit_ledger(&AppendCreditLedgerInput {
             workspace_id,
             user_id: Some(actor_user_id),
-            app_id: Some(application_id),
+            application_id: Some(application_id),
             agent_id: None,
             flow_run_id: Some(flow_run.id),
             span_id: None,

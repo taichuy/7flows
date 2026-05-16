@@ -3,7 +3,7 @@
   "private": true,
   "packageManager": "pnpm@10.0.0",
   "engines": {
-    "node": ">=22.0.0"
+    "node": ">=24.0.0"
   },
   "scripts": {
     "dev": "turbo run dev --parallel --filter=@1flowbase/web",
@@ -23,7 +23,7 @@
     "@eslint/js": "^9.24.0",
     "@testing-library/jest-dom": "^6.6.3",
     "@testing-library/react": "^16.2.0",
-    "@types/node": "^22.14.0",
+    "@types/node": "^24.0.0",
     "@types/react": "^19.0.12",
     "@types/react-dom": "^19.0.4",
     "@vitejs/plugin-react": "^4.3.4",

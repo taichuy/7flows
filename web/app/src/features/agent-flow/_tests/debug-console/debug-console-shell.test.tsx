@@ -229,7 +229,7 @@ describe('debug console shell', () => {
       await screen.findByRole('button', { name: '查看对话日志' })
     );
 
-    const logDock = screen.getByTestId(
+    const logDock = await screen.findByTestId(
       'agent-flow-editor-conversation-log-dock'
     );
     expect(within(logDock).getByLabelText('对话日志')).toBeInTheDocument();

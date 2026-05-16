@@ -1016,6 +1016,7 @@ fn inject_system_variables(
             "conversation_id": flow_run.debug_session_id,
             "dialog_count": 0,
             "user_id": flow_run.created_by.to_string(),
+            // Public template compatibility: existing flows reference sys.app_id.
             "app_id": flow_run.application_id.to_string(),
             "workflow_id": flow_run.flow_id.to_string(),
             "workflow_run_id": flow_run.id.to_string(),
