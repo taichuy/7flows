@@ -6,7 +6,8 @@ import {
   insertFrontstageBlock,
   moveFrontstageBlock,
   removeFrontstageBlock,
-  selectFrontstageBlock
+  selectFrontstageBlock,
+  updateFrontstageBlockLayout
 } from '../lib/block-composition';
 import type {
   FrontstageBlockInstance,
@@ -167,6 +168,36 @@ describe('frontstage block composition', () => {
       2
     ]);
     expect(movedToStart.selectedBlockId).toBe('gallery');
+  });
+
+  test('updates a block layout without changing order or selection', () => {
+    const state = createFrontstageBlockCompositionState(
+      createDocument([
+        createBlock({
+          id: 'hero',
+          order: 0,
+          layout: { order: 0, region: 'main', width: 12, height: 4 }
+        }),
+        createBlock({ id: 'cta', order: 1 })
+      ]),
+      'hero'
+    );
+
+    const nextState = updateFrontstageBlockLayout(state, 'hero', {
+      width: 16
+    });
+
+    expect(nextState.document.blocks[0].layout).toMatchObject({
+      order: 0,
+      region: 'main',
+      width: 16,
+      height: 4
+    });
+    expect(nextState.document.blocks.map((block) => block.order)).toEqual([
+      0,
+      1
+    ]);
+    expect(nextState.selectedBlockId).toBe('hero');
   });
 
   test('selects only existing blocks', () => {

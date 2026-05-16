@@ -270,6 +270,43 @@ export function moveFrontstageBlock(
   };
 }
 
+export function updateFrontstageBlockLayout(
+  state: FrontstageBlockCompositionState,
+  blockId: string,
+  layoutPatch: Partial<FrontstageBlockLayout> & Record<string, unknown>
+): FrontstageBlockCompositionState {
+  const targetIndex = state.document.blocks.findIndex(
+    (block) => block.id === blockId
+  );
+  if (targetIndex < 0) {
+    return state;
+  }
+
+  const nextBlocks = state.document.blocks.map((block, index) => {
+    if (index !== targetIndex) {
+      return block;
+    }
+
+    const nextLayout: FrontstageBlockLayout = {
+      ...block.layout,
+      ...layoutPatch,
+      order: block.order
+    };
+
+    return {
+      ...block,
+      layout: nextLayout
+    };
+  });
+
+  const document = withBlocks(state.document, nextBlocks, false);
+
+  return {
+    document,
+    selectedBlockId: normalizeSelection(document, state.selectedBlockId)
+  };
+}
+
 export function selectFrontstageBlock(
   state: FrontstageBlockCompositionState,
   blockId: string | null

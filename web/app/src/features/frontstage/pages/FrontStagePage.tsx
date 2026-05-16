@@ -4,6 +4,7 @@ import {
   Divider,
   Empty,
   Flex,
+  InputNumber,
   Layout,
   Space,
   Typography
@@ -20,6 +21,7 @@ import {
   createFrontstageBlockCompositionState,
   moveFrontstageBlock,
   removeFrontstageBlock,
+  updateFrontstageBlockLayout,
   type FrontstageBlockCompositionInput,
   type FrontstageBlockCompositionState
 } from '../lib/block-composition';
@@ -194,6 +196,25 @@ function getNodeAppendRank(
   return rankForAppendIndex(parentNode?.children?.length ?? 0);
 }
 
+function getNumericLayoutValue(value: unknown): number | undefined {
+  return typeof value === 'number' && Number.isFinite(value)
+    ? value
+    : undefined;
+}
+
+function normalizeLayoutDimension(value: number | string | null): number | null {
+  if (typeof value === 'number' && Number.isFinite(value)) {
+    return Math.trunc(value);
+  }
+
+  if (typeof value === 'string') {
+    const parsedValue = Number(value);
+    return Number.isFinite(parsedValue) ? Math.trunc(parsedValue) : null;
+  }
+
+  return null;
+}
+
 export const FrontStagePage: FC<FrontStagePageProps> = ({
   workspaceId,
   pageId,
@@ -299,6 +320,12 @@ export const FrontStagePage: FC<FrontStagePageProps> = ({
     selectedBlockIndex >= 0
       ? blockCompositionState?.document.blocks[selectedBlockIndex]
       : null;
+  const selectedBlockLayoutWidth = getNumericLayoutValue(
+    selectedBlock?.layout.width
+  );
+  const selectedBlockLayoutHeight = getNumericLayoutValue(
+    selectedBlock?.layout.height
+  );
   const canShowSelectedBlockActions = Boolean(
     canEnterDesignMode &&
       isDesignMode &&
@@ -695,6 +722,33 @@ export const FrontStagePage: FC<FrontStagePageProps> = ({
     void saveBlockComposition(sourceContent, nextCompositionState);
   };
 
+  const handleSelectedBlockLayoutDimensionChange = (
+    dimension: 'width' | 'height',
+    value: number | string | null
+  ) => {
+    const nextValue = normalizeLayoutDimension(value);
+    const sourceContent = activePageContent;
+    if (
+      nextValue === null ||
+      !canRunSelectedBlockAction ||
+      !sourceContent ||
+      !blockCompositionState ||
+      !selectedBlock
+    ) {
+      return;
+    }
+
+    const nextCompositionState = updateFrontstageBlockLayout(
+      blockCompositionState,
+      selectedBlock.id,
+      {
+        [dimension]: nextValue
+      }
+    );
+
+    void saveBlockComposition(sourceContent, nextCompositionState);
+  };
+
   const renderTreeNode = (
     node: FrontStageTreeNode,
     level: number = 0,
@@ -1016,6 +1070,48 @@ export const FrontStagePage: FC<FrontStagePageProps> = ({
                   </Typography.Text>
                 </Space>
                 <Space size={8} wrap>
+                  <Space size={4}>
+                    <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+                      宽度
+                    </Typography.Text>
+                    <InputNumber
+                      aria-label="区块宽度"
+                      size="small"
+                      min={1}
+                      max={24}
+                      precision={0}
+                      value={selectedBlockLayoutWidth}
+                      disabled={!canRunSelectedBlockAction}
+                      onChange={(value) =>
+                        handleSelectedBlockLayoutDimensionChange(
+                          'width',
+                          value
+                        )
+                      }
+                      style={{ width: 72 }}
+                    />
+                  </Space>
+                  <Space size={4}>
+                    <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+                      高度
+                    </Typography.Text>
+                    <InputNumber
+                      aria-label="区块高度"
+                      size="small"
+                      min={1}
+                      max={24}
+                      precision={0}
+                      value={selectedBlockLayoutHeight}
+                      disabled={!canRunSelectedBlockAction}
+                      onChange={(value) =>
+                        handleSelectedBlockLayoutDimensionChange(
+                          'height',
+                          value
+                        )
+                      }
+                      style={{ width: 72 }}
+                    />
+                  </Space>
                   <Button
                     size="small"
                     disabled={!canMoveSelectedBlockUp}

@@ -106,6 +106,21 @@ function createBlockPayload(blockId: string, order: number) {
   };
 }
 
+function createBlockPayloadWithLayout(
+  blockId: string,
+  order: number,
+  layout: Record<string, unknown>
+) {
+  return {
+    ...createBlockPayload(blockId, order),
+    layout: {
+      order,
+      region: 'main',
+      ...layout
+    }
+  };
+}
+
 function createPageContentWithBlocks(
   blockIds: string[]
 ): FrontstagePageContent {
@@ -113,6 +128,21 @@ function createPageContentWithBlocks(
     createBlockPayload(blockId, index)
   );
 
+  return createPageContent({
+    schema: {
+      rootUid: 'root-1',
+      payload: { blocks }
+    },
+    root: {
+      uid: 'root-1',
+      payload: { blocks }
+    }
+  });
+}
+
+function createPageContentWithBlockPayloads(
+  blocks: ReturnType<typeof createBlockPayload>[]
+): FrontstagePageContent {
   return createPageContent({
     schema: {
       rootUid: 'root-1',
@@ -334,6 +364,46 @@ describe('FrontStagePage block arrange actions', () => {
     );
   });
 
+  test('saves selected block layout dimensions and keeps selection', async () => {
+    authenticate(['frontstage.page.design']);
+    const saveState = mockPageContentSaveState();
+    renderFrontStagePage(
+      createPageContentWithBlockPayloads([
+        createBlockPayloadWithLayout('hero', 0, { width: 12, height: 4 }),
+        createBlockPayload('cta', 1)
+      ])
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: '进入设计模式' }));
+    fireEvent.click(getBlockRow('hero'));
+    fireEvent.change(
+      within(getSelectedBlockActions()).getByLabelText('区块宽度'),
+      { target: { value: '16' } }
+    );
+
+    await waitFor(() => {
+      expect(saveState.save).toHaveBeenCalledTimes(1);
+    });
+
+    const [saveInput] = saveState.save.mock.calls[0] as [
+      SaveFrontstagePageContentInput
+    ];
+    const [heroBlock, ctaBlock] = getSavedBlocks(saveInput);
+    expect(heroBlock.layout).toMatchObject({
+      order: 0,
+      region: 'main',
+      width: 16,
+      height: 4
+    });
+    expect(ctaBlock.layout).toMatchObject({ order: 1, region: 'main' });
+
+    await waitFor(() => {
+      expect(getSelectedBlockActions()).toHaveTextContent(
+        '当前选中区块：hero'
+      );
+    });
+  });
+
   test('disables selected block arrange actions while page content is saving', () => {
     authenticate(['frontstage.page.design']);
     mockPageContentSaveState({ saving: true, isPending: true });
@@ -352,6 +422,8 @@ describe('FrontStagePage block arrange actions', () => {
     expect(
       within(actions).getByRole('button', { name: '删除区块' })
     ).toBeDisabled();
+    expect(within(actions).getByLabelText('区块宽度')).toBeDisabled();
+    expect(within(actions).getByLabelText('区块高度')).toBeDisabled();
     expect(screen.getByText('区块保存中')).toBeInTheDocument();
   });
 
