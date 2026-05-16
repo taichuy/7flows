@@ -1,4 +1,5 @@
 mod application;
+mod application_js_dependency;
 mod application_public_api;
 mod bootstrap_tests;
 mod capability_plugin_runtime_tests;

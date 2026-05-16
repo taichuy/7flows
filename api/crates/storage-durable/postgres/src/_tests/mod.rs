@@ -1,3 +1,4 @@
+mod application_js_dependency_repository_tests;
 mod application_mapper_tests;
 mod application_public_api_repository_tests;
 mod application_repository_tests;

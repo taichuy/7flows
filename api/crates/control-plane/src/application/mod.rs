@@ -14,7 +14,9 @@ use crate::{
     ports::{
         ApplicationEnvironmentVariableInput, ApplicationRepository, ApplicationVisibility,
         CreateApplicationInput, CreateApplicationTagInput, DeleteApplicationInput,
-        ReplaceApplicationEnvironmentVariablesInput, UpdateApplicationInput,
+        JsDependencyRepository, ReplaceApplicationEnvironmentVariablesInput,
+        ReplaceApplicationJsDependencySelectionInput, ReplaceInstallationJsDependenciesInput,
+        UpdateApplicationInput,
     },
 };
 
@@ -364,7 +366,7 @@ where
     }
 }
 
-fn resolve_application_visibility(
+pub(crate) fn resolve_application_visibility(
     actor: &domain::ActorContext,
 ) -> Result<ApplicationVisibility, ControlPlaneError> {
     if actor.is_root || actor.has_permission("application.view.all") {
@@ -378,7 +380,7 @@ fn resolve_application_visibility(
     Err(ControlPlaneError::PermissionDenied("permission_denied"))
 }
 
-fn ensure_application_edit_permission(
+pub(crate) fn ensure_application_edit_permission(
     actor: &domain::ActorContext,
     application: &domain::ApplicationRecord,
 ) -> Result<(), ControlPlaneError> {
@@ -535,6 +537,9 @@ fn ensure_environment_variable_value_matches_type(
 struct InMemoryApplicationRepositoryInner {
     applications: HashMap<Uuid, domain::ApplicationRecord>,
     environment_variables: HashMap<Uuid, Vec<domain::ApplicationEnvironmentVariable>>,
+    js_dependencies: Vec<domain::JsDependencyRegistryEntry>,
+    js_dependency_selections:
+        HashMap<(Uuid, String, String), domain::ApplicationJsDependencySelection>,
     tags: HashMap<Uuid, domain::ApplicationTagCatalogEntry>,
     permissions: Vec<String>,
     workspace_id: Uuid,
@@ -553,6 +558,8 @@ impl InMemoryApplicationRepository {
             inner: Arc::new(Mutex::new(InMemoryApplicationRepositoryInner {
                 applications: HashMap::new(),
                 environment_variables: HashMap::new(),
+                js_dependencies: Vec::new(),
+                js_dependency_selections: HashMap::new(),
                 tags: HashMap::new(),
                 permissions: permissions.into_iter().map(str::to_string).collect(),
                 workspace_id: Uuid::nil(),
@@ -584,6 +591,119 @@ impl InMemoryApplicationRepository {
             .applications
             .insert(application.id, application.clone());
         application
+    }
+}
+
+#[async_trait]
+impl JsDependencyRepository for InMemoryApplicationRepository {
+    async fn replace_installation_js_dependencies(
+        &self,
+        input: &ReplaceInstallationJsDependenciesInput,
+    ) -> Result<()> {
+        let mut inner = self
+            .inner
+            .lock()
+            .expect("in-memory app repo mutex poisoned");
+        inner
+            .js_dependencies
+            .retain(|entry| entry.installation_id != input.installation_id);
+        inner
+            .js_dependencies
+            .extend(
+                input
+                    .entries
+                    .iter()
+                    .map(|entry| domain::JsDependencyRegistryEntry {
+                        installation_id: input.installation_id,
+                        provider_code: input.provider_code.clone(),
+                        plugin_id: input.plugin_id.clone(),
+                        plugin_version: input.plugin_version.clone(),
+                        alias: entry.alias.clone(),
+                        package: entry.package.clone(),
+                        version: entry.version.clone(),
+                        target: entry.target.clone(),
+                        artifact_path: entry.artifact_path.clone(),
+                        integrity: entry.integrity.clone(),
+                        permissions: entry.permissions.clone(),
+                    }),
+            );
+        Ok(())
+    }
+
+    async fn list_workspace_js_dependencies(
+        &self,
+        _workspace_id: Uuid,
+    ) -> Result<Vec<domain::JsDependencyRegistryEntry>> {
+        Ok(self
+            .inner
+            .lock()
+            .expect("in-memory app repo mutex poisoned")
+            .js_dependencies
+            .clone())
+    }
+}
+
+#[async_trait]
+impl crate::ports::ApplicationJsDependencySelectionRepository for InMemoryApplicationRepository {
+    async fn list_application_js_dependency_selections(
+        &self,
+        workspace_id: Uuid,
+        application_id: Uuid,
+    ) -> Result<Vec<domain::ApplicationJsDependencySelection>> {
+        let mut selections = self
+            .inner
+            .lock()
+            .expect("in-memory app repo mutex poisoned")
+            .js_dependency_selections
+            .values()
+            .filter(|selection| {
+                selection.workspace_id == workspace_id && selection.application_id == application_id
+            })
+            .cloned()
+            .collect::<Vec<_>>();
+        selections.sort_by(|left, right| {
+            left.alias
+                .cmp(&right.alias)
+                .then(left.target.cmp(&right.target))
+        });
+
+        Ok(selections)
+    }
+
+    async fn replace_application_js_dependency_selection(
+        &self,
+        input: &ReplaceApplicationJsDependencySelectionInput,
+    ) -> Result<domain::ApplicationJsDependencySelection> {
+        let selection = domain::ApplicationJsDependencySelection {
+            workspace_id: input.workspace_id,
+            application_id: input.application_id,
+            installation_id: input.installation_id,
+            provider_code: input.provider_code.clone(),
+            plugin_id: input.plugin_id.clone(),
+            plugin_version: input.plugin_version.clone(),
+            alias: input.alias.clone(),
+            package: input.package.clone(),
+            version: input.version.clone(),
+            target: input.target.clone(),
+            artifact_path: input.artifact_path.clone(),
+            artifact_hash: input.artifact_hash.clone(),
+            integrity: input.integrity.clone(),
+            permissions: input.permissions.clone(),
+        };
+        self.inner
+            .lock()
+            .expect("in-memory app repo mutex poisoned")
+            .js_dependency_selections
+            .insert(
+                (
+                    input.application_id,
+                    input.alias.clone(),
+                    input.target.clone(),
+                ),
+                selection.clone(),
+            );
+
+        Ok(selection)
     }
 }
 
@@ -905,6 +1025,19 @@ impl ApplicationService<InMemoryApplicationRepository> {
 
     pub fn seed_foreign_application(&self, name: &str) -> domain::ApplicationRecord {
         self.repository.insert_application(Uuid::now_v7(), name)
+    }
+
+    pub fn seed_js_dependency_catalog_entry(&self, entry: domain::JsDependencyRegistryEntry) {
+        self.repository
+            .inner
+            .lock()
+            .expect("in-memory app repo mutex poisoned")
+            .js_dependencies
+            .push(entry);
+    }
+
+    pub fn repository_for_tests(&self) -> InMemoryApplicationRepository {
+        self.repository.clone()
     }
 
     pub fn audit_events(&self) -> Vec<String> {

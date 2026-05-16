@@ -47,7 +47,9 @@ pub use host_extension::{
     HostExtensionActivationStatus, HostExtensionInventoryRecord, HostExtensionTrustLevel,
     HostInfrastructureConfigStatus, HostInfrastructureProviderConfigRecord,
 };
-pub use js_dependency::{JsDependencyPermissions, JsDependencyRegistryEntry};
+pub use js_dependency::{
+    ApplicationJsDependencySelection, JsDependencyPermissions, JsDependencyRegistryEntry,
+};
 pub use model_provider::{
     ModelCatalogSyncRunRecord, ModelFailoverQueueItemRecord, ModelFailoverQueueSnapshotRecord,
     ModelFailoverQueueTemplateRecord, ModelProviderCatalogCacheRecord,

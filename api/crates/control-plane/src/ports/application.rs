@@ -58,6 +58,52 @@ pub struct ReplaceApplicationEnvironmentVariablesInput {
     pub variables: Vec<ApplicationEnvironmentVariableInput>,
 }
 
+#[derive(Debug, Clone)]
+pub struct ReplaceApplicationJsDependencySelectionInput {
+    pub actor_user_id: Uuid,
+    pub workspace_id: Uuid,
+    pub application_id: Uuid,
+    pub installation_id: Uuid,
+    pub provider_code: String,
+    pub plugin_id: String,
+    pub plugin_version: String,
+    pub alias: String,
+    pub package: String,
+    pub version: String,
+    pub target: String,
+    pub artifact_path: String,
+    pub artifact_hash: String,
+    pub integrity: String,
+    pub permissions: domain::JsDependencyPermissions,
+}
+
+impl ReplaceApplicationJsDependencySelectionInput {
+    pub fn from_catalog_entry(
+        actor_user_id: Uuid,
+        workspace_id: Uuid,
+        application_id: Uuid,
+        entry: domain::JsDependencyRegistryEntry,
+    ) -> Self {
+        Self {
+            actor_user_id,
+            workspace_id,
+            application_id,
+            installation_id: entry.installation_id,
+            provider_code: entry.provider_code,
+            plugin_id: entry.plugin_id,
+            plugin_version: entry.plugin_version,
+            alias: entry.alias,
+            package: entry.package,
+            version: entry.version,
+            target: entry.target,
+            artifact_path: entry.artifact_path,
+            artifact_hash: entry.integrity.clone(),
+            integrity: entry.integrity,
+            permissions: entry.permissions,
+        }
+    }
+}
+
 #[async_trait]
 pub trait ApplicationRepository: Send + Sync {
     async fn load_actor_context_for_user(
@@ -110,4 +156,18 @@ pub trait ApplicationRepository: Send + Sync {
         anyhow::bail!("replace_application_environment_variables not implemented")
     }
     async fn append_audit_log(&self, event: &domain::AuditLogRecord) -> anyhow::Result<()>;
+}
+
+#[async_trait]
+pub trait ApplicationJsDependencySelectionRepository: Send + Sync {
+    async fn list_application_js_dependency_selections(
+        &self,
+        workspace_id: Uuid,
+        application_id: Uuid,
+    ) -> anyhow::Result<Vec<domain::ApplicationJsDependencySelection>>;
+
+    async fn replace_application_js_dependency_selection(
+        &self,
+        input: &ReplaceApplicationJsDependencySelectionInput,
+    ) -> anyhow::Result<domain::ApplicationJsDependencySelection>;
 }

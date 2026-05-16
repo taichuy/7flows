@@ -13,6 +13,9 @@ use control_plane::{
         UpdateApplicationCommand,
     },
     errors::ControlPlaneError,
+    js_dependency::{
+        ApplicationJsDependencyService, ReplaceApplicationJsDependencySelectionCommand,
+    },
     ports::ApplicationEnvironmentVariableInput,
 };
 use serde::{Deserialize, Serialize};
@@ -63,6 +66,13 @@ pub struct ReplaceApplicationEnvironmentVariablesBody {
     pub variables: Vec<ApplicationEnvironmentVariableBody>,
 }
 
+#[derive(Debug, Deserialize, ToSchema)]
+pub struct ReplaceApplicationJsDependencySelectionBody {
+    pub installation_id: String,
+    pub alias: String,
+    pub target: String,
+}
+
 #[derive(Debug, Serialize, ToSchema)]
 pub struct ApplicationTagResponse {
     pub id: String,
@@ -76,6 +86,30 @@ pub struct ApplicationEnvironmentVariableResponse {
     pub value: serde_json::Value,
     pub description: String,
     pub updated_at: String,
+}
+
+#[derive(Debug, Serialize, ToSchema)]
+pub struct ApplicationJsDependencyPermissionsResponse {
+    pub network: String,
+    pub filesystem: String,
+    pub env: String,
+}
+
+#[derive(Debug, Serialize, ToSchema)]
+pub struct ApplicationJsDependencySelectionResponse {
+    pub application_id: String,
+    pub installation_id: String,
+    pub provider_code: String,
+    pub plugin_id: String,
+    pub plugin_version: String,
+    pub alias: String,
+    pub package: String,
+    pub version: String,
+    pub target: String,
+    pub artifact_path: String,
+    pub artifact_hash: String,
+    pub integrity: String,
+    pub permissions: ApplicationJsDependencyPermissionsResponse,
 }
 
 #[derive(Debug, Serialize, ToSchema)]
@@ -188,6 +222,11 @@ pub fn router() -> Router<Arc<ApiState>> {
             get(list_application_environment_variables)
                 .put(replace_application_environment_variables),
         )
+        .route(
+            "/applications/:id/js-dependencies",
+            get(list_application_js_dependency_selections)
+                .put(replace_application_js_dependency_selection),
+        )
 }
 
 fn to_application_tag(tag: domain::ApplicationTag) -> ApplicationTagResponse {
@@ -216,6 +255,30 @@ fn to_application_environment_variable(
         value: variable.value,
         description: variable.description,
         updated_at: variable.updated_at.format(&Rfc3339).unwrap(),
+    }
+}
+
+fn to_application_js_dependency_selection(
+    selection: domain::ApplicationJsDependencySelection,
+) -> ApplicationJsDependencySelectionResponse {
+    ApplicationJsDependencySelectionResponse {
+        application_id: selection.application_id.to_string(),
+        installation_id: selection.installation_id.to_string(),
+        provider_code: selection.provider_code,
+        plugin_id: selection.plugin_id,
+        plugin_version: selection.plugin_version,
+        alias: selection.alias,
+        package: selection.package,
+        version: selection.version,
+        target: selection.target,
+        artifact_path: selection.artifact_path,
+        artifact_hash: selection.artifact_hash,
+        integrity: selection.integrity,
+        permissions: ApplicationJsDependencyPermissionsResponse {
+            network: selection.permissions.network,
+            filesystem: selection.permissions.filesystem,
+            env: selection.permissions.env,
+        },
     }
 }
 
@@ -543,6 +606,82 @@ pub async fn replace_application_environment_variables(
             .into_iter()
             .map(to_application_environment_variable)
             .collect(),
+    )))
+}
+
+#[utoipa::path(
+    get,
+    path = "/api/console/applications/{id}/js-dependencies",
+    params(
+        ("id" = String, Path, description = "Application id")
+    ),
+    responses(
+        (status = 200, body = [ApplicationJsDependencySelectionResponse]),
+        (status = 401, body = crate::error_response::ErrorBody),
+        (status = 403, body = crate::error_response::ErrorBody),
+        (status = 404, body = crate::error_response::ErrorBody)
+    )
+)]
+pub async fn list_application_js_dependency_selections(
+    State(state): State<Arc<ApiState>>,
+    headers: HeaderMap,
+    Path(id): Path<Uuid>,
+) -> Result<Json<ApiSuccess<Vec<ApplicationJsDependencySelectionResponse>>>, ApiError> {
+    let context = require_session(&state, &headers).await?;
+    let selections = ApplicationJsDependencyService::new(state.store.clone())
+        .list_application_js_dependency_selections(context.user.id, id)
+        .await?;
+
+    Ok(Json(ApiSuccess::new(
+        selections
+            .into_iter()
+            .map(to_application_js_dependency_selection)
+            .collect(),
+    )))
+}
+
+#[utoipa::path(
+    put,
+    path = "/api/console/applications/{id}/js-dependencies",
+    params(
+        ("id" = String, Path, description = "Application id")
+    ),
+    request_body = ReplaceApplicationJsDependencySelectionBody,
+    responses(
+        (status = 200, body = ApplicationJsDependencySelectionResponse),
+        (status = 400, body = crate::error_response::ErrorBody),
+        (status = 401, body = crate::error_response::ErrorBody),
+        (status = 403, body = crate::error_response::ErrorBody),
+        (status = 404, body = crate::error_response::ErrorBody)
+    )
+)]
+pub async fn replace_application_js_dependency_selection(
+    State(state): State<Arc<ApiState>>,
+    headers: HeaderMap,
+    Path(id): Path<Uuid>,
+    Json(body): Json<ReplaceApplicationJsDependencySelectionBody>,
+) -> Result<Json<ApiSuccess<ApplicationJsDependencySelectionResponse>>, ApiError> {
+    let context = require_session(&state, &headers).await?;
+    require_csrf(&headers, &context.session)?;
+    let installation_id = body
+        .installation_id
+        .parse::<Uuid>()
+        .map_err(|_| ControlPlaneError::InvalidInput("installation_id"))?;
+
+    let selection = ApplicationJsDependencyService::new(state.store.clone())
+        .replace_application_js_dependency_selection(
+            ReplaceApplicationJsDependencySelectionCommand {
+                actor_user_id: context.user.id,
+                application_id: id,
+                installation_id,
+                alias: body.alias,
+                target: body.target,
+            },
+        )
+        .await?;
+
+    Ok(Json(ApiSuccess::new(
+        to_application_js_dependency_selection(selection),
     )))
 }
 
