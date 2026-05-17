@@ -1,0 +1,265 @@
+import {
+  FRONTSTAGE_BLOCK_RUNTIME_KINDS,
+  isFrontstageBlockRestrictedRuntime,
+  type FrontstageBlockRuntimeKind
+} from '../block-catalog';
+import type {
+  FrontstageBlockCatalogRef,
+  FrontstageBlockContributionRef,
+  FrontstageBlockInstance,
+  FrontstageBlockLayout,
+  FrontstageBlockRuntimeHint,
+  FrontstagePageDocument,
+  FrontstagePageDocumentDiagnostic
+} from '../page-document';
+
+export type FrontstagePageRenderMode =
+  | 'restricted_js_block'
+  | 'placeholder';
+
+export type FrontstagePageRenderPlanFallbackReasonCode =
+  | 'missing_code_ref'
+  | 'missing_runtime_entry'
+  | 'unknown_runtime'
+  | 'unsupported_runtime';
+
+export interface FrontstagePageRenderPlanFallbackReason {
+  code: FrontstagePageRenderPlanFallbackReasonCode;
+  path: string;
+  message: string;
+}
+
+export interface FrontstageBlockRenderPlanItem {
+  blockId: string;
+  sourceBlockId: string | null;
+  codeRef: string;
+  sourceCodeRef: string | null;
+  sourceIndex: number;
+  order: number;
+  renderMode: FrontstagePageRenderMode;
+  canEnterRestrictedJsRuntime: boolean;
+  fallbackReasons: FrontstagePageRenderPlanFallbackReason[];
+  catalog: FrontstageBlockCatalogRef;
+  contribution: FrontstageBlockContributionRef;
+  runtime: FrontstageBlockRuntimeHint;
+  layout: FrontstageBlockLayout;
+  props: Record<string, unknown>;
+}
+
+export interface FrontstagePageRenderPlan {
+  pageId: string;
+  rootUid: string;
+  isEmpty: boolean;
+  diagnostics: FrontstagePageDocumentDiagnostic[];
+  items: FrontstageBlockRenderPlanItem[];
+}
+
+const knownRuntimeKinds = new Set<string>(FRONTSTAGE_BLOCK_RUNTIME_KINDS);
+
+function asRequiredString(value: unknown): string | null {
+  return typeof value === 'string' && value.trim().length > 0
+    ? value
+    : null;
+}
+
+function cloneValue<T>(value: T): T {
+  if (Array.isArray(value)) {
+    return value.map((item) => cloneValue(item)) as T;
+  }
+
+  if (isRecord(value)) {
+    return Object.fromEntries(
+      Object.entries(value).map(([key, entry]) => [key, cloneValue(entry)])
+    ) as T;
+  }
+
+  return value;
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+function cloneCatalog(
+  catalog: FrontstageBlockCatalogRef
+): FrontstageBlockCatalogRef {
+  return { ...catalog };
+}
+
+function cloneContribution(
+  contribution: FrontstageBlockContributionRef
+): FrontstageBlockContributionRef {
+  return { ...contribution };
+}
+
+function cloneRuntime(
+  runtime: FrontstageBlockRuntimeHint
+): FrontstageBlockRuntimeHint {
+  return { ...runtime };
+}
+
+function cloneLayout(layout: FrontstageBlockLayout): FrontstageBlockLayout {
+  return cloneValue(layout);
+}
+
+function cloneProps(
+  props: Record<string, unknown>
+): Record<string, unknown> {
+  return cloneValue(props);
+}
+
+function cloneDiagnostic(
+  diagnostic: FrontstagePageDocumentDiagnostic
+): FrontstagePageDocumentDiagnostic {
+  return { ...diagnostic };
+}
+
+function createMissingCodeRefReason(
+  sourceIndex: number
+): FrontstagePageRenderPlanFallbackReason {
+  return {
+    code: 'missing_code_ref',
+    path: `blocks.${sourceIndex}.codeRef`,
+    message:
+      'Frontstage block cannot enter the restricted JS runtime without an original codeRef.'
+  };
+}
+
+function createMissingRuntimeEntryReason(
+  sourceIndex: number
+): FrontstagePageRenderPlanFallbackReason {
+  return {
+    code: 'missing_runtime_entry',
+    path: `blocks.${sourceIndex}.runtime.entry`,
+    message:
+      'Frontstage block cannot enter the restricted JS runtime without a runtime entry.'
+  };
+}
+
+function createUnknownRuntimeReason(
+  sourceIndex: number
+): FrontstagePageRenderPlanFallbackReason {
+  return {
+    code: 'unknown_runtime',
+    path: `blocks.${sourceIndex}.runtime.kind`,
+    message:
+      'Frontstage block runtime is unknown and will render as a placeholder.'
+  };
+}
+
+function createUnsupportedRuntimeReason(
+  sourceIndex: number,
+  runtimeKind: string
+): FrontstagePageRenderPlanFallbackReason {
+  return {
+    code: 'unsupported_runtime',
+    path: `blocks.${sourceIndex}.runtime.kind`,
+    message: `Frontstage block runtime "${runtimeKind}" is not supported by the restricted JS runtime.`
+  };
+}
+
+function resolveRuntimeReason(
+  block: FrontstageBlockInstance,
+  sourceIndex: number
+): FrontstagePageRenderPlanFallbackReason | null {
+  const runtimeKind = asRequiredString(block.runtime.kind);
+
+  if (!runtimeKind || runtimeKind === 'unknown') {
+    return createUnknownRuntimeReason(sourceIndex);
+  }
+
+  if (
+    !knownRuntimeKinds.has(runtimeKind) ||
+    !isFrontstageBlockRestrictedRuntime(runtimeKind as FrontstageBlockRuntimeKind)
+  ) {
+    return createUnsupportedRuntimeReason(sourceIndex, runtimeKind);
+  }
+
+  return null;
+}
+
+function createFallbackReasons(
+  block: FrontstageBlockInstance,
+  sourceIndex: number
+): FrontstagePageRenderPlanFallbackReason[] {
+  const reasons: FrontstagePageRenderPlanFallbackReason[] = [];
+
+  if (
+    !asRequiredString(block.codeRef) ||
+    !asRequiredString(block.sourceCodeRef)
+  ) {
+    reasons.push(createMissingCodeRefReason(sourceIndex));
+  }
+
+  const runtimeReason = resolveRuntimeReason(block, sourceIndex);
+  if (runtimeReason) {
+    reasons.push(runtimeReason);
+  }
+
+  if (!asRequiredString(block.runtime.entry)) {
+    reasons.push(createMissingRuntimeEntryReason(sourceIndex));
+  }
+
+  return reasons;
+}
+
+function compareRenderPlanItems(
+  left: FrontstageBlockRenderPlanItem,
+  right: FrontstageBlockRenderPlanItem
+): number {
+  const leftOrder = Number.isFinite(left.order) ? left.order : left.sourceIndex;
+  const rightOrder = Number.isFinite(right.order)
+    ? right.order
+    : right.sourceIndex;
+
+  if (leftOrder === rightOrder) {
+    return left.sourceIndex - right.sourceIndex;
+  }
+
+  return leftOrder - rightOrder;
+}
+
+export function createFrontstageBlockRenderPlanItem(
+  block: FrontstageBlockInstance,
+  sourceIndex = 0
+): FrontstageBlockRenderPlanItem {
+  const fallbackReasons = createFallbackReasons(block, sourceIndex);
+  const canEnterRestrictedJsRuntime = fallbackReasons.length === 0;
+
+  return {
+    blockId: block.id,
+    sourceBlockId: block.sourceId,
+    codeRef: block.codeRef,
+    sourceCodeRef: block.sourceCodeRef,
+    sourceIndex,
+    order: block.order,
+    renderMode: canEnterRestrictedJsRuntime
+      ? 'restricted_js_block'
+      : 'placeholder',
+    canEnterRestrictedJsRuntime,
+    fallbackReasons,
+    catalog: cloneCatalog(block.catalog),
+    contribution: cloneContribution(block.contribution),
+    runtime: cloneRuntime(block.runtime),
+    layout: cloneLayout(block.layout),
+    props: cloneProps(block.props)
+  };
+}
+
+export function createFrontstagePageRenderPlan(
+  document: FrontstagePageDocument
+): FrontstagePageRenderPlan {
+  const items = document.blocks
+    .map((block, sourceIndex) =>
+      createFrontstageBlockRenderPlanItem(block, sourceIndex)
+    )
+    .sort(compareRenderPlanItems);
+
+  return {
+    pageId: document.page.id,
+    rootUid: document.rootUid,
+    isEmpty: items.length === 0,
+    diagnostics: document.diagnostics.map(cloneDiagnostic),
+    items
+  };
+}
