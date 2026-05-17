@@ -295,6 +295,37 @@ function createCatalogEntry(
   };
 }
 
+function createCatalogMatchedBlockPayload(
+  overrides: Record<string, unknown> = {}
+): Record<string, unknown> {
+  return {
+    id: 'frontstage-js-block-1',
+    codeRef: 'frontstage-js-block-1-code',
+    catalog: {
+      providerCode: '1flowbase',
+      installationId: 'builtin-installation'
+    },
+    contribution: {
+      pluginId: 'builtin-frontstage',
+      pluginVersion: '1.0.0',
+      code: 'frontstage.js-ui-block'
+    },
+    props: {
+      title: 'Landing hero'
+    },
+    'x-layout': {
+      order: 0,
+      region: 'main'
+    },
+    runtime: {
+      kind: 'iframe',
+      entry: 'index.js',
+      hint: 'iframe'
+    },
+    ...overrides
+  };
+}
+
 function mockFrontstageBlockCatalog(
   items: NormalizedFrontstageBlockCatalogEntry[] = []
 ) {
@@ -1374,6 +1405,71 @@ describe('FrontStagePage', () => {
     expect(screen.getByText('未选择页面内容')).toBeInTheDocument();
     expect(screen.getByText('选择页面后将显示只读内容画布。')).toBeInTheDocument();
     expect(screen.getByText('页面 page-1')).toBeInTheDocument();
+  });
+
+  test('connects ready runtime run plan state into the PageCanvas slot', async () => {
+    authenticate(['route_page.view.all']);
+    mockFrontstageBlockCatalog([createCatalogEntry()]);
+
+    render(
+      <AppProviders>
+        <FrontStagePageHarness
+          pageId="page-1"
+          initialPageTree={[createBackendPage('page-1')]}
+          pageContent={createPageContent({
+            root: {
+              uid: 'root-1',
+              payload: {
+                blocks: [createCatalogMatchedBlockPayload()]
+              }
+            }
+          })}
+        />
+      </AppProviders>
+    );
+
+    expect(await screen.findByText('运行计划已就绪')).toBeInTheDocument();
+    const slots = within(screen.getByTestId('page-canvas-render-slots'))
+      .getAllByRole('button');
+
+    expect(slots[0]).toHaveTextContent('frontstage-js-block-1');
+    expect(slots[0]).toHaveTextContent('代码已就绪');
+    expect(slots[0]).toHaveTextContent('运行计划已就绪');
+    expect(blockCodeApi.fetchFrontstageBlockCode).toHaveBeenCalledWith(
+      'workspace-1',
+      'page-1',
+      'frontstage-js-block-1-code'
+    );
+  });
+
+  test('surfaces catalog-missing runtime run plan state from the PageCanvas container', async () => {
+    authenticate(['route_page.view.all']);
+    mockFrontstageBlockCatalog([]);
+
+    render(
+      <AppProviders>
+        <FrontStagePageHarness
+          pageId="page-1"
+          initialPageTree={[createBackendPage('page-1')]}
+          pageContent={createPageContent({
+            root: {
+              uid: 'root-1',
+              payload: {
+                blocks: [createCatalogMatchedBlockPayload()]
+              }
+            }
+          })}
+        />
+      </AppProviders>
+    );
+
+    expect(await screen.findByText('Catalog 未匹配')).toBeInTheDocument();
+    const slots = within(screen.getByTestId('page-canvas-render-slots'))
+      .getAllByRole('button');
+
+    expect(slots[0]).toHaveTextContent('frontstage-js-block-1');
+    expect(slots[0]).toHaveTextContent('代码已就绪');
+    expect(slots[0]).toHaveTextContent('Catalog 未匹配');
   });
 
   test('shows empty page tree state when pageId is absent', () => {

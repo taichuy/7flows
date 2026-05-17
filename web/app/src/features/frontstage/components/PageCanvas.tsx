@@ -16,6 +16,10 @@ import type {
   FrontstagePageCanvasRuntimeSource,
   FrontstagePageCanvasRuntimeSourceState
 } from '../lib/page-canvas/runtime-source';
+import type {
+  FrontstagePageCanvasRuntimeRunPlanItem,
+  FrontstagePageCanvasRuntimeRunPlanState
+} from '../lib/page-canvas/runtime-run-plan';
 
 type PageCanvasProps = {
   content?: FrontstagePageContent;
@@ -25,6 +29,7 @@ type PageCanvasProps = {
   onSelectBlock?: (blockId: string | null) => void;
   onRetry?: () => void;
   runtimeSourceState?: FrontstagePageCanvasRuntimeSourceState | null;
+  runtimeRunPlanState?: FrontstagePageCanvasRuntimeRunPlanState | null;
 };
 
 function formatPageTitle(content: FrontstagePageContent): string {
@@ -155,6 +160,36 @@ function getRuntimeSourceStatusColor(
   }
 }
 
+function getRuntimeRunPlanStatusText(
+  runPlan: FrontstagePageCanvasRuntimeRunPlanItem
+): string {
+  switch (runPlan.status) {
+    case 'run_plan_ready':
+      return '运行计划已就绪';
+    case 'source_not_ready':
+      return '等待代码状态';
+    case 'catalog_missing':
+      return 'Catalog 未匹配';
+    case 'rejected':
+      return '运行计划失败';
+  }
+}
+
+function getRuntimeRunPlanStatusColor(
+  runPlan: FrontstagePageCanvasRuntimeRunPlanItem
+): string {
+  switch (runPlan.status) {
+    case 'run_plan_ready':
+      return 'success';
+    case 'source_not_ready':
+      return 'processing';
+    case 'catalog_missing':
+      return 'warning';
+    case 'rejected':
+      return 'error';
+  }
+}
+
 function getRenderSlotStateText(
   item: FrontstageBlockRenderPlanItem,
   source?: FrontstagePageCanvasRuntimeSource | null
@@ -209,14 +244,41 @@ function findRuntimeSourceForSlot({
   );
 }
 
+function findRuntimeRunPlanForSlot({
+  item,
+  slotIndex,
+  pageId,
+  runtimeRunPlanState
+}: {
+  item: FrontstageBlockRenderPlanItem;
+  slotIndex: number;
+  pageId: string;
+  runtimeRunPlanState?: FrontstagePageCanvasRuntimeRunPlanState | null;
+}): FrontstagePageCanvasRuntimeRunPlanItem | null {
+  if (!runtimeRunPlanState || runtimeRunPlanState.pageId !== pageId) {
+    return null;
+  }
+
+  return (
+    runtimeRunPlanState.items.find(
+      (runPlan) =>
+        runPlan.slotIndex === slotIndex &&
+        runPlan.blockId === item.blockId &&
+        runPlan.codeRef === item.codeRef
+    ) ?? null
+  );
+}
+
 function RenderPlanSlot({
   item,
   source,
+  runPlan,
   isSelected,
   onSelectBlock
 }: {
   item: FrontstageBlockRenderPlanItem;
   source?: FrontstagePageCanvasRuntimeSource | null;
+  runPlan?: FrontstagePageCanvasRuntimeRunPlanItem | null;
   isSelected: boolean;
   onSelectBlock?: (blockId: string | null) => void;
 }) {
@@ -264,6 +326,11 @@ function RenderPlanSlot({
             <Tag color={getRenderSlotStateColor(item, source)}>
               {getRenderSlotStateText(item, source)}
             </Tag>
+            {runPlan ? (
+              <Tag color={getRuntimeRunPlanStatusColor(runPlan)}>
+                {getRuntimeRunPlanStatusText(runPlan)}
+              </Tag>
+            ) : null}
             <Tag>#{item.order}</Tag>
           </Space>
         </Flex>
@@ -361,7 +428,8 @@ export const PageCanvas: FC<PageCanvasProps> = ({
   selectedBlockId = null,
   onSelectBlock,
   onRetry,
-  runtimeSourceState
+  runtimeSourceState,
+  runtimeRunPlanState
 }) => {
   const document = useMemo(
     () => (content ? createFrontstagePageDocument(content) : null),
@@ -500,6 +568,12 @@ export const PageCanvas: FC<PageCanvasProps> = ({
                     slotIndex,
                     pageId: renderPlan.pageId,
                     runtimeSourceState
+                  })}
+                  runPlan={findRuntimeRunPlanForSlot({
+                    item,
+                    slotIndex,
+                    pageId: renderPlan.pageId,
+                    runtimeRunPlanState
                   })}
                   isSelected={item.blockId === selectedBlockId}
                   onSelectBlock={onSelectBlock}

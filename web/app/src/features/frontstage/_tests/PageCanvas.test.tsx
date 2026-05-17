@@ -4,6 +4,7 @@ import { describe, expect, test, vi } from 'vitest';
 import type { FrontstagePageContent } from '../api/page-content';
 import { PageCanvas } from '../components/PageCanvas';
 import type { FrontstagePageCanvasRuntimeSourceState } from '../lib/page-canvas/runtime-source';
+import type { FrontstagePageCanvasRuntimeRunPlanState } from '../lib/page-canvas/runtime-run-plan';
 
 function createPageContent(
   overrides: Partial<FrontstagePageContent> = {}
@@ -266,6 +267,152 @@ describe('PageCanvas', () => {
     expect(slots[4]).toHaveTextContent('legacy');
     expect(slots[4]).toHaveTextContent('跳过运行');
     expect(slots[4]).toHaveTextContent('unsupported_runtime');
+  });
+
+  test('renders runtime run plan status per matched render slot while keeping code status', () => {
+    const runtimeSourceState = {
+      workspaceId: 'workspace-1',
+      pageId: 'page-1',
+      sources: [
+        {
+          status: 'ready',
+          blockId: 'ready',
+          sourceIndex: 0,
+          slotIndex: 0,
+          codeRef: 'ready-code'
+        },
+        {
+          status: 'loading',
+          blockId: 'loading',
+          sourceIndex: 1,
+          slotIndex: 1,
+          codeRef: 'loading-code'
+        },
+        {
+          status: 'ready',
+          blockId: 'catalog-missing',
+          sourceIndex: 2,
+          slotIndex: 2,
+          codeRef: 'catalog-missing-code'
+        },
+        {
+          status: 'ready',
+          blockId: 'rejected',
+          sourceIndex: 3,
+          slotIndex: 3,
+          codeRef: 'rejected-code'
+        }
+      ]
+    } as FrontstagePageCanvasRuntimeSourceState;
+    const runtimeRunPlanState = {
+      workspaceId: 'workspace-1',
+      pageId: 'page-1',
+      items: [
+        {
+          status: 'run_plan_ready',
+          blockId: 'ready',
+          slotIndex: 0,
+          codeRef: 'ready-code'
+        },
+        {
+          status: 'source_not_ready',
+          blockId: 'loading',
+          slotIndex: 1,
+          codeRef: 'loading-code',
+          reason: {
+            code: 'source_not_ready',
+            path: 'sources.1.status',
+            message: 'waiting for block code'
+          }
+        },
+        {
+          status: 'catalog_missing',
+          blockId: 'catalog-missing',
+          slotIndex: 2,
+          codeRef: 'catalog-missing-code',
+          reason: {
+            code: 'catalog_missing',
+            path: 'catalogEntries',
+            message: 'missing catalog'
+          }
+        },
+        {
+          status: 'rejected',
+          blockId: 'rejected',
+          slotIndex: 3,
+          codeRef: 'rejected-code',
+          rejection: {
+            ok: false,
+            code: 'missing_limits',
+            path: 'limits',
+            message: 'missing limits'
+          }
+        }
+      ]
+    } as FrontstagePageCanvasRuntimeRunPlanState;
+
+    render(
+      <PageCanvas
+        runtimeSourceState={runtimeSourceState}
+        runtimeRunPlanState={runtimeRunPlanState}
+        content={createPageContent({
+          root: {
+            uid: 'root-1',
+            payload: {
+              blocks: [
+                {
+                  id: 'ready',
+                  codeRef: 'ready-code',
+                  contributionCode: 'official.ready',
+                  runtime: { kind: 'iframe', entry: 'blocks/ready.js' },
+                  layout: { order: 0, region: 'main' }
+                },
+                {
+                  id: 'loading',
+                  codeRef: 'loading-code',
+                  contributionCode: 'official.loading',
+                  runtime: { kind: 'iframe', entry: 'blocks/loading.js' },
+                  layout: { order: 1, region: 'main' }
+                },
+                {
+                  id: 'catalog-missing',
+                  codeRef: 'catalog-missing-code',
+                  contributionCode: 'official.catalog-missing',
+                  runtime: {
+                    kind: 'iframe',
+                    entry: 'blocks/catalog-missing.js'
+                  },
+                  layout: { order: 2, region: 'main' }
+                },
+                {
+                  id: 'rejected',
+                  codeRef: 'rejected-code',
+                  contributionCode: 'official.rejected',
+                  runtime: { kind: 'iframe', entry: 'blocks/rejected.js' },
+                  layout: { order: 3, region: 'main' }
+                }
+              ]
+            }
+          }
+        })}
+      />
+    );
+
+    const slots = within(screen.getByTestId('page-canvas-render-slots'))
+      .getAllByRole('button');
+
+    expect(slots[0]).toHaveTextContent('ready');
+    expect(slots[0]).toHaveTextContent('代码已就绪');
+    expect(slots[0]).toHaveTextContent('运行计划已就绪');
+    expect(slots[1]).toHaveTextContent('loading');
+    expect(slots[1]).toHaveTextContent('代码读取中');
+    expect(slots[1]).toHaveTextContent('等待代码状态');
+    expect(slots[2]).toHaveTextContent('catalog-missing');
+    expect(slots[2]).toHaveTextContent('代码已就绪');
+    expect(slots[2]).toHaveTextContent('Catalog 未匹配');
+    expect(slots[3]).toHaveTextContent('rejected');
+    expect(slots[3]).toHaveTextContent('代码已就绪');
+    expect(slots[3]).toHaveTextContent('运行计划失败');
   });
 
   test('notifies selection changes without persisting content', () => {

@@ -46,6 +46,7 @@ import {
   type FrontstageBlockInstance
 } from '../lib/page-document';
 import { createFrontstagePageRenderPlan } from '../lib/page-canvas/render-plan';
+import { createFrontstagePageCanvasRuntimeRunPlanState } from '../lib/page-canvas/runtime-run-plan';
 import {
   canMoveNode,
   findNodeById,
@@ -359,6 +360,33 @@ export const FrontStagePage: FC<FrontStagePageProps> = ({
     workspaceId,
     renderPlan: activePageRenderPlan
   });
+  const pageCanvasRuntimeRunPlanState = useMemo(() => {
+    const sourceState = pageCanvasRuntimeSources.sourceState;
+    if (!sourceState) {
+      return null;
+    }
+
+    return createFrontstagePageCanvasRuntimeRunPlanState({
+      sourceState,
+      catalogEntries: blockCatalog.items,
+      contextSnapshot: (source) => ({
+        workspaceId,
+        pageId: activePageContent?.page.id ?? sourceState.pageId,
+        pageTitle: activePageContent?.page.title ?? null,
+        blockId: source.blockId,
+        codeRef: source.codeRef,
+        props: source.block.props
+      }),
+      limits: jsBlockTrialLimits
+    });
+  }, [
+    activePageContent?.page.id,
+    activePageContent?.page.title,
+    blockCatalog.items,
+    jsBlockTrialLimits,
+    pageCanvasRuntimeSources.sourceState,
+    workspaceId
+  ]);
   const blockCompositionState = useMemo(
     () =>
       displayedPageDocument
@@ -1286,6 +1314,7 @@ export const FrontStagePage: FC<FrontStagePageProps> = ({
             }
             onRetry={onRetryLoadPageContent}
             runtimeSourceState={pageCanvasRuntimeSources.sourceState}
+            runtimeRunPlanState={pageCanvasRuntimeRunPlanState}
           />
           {canShowSelectedBlockActions ? (
             <div
