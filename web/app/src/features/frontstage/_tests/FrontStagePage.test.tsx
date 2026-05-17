@@ -549,7 +549,7 @@ describe('FrontStagePage', () => {
         code: 'frontstage.js-ui-block'
       },
       props: {},
-      layout: {
+      'x-layout': {
         order: 0,
         region: 'main'
       },
@@ -559,6 +559,7 @@ describe('FrontStagePage', () => {
         hint: 'iframe'
       }
     });
+    expect(block).not.toHaveProperty('layout');
     expect(blockCodeApi.saveFrontstageBlockCode).toHaveBeenCalledWith(
       'workspace-1',
       'page-1',
