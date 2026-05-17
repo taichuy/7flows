@@ -17,6 +17,7 @@ import type {
 } from '../api/page-content';
 import type { NormalizedFrontstageBlockCatalogEntry } from '../lib/block-catalog';
 import { createFrontstageBuiltInJsBlockTemplateCode } from '../lib/block-templates';
+import type { UseFrontstagePageCanvasRuntimeSessionsResult } from '../hooks/use-frontstage-page-canvas-runtime-sessions';
 import {
   insertPageIntoGroup,
   moveNodeInTree,
@@ -28,6 +29,9 @@ import { FrontStagePage } from '../pages/FrontStagePage';
 const pageContentSaveHook = vi.hoisted(() => ({ useFrontstagePageContentSave: vi.fn() }));
 const blockCatalogHook = vi.hoisted(() => ({ useFrontstageBlockCatalog: vi.fn() }));
 const blockCodeHook = vi.hoisted(() => ({ useFrontstageBlockCode: vi.fn() }));
+const runtimeSessionsHook = vi.hoisted(() => ({
+  useFrontstagePageCanvasRuntimeSessions: vi.fn()
+}));
 const blockCodeApi = vi.hoisted(() => ({
   fetchFrontstageBlockCode: vi.fn((_workspaceId: string, pageId: string, codeRef: string) => Promise.resolve({ pageId, codeRef, code: 'export default {}' })),
   frontstageBlockCodeQueryKey: vi.fn((workspaceId: string, pageId: string, codeRef: string) => ['frontstage', workspaceId, 'pages', pageId, 'block-code', codeRef] as const),
@@ -37,6 +41,10 @@ const blockCodeApi = vi.hoisted(() => ({
 vi.mock('../hooks/use-frontstage-page-content-save', () => pageContentSaveHook);
 vi.mock('../hooks/use-frontstage-block-catalog', () => blockCatalogHook);
 vi.mock('../hooks/use-frontstage-block-code', () => blockCodeHook);
+vi.mock(
+  '../hooks/use-frontstage-page-canvas-runtime-sessions',
+  () => runtimeSessionsHook
+);
 vi.mock('../api/block-code', () => blockCodeApi);
 
 type TestFrontStageTreeNode = {
@@ -351,6 +359,18 @@ function mockFrontstageBlockCode() {
   });
 }
 
+function mockRuntimeSessions(
+  overrides: Partial<UseFrontstagePageCanvasRuntimeSessionsResult> = {}
+) {
+  runtimeSessionsHook.useFrontstagePageCanvasRuntimeSessions.mockReturnValue({
+    entries: [],
+    snapshotsBySlot: {},
+    running: false,
+    hasError: false,
+    ...overrides
+  });
+}
+
 function getSavedBlocks(input: SaveFrontstagePageContentInput) {
   const payload = input.root.payload;
   if (typeof payload !== 'object' || payload === null) {
@@ -377,6 +397,7 @@ describe('FrontStagePage', () => {
     mockPageContentSaveState();
     mockFrontstageBlockCatalog();
     mockFrontstageBlockCode();
+    mockRuntimeSessions();
     blockCodeApi.saveFrontstageBlockCode.mockResolvedValue({
       pageId: 'page-1',
       codeRef: 'frontstage-js-block-1-code',

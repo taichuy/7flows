@@ -22,6 +22,7 @@ import { JsBlockTrialPanel } from '../components/JsBlockTrialPanel';
 import { PageCanvas } from '../components/PageCanvas';
 import { useFrontstageBlockCatalog } from '../hooks/use-frontstage-block-catalog';
 import { useFrontstageBlockCode } from '../hooks/use-frontstage-block-code';
+import { useFrontstagePageCanvasRuntimeSessions } from '../hooks/use-frontstage-page-canvas-runtime-sessions';
 import { useFrontstagePageCanvasRuntimeSources } from '../hooks/use-frontstage-page-canvas-runtime-sources';
 import { useFrontstagePageContentSave } from '../hooks/use-frontstage-page-content-save';
 import type { NormalizedFrontstageBlockCatalogEntry } from '../lib/block-catalog';
@@ -387,6 +388,10 @@ export const FrontStagePage: FC<FrontStagePageProps> = ({
     pageCanvasRuntimeSources.sourceState,
     workspaceId
   ]);
+  const pageCanvasRuntimeSessions = useFrontstagePageCanvasRuntimeSessions({
+    runtimeRunPlanState: pageCanvasRuntimeRunPlanState,
+    dataEffectHandler: jsBlockDataEffectHandler
+  });
   const blockCompositionState = useMemo(
     () =>
       displayedPageDocument
@@ -1315,6 +1320,7 @@ export const FrontStagePage: FC<FrontStagePageProps> = ({
             onRetry={onRetryLoadPageContent}
             runtimeSourceState={pageCanvasRuntimeSources.sourceState}
             runtimeRunPlanState={pageCanvasRuntimeRunPlanState}
+            runtimeSessionEntries={pageCanvasRuntimeSessions.entries}
           />
           {canShowSelectedBlockActions ? (
             <div

@@ -3,6 +3,8 @@ import type { CSSProperties, FC, KeyboardEvent } from 'react';
 import { useMemo } from 'react';
 
 import type { FrontstagePageContent } from '../api/page-content';
+import { RestrictedBlockRuntimePreview } from './RestrictedBlockRuntimePreview';
+import type { FrontstagePageCanvasRuntimeSessionEntry } from '../hooks/use-frontstage-page-canvas-runtime-sessions';
 import {
   createFrontstagePageDocument,
   type FrontstageBlockInstance,
@@ -30,6 +32,9 @@ type PageCanvasProps = {
   onRetry?: () => void;
   runtimeSourceState?: FrontstagePageCanvasRuntimeSourceState | null;
   runtimeRunPlanState?: FrontstagePageCanvasRuntimeRunPlanState | null;
+  runtimeSessionEntries?:
+    | readonly FrontstagePageCanvasRuntimeSessionEntry[]
+    | null;
 };
 
 function formatPageTitle(content: FrontstagePageContent): string {
@@ -115,15 +120,26 @@ const mutedSectionStyle: CSSProperties = {
   background: '#fafafa'
 };
 
-const renderSlotButtonBaseStyle: CSSProperties = {
+const renderSlotFrameBaseStyle: CSSProperties = {
   width: '100%',
   border: '1px solid #f0f0f0',
   borderRadius: 6,
-  background: '#fff',
+  background: '#fff'
+};
+
+const renderSlotButtonBaseStyle: CSSProperties = {
+  width: '100%',
+  border: 0,
+  background: 'transparent',
   padding: '10px 12px',
   font: 'inherit',
   textAlign: 'left',
   cursor: 'pointer'
+};
+
+const runtimePreviewAreaStyle: CSSProperties = {
+  borderTop: '1px solid #f0f0f0',
+  padding: '12px'
 };
 
 function getRuntimeSourceStatusText(
@@ -269,23 +285,126 @@ function findRuntimeRunPlanForSlot({
   );
 }
 
+function findRuntimeSessionEntryForSlot({
+  item,
+  slotIndex,
+  runtimeSessionEntries
+}: {
+  item: FrontstageBlockRenderPlanItem;
+  slotIndex: number;
+  runtimeSessionEntries?:
+    | readonly FrontstagePageCanvasRuntimeSessionEntry[]
+    | null;
+}): FrontstagePageCanvasRuntimeSessionEntry | null {
+  if (!runtimeSessionEntries || runtimeSessionEntries.length === 0) {
+    return null;
+  }
+
+  return (
+    runtimeSessionEntries.find(
+      (entry) =>
+        entry.slotIndex === slotIndex &&
+        entry.sourceIndex === item.sourceIndex &&
+        entry.blockId === item.blockId &&
+        entry.codeRef === item.codeRef
+    ) ??
+    runtimeSessionEntries.find(
+      (entry) =>
+        entry.slotIndex === slotIndex &&
+        entry.blockId === item.blockId &&
+        entry.codeRef === item.codeRef
+    ) ??
+    runtimeSessionEntries.find((entry) => entry.slotIndex === slotIndex) ??
+    null
+  );
+}
+
+function RuntimeSessionPreview({
+  entry,
+  runPlan
+}: {
+  entry?: FrontstagePageCanvasRuntimeSessionEntry | null;
+  runPlan?: FrontstagePageCanvasRuntimeRunPlanItem | null;
+}) {
+  if (entry && 'snapshot' in entry) {
+    return (
+      <div style={runtimePreviewAreaStyle}>
+        <RestrictedBlockRuntimePreview snapshot={entry.snapshot} />
+      </div>
+    );
+  }
+
+  if (entry?.status === 'factory_failed') {
+    return (
+      <div style={runtimePreviewAreaStyle}>
+        <Alert
+          type="error"
+          showIcon
+          message="运行时预览不可用"
+          description="受限运行时会话创建失败。"
+        />
+      </div>
+    );
+  }
+
+  const placeholder = getRuntimePreviewPlaceholderText(entry, runPlan);
+  if (!placeholder) {
+    return null;
+  }
+
+  return (
+    <div style={runtimePreviewAreaStyle}>
+      <Typography.Text type="secondary">{placeholder}</Typography.Text>
+    </div>
+  );
+}
+
+function getRuntimePreviewPlaceholderText(
+  entry?: FrontstagePageCanvasRuntimeSessionEntry | null,
+  runPlan?: FrontstagePageCanvasRuntimeRunPlanItem | null
+): string | null {
+  const skippedReason = entry?.status === 'skipped' ? entry.skipReason : null;
+  const runPlanStatus =
+    runPlan && runPlan.status !== 'run_plan_ready' ? runPlan.status : null;
+  const reason = skippedReason ?? runPlanStatus;
+
+  switch (reason) {
+    case 'source_not_ready':
+      return '运行时预览等待代码就绪';
+    case 'catalog_missing':
+      return '运行时预览等待 Catalog 匹配';
+    case 'rejected':
+      return '运行时预览未生成';
+    default:
+      return runPlan?.status === 'run_plan_ready'
+        ? '运行时预览等待运行时会话'
+        : null;
+  }
+}
+
 function RenderPlanSlot({
   item,
   source,
   runPlan,
+  runtimeSessionEntry,
   isSelected,
   onSelectBlock
 }: {
   item: FrontstageBlockRenderPlanItem;
   source?: FrontstagePageCanvasRuntimeSource | null;
   runPlan?: FrontstagePageCanvasRuntimeRunPlanItem | null;
+  runtimeSessionEntry?: FrontstagePageCanvasRuntimeSessionEntry | null;
   isSelected: boolean;
   onSelectBlock?: (blockId: string | null) => void;
 }) {
-  const rowStyle: CSSProperties = {
-    ...renderSlotButtonBaseStyle,
+  const frameStyle: CSSProperties = {
+    ...renderSlotFrameBaseStyle,
     borderColor: isSelected ? '#1677ff' : '#f0f0f0',
     background: isSelected ? '#e6f4ff' : '#fff'
+  };
+  const buttonStyle: CSSProperties = {
+    ...renderSlotButtonBaseStyle,
+    background: 'transparent'
   };
 
   const handleSelect = () => {
@@ -300,74 +419,81 @@ function RenderPlanSlot({
   };
 
   const fallbackReasons =
-    source?.status === 'skipped' ? source.fallbackReasons : item.fallbackReasons;
+    source?.status === 'skipped'
+      ? source.fallbackReasons
+      : item.fallbackReasons;
 
   return (
-    <button
-      type="button"
-      style={rowStyle}
-      onClick={handleSelect}
-      onKeyDown={handleKeyDown}
-    >
-      <Space direction="vertical" size={8} style={{ width: '100%' }}>
-        <Flex justify="space-between" align="flex-start" gap={12} wrap>
-          <Space direction="vertical" size={2} style={{ minWidth: 0 }}>
-            <Typography.Text strong ellipsis style={{ maxWidth: 360 }}>
-              {item.blockId}
-            </Typography.Text>
-            <Typography.Text type="secondary" style={{ fontSize: 12 }}>
-              {item.contribution.code} · {item.codeRef}
-            </Typography.Text>
-          </Space>
-          <Space size={6} wrap>
-            <Tag color={item.renderMode === 'placeholder' ? 'default' : 'blue'}>
-              {item.renderMode}
-            </Tag>
-            <Tag color={getRenderSlotStateColor(item, source)}>
-              {getRenderSlotStateText(item, source)}
-            </Tag>
-            {runPlan ? (
-              <Tag color={getRuntimeRunPlanStatusColor(runPlan)}>
-                {getRuntimeRunPlanStatusText(runPlan)}
-              </Tag>
-            ) : null}
-            <Tag>#{item.order}</Tag>
-          </Space>
-        </Flex>
-
-        <div
-          style={{
-            display: 'grid',
-            gridTemplateColumns: '112px minmax(0, 1fr)',
-            rowGap: 4,
-            columnGap: 8
-          }}
-        >
-          <Typography.Text type="secondary">Runtime</Typography.Text>
-          <Typography.Text>
-            {item.runtime.kind} · {formatOptional(item.runtime.entry)}
-          </Typography.Text>
-          <Typography.Text type="secondary">Layout</Typography.Text>
-          <Space size={6} wrap>
-            {formatLayoutEntries(item.layout).map((entry) => (
-              <Typography.Text key={entry} type="secondary">
-                {entry}
+    <div style={frameStyle}>
+      <button
+        type="button"
+        style={buttonStyle}
+        onClick={handleSelect}
+        onKeyDown={handleKeyDown}
+      >
+        <Space direction="vertical" size={8} style={{ width: '100%' }}>
+          <Flex justify="space-between" align="flex-start" gap={12} wrap>
+            <Space direction="vertical" size={2} style={{ minWidth: 0 }}>
+              <Typography.Text strong ellipsis style={{ maxWidth: 360 }}>
+                {item.blockId}
               </Typography.Text>
-            ))}
-          </Space>
-        </div>
-
-        {fallbackReasons.length > 0 ? (
-          <Space size={6} wrap>
-            {fallbackReasons.map((reason) => (
-              <Tag key={`${reason.code}-${reason.path}`} color="warning">
-                {reason.code}
+              <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+                {item.contribution.code} · {item.codeRef}
+              </Typography.Text>
+            </Space>
+            <Space size={6} wrap>
+              <Tag
+                color={item.renderMode === 'placeholder' ? 'default' : 'blue'}
+              >
+                {item.renderMode}
               </Tag>
-            ))}
-          </Space>
-        ) : null}
-      </Space>
-    </button>
+              <Tag color={getRenderSlotStateColor(item, source)}>
+                {getRenderSlotStateText(item, source)}
+              </Tag>
+              {runPlan ? (
+                <Tag color={getRuntimeRunPlanStatusColor(runPlan)}>
+                  {getRuntimeRunPlanStatusText(runPlan)}
+                </Tag>
+              ) : null}
+              <Tag>#{item.order}</Tag>
+            </Space>
+          </Flex>
+
+          <div
+            style={{
+              display: 'grid',
+              gridTemplateColumns: '112px minmax(0, 1fr)',
+              rowGap: 4,
+              columnGap: 8
+            }}
+          >
+            <Typography.Text type="secondary">Runtime</Typography.Text>
+            <Typography.Text>
+              {item.runtime.kind} · {formatOptional(item.runtime.entry)}
+            </Typography.Text>
+            <Typography.Text type="secondary">Layout</Typography.Text>
+            <Space size={6} wrap>
+              {formatLayoutEntries(item.layout).map((entry) => (
+                <Typography.Text key={entry} type="secondary">
+                  {entry}
+                </Typography.Text>
+              ))}
+            </Space>
+          </div>
+
+          {fallbackReasons.length > 0 ? (
+            <Space size={6} wrap>
+              {fallbackReasons.map((reason) => (
+                <Tag key={`${reason.code}-${reason.path}`} color="warning">
+                  {reason.code}
+                </Tag>
+              ))}
+            </Space>
+          ) : null}
+        </Space>
+      </button>
+      <RuntimeSessionPreview entry={runtimeSessionEntry} runPlan={runPlan} />
+    </div>
   );
 }
 
@@ -429,7 +555,8 @@ export const PageCanvas: FC<PageCanvasProps> = ({
   onSelectBlock,
   onRetry,
   runtimeSourceState,
-  runtimeRunPlanState
+  runtimeRunPlanState,
+  runtimeSessionEntries
 }) => {
   const document = useMemo(
     () => (content ? createFrontstagePageDocument(content) : null),
@@ -574,6 +701,11 @@ export const PageCanvas: FC<PageCanvasProps> = ({
                     slotIndex,
                     pageId: renderPlan.pageId,
                     runtimeRunPlanState
+                  })}
+                  runtimeSessionEntry={findRuntimeSessionEntryForSlot({
+                    item,
+                    slotIndex,
+                    runtimeSessionEntries
                   })}
                   isSelected={item.blockId === selectedBlockId}
                   onSelectBlock={onSelectBlock}
