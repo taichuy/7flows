@@ -103,6 +103,52 @@ describe('PageCanvas', () => {
     expect(screen.getByText('footer')).toBeInTheDocument();
   });
 
+  test('renders read-only render plan slots with runtime state and fallback reasons', () => {
+    render(
+      <PageCanvas
+        content={createPageContent({
+          root: {
+            uid: 'root-1',
+            payload: {
+              blocks: [
+                {
+                  id: 'legacy',
+                  codeRef: 'legacy-code',
+                  contributionCode: 'official.legacy',
+                  runtime: { kind: 'inline', entry: 'legacy.js' },
+                  layout: { order: 20, region: 'footer', span: 6 }
+                },
+                {
+                  id: 'hero',
+                  codeRef: 'hero-code',
+                  contributionCode: 'official.hero',
+                  runtime: { kind: 'iframe', entry: 'blocks/hero.js' },
+                  layout: { order: 10, region: 'main', span: 12 }
+                }
+              ]
+            }
+          }
+        })}
+      />
+    );
+
+    const slots = within(screen.getByTestId('page-canvas-render-slots'))
+      .getAllByRole('button');
+    expect(slots).toHaveLength(2);
+    expect(slots[0]).toHaveTextContent('hero');
+    expect(slots[0]).toHaveTextContent('restricted_js_block');
+    expect(slots[0]).toHaveTextContent('可运行，等待运行时接入');
+    expect(slots[0]).toHaveTextContent('blocks/hero.js');
+    expect(slots[0]).toHaveTextContent('order: 10');
+    expect(slots[0]).toHaveTextContent('region: main');
+    expect(slots[0]).toHaveTextContent('span: 12');
+
+    expect(slots[1]).toHaveTextContent('legacy');
+    expect(slots[1]).toHaveTextContent('placeholder');
+    expect(slots[1]).toHaveTextContent('unsupported_runtime');
+    expect(slots[1]).toHaveTextContent('legacy.js');
+  });
+
   test('notifies selection changes without persisting content', () => {
     const onSelectBlock = vi.fn();
 

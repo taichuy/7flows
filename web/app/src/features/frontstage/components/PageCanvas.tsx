@@ -8,6 +8,10 @@ import {
   type FrontstageBlockInstance,
   type FrontstagePageDocumentDiagnostic
 } from '../lib/page-document';
+import {
+  createFrontstagePageRenderPlan,
+  type FrontstageBlockRenderPlanItem
+} from '../lib/page-canvas/render-plan';
 
 type PageCanvasProps = {
   content?: FrontstagePageContent;
@@ -38,6 +42,51 @@ function formatLayoutValue(value: unknown): string {
   return '未设置';
 }
 
+const preferredLayoutKeys = [
+  'order',
+  'region',
+  'span',
+  'width',
+  'height',
+  'gridColumn',
+  'gridRow',
+  'column',
+  'row'
+];
+
+function isDisplayableLayoutValue(
+  value: unknown
+): value is string | number | boolean {
+  return (
+    typeof value === 'string' ||
+    typeof value === 'number' ||
+    typeof value === 'boolean'
+  );
+}
+
+function formatLayoutEntries(
+  layout: FrontstageBlockRenderPlanItem['layout']
+): string[] {
+  return Object.entries(layout)
+    .filter(([, value]) => isDisplayableLayoutValue(value))
+    .sort(([leftKey], [rightKey]) => {
+      const leftIndex = preferredLayoutKeys.indexOf(leftKey);
+      const rightIndex = preferredLayoutKeys.indexOf(rightKey);
+      const normalizedLeftIndex =
+        leftIndex === -1 ? preferredLayoutKeys.length : leftIndex;
+      const normalizedRightIndex =
+        rightIndex === -1 ? preferredLayoutKeys.length : rightIndex;
+
+      if (normalizedLeftIndex === normalizedRightIndex) {
+        return leftKey.localeCompare(rightKey);
+      }
+
+      return normalizedLeftIndex - normalizedRightIndex;
+    })
+    .slice(0, 6)
+    .map(([key, value]) => `${key}: ${String(value)}`);
+}
+
 function getDiagnosticTone(
   diagnostic: FrontstagePageDocumentDiagnostic
 ): 'error' | 'warning' {
@@ -56,7 +105,7 @@ const mutedSectionStyle: CSSProperties = {
   background: '#fafafa'
 };
 
-const blockRowBaseStyle: CSSProperties = {
+const renderSlotButtonBaseStyle: CSSProperties = {
   width: '100%',
   border: '1px solid #f0f0f0',
   borderRadius: 6,
@@ -67,23 +116,33 @@ const blockRowBaseStyle: CSSProperties = {
   cursor: 'pointer'
 };
 
-function BlockRow({
-  block,
+function getRenderSlotStateText(item: FrontstageBlockRenderPlanItem): string {
+  if (item.renderMode === 'restricted_js_block') {
+    return item.canEnterRestrictedJsRuntime
+      ? '可运行，等待运行时接入'
+      : '等待运行时接入';
+  }
+
+  return '占位显示';
+}
+
+function RenderPlanSlot({
+  item,
   isSelected,
   onSelectBlock
 }: {
-  block: FrontstageBlockInstance;
+  item: FrontstageBlockRenderPlanItem;
   isSelected: boolean;
   onSelectBlock?: (blockId: string | null) => void;
 }) {
   const rowStyle: CSSProperties = {
-    ...blockRowBaseStyle,
+    ...renderSlotButtonBaseStyle,
     borderColor: isSelected ? '#1677ff' : '#f0f0f0',
     background: isSelected ? '#e6f4ff' : '#fff'
   };
 
   const handleSelect = () => {
-    onSelectBlock?.(block.id);
+    onSelectBlock?.(item.blockId);
   };
 
   const handleKeyDown = (event: KeyboardEvent<HTMLButtonElement>) => {
@@ -100,20 +159,61 @@ function BlockRow({
       onClick={handleSelect}
       onKeyDown={handleKeyDown}
     >
-      <Flex justify="space-between" align="center" gap={12}>
-        <Space direction="vertical" size={2} style={{ minWidth: 0 }}>
-          <Typography.Text strong ellipsis style={{ maxWidth: 360 }}>
-            {block.id}
+      <Space direction="vertical" size={8} style={{ width: '100%' }}>
+        <Flex justify="space-between" align="flex-start" gap={12} wrap>
+          <Space direction="vertical" size={2} style={{ minWidth: 0 }}>
+            <Typography.Text strong ellipsis style={{ maxWidth: 360 }}>
+              {item.blockId}
+            </Typography.Text>
+            <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+              {item.contribution.code} · {item.codeRef}
+            </Typography.Text>
+          </Space>
+          <Space size={6} wrap>
+            <Tag color={item.renderMode === 'placeholder' ? 'default' : 'blue'}>
+              {item.renderMode}
+            </Tag>
+            <Tag
+              color={item.renderMode === 'placeholder' ? 'warning' : 'green'}
+            >
+              {getRenderSlotStateText(item)}
+            </Tag>
+            <Tag>#{item.order}</Tag>
+          </Space>
+        </Flex>
+
+        <div
+          style={{
+            display: 'grid',
+            gridTemplateColumns: '112px minmax(0, 1fr)',
+            rowGap: 4,
+            columnGap: 8
+          }}
+        >
+          <Typography.Text type="secondary">Runtime</Typography.Text>
+          <Typography.Text>
+            {item.runtime.kind} · {formatOptional(item.runtime.entry)}
           </Typography.Text>
-          <Typography.Text type="secondary" style={{ fontSize: 12 }}>
-            {block.contribution.code} · {block.codeRef}
-          </Typography.Text>
-        </Space>
-        <Space size={6}>
-          <Tag>{block.runtime.kind}</Tag>
-          <Tag>#{block.order}</Tag>
-        </Space>
-      </Flex>
+          <Typography.Text type="secondary">Layout</Typography.Text>
+          <Space size={6} wrap>
+            {formatLayoutEntries(item.layout).map((entry) => (
+              <Typography.Text key={entry} type="secondary">
+                {entry}
+              </Typography.Text>
+            ))}
+          </Space>
+        </div>
+
+        {item.fallbackReasons.length > 0 ? (
+          <Space size={6} wrap>
+            {item.fallbackReasons.map((reason) => (
+              <Tag key={`${reason.code}-${reason.path}`} color="warning">
+                {reason.code}
+              </Tag>
+            ))}
+          </Space>
+        ) : null}
+      </Space>
     </button>
   );
 }
@@ -180,15 +280,13 @@ export const PageCanvas: FC<PageCanvasProps> = ({
     () => (content ? createFrontstagePageDocument(content) : null),
     [content]
   );
-  const blocks = useMemo(
-    () =>
-      document
-        ? [...document.blocks].sort((left, right) => left.order - right.order)
-        : [],
+  const renderPlan = useMemo(
+    () => (document ? createFrontstagePageRenderPlan(document) : null),
     [document]
   );
+  const renderItems = renderPlan?.items ?? [];
   const selectedBlock =
-    blocks.find((block) => block.id === selectedBlockId) ?? null;
+    document?.blocks.find((block) => block.id === selectedBlockId) ?? null;
 
   if (isLoading) {
     return (
@@ -221,7 +319,7 @@ export const PageCanvas: FC<PageCanvasProps> = ({
     );
   }
 
-  if (!content || !document) {
+  if (!content || !document || !renderPlan) {
     return (
       <Empty
         image={Empty.PRESENTED_IMAGE_SIMPLE}
@@ -253,18 +351,21 @@ export const PageCanvas: FC<PageCanvasProps> = ({
           </Typography.Text>
         </Space>
         <Space size={8} wrap>
-          <Tag>{blocks.length} 个区块</Tag>
-          <Tag color={document.diagnostics.length > 0 ? 'warning' : 'success'}>
-            {document.diagnostics.length} 条诊断
+          <Tag>{document.blocks.length} 个区块</Tag>
+          <Tag>{renderItems.length} 个槽位</Tag>
+          <Tag
+            color={renderPlan.diagnostics.length > 0 ? 'warning' : 'success'}
+          >
+            {renderPlan.diagnostics.length} 条诊断
           </Tag>
         </Space>
       </Flex>
 
-      {document.diagnostics.length > 0 ? (
+      {renderPlan.diagnostics.length > 0 ? (
         <div data-testid="page-canvas-diagnostics" style={sectionStyle}>
           <Space direction="vertical" size={8} style={{ width: '100%' }}>
             <Typography.Text strong>文档诊断</Typography.Text>
-            {document.diagnostics.map((diagnostic, index) => (
+            {renderPlan.diagnostics.map((diagnostic, index) => (
               <Alert
                 key={`${diagnostic.code}-${diagnostic.path}-${index}`}
                 type={getDiagnosticTone(diagnostic)}
@@ -284,7 +385,7 @@ export const PageCanvas: FC<PageCanvasProps> = ({
         </div>
       ) : null}
 
-      {document.isEmpty ? (
+      {renderPlan.isEmpty ? (
         <div style={mutedSectionStyle}>
           <Empty
             image={Empty.PRESENTED_IMAGE_SIMPLE}
@@ -296,13 +397,18 @@ export const PageCanvas: FC<PageCanvasProps> = ({
       ) : (
         <Flex gap={12} align="flex-start" wrap>
           <div style={{ ...sectionStyle, flex: '1 1 auto', minWidth: 0 }}>
-            <Space direction="vertical" size={8} style={{ width: '100%' }}>
-              <Typography.Text strong>区块列表</Typography.Text>
-              {blocks.map((block) => (
-                <BlockRow
-                  key={block.id}
-                  block={block}
-                  isSelected={block.id === selectedBlockId}
+            <Space
+              data-testid="page-canvas-render-slots"
+              direction="vertical"
+              size={8}
+              style={{ width: '100%' }}
+            >
+              <Typography.Text strong>渲染槽位</Typography.Text>
+              {renderItems.map((item) => (
+                <RenderPlanSlot
+                  key={item.blockId}
+                  item={item}
+                  isSelected={item.blockId === selectedBlockId}
                   onSelectBlock={onSelectBlock}
                 />
               ))}
