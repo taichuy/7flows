@@ -63,7 +63,7 @@ function createCatalogEntry(
 ): NormalizedFrontstageBlockCatalogEntry {
   return {
     id: 'official:hero.banner',
-    runtimeKind: 'js-ui',
+    runtimeKind: 'iframe',
     installationId: 'installation-1',
     providerCode: 'official',
     pluginId: 'official.blocks',
@@ -93,7 +93,7 @@ function createCatalogEntry(
       plugin_version: '1.0.0',
       contribution_code: 'hero.banner',
       title: 'Hero Banner',
-      runtime: 'js-ui',
+      runtime: 'iframe',
       entry: 'blocks/hero/index.js',
       context_contract: {
         primitives: ['text', 'button', 'data_record'],
